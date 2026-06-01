@@ -415,7 +415,8 @@ fun PlayerControls(
             onResetControlsTimestamp = { resetControlsTimestamp = System.currentTimeMillis() },
             seekPreview = seekPreview,
             aspect = aspect,
-            areControlsLocked = areControlsLocked
+            areControlsLocked = areControlsLocked,
+            onUnlockSliderDragging = { isUnlockSliderDragging = it },
           )
         } else {
           ConstraintLayout(
@@ -2138,9 +2139,83 @@ fun ModernPlayerControlsLayout(
   seekPreview: SeekThumbnailPreview,
   aspect: VideoAspect,
   areControlsLocked: Boolean,
+  onUnlockSliderDragging: (Boolean) -> Unit,
 ) {
   val playerPreferences = koinInject<PlayerPreferences>()
   val appearancePreferences = koinInject<AppearancePreferences>()
+  val audioPreferences = koinInject<AudioPreferences>()
+
+  // ── Animated gradient ──
+  val gradientAlpha by animateFloatAsState(
+    if (controlsShown && !areControlsLocked) 1f else 0f,
+    animationSpec = playerControlsExitAnimationSpec(),
+    label = "modern_gradient_alpha",
+  )
+
+  // ── Volume / Brightness slider state ──
+  val isBrightnessSliderShown by viewModel.isBrightnessSliderShown.collectAsState()
+  val isVolumeSliderShown by viewModel.isVolumeSliderShown.collectAsState()
+  val brightnessValue by viewModel.currentBrightness.collectAsState()
+  val volumeValue by viewModel.currentVolume.collectAsState()
+  val volumePercentValue by viewModel.currentVolumePercent.collectAsState()
+  val mpvVolume by MPVLib.propInt["volume"].collectAsState()
+  val swapVolumeAndBrightness by playerPreferences.swapVolumeAndBrightness.collectAsState()
+  val showVolumeGestureOverlay by playerPreferences.showVolumeGestureOverlay.collectAsState()
+  val showBrightnessGestureOverlay by playerPreferences.showBrightnessGestureOverlay.collectAsState()
+  val volumeSliderTimestamp by viewModel.volumeSliderTimestamp.collectAsState()
+  val brightnessSliderTimestamp by viewModel.brightnessSliderTimestamp.collectAsState()
+  val sliderDisplayDuration = 1000L
+
+  LaunchedEffect(volumeSliderTimestamp) {
+    if (isVolumeSliderShown && volumeSliderTimestamp > 0) {
+      delay(sliderDisplayDuration)
+      viewModel.isVolumeSliderShown.update { false }
+    }
+  }
+  LaunchedEffect(brightnessSliderTimestamp) {
+    if (isBrightnessSliderShown && brightnessSliderTimestamp > 0) {
+      delay(sliderDisplayDuration)
+      viewModel.isBrightnessSliderShown.update { false }
+    }
+  }
+
+  // ── Player update state ──
+  val currentPlayerUpdate by viewModel.playerUpdate.collectAsState()
+  val videoZoom by viewModel.videoZoom.collectAsState()
+  val currentAspectRatio by viewModel.currentAspectRatio.collectAsState()
+  val playlistMode by playerPreferences.playlistMode.collectAsState()
+  val holdForMultipleSpeed by playerPreferences.holdForMultipleSpeed.collectAsState()
+  val showHoldSpeedOverlay by playerPreferences.showHoldSpeedOverlay.collectAsState()
+  val showAspectRatioOverlay by playerPreferences.showAspectRatioOverlay.collectAsState()
+  val showZoomLevelOverlay by playerPreferences.showZoomLevelOverlay.collectAsState()
+  val showRepeatShuffleOverlay by playerPreferences.showRepeatShuffleOverlay.collectAsState()
+  val showActionFeedbackOverlay by playerPreferences.showActionFeedbackOverlay.collectAsState()
+
+  val shouldShowPlayerUpdate = when (currentPlayerUpdate) {
+    is PlayerUpdates.MultipleSpeed,
+    is PlayerUpdates.DynamicSpeedControl  -> showHoldSpeedOverlay
+    is PlayerUpdates.AspectRatio           -> showAspectRatioOverlay
+    is PlayerUpdates.VideoZoom             -> showZoomLevelOverlay
+    is PlayerUpdates.SubtitleZoom          -> showZoomLevelOverlay
+    is PlayerUpdates.RepeatMode,
+    is PlayerUpdates.Shuffle               -> showRepeatShuffleOverlay
+    is PlayerUpdates.ShowText              -> showActionFeedbackOverlay
+    is PlayerUpdates.HorizontalSeek,
+    is PlayerUpdates.FrameInfo             -> true
+    is PlayerUpdates.None                  -> false
+  }
+
+  LaunchedEffect(currentPlayerUpdate, aspect, videoZoom) {
+    if (currentPlayerUpdate is PlayerUpdates.MultipleSpeed ||
+      currentPlayerUpdate is PlayerUpdates.DynamicSpeedControl ||
+      currentPlayerUpdate is PlayerUpdates.None
+    ) return@LaunchedEffect
+    delay(2000)
+    viewModel.playerUpdate.update { PlayerUpdates.None }
+  }
+
+  // ── Skip segment ──
+  val currentSkippableSegment by viewModel.currentSkippableSegment.collectAsState()
 
   Box(
     modifier = Modifier
@@ -2153,7 +2228,8 @@ fun ModernPlayerControlsLayout(
             Color.Transparent,
             Color.Black.copy(alpha = 0.65f)
           )
-        )
+        ),
+        alpha = gradientAlpha,
       )
   ) {
     // 1. TOP BAR
@@ -2209,7 +2285,7 @@ fun ModernPlayerControlsLayout(
           contentAlignment = Alignment.Center
         ) {
           Text(
-            text = mediaTitle ?: "Cine",
+            text = mediaTitle ?: "",
             fontWeight = FontWeight.Bold,
             fontSize = 16.sp,
             color = Color.White,
@@ -2301,15 +2377,12 @@ fun ModernPlayerControlsLayout(
                 onResetControlsTimestamp()
                 viewModel.pauseUnpause()
               },
-              modifier = Modifier
-                .size(44.dp)
-                .background(Color.White, CircleShape)
             ) {
               AppIconView(
                 imageVector = if (paused == true) AppIcons.Default.PlayArrow else AppIcons.Default.Pause,
                 contentDescription = "Play/Pause",
-                tint = Color.Black,
-                modifier = Modifier.size(24.dp)
+                tint = Color.White,
+                modifier = Modifier.size(28.dp)
               )
             }
 
@@ -2531,27 +2604,173 @@ fun ModernPlayerControlsLayout(
               isPortrait = isPortrait,
             )
 
-            // Dynamic remaining / total duration label under/near seekbar on the right (matching video.png style)
-            val remaining = maxOf(0, (duration ?: 0) - (position ?: 0))
-            val timeLabelText = if (invertDuration) {
-              "-${viewModel.formatTimestamp(remaining.toDouble())} | ${viewModel.formatTimestamp((duration ?: 0).toDouble())}"
-            } else {
-              "${viewModel.formatTimestamp((position ?: 0).toDouble())} | ${viewModel.formatTimestamp((duration ?: 0).toDouble())}"
-            }
 
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.End
-            ) {
-              Text(
-                text = timeLabelText,
-                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                color = Color.White.copy(alpha = 0.85f),
-                modifier = Modifier.padding(end = 8.dp)
-              )
-            }
           }
         }
+      }
+    }
+
+    // ── Volume / Brightness gesture sliders ──
+    AnimatedVisibility(
+      isBrightnessSliderShown && showBrightnessGestureOverlay,
+      enter = fadeIn() + slideInHorizontally { if (swapVolumeAndBrightness) -it else it },
+      exit = fadeOut() + slideOutHorizontally { if (swapVolumeAndBrightness) -it else it },
+      modifier = Modifier
+        .align(if (swapVolumeAndBrightness) Alignment.CenterStart else Alignment.CenterEnd)
+        .padding(horizontal = if (isPortrait) 24.dp else 48.dp)
+    ) { BrightnessSlider(brightnessValue, 0f..1f) }
+
+    AnimatedVisibility(
+      isVolumeSliderShown && showVolumeGestureOverlay,
+      enter = fadeIn() + slideInHorizontally { if (swapVolumeAndBrightness) it else -it },
+      exit = fadeOut() + slideOutHorizontally { if (swapVolumeAndBrightness) it else -it },
+      modifier = Modifier
+        .align(if (swapVolumeAndBrightness) Alignment.CenterEnd else Alignment.CenterStart)
+        .padding(horizontal = if (isPortrait) 24.dp else 48.dp)
+    ) {
+      val boostCap by audioPreferences.volumeBoostCap.collectAsState()
+      val displayVolumeAsPercentage by playerPreferences.displayVolumeAsPercentage.collectAsState()
+      val currentBoost = (mpvVolume ?: 100) - 100
+      val showBoost = boostCap > 0 || currentBoost > 0
+      val effBoostCap = maxOf(boostCap, currentBoost)
+      VolumeSlider(
+        volumeValue,
+        volumePercentage = volumePercentValue,
+        mpvVolume = mpvVolume ?: 100,
+        range = 0..viewModel.maxVolume,
+        boostRange = if (showBoost) 0..effBoostCap else null,
+        displayAsPercentage = displayVolumeAsPercentage,
+      )
+    }
+
+    // ── Player update overlays (speed, aspect, zoom, etc.) ──
+    AnimatedVisibility(
+      shouldShowPlayerUpdate,
+      enter = fadeIn(playerControlsEnterAnimationSpec()),
+      exit = fadeOut(playerControlsExitAnimationSpec()),
+      modifier = Modifier
+        .align(Alignment.TopCenter)
+        .windowInsetsPadding(WindowInsets.statusBars)
+        .padding(top = if (isPortrait) 104.dp else 64.dp)
+    ) {
+      when (currentPlayerUpdate) {
+        is PlayerUpdates.MultipleSpeed -> MultipleSpeedPlayerUpdate(currentSpeed = holdForMultipleSpeed)
+        is PlayerUpdates.DynamicSpeedControl -> {
+          val speedUpdate = currentPlayerUpdate as PlayerUpdates.DynamicSpeedControl
+          val showDynamicSpeedOverlay by playerPreferences.showDynamicSpeedOverlay.collectAsState()
+          var isCollapsed by remember { mutableStateOf(false) }
+          LaunchedEffect(speedUpdate.speed, speedUpdate.showFullOverlay) {
+            if (speedUpdate.showFullOverlay) { isCollapsed = false; delay(1500); isCollapsed = true }
+            else { isCollapsed = true }
+          }
+          if (showDynamicSpeedOverlay) {
+            if (isCollapsed) CompactSpeedIndicator(currentSpeed = speedUpdate.speed)
+            else SpeedControlSlider(currentSpeed = speedUpdate.speed)
+          } else {
+            CompactSpeedIndicator(currentSpeed = speedUpdate.speed)
+          }
+        }
+        is PlayerUpdates.AspectRatio -> {
+          val customRatiosSet by playerPreferences.customAspectRatios.collectAsState()
+          val displayText = if (currentAspectRatio > 0) {
+            val customLabel = customRatiosSet.firstNotNullOfOrNull { str ->
+              val parts = str.split("|")
+              if (parts.size == 2) {
+                val savedRatio = parts[1].toDoubleOrNull()
+                if (savedRatio != null && abs(savedRatio - currentAspectRatio) < 0.01) parts[0] else null
+              } else null
+            }
+            customLabel ?: when {
+              abs(currentAspectRatio - 16.0/9.0) < 0.01 -> "16:9"
+              abs(currentAspectRatio - 4.0/3.0) < 0.01 -> "4:3"
+              abs(currentAspectRatio - 16.0/10.0) < 0.01 -> "16:10"
+              abs(currentAspectRatio - 21.0/9.0) < 0.01 -> "21:9"
+              abs(currentAspectRatio - 32.0/9.0) < 0.01 -> "32:9"
+              abs(currentAspectRatio - 1.0) < 0.01 -> "1:1"
+              abs(currentAspectRatio - 2.35) < 0.01 -> "2.35:1"
+              abs(currentAspectRatio - 2.39) < 0.01 -> "2.39:1"
+              else -> String.format("%.2f:1", currentAspectRatio)
+            }
+          } else {
+            stringResource(aspect.titleRes)
+          }
+          TextPlayerUpdate(displayText)
+        }
+        is PlayerUpdates.ShowText ->
+          TextPlayerUpdate((currentPlayerUpdate as PlayerUpdates.ShowText).value, modifier = Modifier.widthIn(min = 120.dp))
+        is PlayerUpdates.VideoZoom ->
+          TextPlayerUpdate(text = String.format("Zoom:%3d%%", (videoZoom * 100).toInt()), modifier = Modifier.widthIn(min = 112.dp))
+        is PlayerUpdates.SubtitleZoom ->
+          TextPlayerUpdate(text = String.format("Sub: %.2fx", (currentPlayerUpdate as PlayerUpdates.SubtitleZoom).scale), modifier = Modifier.widthIn(min = 112.dp))
+        is PlayerUpdates.HorizontalSeek -> {
+          val seekUpdate = currentPlayerUpdate as PlayerUpdates.HorizontalSeek
+          SeekPlayerUpdate(currentTime = seekUpdate.currentTime, seekDelta = "[${seekUpdate.seekDelta}]", modifier = Modifier.widthIn(min = 168.dp))
+        }
+        is PlayerUpdates.RepeatMode -> {
+          val mode = (currentPlayerUpdate as PlayerUpdates.RepeatMode).mode
+          TextPlayerUpdate(when (mode) {
+            app.gyrolet.mpvrx.ui.player.RepeatMode.OFF -> "Repeat: Off"
+            app.gyrolet.mpvrx.ui.player.RepeatMode.ONE -> "Repeat: Current file"
+            app.gyrolet.mpvrx.ui.player.RepeatMode.ALL -> if (playlistMode && viewModel.hasPlaylistSupport()) "Repeat: All playlist" else "Repeat: Current file"
+          })
+        }
+        is PlayerUpdates.Shuffle -> {
+          val enabled = (currentPlayerUpdate as PlayerUpdates.Shuffle).enabled
+          TextPlayerUpdate(if (enabled) { if (playlistMode && viewModel.hasPlaylistSupport()) "Shuffle: On" else "Shuffle: Not available" } else "Shuffle: Off")
+        }
+        is PlayerUpdates.FrameInfo -> {
+          val frameInfo = currentPlayerUpdate as PlayerUpdates.FrameInfo
+          TextPlayerUpdate(if (frameInfo.totalFrames > 0) "Frame: ${frameInfo.currentFrame}/${frameInfo.totalFrames}" else "Frame: ${frameInfo.currentFrame}")
+        }
+        else -> {}
+      }
+    }
+
+    // ── Lock / Unlock controls ──
+    AnimatedVisibility(
+      visible = controlsShown && areControlsLocked,
+      enter = fadeIn(),
+      exit = fadeOut(),
+      modifier = Modifier
+        .align(Alignment.BottomCenter)
+        .windowInsetsPadding(WindowInsets.navigationBars)
+        .padding(bottom = 64.dp)
+    ) {
+      SlideToUnlock(
+        onUnlock = { viewModel.unlockControls() },
+        onDraggingChanged = onUnlockSliderDragging,
+      )
+    }
+
+    // ── Skip segment chip ──
+    AnimatedVisibility(
+      visible = controlsShown && !areControlsLocked && currentSkippableSegment != null,
+      enter = fadeIn(playerControlsEnterAnimationSpec()),
+      exit = fadeOut(playerControlsExitAnimationSpec()),
+      modifier = Modifier
+        .align(Alignment.BottomEnd)
+        .windowInsetsPadding(WindowInsets.navigationBars)
+        .padding(end = 24.dp, bottom = if (isPortrait) 120.dp else 100.dp)
+    ) {
+      val segment = currentSkippableSegment ?: return@AnimatedVisibility
+      val segmentColor = segment.type.accentColor
+      Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = Color(red = segmentColor.red * 0.30f, green = segmentColor.green * 0.30f, blue = segmentColor.blue * 0.30f, alpha = 0.88f),
+        border = BorderStroke(1.5.dp, Color(red = segmentColor.red * 0.72f, green = segmentColor.green * 0.72f, blue = segmentColor.blue * 0.72f, alpha = 0.96f)),
+        modifier = Modifier
+          .clip(RoundedCornerShape(999.dp))
+          .clickable {
+            onResetControlsTimestamp()
+            viewModel.skipActiveSegment()
+          }
+      ) {
+        Text(
+          text = segment.label,
+          style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+          color = segmentColor.copy(alpha = 1f),
+          modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
       }
     }
 

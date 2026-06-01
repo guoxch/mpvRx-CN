@@ -2309,7 +2309,7 @@ fun ModernPlayerControlsLayout(
             modifier = Modifier.background(Color.Black.copy(alpha = 0.45f), CircleShape)
           ) {
             AppIconView(
-              imageVector = AppIcons.Default.Menu,
+              imageVector = AppIcons.Default.MoreVert,
               contentDescription = "Menu",
               tint = Color.White
             )

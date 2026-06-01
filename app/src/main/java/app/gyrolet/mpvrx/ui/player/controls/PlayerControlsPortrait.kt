@@ -166,16 +166,19 @@ fun BottomPlayerControlsPortrait(
   onOpenPanel: (Panels) -> Unit,
   viewModel: PlayerViewModel,
   activity: PlayerActivity,
+  useRotatingOverflow: Boolean,
 ) {
-  Row(
-    modifier = Modifier
-      .fillMaxWidth()
-      .horizontalScroll(rememberScrollState())
-      .padding(bottom = MaterialTheme.spacing.medium),
-    horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium, Alignment.CenterHorizontally),
-    verticalAlignment = Alignment.CenterVertically,
-  ) {
-    buttons.forEach { button ->
+  if (useRotatingOverflow) {
+    RotatingPlayerControlsRow(
+      buttons = buttons,
+      hideBackground = hideBackground,
+      buttonSize = 44.dp,
+      maxVisibleButtons = 7,
+      horizontalAlignment = Alignment.CenterHorizontally,
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(bottom = MaterialTheme.spacing.medium),
+    ) { button ->
       RenderPlayerButton(
         button = button,
         chapters = chapters,
@@ -195,6 +198,37 @@ fun BottomPlayerControlsPortrait(
         playbackSpeed = playbackSpeed,
         buttonSize = 44.dp, // Slightly more compact size
       )
+    }
+  } else {
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .horizontalScroll(rememberScrollState())
+        .padding(bottom = MaterialTheme.spacing.medium),
+      horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium, Alignment.CenterHorizontally),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      buttons.forEach { button ->
+        RenderPlayerButton(
+          button = button,
+          chapters = chapters,
+          currentChapter = currentChapter,
+          isPortrait = true,
+          isSpeedNonOne = isSpeedNonOne,
+          currentZoom = currentZoom,
+          aspect = aspect,
+          mediaTitle = mediaTitle,
+          hideBackground = hideBackground,
+          onBackPress = onBackPress,
+          onOpenSheet = onOpenSheet,
+          onOpenPanel = onOpenPanel,
+          viewModel = viewModel,
+          activity = activity,
+          decoder = decoder,
+          playbackSpeed = playbackSpeed,
+          buttonSize = 44.dp,
+        )
+      }
     }
   }
 }

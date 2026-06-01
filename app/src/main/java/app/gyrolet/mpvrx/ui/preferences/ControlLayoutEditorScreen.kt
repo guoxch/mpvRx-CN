@@ -54,8 +54,15 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyGridState
 
 @Serializable
+enum class ControlLayoutProfile {
+  LEGACY,
+  MODERN,
+}
+
+@Serializable
 data class ControlLayoutEditorScreen(
   val region: ControlRegion,
+  val profile: ControlLayoutProfile = ControlLayoutProfile.LEGACY,
 ) : Screen {
   @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
   @Composable
@@ -65,33 +72,64 @@ data class ControlLayoutEditorScreen(
 
     // Get all 4 preferences as a List
     val prefs =
-      remember(region) {
-        when (region) {
-          ControlRegion.TOP_RIGHT ->
-            listOf(
-              preferences.topRightControls,
-              preferences.topLeftControls,
-              preferences.bottomRightControls,
-              preferences.bottomLeftControls,
-            )
-          ControlRegion.BOTTOM_RIGHT ->
-            listOf(
-              preferences.bottomRightControls,
-              preferences.topLeftControls,
-              preferences.topRightControls,
-              preferences.bottomLeftControls,
-            )
-          ControlRegion.BOTTOM_LEFT ->
-            listOf(
-              preferences.bottomLeftControls,
-              preferences.topLeftControls,
-              preferences.topRightControls,
-              preferences.bottomRightControls,
-            )
-          ControlRegion.PORTRAIT_BOTTOM ->
-            listOf(
-              preferences.portraitBottomControls,
-            )
+      remember(region, profile) {
+        when (profile) {
+          ControlLayoutProfile.LEGACY ->
+            when (region) {
+              ControlRegion.TOP_RIGHT ->
+                listOf(
+                  preferences.topRightControls,
+                  preferences.topLeftControls,
+                  preferences.bottomRightControls,
+                  preferences.bottomLeftControls,
+                )
+              ControlRegion.BOTTOM_RIGHT ->
+                listOf(
+                  preferences.bottomRightControls,
+                  preferences.topLeftControls,
+                  preferences.topRightControls,
+                  preferences.bottomLeftControls,
+                )
+              ControlRegion.BOTTOM_LEFT ->
+                listOf(
+                  preferences.bottomLeftControls,
+                  preferences.topLeftControls,
+                  preferences.topRightControls,
+                  preferences.bottomRightControls,
+                )
+              ControlRegion.PORTRAIT_BOTTOM ->
+                listOf(
+                  preferences.portraitBottomControls,
+                )
+            }
+          ControlLayoutProfile.MODERN ->
+            when (region) {
+              ControlRegion.TOP_RIGHT ->
+                listOf(
+                  preferences.modernTopRightControls,
+                  preferences.topLeftControls,
+                  preferences.modernBottomRightControls,
+                  preferences.modernBottomLeftControls,
+                )
+              ControlRegion.BOTTOM_RIGHT ->
+                listOf(
+                  preferences.modernBottomRightControls,
+                  preferences.topLeftControls,
+                  preferences.modernTopRightControls,
+                  preferences.modernBottomLeftControls,
+                )
+              ControlRegion.BOTTOM_LEFT ->
+                listOf(
+                  preferences.modernBottomLeftControls,
+                  preferences.topLeftControls,
+                  preferences.modernTopRightControls,
+                  preferences.modernBottomRightControls,
+                )
+              ControlRegion.PORTRAIT_BOTTOM ->
+                listOf(
+                  preferences.modernPortraitBottomControls,
+                )
+            }
         }
       }
 
@@ -142,12 +180,13 @@ data class ControlLayoutEditorScreen(
     }
 
     val title =
-      remember(region) {
+      remember(region, profile) {
+        val prefix = if (profile == ControlLayoutProfile.MODERN) "Modern" else "Legacy"
         when (region) {
-          ControlRegion.TOP_RIGHT -> "Edit Top Right"
-          ControlRegion.BOTTOM_RIGHT -> "Edit Bottom Right"
-          ControlRegion.BOTTOM_LEFT -> "Edit Bottom Left"
-          ControlRegion.PORTRAIT_BOTTOM -> "Edit Portrait Bottom"
+          ControlRegion.TOP_RIGHT -> "$prefix Top Right"
+          ControlRegion.BOTTOM_RIGHT -> "$prefix Bottom Right"
+          ControlRegion.BOTTOM_LEFT -> "$prefix Bottom Left"
+          ControlRegion.PORTRAIT_BOTTOM -> "$prefix Portrait Bottom"
         }
       }
 
@@ -156,7 +195,7 @@ data class ControlLayoutEditorScreen(
     if (showResetDialog) {
       ConfirmDialog(
         title = "Reset to default?",
-        subtitle = "This will reset the controls in this region to their default configuration.",
+        subtitle = "This resets only the ${profile.name.lowercase()} controls for this region.",
         onConfirm = {
           prefToEdit.delete()
           selectedButtons = prefToEdit
@@ -225,7 +264,12 @@ data class ControlLayoutEditorScreen(
             // --- 1. Header & Active Selected Zone ---
             item(span = { GridItemSpan(maxLineSpan) }) {
               androidx.compose.material3.Text(
-                      text = "Long press to reorder items. Tap the '-' icon to remove them.",
+                      text =
+                        if (profile == ControlLayoutProfile.MODERN) {
+                          "Selected order. Long press and drag to position. Tap the red badge to remove. Overflowing modern rows rotate with a horizontal swipe."
+                        } else {
+                          "Selected order. Long press and drag to position. Tap the red badge to remove. Legacy rows keep the classic scroll layout."
+                        },
                       style = MaterialTheme.typography.bodySmall,
                       color = MaterialTheme.colorScheme.onSurfaceVariant,
                       modifier = Modifier.padding(bottom = 12.dp, start = 4.dp)

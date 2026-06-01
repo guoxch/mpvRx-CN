@@ -46,6 +46,7 @@ import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.PlayerButton
 import app.gyrolet.mpvrx.preferences.PlayerClockFormat
+import app.gyrolet.mpvrx.preferences.PlayerControlsStyle
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import app.gyrolet.mpvrx.preferences.SeekbarStyle
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
@@ -78,26 +79,50 @@ object PlayerControlsPreferencesScreen : Screen {
     val appearancePrefs = koinInject<AppearancePreferences>()
     val playerPrefs = koinInject<PlayerPreferences>()
 
-    // Get the current state for all four regions
+    val controlsStyle by appearancePrefs.playerControlsStyle.collectAsState()
+    val editorProfile =
+      if (controlsStyle == PlayerControlsStyle.Modern) {
+        ControlLayoutProfile.MODERN
+      } else {
+        ControlLayoutProfile.LEGACY
+      }
+
+    // Get the current state for both profiles; the active one is displayed below.
     val topRState by appearancePrefs.topRightControls.collectAsState()
     val bottomRState by appearancePrefs.bottomRightControls.collectAsState()
     val bottomLState by appearancePrefs.bottomLeftControls.collectAsState()
     val portraitBottomState by appearancePrefs.portraitBottomControls.collectAsState()
+    val modernTopRState by appearancePrefs.modernTopRightControls.collectAsState()
+    val modernBottomRState by appearancePrefs.modernBottomRightControls.collectAsState()
+    val modernBottomLState by appearancePrefs.modernBottomLeftControls.collectAsState()
+    val modernPortraitBottomState by appearancePrefs.modernPortraitBottomControls.collectAsState()
 
-    val topRightButtons = remember(topRState) {
-      appearancePrefs.parseButtons(topRState, mutableSetOf())
+    val topRightButtons = remember(controlsStyle, topRState, modernTopRState) {
+      appearancePrefs.parseButtons(
+        if (controlsStyle == PlayerControlsStyle.Modern) modernTopRState else topRState,
+        mutableSetOf(),
+      )
     }
 
-    val bottomRightButtons = remember(bottomRState) {
-      appearancePrefs.parseButtons(bottomRState, mutableSetOf())
+    val bottomRightButtons = remember(controlsStyle, bottomRState, modernBottomRState) {
+      appearancePrefs.parseButtons(
+        if (controlsStyle == PlayerControlsStyle.Modern) modernBottomRState else bottomRState,
+        mutableSetOf(),
+      )
     }
 
-    val bottomLeftButtons = remember(bottomLState) {
-      appearancePrefs.parseButtons(bottomLState, mutableSetOf())
+    val bottomLeftButtons = remember(controlsStyle, bottomLState, modernBottomLState) {
+      appearancePrefs.parseButtons(
+        if (controlsStyle == PlayerControlsStyle.Modern) modernBottomLState else bottomLState,
+        mutableSetOf(),
+      )
     }
 
-    val portraitBottomButtons = remember(portraitBottomState) {
-      appearancePrefs.parseButtons(portraitBottomState, mutableSetOf())
+    val portraitBottomButtons = remember(controlsStyle, portraitBottomState, modernPortraitBottomState) {
+      appearancePrefs.parseButtons(
+        if (controlsStyle == PlayerControlsStyle.Modern) modernPortraitBottomState else portraitBottomState,
+        mutableSetOf(),
+      )
     }
 
     Scaffold(
@@ -130,9 +155,49 @@ object PlayerControlsPreferencesScreen : Screen {
               .fillMaxSize()
               .padding(padding),
         ) {
+          item {
+            PreferenceSectionHeader(title = "Player UI style")
+          }
+
+          item {
+            PreferenceCard {
+              ListPreference(
+                value = controlsStyle,
+                onValueChange = appearancePrefs.playerControlsStyle::set,
+                values = PlayerControlsStyle.entries,
+                valueToText = { AnnotatedString(it.displayName) },
+                title = { Text("Player UI style") },
+                summary = {
+                  Text(
+                    text =
+                      if (controlsStyle == PlayerControlsStyle.Modern) {
+                        "Modern controls use separate Cine-style layouts and rotate overflowing bottom actions."
+                      } else {
+                        "Legacy controls keep the classic layout and saved legacy button positions."
+                      },
+                  )
+                },
+              )
+            }
+          }
+
           // Landscape Controls Section
           item {
             PreferenceSectionHeader(title = stringResource(R.string.pref_section_landscape_controls))
+          }
+
+          item {
+            Text(
+              text =
+                if (controlsStyle == PlayerControlsStyle.Modern) {
+                  "Editing the modern profile. Bottom control groups rotate when they overflow, so every chosen action stays reachable without crowding the player."
+                } else {
+                  "Editing the legacy profile. These saved positions stay separate from the modern player."
+                },
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+            )
           }
           
           item {
@@ -140,7 +205,7 @@ object PlayerControlsPreferencesScreen : Screen {
               PreferenceCategoryWithEditButton(
                 title = stringResource(id = R.string.pref_layout_top_right_controls),
                 onClick = {
-                  backstack.add(ControlLayoutEditorScreen(ControlRegion.TOP_RIGHT))
+                  backstack.add(ControlLayoutEditorScreen(ControlRegion.TOP_RIGHT, editorProfile))
                 },
               )
               PreferenceIconSummary(buttons = topRightButtons)
@@ -150,7 +215,7 @@ object PlayerControlsPreferencesScreen : Screen {
               PreferenceCategoryWithEditButton(
                 title = stringResource(id = R.string.pref_layout_bottom_right_controls),
                 onClick = {
-                  backstack.add(ControlLayoutEditorScreen(ControlRegion.BOTTOM_RIGHT))
+                  backstack.add(ControlLayoutEditorScreen(ControlRegion.BOTTOM_RIGHT, editorProfile))
                 },
               )
               PreferenceIconSummary(buttons = bottomRightButtons)
@@ -160,7 +225,7 @@ object PlayerControlsPreferencesScreen : Screen {
               PreferenceCategoryWithEditButton(
                 title = stringResource(id = R.string.pref_layout_bottom_left_controls),
                 onClick = {
-                  backstack.add(ControlLayoutEditorScreen(ControlRegion.BOTTOM_LEFT))
+                  backstack.add(ControlLayoutEditorScreen(ControlRegion.BOTTOM_LEFT, editorProfile))
                 },
               )
               PreferenceIconSummary(buttons = bottomLeftButtons)
@@ -179,7 +244,7 @@ object PlayerControlsPreferencesScreen : Screen {
               PreferenceCategoryWithEditButton(
                 title = stringResource(id = R.string.pref_layout_portrait_bottom_controls),
                 onClick = {
-                  backstack.add(ControlLayoutEditorScreen(ControlRegion.PORTRAIT_BOTTOM))
+                  backstack.add(ControlLayoutEditorScreen(ControlRegion.PORTRAIT_BOTTOM, editorProfile))
                 },
               )
               PreferenceIconSummary(buttons = portraitBottomButtons)

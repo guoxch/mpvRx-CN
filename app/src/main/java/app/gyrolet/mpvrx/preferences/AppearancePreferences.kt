@@ -22,6 +22,13 @@ import app.gyrolet.mpvrx.ui.theme.DarkMode
 import app.gyrolet.mpvrx.ui.theme.spacing
 import kotlinx.collections.immutable.ImmutableList
 
+enum class PlayerControlsStyle(
+  val displayName: String,
+) {
+  Modern("Modern"),
+  Legacy("Legacy"),
+}
+
 class AppearancePreferences(
   preferenceStore: PreferenceStore,
 ) {
@@ -40,6 +47,7 @@ class AppearancePreferences(
   val showRecentsTab = preferenceStore.getBoolean("show_recents_tab", true)
   val showPlaylistsTab = preferenceStore.getBoolean("show_playlists_tab", true)
   val showNetworkTab = preferenceStore.getBoolean("show_network_tab", false)
+  val playerControlsStyle = preferenceStore.getEnum("player_controls_style", PlayerControlsStyle.Modern)
 
   val topLeftControls =
     preferenceStore.getString(
@@ -69,6 +77,30 @@ class AppearancePreferences(
     preferenceStore.getString(
       "portrait_bottom_controls",
       "SCREEN_ROTATION,DECODER,AUDIO_TRACK,SUBTITLES,BOOKMARKS_CHAPTERS,PLAYBACK_SPEED,BACKGROUND_PLAYBACK,REPEAT_MODE,SHUFFLE,VIDEO_ZOOM,FRAME_NAVIGATION,ASPECT_RATIO,PICTURE_IN_PICTURE,LOCK_CONTROLS,MORE_OPTIONS",
+    )
+
+  val modernTopRightControls =
+    preferenceStore.getString(
+      "modern_top_right_controls",
+      "CURRENT_CHAPTER,AUDIO_TRACK,SUBTITLES,MORE_OPTIONS",
+    )
+
+  val modernBottomRightControls =
+    preferenceStore.getString(
+      "modern_bottom_right_controls",
+      "FRAME_NAVIGATION,VIDEO_ZOOM,ASPECT_RATIO,PICTURE_IN_PICTURE,AMBIENT_MODE",
+    )
+
+  val modernBottomLeftControls =
+    preferenceStore.getString(
+      "modern_bottom_left_controls",
+      "BACKGROUND_PLAYBACK,LOCK_CONTROLS,SCREEN_ROTATION,PLAYBACK_SPEED,REPEAT_MODE,SHUFFLE,AB_LOOP",
+    )
+
+  val modernPortraitBottomControls =
+    preferenceStore.getString(
+      "modern_portrait_bottom_controls",
+      "LOCK_CONTROLS,AUDIO_TRACK,SUBTITLES,MORE_OPTIONS,PLAYBACK_SPEED,VIDEO_ZOOM,ASPECT_RATIO,FRAME_NAVIGATION,PICTURE_IN_PICTURE,SCREEN_ROTATION,BACKGROUND_PLAYBACK,REPEAT_MODE,SHUFFLE,AB_LOOP,AMBIENT_MODE",
     )
 
   fun parseButtons(

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -237,12 +238,17 @@ fun BottomRightPlayerControlsLandscape(
   onOpenPanel: (Panels) -> Unit,
   viewModel: PlayerViewModel,
   activity: PlayerActivity,
+  useRotatingOverflow: Boolean,
 ) {
-  Row(
-    verticalAlignment = Alignment.CenterVertically,
-    horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
-  ) {
-    buttons.forEach { button ->
+  if (useRotatingOverflow) {
+    RotatingPlayerControlsRow(
+      buttons = buttons,
+      hideBackground = hideBackground,
+      buttonSize = 45.dp,
+      maxVisibleButtons = 5,
+      horizontalAlignment = Alignment.End,
+      modifier = Modifier.widthIn(max = 286.dp),
+    ) { button ->
       RenderPlayerButton(
         button = button,
         chapters = chapters,
@@ -262,6 +268,33 @@ fun BottomRightPlayerControlsLandscape(
         activity = activity,
         buttonSize = 45.dp,
       )
+    }
+  } else {
+    Row(
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
+    ) {
+      buttons.forEach { button ->
+        RenderPlayerButton(
+          button = button,
+          chapters = chapters,
+          currentChapter = currentChapter,
+          isPortrait = false,
+          isSpeedNonOne = isSpeedNonOne,
+          currentZoom = currentZoom,
+          aspect = aspect,
+          mediaTitle = mediaTitle,
+          hideBackground = hideBackground,
+          decoder = decoder,
+          playbackSpeed = playbackSpeed,
+          onBackPress = onBackPress,
+          onOpenSheet = onOpenSheet,
+          onOpenPanel = onOpenPanel,
+          viewModel = viewModel,
+          activity = activity,
+          buttonSize = 45.dp,
+        )
+      }
     }
   }
 }
@@ -283,12 +316,17 @@ fun BottomLeftPlayerControlsLandscape(
   onOpenPanel: (Panels) -> Unit,
   viewModel: PlayerViewModel,
   activity: PlayerActivity,
+  useRotatingOverflow: Boolean,
 ) {
-  Row(
-    verticalAlignment = Alignment.CenterVertically,
-    horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
-  ) {
-    buttons.forEach { button ->
+  if (useRotatingOverflow) {
+    RotatingPlayerControlsRow(
+      buttons = buttons,
+      hideBackground = hideBackground,
+      buttonSize = 45.dp,
+      maxVisibleButtons = 6,
+      horizontalAlignment = Alignment.Start,
+      modifier = Modifier.widthIn(max = 345.dp),
+    ) { button ->
       RenderPlayerButton(
         button = button,
         chapters = chapters,
@@ -308,6 +346,33 @@ fun BottomLeftPlayerControlsLandscape(
         activity = activity,
         buttonSize = 45.dp,
       )
+    }
+  } else {
+    Row(
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
+    ) {
+      buttons.forEach { button ->
+        RenderPlayerButton(
+          button = button,
+          chapters = chapters,
+          currentChapter = currentChapter,
+          isPortrait = false,
+          isSpeedNonOne = isSpeedNonOne,
+          currentZoom = currentZoom,
+          aspect = aspect,
+          mediaTitle = mediaTitle,
+          hideBackground = hideBackground,
+          decoder = decoder,
+          playbackSpeed = playbackSpeed,
+          onBackPress = onBackPress,
+          onOpenSheet = onOpenSheet,
+          onOpenPanel = onOpenPanel,
+          viewModel = viewModel,
+          activity = activity,
+          buttonSize = 45.dp,
+        )
+      }
     }
   }
 }

@@ -120,6 +120,7 @@ import app.gyrolet.mpvrx.preferences.AiPreferences
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.AudioPreferences
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
+import app.gyrolet.mpvrx.preferences.PlayerControlsStyle
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.preferences.preference.deleteAndGet
 import app.gyrolet.mpvrx.preferences.preference.plusAssign
@@ -284,22 +285,36 @@ fun PlayerControls(
   val bottomRightControlsPref by appearancePreferences.bottomRightControls.collectAsState()
   val bottomLeftControlsPref by appearancePreferences.bottomLeftControls.collectAsState()
   val portraitBottomControlsPref by appearancePreferences.portraitBottomControls.collectAsState()
+  val modernTopRightControlsPref by appearancePreferences.modernTopRightControls.collectAsState()
+  val modernBottomRightControlsPref by appearancePreferences.modernBottomRightControls.collectAsState()
+  val modernBottomLeftControlsPref by appearancePreferences.modernBottomLeftControls.collectAsState()
+  val modernPortraitBottomControlsPref by appearancePreferences.modernPortraitBottomControls.collectAsState()
+  val playerControlsStyle by appearancePreferences.playerControlsStyle.collectAsState()
+  val useModernControls = playerControlsStyle == PlayerControlsStyle.Modern
 
   val (topRightButtons, bottomRightButtons, bottomLeftButtons) =
     remember(
+      useModernControls,
       topRightControlsPref,
       bottomRightControlsPref,
       bottomLeftControlsPref,
+      modernTopRightControlsPref,
+      modernBottomRightControlsPref,
+      modernBottomLeftControlsPref,
     ) {
+      val topRightSource = if (useModernControls) modernTopRightControlsPref else topRightControlsPref
+      val bottomRightSource = if (useModernControls) modernBottomRightControlsPref else bottomRightControlsPref
+      val bottomLeftSource = if (useModernControls) modernBottomLeftControlsPref else bottomLeftControlsPref
       val usedButtons = mutableSetOf<app.gyrolet.mpvrx.preferences.PlayerButton>()
-      val topR = appearancePreferences.parseButtons(topRightControlsPref, usedButtons)
-      val bottomR = appearancePreferences.parseButtons(bottomRightControlsPref, usedButtons)
-      val bottomL = appearancePreferences.parseButtons(bottomLeftControlsPref, usedButtons)
+      val topR = appearancePreferences.parseButtons(topRightSource, usedButtons)
+      val bottomR = appearancePreferences.parseButtons(bottomRightSource, usedButtons)
+      val bottomL = appearancePreferences.parseButtons(bottomLeftSource, usedButtons)
       listOf(topR, bottomR, bottomL)
     }
 
-  val portraitBottomButtons = remember(portraitBottomControlsPref) {
-    appearancePreferences.parseButtons(portraitBottomControlsPref, mutableSetOf())
+  val portraitBottomButtons = remember(useModernControls, portraitBottomControlsPref, modernPortraitBottomControlsPref) {
+    val source = if (useModernControls) modernPortraitBottomControlsPref else portraitBottomControlsPref
+    appearancePreferences.parseButtons(source, mutableSetOf())
   }
 
   var isUnlockSliderDragging by remember { mutableStateOf(false) }
@@ -1563,6 +1578,7 @@ fun PlayerControls(
               onOpenPanel = onOpenPanel,
               viewModel = viewModel,
               activity = activity,
+              useRotatingOverflow = useModernControls,
             )
           } else {
             BottomRightPlayerControlsLandscape(
@@ -1581,6 +1597,7 @@ fun PlayerControls(
               onOpenPanel = onOpenPanel,
               viewModel = viewModel,
               activity = activity,
+              useRotatingOverflow = useModernControls,
             )
           }
         }
@@ -1625,6 +1642,7 @@ fun PlayerControls(
             onOpenPanel = onOpenPanel,
             viewModel = viewModel,
             activity = activity,
+            useRotatingOverflow = useModernControls,
           )
         }
       }

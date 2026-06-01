@@ -2265,7 +2265,7 @@ fun ModernPlayerControlsLayout(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
           ) {
             Text(
-              text = "Open",
+              text = "Playlist",
               fontWeight = FontWeight.Bold,
               fontSize = 14.sp,
               color = Color.White
@@ -2309,7 +2309,7 @@ fun ModernPlayerControlsLayout(
             modifier = Modifier.background(Color.Black.copy(alpha = 0.45f), CircleShape)
           ) {
             AppIconView(
-              imageVector = AppIcons.Default.MoreVert,
+              imageVector = AppIcons.Default.Menu,
               contentDescription = "Menu",
               tint = Color.White
             )
@@ -2344,6 +2344,114 @@ fun ModernPlayerControlsLayout(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(14.dp)
       ) {
+        // Custom Buttons Row (Above the main controls)
+        val customButtons by viewModel.customButtons.collectAsState()
+        val areSlidersShown = isBrightnessSliderShown || isVolumeSliderShown
+        val areButtonsVisible = controlsShown && !areControlsLocked && !areSlidersShown
+
+        AnimatedVisibility(
+          visible = areButtonsVisible && customButtons.isNotEmpty(),
+          enter = fadeIn(),
+          exit = fadeOut(),
+        ) {
+          val leftCustomButtons = remember(customButtons) { customButtons.filter { it.isLeft } }
+          val rightCustomButtons = remember(customButtons) { customButtons.filterNot { it.isLeft } }
+          val haptic = LocalHapticFeedback.current
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = if (isPortrait) Arrangement.Center else Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            // Left (or Center in portrait)
+            Row(
+              horizontalArrangement = Arrangement.spacedBy(12.dp),
+              modifier = Modifier.horizontalScroll(rememberScrollState())
+            ) {
+              val buttonsToShow = if (isPortrait) customButtons else leftCustomButtons
+              buttonsToShow.forEach { button ->
+                key(button.id) {
+                  val buttonInteractionSource = remember { MutableInteractionSource() }
+                  Surface(
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.45f),
+                    contentColor = Color.White,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                      .clip(CircleShape)
+                      .combinedClickable(
+                        interactionSource = buttonInteractionSource,
+                        indication = ripple(),
+                        onClick = {
+                          onResetControlsTimestamp()
+                          viewModel.callCustomButton(button.id)
+                        },
+                        onLongClick = {
+                          haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                          onResetControlsTimestamp()
+                          viewModel.callCustomButtonLongPress(button.id)
+                        }
+                      )
+                  ) {
+                    Text(
+                      text = button.label,
+                      modifier = Modifier
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .basicMarquee(),
+                      style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                      maxLines = 1,
+                    )
+                  }
+                }
+              }
+            }
+
+            // Right (only in landscape)
+            if (!isPortrait && rightCustomButtons.isNotEmpty()) {
+              Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState())
+              ) {
+                rightCustomButtons.forEach { button ->
+                  key(button.id) {
+                    val buttonInteractionSource = remember { MutableInteractionSource() }
+                    Surface(
+                      shape = CircleShape,
+                      color = Color.Black.copy(alpha = 0.45f),
+                      contentColor = Color.White,
+                      border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                      modifier = Modifier
+                        .clip(CircleShape)
+                        .combinedClickable(
+                          interactionSource = buttonInteractionSource,
+                          indication = ripple(),
+                          onClick = {
+                            onResetControlsTimestamp()
+                            viewModel.callCustomButton(button.id)
+                          },
+                          onLongClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onResetControlsTimestamp()
+                            viewModel.callCustomButtonLongPress(button.id)
+                          }
+                        )
+                    ) {
+                      Text(
+                        text = button.label,
+                        modifier = Modifier
+                          .padding(horizontal = 12.dp, vertical = 6.dp)
+                          .basicMarquee(),
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                      )
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
         // Controls Row: Left side buttons + Right side buttons
         Row(
           modifier = Modifier.fillMaxWidth(),

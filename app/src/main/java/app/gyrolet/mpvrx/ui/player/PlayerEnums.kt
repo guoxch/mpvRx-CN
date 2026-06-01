@@ -113,6 +113,7 @@ enum class Panels {
   VideoFilters,
   LuaScripts,
   HdrScreenOutput,
+  ModernOptions,
 }
 
 sealed class PlayerUpdates {
@@ -390,4 +391,12 @@ enum class NotificationStyle(val displayName: String) {
       None, Media -> true
     }
 }
+
+enum class PlayerUiStyle(
+  val displayName: String,
+) {
+  Legacy("Legacy"),
+  Modern("Modern"),
+}
+
 

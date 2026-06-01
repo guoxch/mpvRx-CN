@@ -11,6 +11,7 @@ import app.gyrolet.mpvrx.ui.player.RepeatMode
 import app.gyrolet.mpvrx.ui.player.screenshot.ScreenshotFormat
 import app.gyrolet.mpvrx.ui.player.VideoAspect
 import app.gyrolet.mpvrx.ui.player.VideoOpenAnimation
+import app.gyrolet.mpvrx.ui.player.PlayerUiStyle
 
 enum class IntroSegmentProvider(
   val displayName: String,
@@ -163,4 +164,7 @@ class PlayerPreferences(
 
   /** Global animation speed multiplier (0.5 = half speed, 2.0 = double speed). */
   val animationSpeed = preferenceStore.getFloat("animation_speed", 1.0f)
+
+  /** Player UI Style (Modern vs Legacy). */
+  val playerUiStyle = preferenceStore.getEnum("player_ui_style", PlayerUiStyle.Modern)
 }

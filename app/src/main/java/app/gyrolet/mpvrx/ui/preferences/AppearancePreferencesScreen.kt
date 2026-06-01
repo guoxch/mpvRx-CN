@@ -45,6 +45,7 @@ import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import app.gyrolet.mpvrx.ui.player.ControlsAnimationStyle
 import app.gyrolet.mpvrx.ui.player.NavigationAnimStyle
 import app.gyrolet.mpvrx.ui.player.VideoOpenAnimation
+import app.gyrolet.mpvrx.ui.player.PlayerUiStyle
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.toFixed
 import app.gyrolet.mpvrx.preferences.MultiChoiceSegmentedButton
 import app.gyrolet.mpvrx.preferences.ThumbnailMode
@@ -261,6 +262,38 @@ object AppearancePreferencesScreen : Screen {
                                     )
                                 }
                             }
+                        }
+                    }
+
+                    item {
+                        PreferenceSectionHeader(title = stringResource(id = R.string.pref_appearance_player_ui_style_title))
+                    }
+
+                    item {
+                        PreferenceCard {
+                            val playerUiStyle by playerPreferences.playerUiStyle.collectAsState()
+                            ListPreference(
+                                value = playerUiStyle,
+                                onValueChange = playerPreferences.playerUiStyle::set,
+                                values = PlayerUiStyle.entries,
+                                valueToText = {
+                                    when (it) {
+                                        PlayerUiStyle.Modern -> AnnotatedString(stringResource(R.string.pref_appearance_player_ui_style_modern))
+                                        PlayerUiStyle.Legacy -> AnnotatedString(stringResource(R.string.pref_appearance_player_ui_style_legacy))
+                                    }
+                                },
+                                title = { Text(text = stringResource(id = R.string.pref_appearance_player_ui_style_title)) },
+                                summary = {
+                                    val summaryText = when (playerUiStyle) {
+                                        PlayerUiStyle.Modern -> stringResource(R.string.pref_appearance_player_ui_style_modern)
+                                        PlayerUiStyle.Legacy -> stringResource(R.string.pref_appearance_player_ui_style_legacy)
+                                    }
+                                    Text(
+                                        text = summaryText,
+                                        color = MaterialTheme.colorScheme.outline,
+                                    )
+                                },
+                            )
                         }
                     }
 

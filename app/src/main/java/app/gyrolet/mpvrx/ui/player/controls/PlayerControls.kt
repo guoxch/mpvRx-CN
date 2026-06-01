@@ -66,7 +66,16 @@ import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ripple
+import app.gyrolet.mpvrx.ui.player.PlayerUiStyle
+import dev.vivvvek.seeker.Segment
+import androidx.compose.ui.text.style.TextOverflow
+import app.gyrolet.mpvrx.ui.icons.Icon as AppIconView
+import app.gyrolet.mpvrx.ui.icons.Icons as AppIcons
+import app.gyrolet.mpvrx.ui.player.PlayerViewModel.SeekThumbnailPreview
+import app.gyrolet.mpvrx.ui.player.SkipSegment
+import app.gyrolet.mpvrx.ui.player.controls.components.AbLoopIcon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -355,6 +364,7 @@ fun PlayerControls(
         LocalLayoutDirection provides LayoutDirection.Ltr,
       ) {
         val configuration = LocalConfiguration.current
+        val activity = LocalActivity.current as PlayerActivity
         val isPortrait by remember(configuration) {
           derivedStateOf { configuration.orientation == ORIENTATION_PORTRAIT }
         }
@@ -364,7 +374,51 @@ fun PlayerControls(
         var portraitButtonsTopPx by remember { mutableStateOf<Int?>(null) }
         var bottomRightControlsTopPx by remember { mutableStateOf<Int?>(null) }
 
-        ConstraintLayout(
+        val playerUiStyle by playerPreferences.playerUiStyle.collectAsState()
+        val isMuted by MPVLib.propBoolean["mute"].collectAsState()
+        val invertDuration by playerPreferences.invertDuration.collectAsState()
+        val aspect by viewModel.videoAspect.collectAsState()
+        val rawMediaTitle by MPVLib.propString["media-title"].collectAsState()
+        val mediaTitle by remember(rawMediaTitle, activity) {
+          derivedStateOf {
+            rawMediaTitle?.takeIf { it.isNotBlank() }
+              ?: activity.getTitleForControls()
+          }
+        }
+        val displayedSeekbarPosition = if (seekPreview.visible) seekPreview.positionSeconds else precisePosition
+        if (playerUiStyle == PlayerUiStyle.Modern) {
+          ModernPlayerControlsLayout(
+            viewModel = viewModel,
+            onBackPress = onBackPress,
+            onOpenSheet = onOpenSheet,
+            onOpenPanel = onOpenPanel,
+            controlsShown = controlsShown,
+            paused = paused,
+            isMuted = isMuted,
+            position = position,
+            duration = duration,
+            seekbarDuration = seekbarDuration,
+            displayedSeekbarPosition = displayedSeekbarPosition,
+            invertDuration = invertDuration,
+            chapters = chapters,
+            skipSegments = skipSegments,
+            abLoopA = abLoopA?.toFloat(),
+            abLoopB = abLoopB?.toFloat(),
+            demuxerCacheTime = demuxerCacheTime,
+            isPlayerSeeking = isSeeking,
+            precisePosition = precisePosition,
+            preciseDuration = preciseDuration,
+            showBufferedRange = showBufferedRange,
+            mediaTitle = mediaTitle,
+            isPortrait = isPortrait,
+            onSeekingChanged = { isSeeking = it },
+            onResetControlsTimestamp = { resetControlsTimestamp = System.currentTimeMillis() },
+            seekPreview = seekPreview,
+            aspect = aspect,
+            areControlsLocked = areControlsLocked
+          )
+        } else {
+          ConstraintLayout(
           modifier =
             Modifier
               .fillMaxSize()
@@ -408,17 +462,8 @@ fun PlayerControls(
         val enterMs = (100 * animSpeed).toInt().coerceAtLeast(30)
         val exitMs  = (300 * animSpeed).toInt().coerceAtLeast(50)
 
-        val activity = LocalActivity.current as PlayerActivity
-        val aspect by viewModel.videoAspect.collectAsState()
         val currentZoom by viewModel.videoZoom.collectAsState()
 
-        val rawMediaTitle by MPVLib.propString["media-title"].collectAsState()
-        val mediaTitle by remember(rawMediaTitle, activity) {
-          derivedStateOf {
-            rawMediaTitle?.takeIf { it.isNotBlank() }
-              ?: activity.getTitleForControls()
-          }
-        }
 
         // Slider display duration: 1000ms shown + 300ms exit animation = 1300ms total
         val sliderDisplayDuration = 1000L
@@ -1298,9 +1343,7 @@ fun PlayerControls(
                 end.linkTo(parent.end, spacing.large)
               },
         ) {
-          val invertDuration by playerPreferences.invertDuration.collectAsState()
           val seekbarStyle by appearancePreferences.seekbarStyle.collectAsState()
-          val displayedSeekbarPosition = if (seekPreview.visible) seekPreview.positionSeconds else precisePosition
 
           SeekbarWithTimers(
             position = displayedSeekbarPosition,
@@ -1583,10 +1626,12 @@ fun PlayerControls(
             activity = activity,
           )
         }
-
-        }
       }
     }
+  }
+}
+
+
 
     val sheetShown by viewModel.sheetShown.collectAsState()
     val subtitles by viewModel.subtitleTracks.collectAsState(persistentListOf())
@@ -2062,3 +2107,468 @@ private fun readNetworkBytesPerSecondForOverlay(): Double {
 
   return if (bitratesBitsPerSecond > 0.0) bitratesBitsPerSecond / 8.0 else 0.0
 }
+
+@Composable
+fun ModernPlayerControlsLayout(
+  viewModel: PlayerViewModel,
+  onBackPress: () -> Unit,
+  onOpenSheet: (Sheets) -> Unit,
+  onOpenPanel: (Panels) -> Unit,
+  controlsShown: Boolean,
+  paused: Boolean?,
+  isMuted: Boolean?,
+  position: Int?,
+  duration: Int?,
+  seekbarDuration: Float,
+  displayedSeekbarPosition: Float,
+  invertDuration: Boolean,
+  chapters: List<Segment>,
+  skipSegments: List<SkipSegment>,
+  abLoopA: Float?,
+  abLoopB: Float?,
+  demuxerCacheTime: Double?,
+  isPlayerSeeking: Boolean,
+  precisePosition: Float,
+  preciseDuration: Float,
+  showBufferedRange: Boolean,
+  mediaTitle: String?,
+  isPortrait: Boolean,
+  onSeekingChanged: (Boolean) -> Unit,
+  onResetControlsTimestamp: () -> Unit,
+  seekPreview: SeekThumbnailPreview,
+  aspect: VideoAspect,
+  areControlsLocked: Boolean,
+) {
+  val playerPreferences = koinInject<PlayerPreferences>()
+  val appearancePreferences = koinInject<AppearancePreferences>()
+
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .background(
+        Brush.verticalGradient(
+          colors = listOf(
+            Color.Black.copy(alpha = 0.55f),
+            Color.Transparent,
+            Color.Transparent,
+            Color.Black.copy(alpha = 0.65f)
+          )
+        )
+      )
+  ) {
+    // 1. TOP BAR
+    AnimatedVisibility(
+      visible = controlsShown,
+      enter = fadeIn() + slideInVertically { -it / 2 },
+      exit = fadeOut() + slideOutVertically { -it / 2 },
+      modifier = Modifier
+        .align(Alignment.TopCenter)
+        .fillMaxWidth()
+        .windowInsetsPadding(WindowInsets.statusBars)
+        .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier.fillMaxWidth()
+      ) {
+        // Top Left: "Open ∨" dropdown button
+        Surface(
+          shape = RoundedCornerShape(12.dp),
+          color = Color.Black.copy(alpha = 0.45f),
+          border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+          modifier = Modifier
+            .clickable {
+              onResetControlsTimestamp()
+              onOpenSheet(Sheets.Playlist)
+            }
+        ) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+          ) {
+            Text(
+              text = "Open",
+              fontWeight = FontWeight.Bold,
+              fontSize = 14.sp,
+              color = Color.White
+            )
+            AppIconView(
+              imageVector = AppIcons.Default.ExpandMore,
+              contentDescription = null,
+              tint = Color.White,
+              modifier = Modifier.size(16.dp)
+            )
+          }
+        }
+
+        // Top Center: Video Title
+        Box(
+          modifier = Modifier.weight(1f),
+          contentAlignment = Alignment.Center
+        ) {
+          Text(
+            text = mediaTitle ?: "Cine",
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 32.dp)
+          )
+        }
+
+        // Top Right: Menu + Close
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+          IconButton(
+            onClick = {
+              onResetControlsTimestamp()
+              onOpenSheet(Sheets.More)
+            },
+            modifier = Modifier.background(Color.Black.copy(alpha = 0.45f), CircleShape)
+          ) {
+            AppIconView(
+              imageVector = AppIcons.Default.MoreVert,
+              contentDescription = "Menu",
+              tint = Color.White
+            )
+          }
+
+          IconButton(
+            onClick = onBackPress,
+            modifier = Modifier.background(Color.Black.copy(alpha = 0.45f), CircleShape)
+          ) {
+            AppIconView(
+              imageVector = AppIcons.Default.Close,
+              contentDescription = "Close",
+              tint = Color.White
+            )
+          }
+        }
+      }
+    }
+
+    // 2. BOTTOM CONTROLS & SEEKBAR
+    AnimatedVisibility(
+      visible = controlsShown,
+      enter = fadeIn() + slideInVertically { it / 2 },
+      exit = fadeOut() + slideOutVertically { it / 2 },
+      modifier = Modifier
+        .align(Alignment.BottomCenter)
+        .fillMaxWidth()
+        .windowInsetsPadding(WindowInsets.navigationBars)
+        .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+      Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+      ) {
+        // Controls Row: Left side buttons + Right side buttons
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          // Left side buttons
+          Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            // Previous Track
+            IconButton(
+              onClick = {
+                onResetControlsTimestamp()
+                if (viewModel.hasPrevious()) viewModel.playPrevious()
+              },
+              enabled = viewModel.hasPrevious()
+            ) {
+              AppIconView(
+                imageVector = AppIcons.Default.SkipPrevious,
+                contentDescription = "Previous",
+                tint = if (viewModel.hasPrevious()) Color.White else Color.White.copy(alpha = 0.35f),
+                modifier = Modifier.size(28.dp)
+              )
+            }
+
+            // Play / Pause
+            IconButton(
+              onClick = {
+                onResetControlsTimestamp()
+                viewModel.pauseUnpause()
+              },
+              modifier = Modifier
+                .size(44.dp)
+                .background(Color.White, CircleShape)
+            ) {
+              AppIconView(
+                imageVector = if (paused == true) AppIcons.Default.PlayArrow else AppIcons.Default.Pause,
+                contentDescription = "Play/Pause",
+                tint = Color.Black,
+                modifier = Modifier.size(24.dp)
+              )
+            }
+
+            // Next Track
+            IconButton(
+              onClick = {
+                onResetControlsTimestamp()
+                if (viewModel.hasNext()) viewModel.playNext()
+              },
+              enabled = viewModel.hasNext()
+            ) {
+              AppIconView(
+                imageVector = AppIcons.Default.SkipNext,
+                contentDescription = "Next",
+                tint = if (viewModel.hasNext()) Color.White else Color.White.copy(alpha = 0.35f),
+                modifier = Modifier.size(28.dp)
+              )
+            }
+
+            // Volume Button (Mute/Unmute toggle, long press open Audio Tracks)
+            val volumeIcon = if (isMuted == true) AppIcons.Default.VolumeOff else AppIcons.Default.VolumeUp
+            IconButton(
+              onClick = {
+                onResetControlsTimestamp()
+                MPVLib.setPropertyBoolean("mute", !(isMuted ?: false))
+              }
+            ) {
+              AppIconView(
+                imageVector = volumeIcon,
+                contentDescription = "Volume",
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+              )
+            }
+
+            // Subtitle Button (CC)
+            IconButton(
+              onClick = {
+                onResetControlsTimestamp()
+                onOpenSheet(Sheets.SubtitleTracks)
+              }
+            ) {
+              AppIconView(
+                imageVector = AppIcons.Default.Subtitles,
+                contentDescription = "Subtitles",
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+              )
+            }
+
+            // Audio track / equalizer
+            IconButton(
+              onClick = {
+                onResetControlsTimestamp()
+                onOpenSheet(Sheets.AudioTracks)
+              }
+            ) {
+              AppIconView(
+                imageVector = AppIcons.Default.Audiotrack,
+                contentDescription = "Audio Track",
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+              )
+            }
+          }
+
+          // Right side buttons
+          Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            val shuffleEnabled by viewModel.shuffleEnabled.collectAsState()
+            val repeatMode by viewModel.repeatMode.collectAsState()
+            val abLoopState by viewModel.abLoopState.collectAsState()
+
+            // Shuffle Button
+            if (viewModel.hasPlaylistSupport()) {
+              IconButton(
+                onClick = {
+                  onResetControlsTimestamp()
+                  viewModel.toggleShuffle()
+                }
+              ) {
+                AppIconView(
+                  imageVector = AppIcons.Default.Shuffle,
+                  contentDescription = "Shuffle",
+                  tint = if (shuffleEnabled) MaterialTheme.colorScheme.primary else Color.White,
+                  modifier = Modifier.size(22.dp)
+                )
+              }
+            }
+
+            // Repeat Button
+            IconButton(
+              onClick = {
+                onResetControlsTimestamp()
+                viewModel.cycleRepeatMode()
+              }
+            ) {
+              val repeatIcon = when (repeatMode) {
+                app.gyrolet.mpvrx.ui.player.RepeatMode.ONE -> AppIcons.Filled.RepeatOne
+                else -> AppIcons.Filled.Repeat
+              }
+              AppIconView(
+                imageVector = repeatIcon,
+                contentDescription = "Repeat",
+                tint = if (repeatMode != app.gyrolet.mpvrx.ui.player.RepeatMode.OFF) MaterialTheme.colorScheme.primary else Color.White,
+                modifier = Modifier.size(22.dp)
+              )
+            }
+
+            // A-B Loop Button
+            IconButton(
+              onClick = {
+                onResetControlsTimestamp()
+                viewModel.toggleABLoopExpanded()
+              }
+            ) {
+              AbLoopIcon(
+                modifier = Modifier.size(22.dp),
+                tint = if (abLoopState.a != null || abLoopState.b != null) MaterialTheme.colorScheme.primary else Color.White,
+                isASet = abLoopState.a != null,
+                isBSet = abLoopState.b != null,
+              )
+            }
+
+            // Playlist Button
+            IconButton(
+              onClick = {
+                onResetControlsTimestamp()
+                onOpenSheet(Sheets.Playlist)
+              }
+            ) {
+              AppIconView(
+                imageVector = AppIcons.Default.ViewList,
+                contentDescription = "Playlist",
+                tint = Color.White,
+                modifier = Modifier.size(22.dp)
+              )
+            }
+
+            // Options Button (Gear)
+            IconButton(
+              onClick = {
+                onResetControlsTimestamp()
+                onOpenPanel(Panels.ModernOptions)
+              }
+            ) {
+              AppIconView(
+                imageVector = AppIcons.Filled.Settings,
+                contentDescription = "Options",
+                tint = Color.White,
+                modifier = Modifier.size(22.dp)
+              )
+            }
+
+            // Fullscreen / Aspect Ratio
+            IconButton(
+              onClick = {
+                onResetControlsTimestamp()
+                val nextAspect = when (aspect) {
+                  VideoAspect.Fit -> VideoAspect.Stretch
+                  VideoAspect.Stretch -> VideoAspect.Crop
+                  VideoAspect.Crop -> VideoAspect.Fit
+                }
+                viewModel.changeVideoAspect(nextAspect)
+              }
+            ) {
+              AppIconView(
+                imageVector = AppIcons.Outlined.AspectRatio,
+                contentDescription = "Aspect Ratio",
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+              )
+            }
+          }
+        }
+
+        // Seekbar Row with Timers in Modern UI Style
+        Box(
+          modifier = Modifier.fillMaxWidth(),
+          contentAlignment = Alignment.CenterStart
+        ) {
+          val invertDuration by playerPreferences.invertDuration.collectAsState()
+          val seekbarStyle by appearancePreferences.seekbarStyle.collectAsState()
+
+          Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+          ) {
+            SeekbarWithTimers(
+              position = displayedSeekbarPosition,
+              duration = seekbarDuration,
+              onValueChange = {
+                onSeekingChanged(true)
+                onResetControlsTimestamp()
+                viewModel.updateSeekThumbnailPreview(it, seekbarDuration)
+              },
+              onValueChangeFinished = { targetPosition ->
+                onSeekingChanged(false)
+                onResetControlsTimestamp()
+                viewModel.hideSeekThumbnailPreview()
+                viewModel.seekTo(targetPosition.toInt())
+                viewModel.showControls()
+              },
+              timersInverted = Pair(false, invertDuration),
+              durationTimerOnCLick = {
+                onResetControlsTimestamp()
+                playerPreferences.invertDuration.set(!invertDuration)
+              },
+              positionTimerOnClick = {},
+              chapters = chapters.toImmutableList(),
+              skipSegments = skipSegments.toImmutableList(),
+              paused = paused ?: false,
+              seekbarStyle = seekbarStyle,
+              loopStart = abLoopA,
+              loopEnd = abLoopB,
+              bufferDuration = if (showBufferedRange && !isPlayerSeeking) demuxerCacheTime?.toFloat() else null,
+              isPortrait = isPortrait,
+            )
+
+            // Dynamic remaining / total duration label under/near seekbar on the right (matching video.png style)
+            val remaining = maxOf(0, (duration ?: 0) - (position ?: 0))
+            val timeLabelText = if (invertDuration) {
+              "-${viewModel.formatTimestamp(remaining.toDouble())} | ${viewModel.formatTimestamp((duration ?: 0).toDouble())}"
+            } else {
+              "${viewModel.formatTimestamp((position ?: 0).toDouble())} | ${viewModel.formatTimestamp((duration ?: 0).toDouble())}"
+            }
+
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.End
+            ) {
+              Text(
+                text = timeLabelText,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                color = Color.White.copy(alpha = 0.85f),
+                modifier = Modifier.padding(end = 8.dp)
+              )
+            }
+          }
+        }
+      }
+    }
+
+    // Seek thumbnail preview bubble hovering nicely
+    SeekThumbnailPreviewBubble(
+      position = seekPreview.positionSeconds,
+      duration = seekbarDuration,
+      visible = seekPreview.visible && !areControlsLocked,
+      bitmap = seekPreview.bitmap,
+      isLoading = seekPreview.isLoading,
+      isPortrait = isPortrait,
+      modifier = Modifier
+        .align(Alignment.BottomCenter)
+        .padding(bottom = if (isPortrait) 160.dp else 120.dp)
+        .padding(horizontal = if (isPortrait) 16.dp else 62.dp)
+        .zIndex(100f)
+    )
+  }
+}
+

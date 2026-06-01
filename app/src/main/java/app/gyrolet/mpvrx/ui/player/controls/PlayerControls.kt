@@ -2666,10 +2666,30 @@ fun ModernPlayerControlsLayout(
                 modifier = Modifier.size(24.dp)
               )
             }
+
+            // Cine UI style: Timers on the far right of the button row
+            val invertDuration by playerPreferences.invertDuration.collectAsState()
+            val remaining = maxOf(0, (duration ?: 0) - (position ?: 0))
+            val timeLabelText = if (invertDuration) {
+              "-${viewModel.formatTimestamp(remaining.toDouble())} | ${viewModel.formatTimestamp((duration ?: 0).toDouble())}"
+            } else {
+              "${viewModel.formatTimestamp((position ?: 0).toDouble())} | ${viewModel.formatTimestamp((duration ?: 0).toDouble())}"
+            }
+            Text(
+              text = timeLabelText,
+              style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+              color = Color.White.copy(alpha = 0.85f),
+              modifier = Modifier
+                .padding(start = 4.dp)
+                .clickable {
+                  onResetControlsTimestamp()
+                  playerPreferences.invertDuration.set(!invertDuration)
+                }
+            )
           }
         }
 
-        // Seekbar Row with Timers in Modern UI Style
+        // Seekbar Row in Modern UI Style
         Box(
           modifier = Modifier.fillMaxWidth(),
           contentAlignment = Alignment.CenterStart
@@ -2710,6 +2730,7 @@ fun ModernPlayerControlsLayout(
               loopEnd = abLoopB,
               bufferDuration = if (showBufferedRange && !isPlayerSeeking) demuxerCacheTime?.toFloat() else null,
               isPortrait = isPortrait,
+              showTimers = false,
             )
 
 

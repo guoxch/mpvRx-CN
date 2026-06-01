@@ -100,6 +100,7 @@ fun SeekbarWithTimers(
   loopEnd: Float? = null,
   bufferDuration: Float? = null,
   isPortrait: Boolean = false,
+  showTimers: Boolean = true,
   modifier: Modifier = Modifier,
 ) {
   val clickEvent = LocalPlayerButtonsClickEvent.current
@@ -153,28 +154,30 @@ fun SeekbarWithTimers(
         modifier = Modifier.fillMaxWidth().height(44.dp) // Taller for visibility
       )
 
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        VideoTimer(
-          value = if (isUserInteracting) userPosition else position,
-          isInverted = timersInverted.first,
-          onClick = {
-            clickEvent()
-            positionTimerOnClick()
-          }
-        )
+      if (showTimers) {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          VideoTimer(
+            value = if (isUserInteracting) userPosition else position,
+            isInverted = timersInverted.first,
+            onClick = {
+              clickEvent()
+              positionTimerOnClick()
+            }
+          )
 
-        VideoTimer(
-          value = if (timersInverted.second) position - duration else duration,
-          isInverted = timersInverted.second,
-          onClick = {
-            clickEvent()
-            durationTimerOnCLick()
-          }
-        )
+          VideoTimer(
+            value = if (timersInverted.second) position - duration else duration,
+            isInverted = timersInverted.second,
+            onClick = {
+              clickEvent()
+              durationTimerOnCLick()
+            }
+          )
+        }
       }
     }
   } else {
@@ -183,15 +186,17 @@ fun SeekbarWithTimers(
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-      VideoTimer(
-        value = if (isUserInteracting) userPosition else position,
-        isInverted = timersInverted.first,
-        onClick = {
-          clickEvent()
-          positionTimerOnClick()
-        },
-        modifier = Modifier.width(60.dp),
-      )
+      if (showTimers) {
+        VideoTimer(
+          value = if (isUserInteracting) userPosition else position,
+          isInverted = timersInverted.first,
+          onClick = {
+            clickEvent()
+            positionTimerOnClick()
+          },
+          modifier = Modifier.width(60.dp),
+        )
+      }
 
       SeekbarContent(
         position = if (isUserInteracting) userPosition else animatedPosition.value,
@@ -214,15 +219,17 @@ fun SeekbarWithTimers(
         modifier = Modifier.weight(1f).height(48.dp)
       )
 
-      VideoTimer(
-        value = if (timersInverted.second) position - duration else duration,
-        isInverted = timersInverted.second,
-        onClick = {
-          clickEvent()
-          durationTimerOnCLick()
-        },
-        modifier = Modifier.width(60.dp),
-      )
+      if (showTimers) {
+        VideoTimer(
+          value = if (timersInverted.second) position - duration else duration,
+          isInverted = timersInverted.second,
+          onClick = {
+            clickEvent()
+            durationTimerOnCLick()
+          },
+          modifier = Modifier.width(60.dp),
+        )
+      }
     }
   }
 }

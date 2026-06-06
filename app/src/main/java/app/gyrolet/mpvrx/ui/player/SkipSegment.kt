@@ -1,24 +1,19 @@
 package app.gyrolet.mpvrx.ui.player
 
+import android.content.Context
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
+import app.gyrolet.mpvrx.R
 
-enum class SkipSegmentType {
-  INTRO,
-  RECAP,
-  OUTRO,
-  CREDITS,
-  PREVIEW,
+enum class SkipSegmentType(@StringRes val labelRes: Int) {
+  INTRO(R.string.skip_intro),
+  RECAP(R.string.skip_recap),
+  OUTRO(R.string.skip_outro),
+  CREDITS(R.string.skip_credits),
+  PREVIEW(R.string.skip_preview),
   ;
 
-  val label: String
-    get() =
-      when (this) {
-        INTRO -> "Skip intro"
-        RECAP -> "Skip recap"
-        OUTRO -> "Skip outro"
-        CREDITS -> "Skip credits"
-        PREVIEW -> "Skip preview"
-      }
+  fun label(context: Context): String = context.getString(labelRes)
 
   val accentColor: Color
     get() =
@@ -40,6 +35,5 @@ data class SkipSegment(
   val isValid: Boolean
     get() = endSeconds > startSeconds
 
-  val label: String
-    get() = type.label
+  fun label(context: Context): String = type.label(context)
 }

@@ -484,7 +484,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 leadingIcon = {
                   Icon(
                     imageVector = Icons.Filled.Search,
-                    contentDescription = "Search",
+                    contentDescription = stringResource(app.gyrolet.mpvrx.R.string.cd_search),
                   )
                 },
                 trailingIcon = {
@@ -496,7 +496,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                   ) {
                     Icon(
                       imageVector = Icons.Filled.Close,
-                      contentDescription = "Cancel",
+                      contentDescription = stringResource(app.gyrolet.mpvrx.R.string.cd_cancel),
                     )
                   }
                 },
@@ -518,7 +518,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
             title = if (isAtRoot) {
               stringResource(app.gyrolet.mpvrx.R.string.app_name)
             } else {
-              breadcrumbs.lastOrNull()?.name ?: "Tree View"
+              breadcrumbs.lastOrNull()?.name ?: stringResource(app.gyrolet.mpvrx.R.string.browser_tree_view_fallback)
             },
             isInSelectionMode = isInSelectionMode,
             selectedCount = selectedCount,
@@ -607,7 +607,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                     TooltipAnchorPosition.Above
                   }
                 ),
-                tooltip = { PlainTooltip { Text("Toggle menu") } },
+                tooltip = { PlainTooltip { Text(stringResource(app.gyrolet.mpvrx.R.string.browser_toggle_menu_tooltip)) } },
                 state = rememberTooltipState(),
               ) {
                 ToggleFloatingActionButton(
@@ -639,7 +639,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 filePicker.launch(arrayOf("video/*"))
               },
               icon = { Icon(Icons.Filled.FileOpen, contentDescription = null) },
-              text = { Text(text = "Open File") },
+              text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.browser_fab_open_file)) },
             )
 
             FloatingActionButtonMenuItem(
@@ -654,7 +654,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 }
               },
               icon = { Icon(Icons.Filled.History, contentDescription = null) },
-              text = { Text(text = "Recently Played") },
+              text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.browser_fab_recently_played)) },
             )
 
             FloatingActionButtonMenuItem(
@@ -663,7 +663,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 showLinkDialog.value = true
               },
               icon = { Icon(Icons.Filled.Link, contentDescription = null) },
-              text = { Text(text = "Open Link") },
+              text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.browser_fab_open_link)) },
             )
           }
         }
@@ -1233,7 +1233,7 @@ private fun FileSystemBrowserContent(
       ) {
         EmptyState(
           icon = Icons.Filled.Folder,
-          title = "Error loading directory",
+          title = stringResource(app.gyrolet.mpvrx.R.string.browser_error_loading_directory_title),
           message = error,
         )
       }
@@ -1246,8 +1246,8 @@ private fun FileSystemBrowserContent(
       ) {
         EmptyState(
           icon = Icons.Filled.FolderOpen,
-          title = "Empty folder",
-          message = "This folder contains no videos or subfolders",
+          title = stringResource(app.gyrolet.mpvrx.R.string.browser_empty_folder_title),
+          message = stringResource(app.gyrolet.mpvrx.R.string.browser_empty_folder_message),
         )
       }
     }

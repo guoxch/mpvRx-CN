@@ -1,24 +1,28 @@
 package app.gyrolet.mpvrx.repository.ai
 
+import androidx.annotation.StringRes
+import app.gyrolet.mpvrx.R
 import kotlinx.serialization.Serializable
 
 enum class LocalModelTier(
+  @StringRes val labelRes: Int,
   val label: String,
   val sortWeight: Int,
 ) {
-  FASTEST("Fastest output", 0),
-  BALANCED("Best balanced", 1),
-  MULTILINGUAL("Best translation", 2),
-  UTILITY("Utility only", 3),
+  FASTEST(R.string.local_model_tier_fastest, "Fastest output", 0),
+  BALANCED(R.string.local_model_tier_balanced, "Best balanced", 1),
+  MULTILINGUAL(R.string.local_model_tier_multilingual, "Best translation", 2),
+  UTILITY(R.string.local_model_tier_utility, "Utility only", 3),
 }
 
 enum class LocalModelLanguageTier(
+  @StringRes val labelRes: Int,
   val label: String,
 ) {
-  BROAD("Broad multilingual"),
-  TARGETED("Targeted languages"),
-  LIMITED("Limited multilingual"),
-  UTILITY("Not for translation"),
+  BROAD(R.string.local_model_lang_tier_broad, "Broad multilingual"),
+  TARGETED(R.string.local_model_lang_tier_targeted, "Targeted languages"),
+  LIMITED(R.string.local_model_lang_tier_limited, "Limited multilingual"),
+  UTILITY(R.string.local_model_lang_tier_not_translation, "Not for translation"),
 }
 
 @Serializable

@@ -28,8 +28,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.theme.ElevationTokens
@@ -61,11 +63,13 @@ fun ExpressiveSwitch(
   modifier: Modifier = Modifier,
   enabled: Boolean = true,
 ) {
+  val onStateDesc = stringResource(R.string.cd_on_state)
+  val offStateDesc = stringResource(R.string.cd_off_state)
   Box(
     modifier = modifier
       .semantics {
         role = Role.Switch
-        stateDescription = if (checked) "On" else "Off"
+        stateDescription = if (checked) onStateDesc else offStateDesc
       }
       .toggleable(
         value = checked,

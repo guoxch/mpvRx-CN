@@ -186,7 +186,7 @@ fun PlaybackSpeedSheet(
                         modifier = buttonModifier
                     ) {
                        Icon(Icons.Default.Remove, null, modifier = Modifier.size(16.dp).padding(end = 4.dp))
-                       Text("Remove")
+                       Text(stringResource(R.string.sheet_remove_speed_button))
                     }
                 }
             } else {
@@ -196,7 +196,7 @@ fun PlaybackSpeedSheet(
                     modifier = buttonModifier
                 ) {
                   Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp).padding(end = 4.dp))
-                  Text("Add")
+                  Text(stringResource(R.string.sheet_add_speed_button))
                 }
             }
       }

@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,6 +60,7 @@ import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.presentation.components.PlayerSheet
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.theme.spacing
@@ -205,7 +207,7 @@ fun PlaylistSheet(
           ) {
             if (currentItem != null) {
               Text(
-                text = "Now Playing",
+                text = stringResource(R.string.player_now_playing),
                 style = MaterialTheme.typography.titleSmall.copy(
                   fontWeight = FontWeight.Bold,
                   color = accentColor,
@@ -218,7 +220,7 @@ fun PlaylistSheet(
               )
             }
             Text(
-              text = "$totalCount items",
+              text = stringResource(R.string.sheet_items_count_label, totalCount),
               style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -231,7 +233,7 @@ fun PlaylistSheet(
             ) {
               Icon(
                 imageVector = if (isListMode) Icons.Default.GridView else Icons.Default.ViewList,
-                contentDescription = if (isListMode) "Switch to Grid View" else "Switch to List View",
+                contentDescription = if (isListMode) stringResource(R.string.cd_switch_grid_view) else stringResource(R.string.cd_switch_list_view),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
@@ -348,7 +350,7 @@ fun PlaylistTrackListItem(
           AsyncImage(
             model = remember(item.uri, item.path) { buildPlaylistThumbnailRequest(context, item) },
             imageLoader = imageLoader,
-            contentDescription = "Thumbnail",
+            contentDescription = stringResource(R.string.cd_thumbnail),
             modifier = Modifier.matchParentSize(),
             contentScale = ContentScale.Crop,
           )
@@ -449,7 +451,7 @@ fun PlaylistTrackListItem(
             shape = RoundedCornerShape(16.dp),
           ) {
             Text(
-              text = "Playing",
+              text = stringResource(R.string.sheet_playing_badge),
               modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
               style = MaterialTheme.typography.labelSmall.copy(
                 fontWeight = FontWeight.SemiBold,
@@ -457,8 +459,8 @@ fun PlaylistTrackListItem(
               ),
             )
           }
-        }
 
+        }
       }
     }
   }
@@ -520,7 +522,7 @@ fun PlaylistTrackGridItem(
           AsyncImage(
             model = remember(item.uri, item.path) { buildPlaylistThumbnailRequest(context, item) },
             imageLoader = imageLoader,
-            contentDescription = "Thumbnail",
+            contentDescription = stringResource(R.string.cd_thumbnail),
             modifier = Modifier.matchParentSize(),
             contentScale = ContentScale.Crop,
           )
@@ -648,7 +650,7 @@ fun PlaylistTrackGridItem(
               shape = RoundedCornerShape(4.dp),
             ) {
               Text(
-                text = "Playing",
+                text = stringResource(R.string.sheet_playing_badge),
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 style = MaterialTheme.typography.labelSmall.copy(
                   fontSize = 10.sp,

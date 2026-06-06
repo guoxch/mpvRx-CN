@@ -293,7 +293,7 @@ class CrashActivity : ComponentActivity() {
               onClick = {
                 SafeClipboard.copyPlainText(
                   context = this@CrashActivity,
-                  label = "mpvrx_crash_logs",
+                  label = context.getString(R.string.crash_clipboard_label),
                   text = concatLogs(collectDeviceInfo(), exceptionString, logcat),
                 )
               },
@@ -351,7 +351,7 @@ class CrashActivity : ComponentActivity() {
         )
         LogsContainer(exceptionString)
         Text(
-          "Logcat:",
+          stringResource(R.string.crash_logcat_title),
           style = MaterialTheme.typography.headlineSmall,
         )
         LogsContainer(logcat)

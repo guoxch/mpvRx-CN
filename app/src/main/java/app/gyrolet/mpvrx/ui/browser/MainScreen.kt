@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.presentation.Screen
 import app.gyrolet.mpvrx.ui.browser.folderlist.FolderListScreen
@@ -175,19 +176,19 @@ object MainScreen : Screen {
               NavigationBarItem(
                 icon = {
                   when (tab) {
-                    MainTab.HOME -> Icon(Icons.Filled.Home, contentDescription = "Home")
-                    MainTab.RECENTS -> Icon(Icons.Filled.History, contentDescription = "Recents")
-                    MainTab.PLAYLISTS -> Icon(Icons.Filled.PlaylistPlay, contentDescription = "Playlists")
-                    MainTab.NETWORK -> Icon(Icons.Filled.BringYourOwnIp, contentDescription = "Network")
+                    MainTab.HOME -> Icon(Icons.Filled.Home, contentDescription = stringResource(app.gyrolet.mpvrx.R.string.cd_home))
+                    MainTab.RECENTS -> Icon(Icons.Filled.History, contentDescription = stringResource(app.gyrolet.mpvrx.R.string.nav_recents))
+                    MainTab.PLAYLISTS -> Icon(Icons.Filled.PlaylistPlay, contentDescription = stringResource(app.gyrolet.mpvrx.R.string.nav_playlists))
+                    MainTab.NETWORK -> Icon(Icons.Filled.BringYourOwnIp, contentDescription = stringResource(app.gyrolet.mpvrx.R.string.nav_network))
                   }
                 },
                 label = {
                   Text(
                     when (tab) {
-                      MainTab.HOME -> "Home"
-                      MainTab.RECENTS -> "Recents"
-                      MainTab.PLAYLISTS -> "Playlists"
-                      MainTab.NETWORK -> "Network"
+                      MainTab.HOME -> stringResource(app.gyrolet.mpvrx.R.string.nav_home)
+                      MainTab.RECENTS -> stringResource(app.gyrolet.mpvrx.R.string.nav_recents)
+                      MainTab.PLAYLISTS -> stringResource(app.gyrolet.mpvrx.R.string.nav_playlists)
+                      MainTab.NETWORK -> stringResource(app.gyrolet.mpvrx.R.string.nav_network)
                     }
                   )
                 },

@@ -35,6 +35,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.annotation.StringRes
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -73,6 +74,7 @@ import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.theme.DarkMode
 import app.gyrolet.mpvrx.ui.theme.MpvrxTheme
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.utils.clipboard.SafeClipboard
 import app.gyrolet.mpvrx.utils.media.MediaInfoOps
 import kotlinx.coroutines.Dispatchers
@@ -146,7 +148,7 @@ class MediaInfoActivity : ComponentActivity() {
       }
 
       if (uri == null) {
-        error = "No media file provided"
+        error = context.getString(R.string.media_info_no_file)
         isLoading = false
         return@LaunchedEffect
       }
@@ -184,11 +186,11 @@ class MediaInfoActivity : ComponentActivity() {
 
             isLoading = false
           }.onFailure { e ->
-            error = e.message ?: "Failed to load media information"
+            error = e.message ?: context.getString(R.string.media_info_load_failed)
             isLoading = false
           }
         } catch (e: Exception) {
-          error = e.message ?: "Unknown error"
+          error = e.message ?: context.getString(R.string.error_unknown)
           isLoading = false
         }
       }
@@ -200,7 +202,7 @@ class MediaInfoActivity : ComponentActivity() {
           title = {
             Column {
               Text(
-                text = "Media Info",
+                text = stringResource(R.string.media_info_screen_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
               )
@@ -215,7 +217,7 @@ class MediaInfoActivity : ComponentActivity() {
           },
           navigationIcon = {
             IconButton(onClick = onBack) {
-              Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+              Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.cd_back))
             }
           },
           actions = {
@@ -234,7 +236,7 @@ class MediaInfoActivity : ComponentActivity() {
                 ) {
                   Icon(
                     imageVector = Icons.Filled.ContentCopy,
-                    contentDescription = "Copy",
+                    contentDescription = stringResource(R.string.cd_copy),
                   )
                 }
 
@@ -253,7 +255,7 @@ class MediaInfoActivity : ComponentActivity() {
                 ) {
                   Icon(
                     imageVector = Icons.Filled.Share,
-                    contentDescription = "Share",
+                    contentDescription = stringResource(R.string.cd_share),
                   )
                 }
               }
@@ -296,7 +298,7 @@ class MediaInfoActivity : ComponentActivity() {
           modifier = Modifier.size(48.dp),
         )
         Text(
-          text = "Analyzing media file...",
+          text = stringResource(R.string.media_info_analyzing),
           style = MaterialTheme.typography.bodyLarge,
           fontWeight = FontWeight.Medium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -320,7 +322,7 @@ class MediaInfoActivity : ComponentActivity() {
         shape = MaterialTheme.shapes.extraLarge,
       ) {
         Text(
-          text = "Error: $errorMessage",
+          text = stringResource(R.string.media_info_error_prefix, errorMessage),
           style = MaterialTheme.typography.bodyLarge,
           fontWeight = FontWeight.Medium,
           color = MaterialTheme.colorScheme.onErrorContainer,
@@ -330,12 +332,12 @@ class MediaInfoActivity : ComponentActivity() {
     }
   }
 
-  enum class InfoTab(val displayName: String) {
-    OVERVIEW("Overview"),
-    VIDEO("Video"),
-    AUDIO("Audio"),
-    SUBTITLES("Subtitles"),
-    CHAPTERS("Chapters")
+  enum class InfoTab(@StringRes val titleRes: Int) {
+    OVERVIEW(R.string.media_info_tab_overview),
+    VIDEO(R.string.media_info_tab_video),
+    AUDIO(R.string.media_info_tab_audio),
+    SUBTITLES(R.string.media_info_tab_subtitles),
+    CHAPTERS(R.string.media_info_tab_chapters)
   }
 
   @Composable
@@ -414,9 +416,9 @@ class MediaInfoActivity : ComponentActivity() {
             subtitleSections.size,
             menuSections.firstOrNull()?.properties?.size ?: 0
           )
-          InfoTab.VIDEO -> StreamTabContent(videoSections, "Video Stream")
-          InfoTab.AUDIO -> StreamTabContent(audioSections, "Audio Stream")
-          InfoTab.SUBTITLES -> StreamTabContent(subtitleSections, "Subtitle Track")
+          InfoTab.VIDEO -> StreamTabContent(videoSections, context.getString(R.string.media_info_video_stream))
+          InfoTab.AUDIO -> StreamTabContent(audioSections, context.getString(R.string.media_info_audio_stream))
+          InfoTab.SUBTITLES -> StreamTabContent(subtitleSections, context.getString(R.string.media_info_subtitle_track))
           InfoTab.CHAPTERS -> ChaptersTabContent(menuSections)
         }
       }
@@ -470,7 +472,7 @@ class MediaInfoActivity : ComponentActivity() {
               )
               Spacer(modifier = Modifier.width(8.dp))
               Text(
-                text = tab.displayName,
+                text = stringResource(tab.titleRes),
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
               )
             }
@@ -508,7 +510,7 @@ class MediaInfoActivity : ComponentActivity() {
     GlassmorphicCard(
       modifier = modifier.clickable {
         SafeClipboard.copyPlainText(context, title, value)
-        Toast.makeText(context, "Copied: $value", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.media_info_copied_value_toast, value), Toast.LENGTH_SHORT).show()
       },
       containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.20f)
     ) {
@@ -583,34 +585,35 @@ class MediaInfoActivity : ComponentActivity() {
     chapterCount: Int
   ) {
     // Quick Stat values
+    val context = LocalContext.current
     val primaryVideo = mediaInfo.videoStreams.firstOrNull()
     val resolutionLabel = remember(primaryVideo) {
       if (primaryVideo != null) {
         val w = primaryVideo.width.filter { it.isDigit() }
         val h = primaryVideo.height.filter { it.isDigit() }
-        if (h == "2160" || w == "3840") "4K UHD"
-        else if (h == "1440" || w == "2560") "2K QHD"
-        else if (h == "1080") "1080p FHD"
-        else if (h == "720") "720p HD"
+        if (h == "2160" || w == "3840") context.getString(R.string.media_info_res_4k)
+        else if (h == "1440" || w == "2560") context.getString(R.string.media_info_res_2k)
+        else if (h == "1080") context.getString(R.string.media_info_res_1080p)
+        else if (h == "720") context.getString(R.string.media_info_res_720p)
         else if (w.isNotEmpty() && h.isNotEmpty()) "${w}x${h}"
-        else "Unknown"
-      } else "No Video"
+        else context.getString(R.string.media_info_unknown)
+      } else context.getString(R.string.media_info_no_video)
     }
 
-    val sizeLabel = mediaInfo.general.fileSize.ifBlank { "Unknown" }
-    val durationLabel = mediaInfo.general.duration.ifBlank { "Unknown" }
-    val formatLabel = mediaInfo.general.format.ifBlank { "Unknown" }
+    val sizeLabel = mediaInfo.general.fileSize.ifBlank { context.getString(R.string.media_info_unknown) }
+    val durationLabel = mediaInfo.general.duration.ifBlank { context.getString(R.string.media_info_unknown) }
+    val formatLabel = mediaInfo.general.format.ifBlank { context.getString(R.string.media_info_unknown) }
 
-    val heroChips = remember(mediaInfo) {
+    val heroChips = remember(mediaInfo, context) {
       buildList {
         primaryVideo?.let { v ->
           val w = v.width.filter { it.isDigit() }.toIntOrNull() ?: 0
           val h = v.height.filter { it.isDigit() }.toIntOrNull() ?: 0
           val res = when {
-            w >= 3840 || h >= 2160 -> "4K UHD"
-            w >= 2560 || h >= 1440 -> "2K QHD"
-            w >= 1920 || h >= 1080 -> "1080p"
-            w >= 1280 || h >= 720  -> "720p"
+            w >= 3840 || h >= 2160 -> context.getString(R.string.media_info_hero_res_4k)
+            w >= 2560 || h >= 1440 -> context.getString(R.string.media_info_hero_res_2k)
+            w >= 1920 || h >= 1080 -> context.getString(R.string.media_info_hero_res_1080p)
+            w >= 1280 || h >= 720  -> context.getString(R.string.media_info_hero_res_720p)
             else -> null
           }
           res?.let { add(it) }
@@ -619,8 +622,9 @@ class MediaInfoActivity : ComponentActivity() {
         mediaInfo.audioStreams.firstOrNull()?.let { a ->
           if (a.format.isNotBlank() && a.format != "---") add(a.format)
         }
-        if (sizeLabel != "Unknown") add(sizeLabel)
-        if (durationLabel != "Unknown") add(durationLabel)
+        val unknown = context.getString(R.string.media_info_unknown)
+        if (sizeLabel != unknown) add(sizeLabel)
+        if (durationLabel != unknown) add(durationLabel)
       }
     }
 
@@ -678,14 +682,14 @@ class MediaInfoActivity : ComponentActivity() {
           horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
           QuickStatCard(
-            title = "Resolution",
+            title = context.getString(R.string.media_info_quick_stat_resolution),
             value = resolutionLabel,
             icon = Icons.Default.Videocam,
             accentColor = MaterialTheme.colorScheme.primary,
             modifier = Modifier.weight(1f)
           )
           QuickStatCard(
-            title = "File Size",
+            title = context.getString(R.string.media_info_quick_stat_file_size),
             value = sizeLabel,
             icon = Icons.Default.SdCard,
             accentColor = MaterialTheme.colorScheme.secondary,
@@ -697,15 +701,15 @@ class MediaInfoActivity : ComponentActivity() {
           horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
           QuickStatCard(
-            title = "Duration",
+            title = context.getString(R.string.media_info_quick_stat_duration),
             value = durationLabel,
             icon = Icons.Outlined.Timer,
             accentColor = MaterialTheme.colorScheme.tertiary,
             modifier = Modifier.weight(1f)
           )
           QuickStatCard(
-            title = "Bitrate",
-            value = mediaInfo.general.overallBitRate.ifBlank { "Unknown" },
+            title = context.getString(R.string.media_info_quick_stat_bitrate),
+            value = mediaInfo.general.overallBitRate.ifBlank { context.getString(R.string.media_info_unknown) },
             icon = Icons.Default.Speed,
             accentColor = Color(0xFFFFB300),
             modifier = Modifier.weight(1f)
@@ -722,7 +726,7 @@ class MediaInfoActivity : ComponentActivity() {
           verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
           Text(
-            text = "Media Tracks Summary",
+            text = context.getString(R.string.media_info_tracks_summary),
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.primary
           )
@@ -731,11 +735,11 @@ class MediaInfoActivity : ComponentActivity() {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceAround
           ) {
-            TrackSummaryItem(videoCount, "Video", Icons.Default.Videocam, MaterialTheme.colorScheme.primary)
-            TrackSummaryItem(audioCount, "Audio", Icons.Default.VolumeUp, MaterialTheme.colorScheme.secondary)
-            TrackSummaryItem(subtitleCount, "Subtitle", Icons.Default.Subtitles, MaterialTheme.colorScheme.tertiary)
+            TrackSummaryItem(videoCount, context.getString(R.string.media_info_tab_video), Icons.Default.Videocam, MaterialTheme.colorScheme.primary)
+            TrackSummaryItem(audioCount, context.getString(R.string.media_info_tab_audio), Icons.Default.VolumeUp, MaterialTheme.colorScheme.secondary)
+            TrackSummaryItem(subtitleCount, context.getString(R.string.media_info_tab_subtitles), Icons.Default.Subtitles, MaterialTheme.colorScheme.tertiary)
             if (chapterCount > 0) {
-              TrackSummaryItem(chapterCount, "Chapters", Icons.Default.ViewList, Color(0xFFFFB300))
+              TrackSummaryItem(chapterCount, context.getString(R.string.media_info_tab_chapters), Icons.Default.ViewList, Color(0xFFFFB300))
             }
           }
         }
@@ -752,7 +756,7 @@ class MediaInfoActivity : ComponentActivity() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
           ) {
             Text(
-              text = "Container Metadata",
+              text = context.getString(R.string.media_info_container_metadata),
               style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
               color = MaterialTheme.colorScheme.primary
             )
@@ -870,14 +874,14 @@ class MediaInfoActivity : ComponentActivity() {
                 scope.launch {
                   val content = properties.joinToString("\n") { "${it.first}: ${it.second}" }
                   SafeClipboard.copyPlainText(context, title, content)
-                  Toast.makeText(context, "Copied specifications to clipboard", Toast.LENGTH_SHORT).show()
+                  Toast.makeText(context, context.getString(R.string.media_info_copied_specs_toast), Toast.LENGTH_SHORT).show()
                 }
               },
             contentAlignment = Alignment.Center,
           ) {
             Icon(
               imageVector = Icons.Filled.ContentCopy,
-              contentDescription = "Copy all",
+              contentDescription = stringResource(R.string.cd_copy_all),
               tint = headerTextColor.copy(alpha = 0.8f),
               modifier = Modifier.size(16.dp)
             )
@@ -922,7 +926,7 @@ class MediaInfoActivity : ComponentActivity() {
     Surface(
       modifier = modifier.clickable {
         SafeClipboard.copyPlainText(context, label, value)
-        Toast.makeText(context, "Copied: $value", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.media_info_copied_value_toast, value), Toast.LENGTH_SHORT).show()
       },
       shape = RoundedCornerShape(12.dp),
       color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f),
@@ -966,7 +970,7 @@ class MediaInfoActivity : ComponentActivity() {
       verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
       sections.forEachIndexed { index, section ->
-        val format = section.properties.firstOrNull { it.first.equals("Format", ignoreCase = true) }?.second ?: "Unknown"
+        val format = section.properties.firstOrNull { it.first.equals("Format", ignoreCase = true) }?.second ?: context.getString(R.string.media_info_unknown)
         val language = section.properties.firstOrNull { it.first.equals("Language", ignoreCase = true) }?.second
 
         val badgeLabel = if (language != null) "$format ($language)" else format
@@ -1024,7 +1028,7 @@ class MediaInfoActivity : ComponentActivity() {
           verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
           Text(
-            text = "Video Chapters & Timeline",
+            text = context.getString(R.string.media_info_chapters_title),
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.primary
           )
@@ -1047,7 +1051,7 @@ class MediaInfoActivity : ComponentActivity() {
                   if (s.matches(Regex("^[a-z]{2,3}:.*"))) s.replaceFirst(langTagRegex, "").trimStart()
                   else s
                 }
-                .ifBlank { "Chapter ${index + 1}" }
+                .ifBlank { context.getString(R.string.media_info_chapter_default, index + 1) }
 
               Row(
                 modifier = Modifier
@@ -1056,7 +1060,7 @@ class MediaInfoActivity : ComponentActivity() {
                   .clickable {
                     scope.launch {
                       SafeClipboard.copyPlainText(context, "Chapter timestamp", timestamp)
-                      Toast.makeText(context, "Copied: $timestamp", Toast.LENGTH_SHORT).show()
+                      Toast.makeText(context, context.getString(R.string.media_info_copied_value_toast, timestamp), Toast.LENGTH_SHORT).show()
                     }
                   }
                   .padding(vertical = 6.dp),
@@ -1146,7 +1150,7 @@ class MediaInfoActivity : ComponentActivity() {
         .clickable {
           scope.launch {
             SafeClipboard.copyPlainText(context, label, value)
-            Toast.makeText(context, "Copied: $value", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.media_info_copied_value_toast, value), Toast.LENGTH_SHORT).show()
           }
         }
         .padding(vertical = 4.dp),
@@ -1240,13 +1244,13 @@ class MediaInfoActivity : ComponentActivity() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
           }
 
-          startActivity(Intent.createChooser(shareIntent, "Share Media Info"))
+          startActivity(Intent.createChooser(shareIntent, this@MediaInfoActivity.getString(R.string.media_info_share_chooser_title)))
         }
       } catch (e: Exception) {
         withContext(Dispatchers.Main) {
           Toast.makeText(
             this@MediaInfoActivity,
-            "Failed to share: ${e.message}",
+            this@MediaInfoActivity.getString(R.string.media_info_share_failed_toast, e.message ?: ""),
             Toast.LENGTH_LONG,
           ).show()
         }

@@ -79,16 +79,19 @@ fun SubtitlesSheet(
   realtimeSubsEnabled: Boolean = true,
   modifier: Modifier = Modifier,
 ) {
-  val items = remember(tracks) {
+  val embeddedHeader = stringResource(R.string.sheet_embedded_subtitles_header)
+  val localHeader = stringResource(R.string.sheet_local_subtitles_header)
+  val externalHeader = stringResource(R.string.sheet_external_subtitles_header)
+  val items = remember(tracks, embeddedHeader, localHeader, externalHeader) {
     val list = mutableListOf<SubtitleItem>()
     val internal = tracks.filter { it.external != true }
     val external = tracks.filter { it.external == true }
 
     if (internal.isNotEmpty() || external.isNotEmpty()) {
-      list.add(SubtitleItem.Header(if (internal.isNotEmpty()) "Embedded Subtitles" else "Local Subtitles"))
+      list.add(SubtitleItem.Header(if (internal.isNotEmpty()) embeddedHeader else localHeader))
       list.addAll(internal.map { SubtitleItem.Track(it) })
       if (internal.isNotEmpty() && external.isNotEmpty()) {
-        list.add(SubtitleItem.Header("External Subtitles"))
+        list.add(SubtitleItem.Header(externalHeader))
       }
       list.addAll(external.map { SubtitleItem.Track(it) })
     }
@@ -150,13 +153,13 @@ fun SubtitlesSheet(
         showLanguagePicker = null
         langSearch = ""
       },
-      title = { Text("Translate to...") },
+      title = { Text(stringResource(R.string.sheet_translate_to_title)) },
       text = {
         Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)) {
           OutlinedTextField(
             value = langSearch,
             onValueChange = { langSearch = it },
-            placeholder = { Text("Search language…") },
+            placeholder = { Text(stringResource(R.string.sheet_search_language_placeholder)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
@@ -176,7 +179,7 @@ fun SubtitlesSheet(
               )
             }
             if (languagesToShow.isEmpty()) {
-              item { Text("No languages found", color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(MaterialTheme.spacing.medium)) }
+              item { Text(stringResource(R.string.sheet_no_languages_found), color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(MaterialTheme.spacing.medium)) }
             }
           }
         }
@@ -186,7 +189,7 @@ fun SubtitlesSheet(
           showLanguagePicker = null
           langSearch = ""
         }) {
-          Text("Cancel")
+          Text(stringResource(R.string.generic_cancel))
         }
       }
     )
@@ -203,7 +206,7 @@ fun SubtitlesSheet(
           }
           if (isOnlineProvider && aiEnabled && realtimeSubsEnabled) {
             IconButton(onClick = onGenerateSubtitle) {
-              Icon(Icons.Default.Subtitles, "Generate subtitles")
+              Icon(Icons.Default.Subtitles, stringResource(R.string.cd_generate_subtitles))
             }
           }
           IconButton(onClick = onOpenSubtitleSettings) {
@@ -225,7 +228,7 @@ fun SubtitlesSheet(
             modifier = Modifier.fillMaxWidth(),
           ) {
             Text(
-              "${translationStatus.ifBlank { "Translating" }} ${translatingTrackName}... ${(translationProgress * 100).toInt()}%",
+              stringResource(R.string.sheet_translation_progress, translationStatus.ifBlank { stringResource(R.string.sheet_translation_status_fallback) }, translatingTrackName, (translationProgress * 100).toInt()),
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.primary,
               modifier = Modifier.weight(1f),
@@ -242,7 +245,7 @@ fun SubtitlesSheet(
             ) {
               Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "Cancel translation",
+                contentDescription = stringResource(R.string.cd_cancel_translation),
                 modifier = Modifier.size(20.dp),
               )
             }
@@ -260,7 +263,7 @@ fun SubtitlesSheet(
           verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall)
         ) {
           Text(
-            "${subtitleGenerationStatus.ifBlank { "Generating subtitles" }}... ${(subtitleGenerationProgress * 100).toInt()}%",
+            "${subtitleGenerationStatus.ifBlank { stringResource(R.string.sheet_generation_status_fallback) }}... ${(subtitleGenerationProgress * 100).toInt()}%",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary
           )
@@ -360,7 +363,7 @@ fun SubtitleTrackRow(
     
     if (isExternal) {
       if (translationEnabled) {
-        IconButton(onClick = onTranslate) { Icon(Icons.Default.Translate, contentDescription = "Translate") }
+        IconButton(onClick = onTranslate) { Icon(Icons.Default.Translate, contentDescription = stringResource(R.string.cd_translate)) }
       }
       IconButton(onClick = onRemove) { Icon(Icons.Default.Delete, contentDescription = null) }
     }

@@ -47,6 +47,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.theme.spacing
 import kotlinx.coroutines.delay
 
@@ -173,7 +175,7 @@ fun SpeedControlSlider(
             modifier = Modifier.size(16.dp),
           )
           Text(
-            text = "${currentSpeed.format()}x Speed Playing",
+            text = stringResource(R.string.player_speed_playing_label, currentSpeed),
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.bodyLarge,

@@ -154,7 +154,7 @@ fun BrightnessSlider(
       verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
     ) {
       Text(
-        "${(coercedBrightness * 100).toInt()}%",
+        stringResource(R.string.player_brightness_percent, (coercedBrightness * 100).toInt()),
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Bold,
         textAlign = TextAlign.Center,

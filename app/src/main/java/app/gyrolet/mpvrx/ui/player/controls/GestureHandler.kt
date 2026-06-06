@@ -1,5 +1,6 @@
 package app.gyrolet.mpvrx.ui.player.controls
 
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -53,6 +54,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -149,6 +151,7 @@ fun GestureHandler(
   val haptics = LocalHapticFeedback.current
   val coroutineScope = rememberCoroutineScope()
   val density = LocalDensity.current
+  val context = LocalContext.current
   val topStatusBarInsetPx = WindowInsets.statusBars.getTop(density).toFloat()
   val bottomNavigationInsetPx = WindowInsets.navigationBars.getBottom(density).toFloat()
   val topGestureDeadZonePx =
@@ -449,7 +452,7 @@ fun GestureHandler(
                   haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                   originalSubtitlePosition = MPVLib.getPropertyInt("sub-pos") ?: subtitlesPreferences.subPos.get()
                   lastSubtitlePosition = originalSubtitlePosition
-                  viewModel.playerUpdate.update { PlayerUpdates.ShowText("Drag up/down to move subtitles") }
+                  viewModel.playerUpdate.update { PlayerUpdates.ShowText(context.getString(R.string.player_subtitle_drag_hint)) }
                 } else if (paused == false && multipleSpeedGesture > 0f) {
                   longPressTriggered = true
                   isLongPressing = true
@@ -1060,8 +1063,9 @@ fun GestureHandler(
                     val direction = if (deltaX > 0) "1" else "-1"
                     MPVLib.command("sub-seek", direction)
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    val subtitleDialogText = if (deltaX > 0) context.getString(R.string.player_next_dialog_osd) else context.getString(R.string.player_prev_dialog_osd)
                     viewModel.playerUpdate.update {
-                      PlayerUpdates.ShowText(if (deltaX > 0) "Next Dialog" else "Prev Dialog")
+                      PlayerUpdates.ShowText(subtitleDialogText)
                     }
                     change.consume()
                   }

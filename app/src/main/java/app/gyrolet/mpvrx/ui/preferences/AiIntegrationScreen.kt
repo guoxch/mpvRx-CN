@@ -200,7 +200,7 @@ object AiIntegrationScreen : Screen {
         TopAppBar(
           title = {
             Text(
-              text = "AI Integration",
+              text = stringResource(R.string.pref_section_ai_title),
               style = MaterialTheme.typography.headlineSmall,
               fontWeight = FontWeight.ExtraBold,
               color = MaterialTheme.colorScheme.primary,
@@ -224,17 +224,17 @@ object AiIntegrationScreen : Screen {
             .fillMaxSize()
             .padding(padding),
         ) {
-          item { PreferenceSectionHeader(title = "AI Features") }
+          item { PreferenceSectionHeader(title = stringResource(R.string.ai_section_features)) }
 
           item {
             PreferenceCard {
               SwitchPreference(
                 value = enabled,
                 onValueChange = { preferences.enabled.set(it) },
-                title = { Text("Enable AI Features") },
+                title = { Text(stringResource(R.string.ai_enable_features_title)) },
                 summary = {
                   Text(
-                    if (enabled) "AI features are active" else "AI features are disabled",
+                    if (enabled) stringResource(R.string.ai_features_active_summary) else stringResource(R.string.ai_features_disabled_summary),
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },
@@ -243,7 +243,7 @@ object AiIntegrationScreen : Screen {
           }
 
           if (enabled) {
-            item { PreferenceSectionHeader(title = "Provider") }
+            item { PreferenceSectionHeader(title = stringResource(R.string.ai_section_provider)) }
 
             item {
               PreferenceCard {
@@ -256,7 +256,7 @@ object AiIntegrationScreen : Screen {
                   },
                   values = providers,
                   valueToText = { androidx.compose.ui.text.AnnotatedString(it.displayName) },
-                  title = { Text("AI Provider") },
+                  title = { Text(stringResource(R.string.ai_provider_title)) },
                   summary = {
                     Text(provider.displayName, color = MaterialTheme.colorScheme.outline)
                   },
@@ -265,7 +265,7 @@ object AiIntegrationScreen : Screen {
             }
 
             if (provider == AiProvider.LOCAL) {
-              item { PreferenceSectionHeader(title = "Hugging Face Setup") }
+              item { PreferenceSectionHeader(title = stringResource(R.string.ai_section_hugging_face)) }
               
               item {
                 PreferenceCard {
@@ -273,22 +273,22 @@ object AiIntegrationScreen : Screen {
                     value = huggingfaceToken,
                     onValueChange = preferences.huggingfaceToken::set,
                     textToValue = { it.trim() },
-                    title = { Text("Hugging Face Token") },
+                    title = { Text(stringResource(R.string.ai_hugging_face_token_title)) },
                     summary = {
                       if (huggingfaceToken.isBlank()) {
-                        Text("Required for gated models. Get one from huggingface.co/settings/tokens", color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.ai_hugging_face_token_required), color = MaterialTheme.colorScheme.error)
                       } else {
-                        Text("Token saved on device", color = MaterialTheme.colorScheme.outline)
+                        Text(stringResource(R.string.ai_token_saved_summary), color = MaterialTheme.colorScheme.outline)
                       }
                     },
                     textField = { value, onValueChange, _ ->
                       Column {
-                        Text("Paste your Hugging Face token")
+                        Text(stringResource(R.string.ai_hugging_face_token_paste))
                         TextField(
                           value = value,
                           onValueChange = onValueChange,
                           modifier = Modifier.fillMaxWidth(),
-                          placeholder = { Text("hf_...") },
+                          placeholder = { Text(stringResource(R.string.ai_hugging_face_token_placeholder)) },
                           singleLine = true,
                           visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
                         )
@@ -298,7 +298,7 @@ object AiIntegrationScreen : Screen {
                 }
               }
 
-              item { PreferenceSectionHeader(title = "Offline Models") }
+              item { PreferenceSectionHeader(title = stringResource(R.string.ai_section_offline_models)) }
 
               item {
                 Column(
@@ -308,12 +308,12 @@ object AiIntegrationScreen : Screen {
                   verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                   Text(
-                    text = "Speed-first model picker",
+                    text = stringResource(R.string.ai_speed_first_picker),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                   )
                   Text(
-                    text = "Models are ranked by how fast they feel after loading, RAM pressure, and subtitle translation quality.",
+                    text = stringResource(R.string.ai_model_ranking_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.outline,
                   )
@@ -323,7 +323,12 @@ object AiIntegrationScreen : Screen {
                       .fillMaxWidth()
                       .horizontalScroll(rememberScrollState()),
                   ) {
-                    listOf("Recommended", "Fastest", "Best translation", "Downloaded").forEach { mode ->
+                    listOf(
+                      stringResource(R.string.ai_filter_recommended),
+                      stringResource(R.string.ai_filter_fastest),
+                      stringResource(R.string.ai_filter_best_translation),
+                      stringResource(R.string.ai_filter_downloaded),
+                    ).forEach { mode ->
                       FilterChip(
                         selected = localModelSort == mode,
                         onClick = { localModelSort = mode },
@@ -370,21 +375,21 @@ object AiIntegrationScreen : Screen {
                               aiService.downloadLocalModel(model.id)
                                   .onSuccess {
                                       downloadProgress = DownloadProgress(isComplete = true)
-                                      Toast.makeText(context, "Model downloaded successfully", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.ai_model_download_success_toast), Toast.LENGTH_SHORT).show()
                                       if (model.supportsThinking) {
                                           preferences.showThinking.set(true)
                                       }
                                   }
                                   .onFailure { e ->
                                       downloadProgress = DownloadProgress(error = e.message)
-                                      Toast.makeText(context, "Download failed: ${e.message}", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(context, context.getString(R.string.ai_model_download_failed_toast, e.message ?: "Unknown error"), Toast.LENGTH_LONG).show()
                                   }
                               isDownloading = false
                           }
                       },
                       onDelete = {
                           if (aiService.deleteLocalModel(model.id)) {
-                              Toast.makeText(context, "Model deleted", Toast.LENGTH_SHORT).show()
+                              Toast.makeText(context, context.getString(R.string.ai_model_deleted_toast), Toast.LENGTH_SHORT).show()
                           }
                       },
                       onSelect = {
@@ -392,7 +397,7 @@ object AiIntegrationScreen : Screen {
                           if (model.supportsThinking) {
                               preferences.showThinking.set(true)
                           }
-                          Toast.makeText(context, "Using ${model.displayName}", Toast.LENGTH_SHORT).show()
+                          Toast.makeText(context, context.getString(R.string.ai_model_using_toast, model.displayName), Toast.LENGTH_SHORT).show()
                       },
                       onBenchmark = {
                           benchmarkingModelId = model.id
@@ -400,10 +405,10 @@ object AiIntegrationScreen : Screen {
                               aiService.benchmarkLocalModel(model.id)
                                   .onSuccess {
                                       benchmarks = aiService.getLocalModelBenchmarks()
-                                      Toast.makeText(context, "Benchmark saved: ${it.speedLabel}", Toast.LENGTH_SHORT).show()
+                                      Toast.makeText(context, context.getString(R.string.ai_benchmark_saved_toast, it.speedLabel), Toast.LENGTH_SHORT).show()
                                   }
                                   .onFailure { e ->
-                                      Toast.makeText(context, "Benchmark failed: ${e.message}", Toast.LENGTH_LONG).show()
+                                      Toast.makeText(context, context.getString(R.string.ai_benchmark_failed_toast, e.message ?: "Unknown error"), Toast.LENGTH_LONG).show()
                                   }
                               benchmarkingModelId = null
                           }
@@ -416,17 +421,17 @@ object AiIntegrationScreen : Screen {
 
             if (provider != AiProvider.LOCAL) {
               val apiKeyInfo = when (provider) {
-                AiProvider.OPENCODE -> ApiKeyInfo("OpenCode API Key", "Get your key from opencode.ai/auth", "sk-...", openCodeKey, preferences.openCodeApiKey::set)
-                AiProvider.GROQ -> ApiKeyInfo("Groq API Key", "Get your key from console.groq.com", "gsk_...", groqKey, preferences.groqApiKey::set)
-                AiProvider.OPENAI -> ApiKeyInfo("OpenAI API Key", "Get your key from platform.openai.com/api-keys", "sk-...", openaiKey, preferences.openaiApiKey::set)
-                AiProvider.ANTHROPIC -> ApiKeyInfo("Anthropic API Key", "Get your key from console.anthropic.com", "sk-ant-...", anthropicKey, preferences.anthropicApiKey::set)
-                AiProvider.OPENROUTER -> ApiKeyInfo("OpenRouter API Key", "Get your key from openrouter.ai/keys", "sk-or-...", openrouterKey, preferences.openrouterApiKey::set)
-                AiProvider.TOGETHER -> ApiKeyInfo("Together API Key", "Get your key from api.together.xyz/settings/api-keys", "...", togetherKey, preferences.togetherApiKey::set)
+                AiProvider.OPENCODE -> ApiKeyInfo(stringResource(R.string.pref_opencode_api_key_title), stringResource(R.string.pref_opencode_api_key_hint), stringResource(R.string.pref_opencode_api_key_placeholder), openCodeKey, preferences.openCodeApiKey::set)
+                AiProvider.GROQ -> ApiKeyInfo(stringResource(R.string.pref_groq_api_key_title), stringResource(R.string.pref_groq_api_key_hint), stringResource(R.string.pref_groq_api_key_placeholder), groqKey, preferences.groqApiKey::set)
+                AiProvider.OPENAI -> ApiKeyInfo(stringResource(R.string.pref_openai_api_key_title), stringResource(R.string.pref_openai_api_key_hint), stringResource(R.string.pref_openai_api_key_placeholder), openaiKey, preferences.openaiApiKey::set)
+                AiProvider.ANTHROPIC -> ApiKeyInfo(stringResource(R.string.pref_anthropic_api_key_title), stringResource(R.string.pref_anthropic_api_key_hint), stringResource(R.string.pref_anthropic_api_key_placeholder), anthropicKey, preferences.anthropicApiKey::set)
+                AiProvider.OPENROUTER -> ApiKeyInfo(stringResource(R.string.pref_openrouter_api_key_title), stringResource(R.string.pref_openrouter_api_key_hint), stringResource(R.string.pref_openrouter_api_key_placeholder), openrouterKey, preferences.openrouterApiKey::set)
+                AiProvider.TOGETHER -> ApiKeyInfo(stringResource(R.string.pref_together_api_key_title), stringResource(R.string.pref_together_api_key_hint), stringResource(R.string.pref_together_api_key_placeholder), togetherKey, preferences.togetherApiKey::set)
                 else -> null
               }
 
               if (apiKeyInfo != null) {
-                item { PreferenceSectionHeader(title = "API Configuration") }
+                item { PreferenceSectionHeader(title = stringResource(R.string.ai_section_api_config)) }
 
                 item {
                   PreferenceCard {
@@ -439,12 +444,12 @@ object AiIntegrationScreen : Screen {
                         if (apiKeyInfo.apiKey.isBlank()) {
                           Text(apiKeyInfo.hint, color = MaterialTheme.colorScheme.error)
                         } else {
-                          Text("API key saved on device", color = MaterialTheme.colorScheme.outline)
+                          Text(stringResource(R.string.ai_api_key_saved), color = MaterialTheme.colorScheme.outline)
                         }
                       },
                       textField = { value, onValueChange, _ ->
                         Column {
-                          Text("Paste your ${apiKeyInfo.title}")
+                          Text(stringResource(R.string.ai_paste_api_key, apiKeyInfo.title))
                           TextField(
                             value = value,
                             onValueChange = onValueChange,
@@ -474,7 +479,7 @@ object AiIntegrationScreen : Screen {
                         ),
                         shape = MaterialTheme.shapes.extraLarge,
                       ) {
-                        Text(if (showApiKey) "Hide Key" else "Show Key")
+                        Text(if (showApiKey) stringResource(R.string.ai_hide_key) else stringResource(R.string.ai_show_key))
                       }
 
                       Button(
@@ -488,7 +493,7 @@ object AiIntegrationScreen : Screen {
                                 preferences.lastVerified.set(System.currentTimeMillis())
                               }
                               .onFailure { e ->
-                                verifyResult = "Verification failed: ${e.message}"
+                                verifyResult = context.getString(R.string.ai_verification_failed, e.message ?: "Unknown error")
                               }
                             isVerifying = false
                           }
@@ -507,7 +512,7 @@ object AiIntegrationScreen : Screen {
                             color = MaterialTheme.colorScheme.onPrimary,
                           )
                         } else {
-                          Text("Verify Key")
+                          Text(stringResource(R.string.ai_verify_key))
                         }
                       }
                     }
@@ -537,7 +542,7 @@ object AiIntegrationScreen : Screen {
                   }
                 }
 
-                item { PreferenceSectionHeader(title = "Model") }
+                item { PreferenceSectionHeader(title = stringResource(R.string.ai_section_model)) }
 
                 item {
                   PreferenceCard {
@@ -549,7 +554,7 @@ object AiIntegrationScreen : Screen {
                       horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                       Text(
-                        text = "Available Models",
+                        text = stringResource(R.string.ai_available_models),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                       )
@@ -570,12 +575,12 @@ object AiIntegrationScreen : Screen {
                         } else {
                           Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh",
+                            contentDescription = stringResource(R.string.cd_refresh),
                             modifier = Modifier.size(18.dp),
                           )
                         }
                         Spacer(modifier = Modifier.size(4.dp))
-                        Text("Fetch Models")
+                        Text(stringResource(R.string.ai_fetch_models))
                       }
                     }
 
@@ -607,14 +612,14 @@ object AiIntegrationScreen : Screen {
                         ) {
                           Column(modifier = Modifier.weight(1f)) {
                             Text(
-                              text = "Model",
+                              text = stringResource(R.string.ai_section_model),
                               style = MaterialTheme.typography.labelLarge,
                               fontWeight = FontWeight.Bold,
                             )
                             Text(
                               text = if (selectedModel.isNotBlank()) {
                                 modelDisplayNames[selectedModel] ?: selectedModel
-                              } else "Tap to select a model",
+                              } else stringResource(R.string.ai_tap_to_select_model),
                               style = MaterialTheme.typography.bodySmall,
                               color = MaterialTheme.colorScheme.outline,
                             )
@@ -644,7 +649,7 @@ object AiIntegrationScreen : Screen {
                       }
                     } else {
                       Text(
-                        text = "Tap 'Fetch Models' to load available models from ${provider.displayName}",
+                        text = stringResource(R.string.ai_fetch_models_hint, provider.displayName),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -660,7 +665,7 @@ object AiIntegrationScreen : Screen {
                       verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                       Text(
-                        text = "Verify Model",
+                        text = stringResource(R.string.ai_verify_model),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                       )
@@ -673,7 +678,7 @@ object AiIntegrationScreen : Screen {
                             aiService.verifyModel()
                               .onSuccess { verifyModelResult = it }
                               .onFailure { e ->
-                                verifyModelResult = "Error: ${e.message}"
+                                verifyModelResult = context.getString(R.string.media_info_error_prefix, e.message ?: "Unknown error")
                               }
                             isVerifyingModel = false
                           }
@@ -693,7 +698,7 @@ object AiIntegrationScreen : Screen {
                           )
                           Spacer(Modifier.width(8.dp))
                         }
-                        Text("Check Model Access")
+                        Text(stringResource(R.string.ai_check_model_access))
                       }
 
                       if (verifyModelResult != null) {
@@ -747,31 +752,31 @@ object AiIntegrationScreen : Screen {
               }
             }
 
-            item { PreferenceSectionHeader(title = "General Settings") }
+            item { PreferenceSectionHeader(title = stringResource(R.string.ai_section_general_settings)) }
 
             item {
               PreferenceCard {
                 SwitchPreference(
                   value = preferences.showThinking.collectAsState().value,
                   onValueChange = { preferences.showThinking.set(it) },
-                  title = { Text("Show AI Reasoning (Thinking)") },
-                  summary = { Text("Enable this to see the model's internal thought process for supported models.") },
+                  title = { Text(stringResource(R.string.ai_show_reasoning_title)) },
+                  summary = { Text(stringResource(R.string.ai_show_reasoning_summary)) },
                   icon = { Icon(Icons.Default.DeveloperBoard, contentDescription = null) }
                 )
               }
             }
 
-            item { PreferenceSectionHeader(title = "Features") }
+            item { PreferenceSectionHeader(title = stringResource(R.string.ai_section_features)) }
 
             item {
               PreferenceCard {
                 SwitchPreference(
                   value = renameWithAi,
                   onValueChange = { preferences.renameWithAi.set(it) },
-                  title = { Text("AI-Powered Rename") },
+                  title = { Text(stringResource(R.string.ai_powered_rename_title)) },
                   summary = {
                     Text(
-                      "Use AI to generate clean filenames for bulk rename operations",
+                      stringResource(R.string.ai_powered_rename_summary),
                       color = MaterialTheme.colorScheme.outline,
                     )
                   },
@@ -782,10 +787,10 @@ object AiIntegrationScreen : Screen {
                 SwitchPreference(
                   value = subtitleFormatWithAi,
                   onValueChange = { preferences.subtitleFormatWithAi.set(it) },
-                  title = { Text("AI Search") },
+                  title = { Text(stringResource(R.string.ai_search_title)) },
                   summary = {
                     Text(
-                      "Auto-format video titles for Wyzie/SubHub subtitle search",
+                      stringResource(R.string.ai_search_summary),
                       color = MaterialTheme.colorScheme.outline,
                     )
                   },
@@ -794,7 +799,7 @@ object AiIntegrationScreen : Screen {
             }
 
             if (provider != AiProvider.LOCAL) {
-              item { PreferenceSectionHeader(title = "Speech-to-Text [Extreme Experimental]") }
+              item { PreferenceSectionHeader(title = stringResource(R.string.ai_section_speech_to_text)) }
 
               item {
                 PreferenceCard {
@@ -805,10 +810,10 @@ object AiIntegrationScreen : Screen {
                   SwitchPreference(
                     value = realtimeSubsEnabled,
                     onValueChange = { preferences.realtimeSubsEnabled.set(it) },
-                    title = { Text("Real-time Subtitle Generation") },
+                    title = { Text(stringResource(R.string.ai_realtime_subtitle_gen_title)) },
                     summary = {
                       Text(
-                        "Generate subtitles from audio while playing video",
+                        stringResource(R.string.ai_realtime_subtitle_gen_summary),
                         color = MaterialTheme.colorScheme.outline,
                       )
                     },
@@ -821,7 +826,7 @@ object AiIntegrationScreen : Screen {
                     onValueChange = { preferences.subtitleGenerationOutputFormat.set(it) },
                     values = listOf("srt", "vtt"),
                     valueToText = { androidx.compose.ui.text.AnnotatedString(it.uppercase()) },
-                    title = { Text("Default Output Format") },
+                    title = { Text(stringResource(R.string.ai_default_output_format_title)) },
                     summary = {
                       Text(
                         subtitleGenerationOutputFormat.uppercase(),
@@ -840,10 +845,10 @@ object AiIntegrationScreen : Screen {
                     },
                     values = sttProviders,
                     valueToText = { androidx.compose.ui.text.AnnotatedString(it.displayName) },
-                    title = { Text("Speech-to-Text Provider") },
+                    title = { Text(stringResource(R.string.ai_stt_provider_title)) },
                     summary = {
                       Text(
-                        "Used for both real-time streaming and batch subtitle generation",
+                        stringResource(R.string.ai_stt_provider_summary),
                         color = MaterialTheme.colorScheme.outline,
                       )
                     },
@@ -867,7 +872,7 @@ object AiIntegrationScreen : Screen {
                     valueToText = { lang ->
                       androidx.compose.ui.text.AnnotatedString(
                         when (lang) {
-                          "" -> "Auto-detect"
+                          "" -> context.getString(R.string.ai_auto_detect_language)
                           "en" -> "English"; "es" -> "Spanish"
                           "fr" -> "French"; "de" -> "German"; "hi" -> "Hindi"; "ja" -> "Japanese"
                           "zh" -> "Chinese"; "ko" -> "Korean"; "pt" -> "Portuguese"; "ru" -> "Russian"
@@ -877,10 +882,10 @@ object AiIntegrationScreen : Screen {
                         }
                       )
                     },
-                    title = { Text("Audio Language") },
+                    title = { Text(stringResource(R.string.ai_audio_language_title)) },
                     summary = {
                       Text(
-                        if (sttLanguage.isBlank()) "Auto-detect speech language" else sttLanguage.uppercase(),
+                        if (sttLanguage.isBlank()) stringResource(R.string.ai_auto_detect_speech_language) else sttLanguage.uppercase(),
                         color = MaterialTheme.colorScheme.outline,
                       )
                     },
@@ -890,7 +895,7 @@ object AiIntegrationScreen : Screen {
             }
 
             if (provider != AiProvider.LOCAL) {
-              item { PreferenceSectionHeader(title = "Subtitle Translation") }
+              item { PreferenceSectionHeader(title = stringResource(R.string.ai_section_subtitle_translation)) }
 
               item {
                 PreferenceCard {
@@ -902,10 +907,10 @@ object AiIntegrationScreen : Screen {
                         showSubtitleTranslationWarning = true
                       }
                     },
-                    title = { Text("Enable Translation") },
+                    title = { Text(stringResource(R.string.ai_enable_translation_title)) },
                     summary = {
                       Text(
-                        "Translate external subtitles using AI",
+                        stringResource(R.string.ai_enable_translation_summary),
                         color = MaterialTheme.colorScheme.outline,
                       )
                     },
@@ -921,18 +926,18 @@ object AiIntegrationScreen : Screen {
               }
             }
 
-            item { PreferenceSectionHeader(title = "Custom Prompt") }
+            item { PreferenceSectionHeader(title = stringResource(R.string.ai_section_custom_prompt)) }
 
             item {
               PreferenceCard {
                 SwitchPreference(
                   value = customPromptEnabled,
                   onValueChange = { preferences.customPromptEnabled.set(it) },
-                  title = { Text("Override Default Instructions") },
+                  title = { Text(stringResource(R.string.ai_override_instructions_title)) },
                   summary = {
                     Text(
-                      if (customPromptEnabled) "Custom prompt will be used instead of built-in instructions"
-                      else "Built-in AI instructions will be used",
+                      if (customPromptEnabled) stringResource(R.string.ai_override_enabled_summary)
+                      else stringResource(R.string.ai_override_disabled_summary),
                       color = MaterialTheme.colorScheme.outline,
                     )
                   },
@@ -948,13 +953,13 @@ object AiIntegrationScreen : Screen {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                   ) {
                     Text(
-                      text = "Custom Prompts",
+                      text = stringResource(R.string.ai_custom_prompts_title),
                       style = MaterialTheme.typography.labelLarge,
                       fontWeight = FontWeight.Bold,
                     )
 
                     Text(
-                      text = "Leave a field blank to use the built-in instruction for that task. If you have an older global prompt saved, it will be used as a fallback.",
+                      text = stringResource(R.string.ai_custom_prompts_description),
                       style = MaterialTheme.typography.bodySmall,
                       color = MaterialTheme.colorScheme.outline,
                     )
@@ -965,8 +970,8 @@ object AiIntegrationScreen : Screen {
                       modifier = Modifier
                         .fillMaxWidth()
                         .height(140.dp),
-                      label = { Text("Custom rename prompt") },
-                      placeholder = { Text("Instructions for AI file renaming...") },
+                      label = { Text(stringResource(R.string.ai_custom_rename_prompt_label)) },
+                      placeholder = { Text(stringResource(R.string.ai_custom_rename_prompt_placeholder)) },
                       maxLines = 6,
                     )
 
@@ -976,8 +981,8 @@ object AiIntegrationScreen : Screen {
                       modifier = Modifier
                         .fillMaxWidth()
                         .height(140.dp),
-                      label = { Text("Custom subtitle translation prompt") },
-                      placeholder = { Text("Instructions for AI subtitle translation...") },
+                      label = { Text(stringResource(R.string.ai_custom_translation_prompt_label)) },
+                      placeholder = { Text(stringResource(R.string.ai_custom_translation_prompt_placeholder)) },
                       maxLines = 6,
                     )
 
@@ -987,14 +992,14 @@ object AiIntegrationScreen : Screen {
                       modifier = Modifier
                         .fillMaxWidth()
                         .height(140.dp),
-                      label = { Text("Custom subtitle formatting prompt") },
-                      placeholder = { Text("Instructions for formatting subtitle search queries...") },
+                      label = { Text(stringResource(R.string.ai_custom_format_prompt_label)) },
+                      placeholder = { Text(stringResource(R.string.ai_custom_format_prompt_placeholder)) },
                       maxLines = 6,
                     )
 
                     if (customPrompt.isNotBlank()) {
                       Text(
-                        text = "Legacy global prompt saved. It will be used whenever a task-specific prompt is empty.",
+                        text = stringResource(R.string.ai_legacy_prompt_saved),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline,
                       )
@@ -1013,11 +1018,10 @@ object AiIntegrationScreen : Screen {
           showSubtitleTranslationWarning = false
           preferences.subtitleTranslationFirstTime.set(false)
         },
-        title = { Text("Subtitle Translation") },
+        title = { Text(stringResource(R.string.ai_translation_warning_title)) },
         text = {
           Text(
-            "Subtitle translation can be a bit messy. " +
-            "For best results, use better models and don't rant that subs aren't working properly."
+            stringResource(R.string.ai_translation_warning_text)
           )
         },
         confirmButton = {
@@ -1025,7 +1029,7 @@ object AiIntegrationScreen : Screen {
             showSubtitleTranslationWarning = false
             preferences.subtitleTranslationFirstTime.set(false)
           }) {
-            Text("Got it")
+            Text(stringResource(R.string.ai_dialog_got_it))
           }
         }
       )
@@ -1083,7 +1087,7 @@ private fun OfflineModelCard(
                     ) {
                         ModelChip(model.tier.label)
                         ModelChip(model.sizeLabel)
-                        ModelChip("${model.minRamGb}GB RAM+")
+                        ModelChip(stringResource(R.string.ai_model_ram_label, model.minRamGb))
                     }
                 }
                 
@@ -1091,7 +1095,7 @@ private fun OfflineModelCard(
                     IconButton(onClick = onDelete) {
                         Icon(
                             Icons.Default.Delete, 
-                            contentDescription = "Delete", 
+                            contentDescription = stringResource(R.string.cd_delete), 
                             tint = if (isSelected) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
                         )
                     }
@@ -1112,9 +1116,9 @@ private fun OfflineModelCard(
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
             ) {
-                if (isRecommended) ModelChip("Recommended here")
-                ModelChip("Speed ${model.speedRank}")
-                ModelChip("Translation ${model.translationRank}")
+                if (isRecommended) ModelChip(stringResource(R.string.ai_model_recommended_here))
+                ModelChip(stringResource(R.string.ai_model_speed_rank, model.speedRank))
+                ModelChip(stringResource(R.string.ai_model_translation_rank, model.translationRank))
                 ModelChip(model.languageTier.label)
             }
 
@@ -1167,7 +1171,7 @@ private fun OfflineModelCard(
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                             Spacer(modifier = Modifier.width(6.dp))
                         }
-                        Text(if (benchmark == null) "Benchmark" else "Re-test")
+                        Text(if (benchmark == null) stringResource(R.string.ai_benchmark_button) else stringResource(R.string.ai_retest_button))
                     }
                 }
                 if (!isDownloaded && !isDownloading) {
@@ -1180,7 +1184,7 @@ private fun OfflineModelCard(
                     ) {
                         Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Download")
+                        Text(stringResource(R.string.ai_download_button))
                     }
                 } else if (isDownloaded && !isSelected && !isDownloading) {
                     Button(
@@ -1191,7 +1195,7 @@ private fun OfflineModelCard(
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     ) {
-                        Text("Use Model")
+                        Text(stringResource(R.string.ai_use_model_button))
                     }
                 } else if (isSelected && isDownloaded && !isDownloading) {
                     Surface(
@@ -1210,7 +1214,7 @@ private fun OfflineModelCard(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                "Active", 
+                                stringResource(R.string.ai_model_active_badge), 
                                 style = MaterialTheme.typography.labelLarge, 
                                 color = MaterialTheme.colorScheme.onPrimary,
                                 fontWeight = FontWeight.Bold
@@ -1285,7 +1289,7 @@ private fun SttModelSelector(
               showDialog = true
             }
             .onFailure { e ->
-              Toast.makeText(context, "Failed to load models: ${e.message}", Toast.LENGTH_SHORT).show()
+              Toast.makeText(context, context.getString(R.string.ai_failed_to_load_models_toast, e.message ?: "Unknown error"), Toast.LENGTH_SHORT).show()
             }
           isLoadingStt = false
         }
@@ -1303,14 +1307,14 @@ private fun SttModelSelector(
     ) {
       Column(modifier = Modifier.weight(1f)) {
         Text(
-          text = "Real-time Model",
+          text = stringResource(R.string.ai_realtime_model_label),
           style = MaterialTheme.typography.labelLarge,
           fontWeight = FontWeight.Bold,
         )
         Text(
           text = if (sttModel.isNotBlank()) sttModel
-                 else if (isLoadingStt) "Loading..."
-                 else "Tap to select STT model",
+                 else if (isLoadingStt) stringResource(R.string.ai_loading_label)
+                 else stringResource(R.string.ai_tap_to_select_stt),
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.outline,
         )
@@ -1349,19 +1353,19 @@ private fun AutoTranslateLanguageConfig(
     verticalArrangement = Arrangement.spacedBy(8.dp),
   ) {
     Text(
-      text = "Auto-Translate Target Languages",
+      text = stringResource(R.string.ai_auto_translate_target_languages),
       style = MaterialTheme.typography.labelLarge,
       fontWeight = FontWeight.Bold,
     )
     Text(
-      text = "When translating subtitles, if 1 language is configured it translates directly. If 2+ are configured, a picker appears.",
+      text = stringResource(R.string.ai_auto_translate_description),
       style = MaterialTheme.typography.bodySmall,
       color = MaterialTheme.colorScheme.outline,
     )
 
     if (selectedCodes.isEmpty()) {
       Text(
-        text = "No target languages configured",
+        text = stringResource(R.string.ai_no_target_languages),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
       )
@@ -1396,7 +1400,7 @@ private fun AutoTranslateLanguageConfig(
               ) {
                 Icon(
                   Icons.Default.Close,
-                  contentDescription = "Remove $langName",
+                  contentDescription = stringResource(R.string.cd_remove_language, langName),
                   modifier = Modifier.size(14.dp),
                   tint = MaterialTheme.colorScheme.onPrimary,
                 )
@@ -1414,7 +1418,7 @@ private fun AutoTranslateLanguageConfig(
         value = addingSearch,
         onValueChange = { addingSearch = it },
         modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("Search languages...") },
+        placeholder = { Text(stringResource(R.string.ai_search_languages_placeholder)) },
         singleLine = true,
         shape = RoundedCornerShape(12.dp),
       )
@@ -1485,7 +1489,7 @@ private fun AutoTranslateLanguageConfig(
         modifier = Modifier.size(18.dp),
       )
       Spacer(modifier = Modifier.width(6.dp))
-      Text(if (adding) "Done" else "Add Language")
+      Text(if (adding) stringResource(R.string.ai_done_button) else stringResource(R.string.ai_add_language_button))
     }
   }
 }

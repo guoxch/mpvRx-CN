@@ -32,6 +32,8 @@ import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlpOptionSettings
 import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlpOptionsBuilder
 import app.gyrolet.mpvrx.ui.theme.spacing
 import app.gyrolet.mpvrx.utils.clipboard.SafeClipboard
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import java.io.File
@@ -64,9 +66,7 @@ fun YtdlpPanel(
     }
   }
 
-  val qualityLabel = remember(ytdlQuality) {
-    if (ytdlQuality == -1) "Any" else "${ytdlQuality}p"
-  }
+  val qualityLabel = if (ytdlQuality == -1) stringResource(R.string.sheet_quality_any_label) else stringResource(R.string.sheet_quality_p_label, ytdlQuality)
 
   DraggablePanel(
     modifier = modifier,
@@ -81,7 +81,7 @@ fun YtdlpPanel(
             .padding(top = MaterialTheme.spacing.small, bottom = MaterialTheme.spacing.extraSmall),
         ) {
           Text(
-            text = "yt-dlp Manager",
+            text = stringResource(R.string.sheet_ytdlp_manager_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
           )
@@ -100,7 +100,7 @@ fun YtdlpPanel(
           Tab(
             selected = selectedTab == 0,
             onClick = { selectedTab = 0 },
-            text = { Text("Settings", fontWeight = FontWeight.SemiBold) }
+            text = { Text(stringResource(R.string.sheet_settings_tab), fontWeight = FontWeight.SemiBold) }
           )
           Tab(
             selected = selectedTab == 1,
@@ -110,7 +110,7 @@ fun YtdlpPanel(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
               ) {
-                Text("Console", fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.sheet_console_tab), fontWeight = FontWeight.SemiBold)
                 if (isRunning) {
                   Box(
                     modifier = Modifier
@@ -157,7 +157,7 @@ fun YtdlpPanel(
                      else MaterialTheme.colorScheme.onErrorContainer,
             )
             Text(
-              text = if (hasYtdlp) "yt-dlp core is installed & active" else "yt-dlp core not installed",
+              text = if (hasYtdlp) stringResource(R.string.sheet_core_installed_status) else stringResource(R.string.sheet_core_not_installed_status),
               style = MaterialTheme.typography.bodyMedium,
               fontWeight = FontWeight.Bold,
               color = if (hasYtdlp) MaterialTheme.colorScheme.onPrimaryContainer
@@ -182,7 +182,7 @@ fun YtdlpPanel(
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
           ) {
             Text(
-              text = "Quick Quality Selection",
+              text = stringResource(R.string.sheet_quick_quality_title),
               style = MaterialTheme.typography.bodyMedium,
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -245,7 +245,7 @@ fun YtdlpPanel(
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
           ) {
             Text(
-              text = "Codec Preset",
+              text = stringResource(R.string.sheet_codec_preset_title),
               style = MaterialTheme.typography.bodyMedium,
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -295,7 +295,7 @@ fun YtdlpPanel(
             verticalArrangement = Arrangement.spacedBy(10.dp),
           ) {
             Text(
-              text = "Quick Subtitle Config",
+              text = stringResource(R.string.sheet_quick_subtitle_title),
               style = MaterialTheme.typography.bodyMedium,
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -309,8 +309,8 @@ fun YtdlpPanel(
               horizontalArrangement = Arrangement.SpaceBetween
             ) {
               Column(modifier = Modifier.weight(1f)) {
-                Text("Download Subtitles", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                Text("Fetch subs from stream sources", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.sheet_download_subtitles_label), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                Text(stringResource(R.string.sheet_download_subtitles_summary), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
               }
               Switch(
                 checked = writeSubs,
@@ -327,8 +327,8 @@ fun YtdlpPanel(
               horizontalArrangement = Arrangement.SpaceBetween
             ) {
               Column(modifier = Modifier.weight(1f)) {
-                Text("Auto-Generated Captions", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                Text("Include auto-captions/transcripts", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.sheet_auto_captions_label), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                Text(stringResource(R.string.sheet_auto_captions_summary), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
               }
               Switch(
                 checked = writeAutoSubs,
@@ -361,7 +361,7 @@ fun YtdlpPanel(
           ) {
             Icon(Icons.Default.CloudDownload, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Install Core")
+            Text(stringResource(R.string.ytdlp_install_core_button))
           }
 
           OutlinedButton(
@@ -383,7 +383,7 @@ fun YtdlpPanel(
           ) {
             Icon(Icons.Default.Update, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Update Core")
+            Text(stringResource(R.string.ytdlp_update_core_button))
           }
         }
       } else {
@@ -399,7 +399,7 @@ fun YtdlpPanel(
             verticalAlignment = Alignment.CenterVertically
           ) {
             Text(
-              text = if (isRunning) "Installing/Updating..." else "Terminal Idle",
+              text = if (isRunning) stringResource(R.string.sheet_installing_updating_label) else stringResource(R.string.sheet_terminal_idle_label),
               style = MaterialTheme.typography.bodySmall,
               fontWeight = FontWeight.Bold,
               color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -416,7 +416,7 @@ fun YtdlpPanel(
               ) {
                 Icon(
                   imageVector = Icons.Default.ContentCopy,
-                  contentDescription = "Copy logs",
+                  contentDescription = stringResource(R.string.cd_copy_logs),
                   modifier = Modifier.size(16.dp)
                 )
               }
@@ -428,7 +428,7 @@ fun YtdlpPanel(
               ) {
                 Icon(
                   imageVector = Icons.Default.Delete,
-                  contentDescription = "Clear logs",
+                  contentDescription = stringResource(R.string.cd_clear_logs),
                   modifier = Modifier.size(16.dp)
                 )
               }
@@ -456,7 +456,7 @@ fun YtdlpPanel(
                 .padding(12.dp)
             ) {
               Text(
-                text = logs.ifEmpty { "Console output is ready...\nInstall or update to trigger output." },
+                text = logs.ifEmpty { stringResource(R.string.ytdlp_console_placeholder) },
                 style = TextStyle(
                   fontFamily = FontFamily.Monospace,
                   fontSize = 11.sp,

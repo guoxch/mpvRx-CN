@@ -28,6 +28,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -56,7 +58,7 @@ fun HdrScreenOutputPanel(
           .padding(top = MaterialTheme.spacing.small),
       ) {
         Text(
-          text = "HDR Output",
+          text = stringResource(R.string.sheet_hdr_output_title),
           style = MaterialTheme.typography.titleLarge,
         )
         Spacer(Modifier.weight(1f))
@@ -125,12 +127,12 @@ private fun HdrPipelineUnavailableStatus(
       }
       Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(
-          text = "HDR cannot be enabled",
+          text = stringResource(R.string.sheet_hdr_cannot_enable_title),
           style = MaterialTheme.typography.titleLarge,
           fontWeight = FontWeight.SemiBold,
         )
         Text(
-          text = "Enable GPU Next and Vulkan before using HDR modes",
+          text = stringResource(R.string.sheet_hdr_cannot_enable_desc),
           style = MaterialTheme.typography.bodySmall,
           color = contentColor.copy(alpha = 0.78f),
         )

@@ -220,7 +220,7 @@ object DecoderPreferencesScreen : Screen {
                   }
                 },
                 enabled = isVulkanSupported,
-                title = { Text(stringResource(R.string.pref_decoder_vulkan_title) + " (Experimental)") },
+                title = { Text(stringResource(R.string.pref_decoder_vulkan_title) + " " + stringResource(R.string.pref_decoder_vulkan_experimental_suffix)) },
                 summary = {
                   Text(
                     stringResource(
@@ -392,7 +392,7 @@ object DecoderPreferencesScreen : Screen {
                       color = MaterialTheme.colorScheme.outline,
                     )
                     Text(
-                      text = "github.com/bloc97/Anime4K",
+                      text = stringResource(R.string.pref_anime4k_link),
                       color = MaterialTheme.colorScheme.primary,
                       style = MaterialTheme.typography.bodySmall,
                       textDecoration = TextDecoration.Underline,

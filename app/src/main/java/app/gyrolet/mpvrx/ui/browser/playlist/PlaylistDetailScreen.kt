@@ -53,6 +53,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.gyrolet.mpvrx.database.entities.PlaylistEntity
@@ -243,11 +244,11 @@ data class PlaylistDetailScreen(val playlistId: Int) : Screen {
                 onSearch = { },
                 expanded = false,
                 onExpandedChange = { },
-                placeholder = { Text("Search videos...") },
+                placeholder = { Text(stringResource(R.string.browser_search_videos_hint)) },
                 leadingIcon = {
                   Icon(
                     imageVector = Icons.Filled.Search,
-                    contentDescription = "Search",
+                    contentDescription = stringResource(app.gyrolet.mpvrx.R.string.cd_search),
                   )
                 },
                 trailingIcon = {
@@ -259,7 +260,7 @@ data class PlaylistDetailScreen(val playlistId: Int) : Screen {
                   ) {
                     Icon(
                       imageVector = Icons.Filled.Close,
-                      contentDescription = "Cancel",
+                      contentDescription = stringResource(app.gyrolet.mpvrx.R.string.cd_cancel),
                     )
                   }
                 },
@@ -278,7 +279,7 @@ data class PlaylistDetailScreen(val playlistId: Int) : Screen {
           }
         } else {
           BrowserTopBar(
-            title = playlist?.name ?: "Playlist",
+            title = playlist?.name ?: stringResource(app.gyrolet.mpvrx.R.string.browser_playlist_fallback_title),
             isInSelectionMode = selectionManager.isInSelectionMode,
             selectedCount = selectionManager.selectedCount,
             totalCount = videos.size,
@@ -344,7 +345,7 @@ data class PlaylistDetailScreen(val playlistId: Int) : Screen {
                   ) {
                     Icon(
                       imageVector = Icons.Filled.Check,
-                      contentDescription = "Done reordering",
+                      contentDescription = stringResource(app.gyrolet.mpvrx.R.string.browser_done_reordering_description),
                       tint = MaterialTheme.colorScheme.primary,
                     )
                   }
@@ -360,7 +361,7 @@ data class PlaylistDetailScreen(val playlistId: Int) : Screen {
                     ) {
                       Icon(
                         imageVector = Icons.Filled.Search,
-                        contentDescription = "Search videos",
+                        contentDescription = stringResource(app.gyrolet.mpvrx.R.string.browser_search_videos_action_description),
                         tint = MaterialTheme.colorScheme.onSurface,
                       )
                     }
@@ -373,7 +374,7 @@ data class PlaylistDetailScreen(val playlistId: Int) : Screen {
                       ) {
                         Icon(
                           imageVector = Icons.Outlined.SwapVert,
-                          contentDescription = "Reorder playlist",
+                          contentDescription = stringResource(app.gyrolet.mpvrx.R.string.browser_reorder_playlist_description),
                           tint = MaterialTheme.colorScheme.onSurface,
                         )
                       }
@@ -417,7 +418,7 @@ data class PlaylistDetailScreen(val playlistId: Int) : Screen {
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                          text = "Play",
+                          text = stringResource(app.gyrolet.mpvrx.R.string.browser_play_button),
                           style = MaterialTheme.typography.labelLarge,
                           fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                         )
@@ -451,12 +452,12 @@ data class PlaylistDetailScreen(val playlistId: Int) : Screen {
               tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-              text = "No videos found",
+              text = stringResource(app.gyrolet.mpvrx.R.string.browser_search_no_videos_title),
               style = MaterialTheme.typography.titleMedium,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-              text = "Try a different search term",
+              text = stringResource(app.gyrolet.mpvrx.R.string.browser_search_no_videos_message),
               style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -477,10 +478,10 @@ data class PlaylistDetailScreen(val playlistId: Int) : Screen {
               val result = viewModel.refreshM3UPlaylist()
               result
                 .onSuccess {
-                  Toast.makeText(context, "Playlist refreshed successfully", Toast.LENGTH_SHORT).show()
+                  Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.browser_playlist_refreshed_toast), Toast.LENGTH_SHORT).show()
                 }
                 .onFailure { error ->
-                  Toast.makeText(context, "Failed to refresh: ${error.message}", Toast.LENGTH_LONG).show()
+                  Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.browser_playlist_refresh_failed_toast, error.message), Toast.LENGTH_LONG).show()
                 }
             } else {
               viewModel.refreshNow()
@@ -660,12 +661,12 @@ private fun PlaylistVideoListContent(
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
           )
           Text(
-            text = "No videos in playlist",
+            text = stringResource(app.gyrolet.mpvrx.R.string.browser_no_videos_in_playlist_title),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
           Text(
-            text = "Add videos to get started",
+            text = stringResource(app.gyrolet.mpvrx.R.string.browser_no_videos_in_playlist_message),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
@@ -761,7 +762,7 @@ private fun PlaylistVideoListContent(
                   ) {
                     Icon(
                       imageVector = Icons.Filled.DragHandle,
-                      contentDescription = "Drag to reorder",
+                      contentDescription = stringResource(app.gyrolet.mpvrx.R.string.cd_drag_to_reorder),
                       tint = MaterialTheme.colorScheme.primary,
                     )
                   }
@@ -805,7 +806,7 @@ private fun M3UPlaylistFilterRow(
       FilterChip(
         selected = selectedFilter == M3U_FILTER_ALL,
         onClick = { onFilterSelected(M3U_FILTER_ALL) },
-        label = { Text("All") },
+        label = { Text(stringResource(app.gyrolet.mpvrx.R.string.browser_filter_all_label)) },
       )
     }
 
@@ -814,7 +815,7 @@ private fun M3UPlaylistFilterRow(
         FilterChip(
           selected = selectedFilter == M3U_FILTER_FAVORITES,
           onClick = { onFilterSelected(M3U_FILTER_FAVORITES) },
-          label = { Text("Saved") },
+          label = { Text(stringResource(app.gyrolet.mpvrx.R.string.browser_filter_saved_label)) },
         )
       }
     }
@@ -851,7 +852,7 @@ private fun StreamUrlDialog(
 ) {
   androidx.compose.material3.AlertDialog(
     onDismissRequest = onDismiss,
-    title = { Text("Stream URL") },
+    title = { Text(stringResource(app.gyrolet.mpvrx.R.string.browser_stream_url_dialog_title)) },
     text = {
       Text(
         text = url,
@@ -871,12 +872,12 @@ private fun StreamUrlDialog(
           contentDescription = null,
           modifier = Modifier.padding(end = 4.dp).size(18.dp)
         )
-        Text("Copy")
+        Text(stringResource(app.gyrolet.mpvrx.R.string.browser_copy_button))
       }
     },
     dismissButton = {
       androidx.compose.material3.TextButton(onClick = onDismiss) {
-        Text("Close")
+        Text(stringResource(app.gyrolet.mpvrx.R.string.browser_close_button))
       }
     },
   )
@@ -897,7 +898,7 @@ private fun RemoveFromPlaylistDialog(
     onDismissRequest = onDismiss,
     title = {
       Text(
-        text = "Remove $itemCount $itemText from playlist?",
+        text = stringResource(app.gyrolet.mpvrx.R.string.browser_remove_from_playlist_dialog_title, itemCount, itemText),
         style = MaterialTheme.typography.headlineMedium,
         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
       )
@@ -914,7 +915,7 @@ private fun RemoveFromPlaylistDialog(
           shape = MaterialTheme.shapes.extraLarge,
         ) {
           Text(
-            text = "The selected $itemText will be removed from this playlist. The original ${if (itemCount == 1) "file" else "files"} will not be deleted.",
+            text = stringResource(app.gyrolet.mpvrx.R.string.browser_remove_from_playlist_dialog_message, itemText),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -937,7 +938,7 @@ private fun RemoveFromPlaylistDialog(
         shape = MaterialTheme.shapes.extraLarge,
       ) {
         Text(
-          text = "Remove from Playlist",
+          text = stringResource(app.gyrolet.mpvrx.R.string.browser_remove_from_playlist_button),
           fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
         )
       }
@@ -947,7 +948,7 @@ private fun RemoveFromPlaylistDialog(
         onClick = onDismiss,
         shape = MaterialTheme.shapes.extraLarge,
       ) {
-        Text("Cancel", fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
+        Text(stringResource(app.gyrolet.mpvrx.R.string.browser_cancel_button), fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
       }
     },
     containerColor = MaterialTheme.colorScheme.surface,

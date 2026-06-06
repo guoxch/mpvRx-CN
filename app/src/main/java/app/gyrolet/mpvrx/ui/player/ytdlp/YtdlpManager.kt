@@ -3,6 +3,7 @@ package app.gyrolet.mpvrx.ui.player.ytdlp
 import android.content.Context
 import android.system.Os
 import android.util.Log
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.YtdlPreferences
 import app.gyrolet.mpvrx.preferences.SubtitlesPreferences
 import `is`.xyz.mpv.MPVLib
@@ -162,7 +163,7 @@ object YtdlpManager {
         // We use the bridge to run setup.py
         val command = mutableListOf(pythonBinary, setupPy, nativeLibDir)
         
-        runPythonProcess("Installing yt-dlp...", command, context, onLog)
+        runPythonProcess(context.getString(R.string.ytdlp_installing_status), command, context, onLog)
     }
 
     suspend fun runUpdate(context: Context, onLog: (String) -> Unit): Boolean = withContext(Dispatchers.IO) {
@@ -172,7 +173,7 @@ object YtdlpManager {
 
         val command = mutableListOf(pythonBinary, ytDlp, "--update")
         
-        runPythonProcess("Updating yt-dlp...", command, context, onLog)
+        runPythonProcess(context.getString(R.string.ytdlp_updating_status), command, context, onLog)
     }
 
     private fun runPythonProcess(title: String, command: List<String>, context: Context, onLog: (String) -> Unit): Boolean {

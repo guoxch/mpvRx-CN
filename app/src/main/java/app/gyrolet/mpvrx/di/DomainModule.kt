@@ -113,7 +113,7 @@ val domainModule = module {
     single<AiClient>(named("anthropic")) { AnthropicClient(get(), get()) }
     single<AiClient>(named("openrouter")) { OpenRouterClient(get(), get()) }
     single<AiClient>(named("together")) { TogetherClient(get(), get()) }
-    single { LocalAiClient(get()) }
+    single { LocalAiClient(androidContext(), get()) }
     single { ModelDownloadManager(get()) }
     single { SubtitleGenerationService(androidContext(), get(), get(), get(), get()) }
     single { RealtimeSubtitleService(androidContext(), get(), get(), get(), get()) }

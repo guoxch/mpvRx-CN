@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -99,9 +100,9 @@ object YtdlpSettingsScreen : Screen {
                     val f = File(ytdlDir, "yt-dlp")
                     if (f.exists()) " (${f.length() / 1024 / 1024} MB)" else ""
                 } catch (_: Exception) { "" }
-                "Installed$size"
+                context.getString(R.string.ytdlp_installed_label) + size
             } else {
-                "Not Configured"
+                context.getString(R.string.ytdlp_not_configured_label)
             }
         }
 
@@ -110,14 +111,14 @@ object YtdlpSettingsScreen : Screen {
                 TopAppBar(
                     title = {
                         Text(
-                            text = "yt-dlp Streaming",
+                            text = stringResource(R.string.ytdlp_screen_title),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = { backStack.popSafely() }) {
-                            Icon(Icons.Outlined.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.Outlined.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -163,15 +164,15 @@ object YtdlpSettingsScreen : Screen {
                         
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "yt-dlp Core Engine",
+                                text = stringResource(R.string.ytdlp_core_engine_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = if (hasYtdlp) "Subprocess active and ready for streaming" 
-                                       else "Engine missing. Please run installation below.",
+                                text = if (hasYtdlp) stringResource(R.string.ytdlp_active_summary) 
+                                       else stringResource(R.string.ytdlp_missing_summary),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -195,7 +196,7 @@ object YtdlpSettingsScreen : Screen {
                     }
                 }
 
-                PreferenceSectionHeader(title = "Quality & Format")
+                PreferenceSectionHeader(title = stringResource(R.string.pref_section_display_controls))
 
                 PreferenceCard {
                     Column(
@@ -203,14 +204,14 @@ object YtdlpSettingsScreen : Screen {
                         verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium)
                     ) {
                         Text(
-                            text = "Streaming Quality",
+                            text = stringResource(R.string.ytdlp_streaming_quality_title),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         
                         val qualityLevels = remember { arrayOf(-1, 2160, 1440, 1080, 720, 480, 360, 240, 144) }
-                        val qualityLabels = remember { qualityLevels.map { if (it == -1) "Any" else "${it}p" } }
+                        val qualityLabels = qualityLevels.map { if (it == -1) stringResource(R.string.ytdlp_quality_any_label) else "${it}p" }
 
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -236,7 +237,7 @@ object YtdlpSettingsScreen : Screen {
                         PreferenceDivider()
 
                         OptionDropdown(
-                            title = "Video Codec",
+                            title = stringResource(R.string.ytdlp_video_codec_title),
                             value = codecPreference,
                             values = YtdlCodecPreference.entries,
                             valueLabel = { it.title },
@@ -252,14 +253,14 @@ object YtdlpSettingsScreen : Screen {
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            listOf(0 to "Any FPS", 30 to "30 FPS", 60 to "60 FPS", 120 to "120 FPS").forEach { (fps, label) ->
+                            listOf(0 to R.string.ytdlp_any_fps, 30 to R.string.ytdlp_fps_30, 60 to R.string.ytdlp_fps_60, 120 to R.string.ytdlp_fps_120).forEach { (fps, labelRes) ->
                                 FilterChip(
                                     selected = maxFps == fps,
                                     onClick = {
                                         ytdlPreferences.maxFps.set(fps)
                                         updateFormatString(ytdlPreferences)
                                     },
-                                    label = { Text(label) },
+                                    label = { Text(stringResource(labelRes)) },
                                     leadingIcon = if (maxFps == fps) {
                                         { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
                                     } else null,
@@ -269,7 +270,7 @@ object YtdlpSettingsScreen : Screen {
                         }
 
                         OptionDropdown(
-                            title = "HDR Preference",
+                            title = stringResource(R.string.ytdlp_hdr_preference_title),
                             value = hdrPreference,
                             values = YtdlHdrPreference.entries,
                             valueLabel = { it.title },
@@ -280,7 +281,7 @@ object YtdlpSettingsScreen : Screen {
                         )
 
                         OptionDropdown(
-                            title = "Container",
+                            title = stringResource(R.string.ytdlp_container_title),
                             value = containerPreference,
                             values = YtdlContainerPreference.entries,
                             valueLabel = { it.title },
@@ -296,12 +297,12 @@ object YtdlpSettingsScreen : Screen {
                                 formatSortText = it
                                 ytdlPreferences.formatSort.set(it)
                             },
-                            label = { Text("Format Sort") },
-                            placeholder = { Text("res,fps,hdr:12,vcodec:vp9.2") },
+                            label = { Text(stringResource(R.string.ytdlp_format_sort_label)) },
+                            placeholder = { Text(stringResource(R.string.ytdlp_format_sort_placeholder)) },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth(),
-                            supportingText = { Text("Passed to yt-dlp as format-sort for advanced ranking.") }
+                            supportingText = { Text(stringResource(R.string.ytdlp_format_sort_supporting)) }
                         )
 
                         OutlinedTextField(
@@ -310,8 +311,8 @@ object YtdlpSettingsScreen : Screen {
                                 mergeOutputFormatText = it
                                 ytdlPreferences.mergeOutputFormat.set(it)
                             },
-                            label = { Text("Merge Output Format") },
-                            placeholder = { Text("mp4, mkv, webm") },
+                            label = { Text(stringResource(R.string.ytdlp_merge_output_label)) },
+                            placeholder = { Text(stringResource(R.string.ytdlp_merge_output_placeholder)) },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth(),
@@ -334,14 +335,14 @@ object YtdlpSettingsScreen : Screen {
                                     .padding(16.dp)
                             ) {
                                 Text(
-                                    text = "Generated Format String",
+                                    text = stringResource(R.string.ytdlp_generated_format_string),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
-                                    text = currentFormat.ifBlank { "(default)" },
+                                    text = currentFormat.ifBlank { stringResource(R.string.ytdlp_default_label) },
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 11.sp
@@ -353,7 +354,7 @@ object YtdlpSettingsScreen : Screen {
                     }
                 }
 
-                PreferenceSectionHeader(title = "Subtitles & Language")
+                PreferenceSectionHeader(title = stringResource(R.string.ytdlp_section_subtitles_language))
 
                 PreferenceCard {
                     Column(
@@ -363,8 +364,8 @@ object YtdlpSettingsScreen : Screen {
                         SwitchPreference(
                             value = writeSubs,
                             onValueChange = { ytdlPreferences.writeSubs.set(it) },
-                            title = { Text("Download Media Subtitles", fontWeight = FontWeight.Medium) },
-                            summary = { Text("Automatically extract and load physical subtitle tracks from supported URLs.") }
+                            title = { Text(stringResource(R.string.ytdlp_download_subs_title), fontWeight = FontWeight.Medium) },
+                            summary = { Text(stringResource(R.string.ytdlp_download_subs_summary)) }
                         )
 
                         PreferenceDivider()
@@ -372,8 +373,8 @@ object YtdlpSettingsScreen : Screen {
                         SwitchPreference(
                             value = writeAutoSubs,
                             onValueChange = { ytdlPreferences.writeAutoSubs.set(it) },
-                            title = { Text("Include Auto-Generated Subtitles", fontWeight = FontWeight.Medium) },
-                            summary = { Text("Fetch auto-caption tracks (e.g. YouTube Speech-to-Text) when regular subs are absent.") }
+                            title = { Text(stringResource(R.string.ytdlp_auto_captions_title), fontWeight = FontWeight.Medium) },
+                            summary = { Text(stringResource(R.string.ytdlp_auto_captions_summary)) }
                         )
 
                         PreferenceDivider()
@@ -384,17 +385,17 @@ object YtdlpSettingsScreen : Screen {
                                 subtitleLanguagesText = it
                                 ytdlPreferences.subtitleLanguages.set(it)
                             },
-                            label = { Text("Subtitle Languages") },
-                            placeholder = { Text("all or en.*,ja") },
+                            label = { Text(stringResource(R.string.ytdlp_subtitle_languages_label)) },
+                            placeholder = { Text(stringResource(R.string.ytdlp_subtitle_languages_placeholder)) },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth(),
-                            supportingText = { Text("Overrides app subtitle languages only for yt-dlp downloads.") }
+                            supportingText = { Text(stringResource(R.string.ytdlp_subtitle_languages_supporting)) }
                         )
                     }
                 }
 
-                PreferenceSectionHeader(title = "Advanced Networking")
+                PreferenceSectionHeader(title = stringResource(R.string.ytdlp_section_advanced_networking))
 
                 PreferenceCard {
                     Column(
@@ -407,8 +408,8 @@ object YtdlpSettingsScreen : Screen {
                                 userAgentText = it
                                 ytdlPreferences.customUserAgent.set(it)
                             },
-                            label = { Text("Custom User-Agent Override") },
-                            placeholder = { Text("Mozilla/5.0 ...") },
+                            label = { Text(stringResource(R.string.ytdlp_custom_user_agent_label)) },
+                            placeholder = { Text(stringResource(R.string.ytdlp_custom_user_agent_placeholder)) },
                             singleLine = false,
                             maxLines = 3,
                             shape = RoundedCornerShape(12.dp),
@@ -418,7 +419,7 @@ object YtdlpSettingsScreen : Screen {
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                             ),
                             supportingText = {
-                                Text("Leave blank to use default browser User-Agent. Helps bypass anti-bot scrapers.")
+                                Text(stringResource(R.string.ytdlp_custom_user_agent_supporting))
                             }
                         )
 
@@ -430,8 +431,8 @@ object YtdlpSettingsScreen : Screen {
                                 refererText = it
                                 ytdlPreferences.referer.set(it)
                             },
-                            label = { Text("Referer") },
-                            placeholder = { Text("https://www.youtube.com/") },
+                            label = { Text(stringResource(R.string.ytdlp_referer_label)) },
+                            placeholder = { Text(stringResource(R.string.ytdlp_referer_placeholder)) },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth(),
@@ -443,8 +444,8 @@ object YtdlpSettingsScreen : Screen {
                                 cookiesFileText = it
                                 ytdlPreferences.cookiesFile.set(it)
                             },
-                            label = { Text("Cookies File") },
-                            placeholder = { Text("/storage/emulated/0/Download/cookies.txt") },
+                            label = { Text(stringResource(R.string.ytdlp_cookies_label)) },
+                            placeholder = { Text(stringResource(R.string.ytdlp_cookies_placeholder)) },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth(),
@@ -456,8 +457,8 @@ object YtdlpSettingsScreen : Screen {
                                 proxyText = it
                                 ytdlPreferences.proxy.set(it)
                             },
-                            label = { Text("Proxy") },
-                            placeholder = { Text("socks5://127.0.0.1:1080") },
+                            label = { Text(stringResource(R.string.ytdlp_proxy_label)) },
+                            placeholder = { Text(stringResource(R.string.ytdlp_proxy_placeholder)) },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth(),
@@ -469,8 +470,8 @@ object YtdlpSettingsScreen : Screen {
                                 extractorArgsText = it
                                 ytdlPreferences.extractorArgs.set(it)
                             },
-                            label = { Text("Extractor Args") },
-                            placeholder = { Text("youtube:player_client=android,web") },
+                            label = { Text(stringResource(R.string.ytdlp_extractor_args_label)) },
+                            placeholder = { Text(stringResource(R.string.ytdlp_extractor_args_placeholder)) },
                             singleLine = false,
                             maxLines = 2,
                             shape = RoundedCornerShape(12.dp),
@@ -478,7 +479,7 @@ object YtdlpSettingsScreen : Screen {
                         )
 
                         OptionDropdown(
-                            title = "Playlist Behavior",
+                            title = stringResource(R.string.ytdlp_playlist_behavior_title),
                             value = playlistMode,
                             values = YtdlPlaylistMode.entries,
                             valueLabel = { it.title },
@@ -488,15 +489,15 @@ object YtdlpSettingsScreen : Screen {
                         SwitchPreference(
                             value = geoBypass,
                             onValueChange = { ytdlPreferences.geoBypass.set(it) },
-                            title = { Text("Geo Bypass", fontWeight = FontWeight.Medium) },
-                            summary = { Text("Ask yt-dlp to use its extractor-level region bypass logic.") }
+                            title = { Text(stringResource(R.string.ytdlp_geo_bypass_title), fontWeight = FontWeight.Medium) },
+                            summary = { Text(stringResource(R.string.ytdlp_geo_bypass_summary)) }
                         )
 
                         SwitchPreference(
                             value = liveFromStart,
                             onValueChange = { ytdlPreferences.liveFromStart.set(it) },
-                            title = { Text("Live From Start", fontWeight = FontWeight.Medium) },
-                            summary = { Text("Start live streams from the beginning when the extractor supports it.") }
+                            title = { Text(stringResource(R.string.ytdlp_live_from_start_title), fontWeight = FontWeight.Medium) },
+                            summary = { Text(stringResource(R.string.ytdlp_live_from_start_summary)) }
                         )
 
                         OutlinedTextField(
@@ -505,8 +506,8 @@ object YtdlpSettingsScreen : Screen {
                                 sponsorBlockMarkText = it
                                 ytdlPreferences.sponsorBlockMark.set(it)
                             },
-                            label = { Text("SponsorBlock Mark") },
-                            placeholder = { Text("sponsor,selfpromo") },
+                            label = { Text(stringResource(R.string.ytdlp_sponsorblock_mark_label)) },
+                            placeholder = { Text(stringResource(R.string.ytdlp_sponsorblock_mark_placeholder)) },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth(),
@@ -518,8 +519,8 @@ object YtdlpSettingsScreen : Screen {
                                 sponsorBlockRemoveText = it
                                 ytdlPreferences.sponsorBlockRemove.set(it)
                             },
-                            label = { Text("SponsorBlock Remove") },
-                            placeholder = { Text("sponsor") },
+                            label = { Text(stringResource(R.string.ytdlp_sponsorblock_remove_label)) },
+                            placeholder = { Text(stringResource(R.string.ytdlp_sponsorblock_remove_placeholder)) },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth(),
@@ -533,8 +534,8 @@ object YtdlpSettingsScreen : Screen {
                                 rawOptionsText = it
                                 ytdlPreferences.customRawOptions.set(it)
                             },
-                            label = { Text("Raw yt-dlp Options") },
-                            placeholder = { Text("extractor-args=\"youtube:player_client=android,web\"\ngeo-bypass=") },
+                            label = { Text(stringResource(R.string.ytdlp_raw_options_label)) },
+                            placeholder = { Text(stringResource(R.string.ytdlp_raw_options_placeholder)) },
                             singleLine = false,
                             maxLines = 6,
                             shape = RoundedCornerShape(12.dp),
@@ -544,13 +545,13 @@ object YtdlpSettingsScreen : Screen {
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                             ),
                             supportingText = {
-                                Text("Anything not exposed above. Separate options with new lines or commas; quote values that contain commas.")
+                                Text(stringResource(R.string.ytdlp_raw_options_supporting))
                             }
                         )
                     }
                 }
 
-                PreferenceSectionHeader(title = "Engine Installer")
+                PreferenceSectionHeader(title = stringResource(R.string.ytdlp_section_engine_installer))
 
                 PreferenceCard {
                     Column(
@@ -558,13 +559,13 @@ object YtdlpSettingsScreen : Screen {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Manage yt-dlp Environment",
+                            text = stringResource(R.string.ytdlp_manage_environment),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Download the latest wrapper modules and compile python-friendly native binaries inside local sandboxed folders.",
+                            text = stringResource(R.string.ytdlp_manage_environment_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -594,7 +595,7 @@ object YtdlpSettingsScreen : Screen {
                             ) {
                                 Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text("Install Core")
+                                Text(stringResource(R.string.ytdlp_install_core_button))
                             }
 
                             OutlinedButton(
@@ -618,7 +619,7 @@ object YtdlpSettingsScreen : Screen {
                             ) {
                                 Icon(Icons.Default.Update, null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text("Update Core")
+                                Text(stringResource(R.string.ytdlp_update_core_button))
                             }
                         }
                     }
@@ -688,7 +689,7 @@ object YtdlpSettingsScreen : Screen {
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.ContentCopy,
-                                            contentDescription = "Copy logs",
+                                            contentDescription = stringResource(R.string.cd_copy_logs),
                                             tint = Color(0xFFB3B3B3),
                                             modifier = Modifier.size(14.dp)
                                         )
@@ -701,7 +702,7 @@ object YtdlpSettingsScreen : Screen {
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Delete,
-                                            contentDescription = "Clear logs",
+                                            contentDescription = stringResource(R.string.cd_clear_logs),
                                             tint = if (isRunning) Color(0xFF555555) else Color(0xFFB3B3B3),
                                             modifier = Modifier.size(14.dp)
                                         )
@@ -731,7 +732,7 @@ object YtdlpSettingsScreen : Screen {
                                     .padding(16.dp)
                             ) {
                                 Text(
-                                    text = logs.ifEmpty { "Ready..." },
+                                        text = logs.ifEmpty { stringResource(R.string.ytdlp_ready_status) },
                                     style = TextStyle(
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 12.sp,
@@ -765,7 +766,8 @@ private fun YtdlpOptionSettings.Companion.fromYtdlPreferences(prefs: YtdlPrefere
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-private fun <T> OptionDropdown(
+    @Composable
+    private fun <T> OptionDropdown(
     title: String,
     value: T,
     values: List<T>,
@@ -782,7 +784,7 @@ private fun <T> OptionDropdown(
             value = valueLabel(value),
             onValueChange = {},
             readOnly = true,
-            label = { Text(title) },
+            label = { Text(title) }, // title is already a resource string from caller
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier

@@ -1045,7 +1045,7 @@ fun PlayerControls(
                 },
           ) {
             Text(
-              text = segment.label,
+              text = segment.label(LocalContext.current),
               style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
               color = segmentColor.copy(alpha = 1f),
               modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -1130,7 +1130,7 @@ fun PlayerControls(
                   ) {
                     Icon(
                       imageVector = Icons.Default.SkipPrevious,
-                      contentDescription = "Previous",
+                      contentDescription = stringResource(R.string.notification_prev_action),
                       tint =
                         if (viewModel.hasPrevious()) {
                           if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface
@@ -1227,7 +1227,7 @@ fun PlayerControls(
                   ) {
                     Icon(
                       imageVector = Icons.Default.SkipNext,
-                      contentDescription = "Next",
+                      contentDescription = stringResource(R.string.notification_next_action),
                       tint =
                         if (viewModel.hasNext()) {
                           if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface

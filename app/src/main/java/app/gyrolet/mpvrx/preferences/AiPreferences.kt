@@ -1,16 +1,18 @@
 package app.gyrolet.mpvrx.preferences
 
+import androidx.annotation.StringRes
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.preference.PreferenceStore
 import app.gyrolet.mpvrx.preferences.preference.getEnum
 
-enum class AiProvider(val displayName: String) {
-  OPENCODE("OpenCode"),
-  GROQ("Groq"),
-  OPENAI("OpenAI"),
-  ANTHROPIC("Anthropic"),
-  OPENROUTER("OpenRouter"),
-  TOGETHER("Together"),
-  LOCAL("Offline Model"),
+enum class AiProvider(@StringRes val labelRes: Int) {
+  OPENCODE(R.string.ai_provider_opencode),
+  GROQ(R.string.ai_provider_groq),
+  OPENAI(R.string.ai_provider_openai),
+  ANTHROPIC(R.string.ai_provider_anthropic),
+  OPENROUTER(R.string.ai_provider_openrouter),
+  TOGETHER(R.string.ai_provider_together),
+  LOCAL(R.string.ai_provider_local),
 }
 
 class AiPreferences(

@@ -1,6 +1,8 @@
 package app.gyrolet.mpvrx.preferences
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.AppIcon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -50,37 +52,33 @@ val allPlayerButtons =
       it != PlayerButton.VIDEO_TITLE
   }
 
-/**
- * Gets the human-readable label for a player button.
- * TODO: You must add these string resources to your `strings.xml` file.
- */
 @Composable
 fun getPlayerButtonLabel(button: PlayerButton): String =
   when (button) {
-    PlayerButton.BACK_ARROW -> "Back Arrow" // stringResource(R.string.btn_label_back)
-    PlayerButton.VIDEO_TITLE -> "Video Title" // stringResource(R.string.btn_label_title)
-    PlayerButton.BOOKMARKS_CHAPTERS -> "Chapters / Bookmarks" // stringResource(R.string.btn_label_bookmarks)
-    PlayerButton.PLAYBACK_SPEED -> "Playback Speed" // stringResource(R.string.btn_label_speed)
-    PlayerButton.DECODER -> "Decoder" // stringResource(R.string.btn_label_decoder)
-    PlayerButton.HDR_MODE -> "HDR Screen Output"
-    PlayerButton.SCREEN_ROTATION -> "Screen Rotation" // stringResource(R.string.btn_label_rotation)
-    PlayerButton.FRAME_NAVIGATION -> "Frame Navigation" // stringResource(R.string.btn_label_frame_nav)
-    PlayerButton.VIDEO_ZOOM -> "Video Zoom" // stringResource(R.string.btn_label_zoom)
-    PlayerButton.PICTURE_IN_PICTURE -> "Picture-in-Picture" // stringResource(R.string.btn_label_pip)
-    PlayerButton.ASPECT_RATIO -> "Aspect Ratio" // stringResource(R.string.btn_label_aspect)
-    PlayerButton.LOCK_CONTROLS -> "Lock Controls" // stringResource(R.string.btn_label_lock)
-    PlayerButton.AUDIO_TRACK -> "Audio Track" // stringResource(R.string.btn_label_audio)
-    PlayerButton.SUBTITLES -> "Subtitles" // stringResource(R.string.btn_label_subtitles)
-    PlayerButton.MORE_OPTIONS -> "More Options" // stringResource(R.string.btn_label_more)
-    PlayerButton.CURRENT_CHAPTER -> "Current Chapter" // stringResource(R.string.btn_label_chapter)
-    PlayerButton.REPEAT_MODE -> "Repeat Mode" // stringResource(R.string.btn_label_repeat_mode)
-    PlayerButton.SHUFFLE -> "Shuffle" // stringResource(R.string.btn_label_shuffle)
-    PlayerButton.MIRROR -> "Horizontal Flip"
-    PlayerButton.VERTICAL_FLIP -> "Vertical Flip"
-    PlayerButton.AB_LOOP -> "A-B Loop"
-    PlayerButton.CUSTOM_SKIP -> "Custom Skip"
-    PlayerButton.BACKGROUND_PLAYBACK -> "Background Playback"
-    PlayerButton.AMBIENT_MODE -> "Ambience Mode"
-    PlayerButton.TIME_NETWORK -> "Time + Network"
-    PlayerButton.NONE -> "None"
+    PlayerButton.BACK_ARROW -> stringResource(R.string.player_button_back_arrow)
+    PlayerButton.VIDEO_TITLE -> stringResource(R.string.player_button_video_title)
+    PlayerButton.BOOKMARKS_CHAPTERS -> stringResource(R.string.player_button_bookmarks)
+    PlayerButton.PLAYBACK_SPEED -> stringResource(R.string.player_button_playback_speed)
+    PlayerButton.DECODER -> stringResource(R.string.player_button_decoder)
+    PlayerButton.HDR_MODE -> stringResource(R.string.player_button_hdr_mode)
+    PlayerButton.SCREEN_ROTATION -> stringResource(R.string.player_button_screen_rotation)
+    PlayerButton.FRAME_NAVIGATION -> stringResource(R.string.player_button_frame_navigation)
+    PlayerButton.VIDEO_ZOOM -> stringResource(R.string.player_button_video_zoom)
+    PlayerButton.PICTURE_IN_PICTURE -> stringResource(R.string.player_button_pip)
+    PlayerButton.ASPECT_RATIO -> stringResource(R.string.player_button_aspect_ratio)
+    PlayerButton.LOCK_CONTROLS -> stringResource(R.string.player_button_lock_controls)
+    PlayerButton.AUDIO_TRACK -> stringResource(R.string.player_button_audio_track)
+    PlayerButton.SUBTITLES -> stringResource(R.string.player_button_subtitles)
+    PlayerButton.MORE_OPTIONS -> stringResource(R.string.player_button_more_options)
+    PlayerButton.CURRENT_CHAPTER -> stringResource(R.string.player_button_current_chapter)
+    PlayerButton.REPEAT_MODE -> stringResource(R.string.player_button_repeat_mode)
+    PlayerButton.SHUFFLE -> stringResource(R.string.player_button_shuffle)
+    PlayerButton.MIRROR -> stringResource(R.string.player_button_mirror)
+    PlayerButton.VERTICAL_FLIP -> stringResource(R.string.player_button_vertical_flip)
+    PlayerButton.AB_LOOP -> stringResource(R.string.player_button_ab_loop)
+    PlayerButton.CUSTOM_SKIP -> stringResource(R.string.player_button_custom_skip)
+    PlayerButton.BACKGROUND_PLAYBACK -> stringResource(R.string.player_button_background_playback)
+    PlayerButton.AMBIENT_MODE -> stringResource(R.string.player_button_ambient_mode)
+    PlayerButton.TIME_NETWORK -> stringResource(R.string.player_button_time_network)
+    PlayerButton.NONE -> stringResource(R.string.player_button_none)
   }

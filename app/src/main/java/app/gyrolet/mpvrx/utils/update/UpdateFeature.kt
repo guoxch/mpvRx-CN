@@ -26,11 +26,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.gyrolet.mpvrx.BuildConfig
+import app.gyrolet.mpvrx.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -405,11 +408,12 @@ fun UpdateDialog(
     val downloadSize = release.assets.find { it.name.endsWith(".apk") }?.size ?: 0L
     val formattedDate = formatDate(release.publishedAt)
 
+    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
             Icon(
-                imageVector = if (actionLabel == "Install") Icons.Filled.SystemUpdate else Icons.Filled.CloudDownload,
+                imageVector = if (actionLabel == context.getString(R.string.update_install_button)) Icons.Filled.SystemUpdate else Icons.Filled.CloudDownload,
                 contentDescription = null,
                 modifier = Modifier.size(24.dp)
             )
@@ -417,7 +421,7 @@ fun UpdateDialog(
         title = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = if (actionLabel == "Install") "Ready to Install" else "Update Available",
+                    text = if (actionLabel == context.getString(R.string.update_install_button)) stringResource(R.string.update_dialog_title_ready) else stringResource(R.string.update_dialog_title_available),
                     style = MaterialTheme.typography.titleLarge
                 )
                 Spacer(modifier = Modifier.height(4.dp))
@@ -434,12 +438,12 @@ fun UpdateDialog(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
-                if (actionLabel != "Install") {
+                if (actionLabel != context.getString(R.string.update_install_button)) {
                     // Show version info for update available state
-                    InfoRow(label = "Current Version", value = currentVersion)
-                    InfoRow(label = "Latest Version", value = release.tagName.removePrefix("v"))
-                    InfoRow(label = "Release Date", value = formattedDate)
-                    InfoRow(label = "Size", value = formatFileSize(downloadSize))
+                    InfoRow(label = context.getString(R.string.update_info_current_version), value = currentVersion)
+                    InfoRow(label = context.getString(R.string.update_info_latest_version), value = release.tagName.removePrefix("v"))
+                    InfoRow(label = context.getString(R.string.update_info_release_date), value = formattedDate)
+                    InfoRow(label = context.getString(R.string.update_info_size), value = formatFileSize(downloadSize))
                 }
 
                 if (isDownloading) {
@@ -448,8 +452,8 @@ fun UpdateDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Downloading...", style = MaterialTheme.typography.bodySmall)
-                        Text(text = "${progress.toInt()}%", style = MaterialTheme.typography.bodySmall)
+                        Text(text = stringResource(R.string.update_downloading_status), style = MaterialTheme.typography.bodySmall)
+                        Text(text = stringResource(R.string.update_progress_format, progress.toInt()), style = MaterialTheme.typography.bodySmall)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
@@ -464,20 +468,20 @@ fun UpdateDialog(
         confirmButton = {
             if (!isDownloading) {
                 Button(onClick = onAction) {
-                    Text(if (actionLabel == "Install") "Install" else "Download")
+                    Text(if (actionLabel == context.getString(R.string.update_install_button)) stringResource(R.string.update_install_button) else stringResource(R.string.update_download_button))
                 }
             }
         },
         dismissButton = {
             if (!isDownloading) {
                 Row {
-                    if (actionLabel != "Install") {
+                    if (actionLabel != context.getString(R.string.update_install_button)) {
                         TextButton(onClick = onIgnore) {
-                            Text("Ignore")
+                            Text(stringResource(R.string.update_ignore_button))
                         }
                     }
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.update_cancel_button))
                     }
                 }
             }

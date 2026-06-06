@@ -372,11 +372,11 @@ object FolderListScreen : Screen {
                 onSearch = { },
                 expanded = false,
                 onExpandedChange = { },
-                placeholder = { Text("Search folders and videos...") },
+                placeholder = { Text(stringResource(R.string.browser_search_folders_hint)) },
                 leadingIcon = {
                   Icon(
                     imageVector = Icons.Filled.Search,
-                    contentDescription = "Search",
+                    contentDescription = stringResource(app.gyrolet.mpvrx.R.string.cd_search),
                   )
                 },
                 trailingIcon = {
@@ -388,7 +388,7 @@ object FolderListScreen : Screen {
                   ) {
                     Icon(
                       imageVector = Icons.Filled.Close,
-                      contentDescription = "Cancel",
+                      contentDescription = stringResource(app.gyrolet.mpvrx.R.string.cd_cancel),
                     )
                   }
                 },
@@ -512,7 +512,7 @@ object FolderListScreen : Screen {
                   TooltipAnchorPosition.Above
                 }
               ),
-              tooltip = { PlainTooltip { Text("Toggle menu") } },
+              tooltip = { PlainTooltip { Text(stringResource(app.gyrolet.mpvrx.R.string.browser_toggle_menu_tooltip)) } },
               state = rememberTooltipState(),
             ) {
               ToggleFloatingActionButton(
@@ -543,7 +543,7 @@ object FolderListScreen : Screen {
               filePicker.launch(arrayOf("video/*"))
             },
             icon = { Icon(Icons.Filled.FileOpen, contentDescription = null) },
-            text = { Text(text = "Open File") },
+            text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.browser_fab_open_file)) },
           )
 
           FloatingActionButtonMenuItem(
@@ -558,7 +558,7 @@ object FolderListScreen : Screen {
               }
             },
             icon = { Icon(Icons.Filled.History, contentDescription = null) },
-            text = { Text(text = "Recently Played") },
+            text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.browser_fab_recently_played)) },
           )
 
           FloatingActionButtonMenuItem(
@@ -567,7 +567,7 @@ object FolderListScreen : Screen {
               showLinkDialog.value = true
             },
             icon = { Icon(Icons.Filled.Link, contentDescription = null) },
-            text = { Text(text = "Open Link") },
+            text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.browser_fab_open_link)) },
           )
         }
       },
@@ -590,8 +590,8 @@ object FolderListScreen : Screen {
                   // No results
                   EmptyState(
                     icon = Icons.Filled.Search,
-                    title = "No results found",
-                    message = "No folders or videos match your search query",
+                    title = stringResource(app.gyrolet.mpvrx.R.string.browser_search_no_results_title),
+                    message = stringResource(app.gyrolet.mpvrx.R.string.browser_search_no_results_message),
                     modifier = Modifier.fillMaxSize(),
                   )
                 } else {
@@ -776,7 +776,7 @@ object FolderListScreen : Screen {
               coroutineScope.launch {
                 val ok = viewModel.renameFolder(folder, newName)
                 if (!ok) {
-                  android.widget.Toast.makeText(context, "Rename failed", android.widget.Toast.LENGTH_SHORT).show()
+                  android.widget.Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.browser_rename_failed_toast), android.widget.Toast.LENGTH_SHORT).show()
                 }
                 selectionManager.clear()
                 viewModel.refresh()
@@ -808,9 +808,9 @@ object FolderListScreen : Screen {
               runCatching {
                 val (deleted, failed) = deleteFolders(foldersToDelete)
                 if (deleted > 0) {
-                  android.widget.Toast.makeText(context, "Deleted successfully", android.widget.Toast.LENGTH_SHORT).show()
+                  android.widget.Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.browser_deleted_successfully_toast), android.widget.Toast.LENGTH_SHORT).show()
                 } else if (failed > 0) {
-                  android.widget.Toast.makeText(context, "Failed to delete", android.widget.Toast.LENGTH_SHORT).show()
+                  android.widget.Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.browser_failed_to_delete_toast), android.widget.Toast.LENGTH_SHORT).show()
                 }
               }.onFailure {
                 android.widget.Toast.makeText(context, "Failed to delete: ${it.message}", android.widget.Toast.LENGTH_SHORT).show()
@@ -880,13 +880,13 @@ private fun FolderListContent(
           LoadingState(
             icon = Icons.Filled.Folder,
             title = "Scanning for videos...",
-            message = scanStatus ?: "Please wait while we search your device",
+            message = scanStatus ?: stringResource(app.gyrolet.mpvrx.R.string.browser_scanning_videos_message),
           )
         } else if (showEmpty) {
           EmptyState(
             icon = Icons.Filled.Folder,
-            title = "No video folders found",
-            message = "Add some video files to your device to see them here",
+            title = stringResource(app.gyrolet.mpvrx.R.string.browser_no_video_folders_title),
+            message = stringResource(app.gyrolet.mpvrx.R.string.browser_no_video_folders_message),
           )
         }
       }
@@ -1067,7 +1067,7 @@ private fun ListContent(
             if (folder.path in pinnedFolderPaths) {
               {
                 Text(
-                  "Pinned",
+                  stringResource(app.gyrolet.mpvrx.R.string.browser_pinned_label),
                   style = MaterialTheme.typography.labelSmall,
                   modifier =
                     Modifier

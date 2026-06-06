@@ -57,6 +57,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.gyrolet.mpvrx.database.repository.PlaylistRepository
@@ -181,11 +182,11 @@ object PlaylistScreen : Screen {
                   onSearch = { },
                   expanded = false,
                   onExpandedChange = { },
-                  placeholder = { Text("Search playlists...") },
+                  placeholder = { Text(stringResource(R.string.browser_search_playlists_hint)) },
                   leadingIcon = {
                     Icon(
                       imageVector = Icons.Filled.Search,
-                      contentDescription = "Search",
+                      contentDescription = stringResource(app.gyrolet.mpvrx.R.string.cd_search),
                     )
                   },
                   trailingIcon = {
@@ -197,7 +198,7 @@ object PlaylistScreen : Screen {
                     ) {
                       Icon(
                         imageVector = Icons.Filled.Close,
-                        contentDescription = "Cancel",
+                        contentDescription = stringResource(app.gyrolet.mpvrx.R.string.cd_cancel),
                       )
                     }
                   },
@@ -216,7 +217,7 @@ object PlaylistScreen : Screen {
             }
           } else {
             BrowserTopBar(
-              title = "Playlists",
+              title = stringResource(app.gyrolet.mpvrx.R.string.browser_playlists_title),
               isInSelectionMode = selectionManager.isInSelectionMode,
               selectedCount = selectionManager.selectedCount,
               totalCount = playlistsWithCount.size,
@@ -243,7 +244,7 @@ object PlaylistScreen : Screen {
             ExtendedFloatingActionButton(
               onClick = { showPlaylistActionSheet = true },
               icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-              text = { Text("Create Playlist") },
+              text = { Text(stringResource(app.gyrolet.mpvrx.R.string.browser_create_playlist_button)) },
               modifier = Modifier.padding(bottom = navigationBarHeight)
             )
           }
@@ -259,8 +260,8 @@ object PlaylistScreen : Screen {
           ) {
             EmptyState(
               icon = Icons.Filled.Search,
-              title = "No playlists found",
-              message = "Try a different search term",
+              title = stringResource(app.gyrolet.mpvrx.R.string.browser_search_no_playlists_title),
+              message = stringResource(app.gyrolet.mpvrx.R.string.browser_search_no_videos_message),
             )
           }
         } else if (playlistsWithCount.isEmpty() && hasCompletedInitialLoad) {
@@ -276,8 +277,8 @@ object PlaylistScreen : Screen {
             ) {
               EmptyState(
                 icon = Icons.Outlined.PlaylistAdd,
-                title = "No playlists yet",
-                message = "Create a playlist or add one from an m3u URL",
+                title = stringResource(app.gyrolet.mpvrx.R.string.browser_no_playlists_title),
+                message = stringResource(app.gyrolet.mpvrx.R.string.browser_no_playlists_message),
               )
             }
           }
@@ -321,12 +322,12 @@ object PlaylistScreen : Screen {
           var playlistName by remember { mutableStateOf(selectedPlaylist.playlist.name) }
           androidx.compose.material3.AlertDialog(
             onDismissRequest = { showRenameDialog = false },
-            title = { Text("Rename Playlist") },
+            title = { Text(stringResource(app.gyrolet.mpvrx.R.string.browser_rename_playlist_dialog_title)) },
             text = {
               androidx.compose.material3.OutlinedTextField(
                 value = playlistName,
                 onValueChange = { playlistName = it },
-                label = { Text("Playlist Name") },
+                label = { Text(stringResource(app.gyrolet.mpvrx.R.string.browser_playlist_name_label)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
               )
@@ -344,14 +345,14 @@ object PlaylistScreen : Screen {
                 },
                 enabled = playlistName.isNotBlank(),
               ) {
-                Text("Rename")
+                Text(stringResource(app.gyrolet.mpvrx.R.string.browser_rename_button))
               }
             },
             dismissButton = {
               androidx.compose.material3.TextButton(
                 onClick = { showRenameDialog = false },
               ) {
-                Text("Cancel")
+                Text(stringResource(app.gyrolet.mpvrx.R.string.browser_cancel_button))
               }
             },
           )

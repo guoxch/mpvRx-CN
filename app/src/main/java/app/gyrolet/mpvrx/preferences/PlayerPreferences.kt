@@ -1,6 +1,8 @@
 
 package app.gyrolet.mpvrx.preferences
 
+import androidx.annotation.StringRes
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.preference.PreferenceStore
 import app.gyrolet.mpvrx.preferences.preference.getEnum
 import app.gyrolet.mpvrx.ui.player.AmbientVisualMode
@@ -13,21 +15,21 @@ import app.gyrolet.mpvrx.ui.player.VideoAspect
 import app.gyrolet.mpvrx.ui.player.VideoOpenAnimation
 
 enum class IntroSegmentProvider(
-  val displayName: String,
+  @StringRes val labelRes: Int,
   val sourceKey: String,
 ) {
-  INTRO_DB("IntroDB", "introdb"),
-  THE_INTRO_DB("TIDB", "theintrodb"),
-  ANI_SKIP("AniSkip (Anime)", "aniskip"),
-  HYBRID("Hybrid (Fastest)", "hybrid"),
+  INTRO_DB(R.string.intro_provider_intro_db, "introdb"),
+  THE_INTRO_DB(R.string.intro_provider_tidb, "theintrodb"),
+  ANI_SKIP(R.string.intro_provider_ani_skip, "aniskip"),
+  HYBRID(R.string.intro_provider_hybrid, "hybrid"),
 }
 
 enum class PlayerClockFormat(
-  val displayName: String,
+  @StringRes val labelRes: Int,
 ) {
-  SYSTEM("System"),
-  TWELVE_HOUR("12 hour"),
-  TWENTY_FOUR_HOUR("24 hour"),
+  SYSTEM(R.string.clock_format_system),
+  TWELVE_HOUR(R.string.clock_format_12h),
+  TWENTY_FOUR_HOUR(R.string.clock_format_24h),
 }
 
 class PlayerPreferences(

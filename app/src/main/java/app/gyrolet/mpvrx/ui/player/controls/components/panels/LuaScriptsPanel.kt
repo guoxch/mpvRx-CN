@@ -20,8 +20,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.lua.LuaRuntimeStatusCard
@@ -58,7 +60,7 @@ fun LuaScriptsPanel(
       if (isEnabled) {
         Toast.makeText(
           context,
-          "$scriptName disabled. Reopen the video if the script stays active.",
+          context.getString(R.string.player_script_disabled_toast, scriptName),
           Toast.LENGTH_LONG,
         ).show()
         selectedScripts - scriptName
@@ -81,7 +83,7 @@ fun LuaScriptsPanel(
             .padding(top = MaterialTheme.spacing.small),
       ) {
         Text(
-          text = "Scripts (Lua / JS)",
+              text = stringResource(R.string.lua_scripts_panel_title),
           style = MaterialTheme.typography.titleLarge,
         )
         Spacer(Modifier.weight(1f))
@@ -112,14 +114,14 @@ fun LuaScriptsPanel(
         }
         mpvConfStorageLocation.isBlank() -> {
           LuaScriptsEmptyState(
-            title = "No MPV folder selected",
-            summary = "Choose an MPV config folder in Advanced settings, then open this panel again to manage scripts.",
+            title = stringResource(R.string.lua_no_folder_title),
+            summary = stringResource(R.string.lua_no_folder_summary),
           )
         }
         catalog.availableScripts.isEmpty() -> {
           LuaScriptsEmptyState(
-            title = "No scripts found",
-            summary = "Put your .lua or .js files inside the MPV scripts folder to manage them here.",
+            title = stringResource(R.string.lua_no_scripts_title),
+            summary = stringResource(R.string.lua_no_scripts_summary),
           )
         }
         else -> {

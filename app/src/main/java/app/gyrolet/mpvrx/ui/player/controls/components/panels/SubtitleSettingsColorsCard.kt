@@ -298,7 +298,7 @@ fun AssOverrideWarningBanner(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp, vertical = 0.dp)
           ) {
             Text(
-              text = "Enable ASS Override",
+              text = stringResource(R.string.sheet_enable_ass_override_button),
               style = MaterialTheme.typography.labelMedium,
               color = MaterialTheme.colorScheme.error
             )

@@ -50,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.gyrolet.mpvrx.database.repository.PlaylistRepository
@@ -184,7 +185,7 @@ object RecentlyPlayedScreen : Screen {
     Scaffold(
         topBar = {
           BrowserTopBar(
-            title = "Recently Played",
+            title = stringResource(app.gyrolet.mpvrx.R.string.browser_recently_played_title),
             isInSelectionMode = selectionManager.isInSelectionMode,
             selectedCount = selectionManager.selectedCount,
             totalCount = recentItems.size,
@@ -218,7 +219,7 @@ object RecentlyPlayedScreen : Screen {
                   TooltipAnchorPosition.Above
                 }
               ),
-              tooltip = { PlainTooltip { Text("Toggle menu") } },
+              tooltip = { PlainTooltip { Text(stringResource(app.gyrolet.mpvrx.R.string.browser_toggle_menu_tooltip)) } },
               state = rememberTooltipState(),
             ) {
               ToggleFloatingActionButton(
@@ -250,7 +251,7 @@ object RecentlyPlayedScreen : Screen {
               filePicker.launch(arrayOf("video/*"))
             },
             icon = { Icon(Icons.Filled.FileOpen, contentDescription = null) },
-            text = { Text(text = "Open File") },
+            text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.browser_fab_open_file)) },
           )
 
           FloatingActionButtonMenuItem(
@@ -270,7 +271,7 @@ object RecentlyPlayedScreen : Screen {
               }
             },
             icon = { Icon(Icons.Filled.History, contentDescription = null) },
-            text = { Text(text = "Recently Played") },
+            text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.browser_fab_recently_played)) },
           )
 
           FloatingActionButtonMenuItem(
@@ -279,7 +280,7 @@ object RecentlyPlayedScreen : Screen {
               showLinkDialog.value = true
             },
             icon = { Icon(Icons.Filled.Link, contentDescription = null) },
-            text = { Text(text = "Open Link") },
+            text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.browser_fab_open_link)) },
           )
         }
       },
@@ -294,8 +295,8 @@ object RecentlyPlayedScreen : Screen {
           ) {
             EmptyState(
               icon = Icons.Filled.History,
-              title = "Recently Played is disabled",
-              message = "Enable it in Advanced Settings to track your playback history",
+              title = stringResource(app.gyrolet.mpvrx.R.string.browser_recently_played_disabled_title),
+              message = stringResource(app.gyrolet.mpvrx.R.string.browser_recently_played_disabled_message),
             )
           }
         }
@@ -323,8 +324,8 @@ object RecentlyPlayedScreen : Screen {
           ) {
             EmptyState(
               icon = Icons.Filled.History,
-              title = "No recently played videos",
-              message = "Videos you play will appear here",
+              title = stringResource(app.gyrolet.mpvrx.R.string.browser_no_recent_videos_title),
+              message = stringResource(app.gyrolet.mpvrx.R.string.browser_no_recent_videos_message),
             )
           }
         }
@@ -341,7 +342,7 @@ object RecentlyPlayedScreen : Screen {
                   // Always play individual videos without creating a playlist.
                   MediaUtils.playFile(playableVideo, context, "recently_played")
                 } else {
-                  Toast.makeText(context, "Recent file no longer exists", Toast.LENGTH_SHORT).show()
+                  Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.browser_recent_file_missing_toast), Toast.LENGTH_SHORT).show()
                 }
               }
             },
@@ -395,7 +396,7 @@ object RecentlyPlayedScreen : Screen {
                 },
               )
               androidx.compose.material3.Text(
-                text = "Also delete original file(s)",
+                text = stringResource(app.gyrolet.mpvrx.R.string.browser_also_delete_original_files_label),
                 modifier = Modifier.padding(start = 8.dp),
                 style = MaterialTheme.typography.bodyMedium,
               )

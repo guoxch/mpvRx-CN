@@ -38,7 +38,9 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
+import app.gyrolet.mpvrx.R
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -80,7 +82,7 @@ fun SlideToUnlock(
       contentAlignment = Alignment.Center,
     ) {
       Text(
-        text = "Slide to Unlock",
+        text = stringResource(R.string.player_slide_to_unlock_label),
         color = Color.White.copy(alpha = 0.7f),
         fontSize = 16.sp,
         fontWeight = FontWeight.Medium,
@@ -148,7 +150,7 @@ fun SlideToUnlock(
       ) { showUnlock ->
         Icon(
           imageVector = if (showUnlock) Icons.Filled.LockOpen else Icons.Filled.Lock,
-          contentDescription = "Slide to unlock",
+          contentDescription = stringResource(R.string.cd_slide_to_unlock),
           tint = Color.White,
           modifier = Modifier.size(28.dp),
         )

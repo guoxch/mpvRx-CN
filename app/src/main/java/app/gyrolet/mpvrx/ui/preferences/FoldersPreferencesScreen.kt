@@ -115,7 +115,7 @@ object FoldersPreferencesScreen : Screen {
     Scaffold(
       topBar = {
         BrowserTopBar(
-          title = "Storage",
+          title = stringResource(R.string.pref_storage_title),
           isInSelectionMode = selectionState.isInSelectionMode,
           selectedCount = selectionState.selectedCount,
           totalCount = blacklistedFoldersList.size,
@@ -159,7 +159,7 @@ object FoldersPreferencesScreen : Screen {
         if (!selectionState.isInSelectionMode) {
 
           // ── Media Library ─────────────────────────────────────────────
-          PreferenceSectionHeader(title = "Media Library")
+          PreferenceSectionHeader(title = stringResource(R.string.pref_section_media_library))
 
           NoMediaPreferenceCard(
             includeNoMediaFolders = includeNoMediaFolders,
@@ -173,7 +173,7 @@ object FoldersPreferencesScreen : Screen {
           Spacer(modifier = Modifier.height(16.dp))
 
           // ── Hidden Folders ────────────────────────────────────────────
-          PreferenceSectionHeader(title = "Hidden Folders")
+          PreferenceSectionHeader(title = stringResource(R.string.pref_section_hidden_folders))
 
           Text(
             text = stringResource(R.string.pref_folders_summary),
@@ -511,7 +511,7 @@ internal fun StorageRootPickerCard(
       )
       Column(modifier = Modifier.weight(1f)) {
         Text(
-          text = "Base Storage Folder",
+          text = stringResource(R.string.pref_base_storage_folder_title),
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.Bold,
         )
@@ -520,7 +520,7 @@ internal fun StorageRootPickerCard(
           text = if (currentPath.isNotEmpty())
             getSimplifiedStoragePath(currentPath)
           else
-            "Tap to select — creates Subtitles/, Fonts/, scripts/ subdirs",
+            stringResource(R.string.pref_base_storage_folder_hint),
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           maxLines = 1,
@@ -531,7 +531,7 @@ internal fun StorageRootPickerCard(
         IconButton(onClick = onClearClick) {
           Icon(
             imageVector = Icons.Default.Clear,
-            contentDescription = "Clear",
+            contentDescription = stringResource(R.string.pref_clear_content_desc),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }

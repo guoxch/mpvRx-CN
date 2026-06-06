@@ -62,6 +62,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -323,7 +324,7 @@ data class VideoListScreen(
         if (sortedVideosWithInfo.isNotEmpty()) {
           TooltipBox(
             positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-            tooltip = { PlainTooltip { Text("Play recently played or first video") } },
+            tooltip = { PlainTooltip { Text(stringResource(app.gyrolet.mpvrx.R.string.browser_play_recent_or_first_tooltip)) } },
             state = rememberTooltipState(),
           ) {
             FloatingActionButton(
@@ -350,7 +351,7 @@ data class VideoListScreen(
                 }
               },
             ) {
-              Icon(Icons.Filled.PlayArrow, contentDescription = "Play recently played or first video")
+              Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(app.gyrolet.mpvrx.R.string.browser_play_recent_or_first_tooltip))
             }
           }
         }
@@ -552,15 +553,13 @@ data class VideoListScreen(
           onDismissRequest = { showPrivateSpaceCompletionDialog.value = false },
           title = {
             Text(
-              text = "Moved to Private Space",
+              text = stringResource(app.gyrolet.mpvrx.R.string.browser_moved_private_space_title),
               style = MaterialTheme.typography.headlineSmall,
             )
           },
           text = {
             Text(
-              text =
-                "Successfully moved ${privateSpaceMovedCount.intValue} video(s) to private space.\n\n" +
-                  "To access private space, long press on the app name at the top of the main screen.",
+              text = stringResource(app.gyrolet.mpvrx.R.string.browser_moved_private_space_message, privateSpaceMovedCount.intValue),
               style = MaterialTheme.typography.bodyMedium,
             )
           },
@@ -568,7 +567,7 @@ data class VideoListScreen(
             androidx.compose.material3.Button(
               onClick = { showPrivateSpaceCompletionDialog.value = false },
             ) {
-              Text("Close")
+              Text(stringResource(app.gyrolet.mpvrx.R.string.browser_close_button))
             }
           },
         )
@@ -697,8 +696,8 @@ internal fun VideoListContent(
       ) {
         EmptyState(
           icon = Icons.Filled.VideoLibrary,
-          title = "No videos in this folder",
-          message = "Videos you add to this folder will appear here",
+          title = stringResource(app.gyrolet.mpvrx.R.string.browser_no_videos_in_folder_title),
+          message = stringResource(app.gyrolet.mpvrx.R.string.browser_no_videos_in_folder_message),
         )
       }
     }

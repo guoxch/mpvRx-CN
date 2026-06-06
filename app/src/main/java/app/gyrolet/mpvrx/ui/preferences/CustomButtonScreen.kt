@@ -78,6 +78,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -158,9 +159,9 @@ object CustomButtonScreen : Screen {
                     context.contentResolver.openOutputStream(it)?.use { output ->
                         output.write(xmlContent.toByteArray())
                     }
-                    Toast.makeText(context, "Buttons exported successfully", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.custom_buttons_export_success_toast), Toast.LENGTH_SHORT).show()
                 }.onFailure { e ->
-                    Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.custom_buttons_export_failed_toast, e.message ?: "Unknown error"), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -183,7 +184,7 @@ object CustomButtonScreen : Screen {
                     
                     showImportDialog = true
                 }.onFailure { e ->
-                    Toast.makeText(context, "Failed to read file: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.custom_buttons_import_failed_toast, e.message ?: "Unknown error"), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -231,13 +232,13 @@ object CustomButtonScreen : Screen {
                     title = {
                         Column {
                             Text(
-                                text = "Custom Buttons",
+                                text = stringResource(R.string.custom_buttons_title),
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.primary,
                             )
                             Text(
-                                text = "Drag to reorder • Tap any slot to expand & edit",
+                                text = stringResource(R.string.custom_buttons_subtitle),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -247,7 +248,7 @@ object CustomButtonScreen : Screen {
                         IconButton(onClick = { backstack.popSafely() }) {
                             Icon(
                                 Icons.Outlined.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.cd_back),
                                 tint = MaterialTheme.colorScheme.secondary,
                             )
                         }
@@ -291,7 +292,7 @@ object CustomButtonScreen : Screen {
                             dragHandle = { interceptModifier ->
                                 Icon(
                                     Icons.Default.DragHandle,
-                                    contentDescription = "Drag to reorder",
+                                    contentDescription = stringResource(R.string.cd_drag_to_reorder),
                                     modifier = interceptModifier
                                         .draggableHandle()
                                         .padding(horizontal = 8.dp, vertical = 12.dp),
@@ -328,14 +329,14 @@ object CustomButtonScreen : Screen {
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
-                                text = "Import / Export",
+                                text = stringResource(R.string.custom_buttons_import_export_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                             
                             Text(
-                                text = "Backup or share all your custom buttons with their script code as an XML file",
+                                text = stringResource(R.string.custom_buttons_import_export_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -355,7 +356,7 @@ object CustomButtonScreen : Screen {
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(Modifier.width(8.dp))
-                                    Text("Import")
+                                    Text(stringResource(R.string.browser_import_button))
                                 }
                                 
                                 Button(
@@ -369,7 +370,7 @@ object CustomButtonScreen : Screen {
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(Modifier.width(8.dp))
-                                    Text("Export")
+                                    Text(stringResource(R.string.browser_export_button))
                                 }
                             }
                         }
@@ -399,7 +400,7 @@ object CustomButtonScreen : Screen {
                             buttonSlots[slotIndex] = importedSlots[slotIndex]
                         }
                     }
-                    Toast.makeText(context, "Imported ${selectedImportSlots.size} button(s)", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.custom_buttons_imported_toast, selectedImportSlots.size), Toast.LENGTH_SHORT).show()
                     showImportDialog = false
                     selectedImportSlots = emptySet()
                 },
@@ -493,7 +494,7 @@ fun ButtonSlotCard(
                 Column(Modifier.weight(1f)) {
                     val titleAlpha = if (isPopulated && !draftEnabled) 0.4f else 1f
                     Text(
-                        text = draftTitle.ifBlank { if (isPopulated) button.title else "Empty slot" },
+                        text = draftTitle.ifBlank { if (isPopulated) button.title else stringResource(R.string.custom_buttons_empty_slot) },
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = if (isPopulated) FontWeight.SemiBold else FontWeight.Normal,
                         color = if (isPopulated)
@@ -525,7 +526,7 @@ fun ButtonSlotCard(
                             contentColor   = MaterialTheme.colorScheme.onErrorContainer,
                         ),
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.cd_delete), modifier = Modifier.size(18.dp))
                     }
                     Spacer(Modifier.width(4.dp))
                 }
@@ -546,7 +547,7 @@ fun ButtonSlotCard(
                     // Disabled drag handle for empty slots
                     Icon(
                         Icons.Default.DragHandle,
-                        contentDescription = "Drag disabled",
+                        contentDescription = stringResource(R.string.cd_drag_disabled),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
                     )
@@ -596,10 +597,10 @@ fun ButtonSlotCard(
     
     if (activeScriptField != null) {
         val fieldKey = activeScriptField!!
-        val fieldLabel = when (fieldKey) {
-            "content"   -> "Tap action  ·  $slotLabel"
-            "longPress" -> "Long press  ·  $slotLabel"
-            "startup"   -> "On startup  ·  $slotLabel"
+        val fieldLabel: String = when (fieldKey) {
+            "content"   -> stringResource(R.string.custom_buttons_tap_action_label, slotLabel)
+            "longPress" -> stringResource(R.string.custom_buttons_long_press_label, slotLabel)
+            "startup"   -> stringResource(R.string.custom_buttons_on_startup_label, slotLabel)
             else        -> fieldKey
         }
         val fieldValue = when (fieldKey) {
@@ -650,7 +651,7 @@ fun ButtonSlotCard(
                         },
                         navigationIcon = {
                             IconButton(onClick = { dismissAndSave() }) {
-                                Icon(Icons.Outlined.ArrowBack, "Back")
+                                Icon(Icons.Outlined.ArrowBack, stringResource(R.string.cd_back))
                             }
                         },
                         actions = {
@@ -663,13 +664,13 @@ fun ButtonSlotCard(
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Info,
-                                    contentDescription = "Help",
+                                    contentDescription = stringResource(R.string.cd_help),
                                 )
                             }
                             IconButton(onClick = { dismissAndSave() }) {
                                 Icon(
                                     painter = painterResource(R.drawable.ic_material_symbols_check),
-                                    contentDescription = "Done",
+                                    contentDescription = stringResource(R.string.cd_done),
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
                             }
@@ -739,13 +740,13 @@ fun ButtonExpandedContent(
         OutlinedTextField(
             value         = draftTitle,
             onValueChange = onTitleChange,
-            label         = { Text("Button title *") },
+            label         = { Text(stringResource(R.string.custom_buttons_title_label)) },
             modifier      = Modifier.fillMaxWidth(),
             singleLine    = true,
             shape         = RoundedCornerShape(12.dp),
         )
 
-        HorizontalDividerWithLabel("Scripts (Lua / JS)")
+        HorizontalDividerWithLabel(stringResource(R.string.custom_buttons_scripts_section))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -775,7 +776,7 @@ fun ButtonExpandedContent(
 
         // Tap action — required
         LuaEditorEntryCard(
-            label      = "Tap action *",
+            label      = stringResource(R.string.custom_buttons_tap_action),
             code       = draftContent,
             isRequired = true,
             onClick    = { onOpenScriptEditor("content") },
@@ -783,19 +784,19 @@ fun ButtonExpandedContent(
 
         // Long press
         LuaEditorEntryCard(
-            label   = "Long press action",
+            label   = stringResource(R.string.custom_buttons_long_press_action),
             code    = draftLongPress,
             onClick = { onOpenScriptEditor("longPress") },
         )
 
         // On startup
         LuaEditorEntryCard(
-            label   = "On startup",
+            label   = stringResource(R.string.custom_buttons_on_startup),
             code    = draftStartup,
             onClick = { onOpenScriptEditor("startup") },
         )
 
-        HorizontalDividerWithLabel("Settings")
+        HorizontalDividerWithLabel(stringResource(R.string.custom_buttons_settings_section))
 
         // Enable / Disable row
         Row(
@@ -805,13 +806,13 @@ fun ButtonExpandedContent(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    text  = "Button enabled",
+                    text  = stringResource(R.string.custom_buttons_enabled),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text  = if (draftEnabled) "Button is active in the player" else "Button is saved but hidden",
+                    text  = if (draftEnabled) stringResource(R.string.custom_buttons_active_summary) else stringResource(R.string.custom_buttons_hidden_summary),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -827,13 +828,13 @@ fun ButtonExpandedContent(
             horizontalArrangement = Arrangement.End,
             modifier              = Modifier.fillMaxWidth(),
         ) {
-            TextButton(onClick = onCollapse) { Text("Cancel") }
+            TextButton(onClick = onCollapse) { Text(stringResource(R.string.generic_cancel)) }
             Spacer(Modifier.width(8.dp))
             TextButton(
                 onClick = onSave,
                 enabled = draftTitle.isNotBlank(),
             ) {
-                Text(if (isPopulated) "Save" else "Add button")
+                Text(if (isPopulated) stringResource(R.string.custom_buttons_save) else stringResource(R.string.custom_buttons_add))
             }
         }
     }
@@ -937,7 +938,7 @@ fun LuaEditorEntryCard(
                     )
                 } else {
                     Text(
-                        text = "Tap to write code...",
+                        text = stringResource(R.string.custom_buttons_tap_to_write),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     )
@@ -974,14 +975,14 @@ fun ImportSelectionScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(
-                            text = "Select Buttons to Import",
+                            Text(
+                                text = stringResource(R.string.custom_buttons_select_import_title),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
                         )
-                        Text(
-                            text = "Choose which buttons to import",
+                            Text(
+                                text = stringResource(R.string.custom_buttons_select_import_message),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -991,7 +992,7 @@ fun ImportSelectionScreen(
                     IconButton(onClick = onDismiss) {
                         Icon(
                             Icons.Outlined.ArrowBack,
-                            contentDescription = "Cancel",
+                            contentDescription = stringResource(R.string.cd_cancel),
                             tint = MaterialTheme.colorScheme.secondary,
                         )
                     }
@@ -1011,7 +1012,7 @@ fun ImportSelectionScreen(
                     ) {
                         Icon(
                             Icons.Default.FileDownload,
-                            contentDescription = "Import",
+                            contentDescription = stringResource(R.string.cd_import),
                         )
                     }
                 },
@@ -1122,7 +1123,7 @@ fun ImportSelectionScreen(
                                     )
                                     Spacer(Modifier.width(4.dp))
                                     Text(
-                                        text = "Will overwrite existing button",
+                                        text = stringResource(R.string.custom_buttons_will_overwrite),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.error,
                                     )

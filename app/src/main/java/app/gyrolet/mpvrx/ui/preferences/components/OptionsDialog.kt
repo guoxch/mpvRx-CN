@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 
@@ -74,7 +75,7 @@ fun <T> OptionsDialog(
     confirmButton = {},
     dismissButton = {
       TextButton(onClick = onDismiss) {
-        Text(text = "Cancel")
+        Text(text = stringResource(R.string.generic_cancel))
       }
     },
     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,

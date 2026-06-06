@@ -624,10 +624,10 @@ class PlayerActivity :
             loadScriptAtRuntime(scriptName)
           }
           if (advancedPreferences.selectedLuaScripts.get().isEmpty()) {
-            viewModel.showToast("Scripts enabled")
+            viewModel.showToast(getString(R.string.player_scripts_enabled_toast))
           }
         } else {
-          viewModel.showToast("Scripts disabled. Reopen the video if a script stays active.")
+          viewModel.showToast(getString(R.string.player_scripts_disabled_toast))
         }
       }
     }
@@ -1773,7 +1773,7 @@ class PlayerActivity :
             withContext(Dispatchers.Main) {
               if (!canIssueMpvCommands()) return@withContext
               MPVLib.command("load-script", targetFile.absolutePath)
-              viewModel.showToast("Loaded script: $scriptName")
+              viewModel.showToast(getString(R.string.player_script_loaded_toast, scriptName))
             }
           }
         }
@@ -1782,7 +1782,7 @@ class PlayerActivity :
         withContext(Dispatchers.Main) {
           android.widget.Toast.makeText(
             this@PlayerActivity,
-            "Failed to load script: ${e.message}",
+            getString(R.string.player_script_load_failed_toast, e.message),
             android.widget.Toast.LENGTH_LONG
           ).show()
         }
@@ -2101,7 +2101,7 @@ class PlayerActivity :
     // For HTTP/HTTPS URLs, extract from path (will be updated async via HTTP headers)
     if (HttpUtils.isNetworkStream(uri)) {
       // Get the last path segment and decode URL encoding
-      val path = uri.path ?: return uri.host ?: "Network Stream"
+      val path = uri.path ?: return uri.host ?: getString(R.string.http_fallback_filename)
       val lastSegment = path.substringAfterLast("/")
 
       if (lastSegment.isNotBlank()) {
@@ -2110,7 +2110,7 @@ class PlayerActivity :
           java.net.URLDecoder.decode(lastSegment, "UTF-8")
             .substringBefore("?") // Remove query parameters
             .substringBefore("#") // Remove fragments (only for network streams)
-            .takeIf { it.isNotBlank() } ?: uri.host ?: "Network Stream"
+            .takeIf { it.isNotBlank() } ?: uri.host ?: getString(R.string.http_fallback_filename)
         } catch (e: Exception) {
           lastSegment
             .substringBefore("?")
@@ -2119,7 +2119,7 @@ class PlayerActivity :
       }
 
       // If no filename in path, use hostname
-      return uri.host ?: "Network Stream"
+      return uri.host ?: getString(R.string.http_fallback_filename)
     }
 
     // For file:// and content:// URIs - preserve # characters as they're part of the filename

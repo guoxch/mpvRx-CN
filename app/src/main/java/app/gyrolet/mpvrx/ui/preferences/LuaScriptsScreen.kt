@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
@@ -70,7 +71,7 @@ object LuaScriptsScreen : Screen {
         if (isEnabled) {
           Toast.makeText(
             context,
-            "$scriptName disabled. Reopen the video if the script stays active.",
+            context.getString(R.string.player_script_disabled_toast, scriptName),
             Toast.LENGTH_LONG,
           ).show()
           selectedScripts - scriptName
@@ -82,7 +83,7 @@ object LuaScriptsScreen : Screen {
 
     fun shareScript(scriptName: String) {
       if (mpvConfStorageLocation.isBlank()) {
-        Toast.makeText(context, "No storage location configured", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.scripts_no_storage_toast), Toast.LENGTH_SHORT).show()
         return
       }
 
@@ -122,13 +123,13 @@ object LuaScriptsScreen : Screen {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
               }
 
-            context.startActivity(Intent.createChooser(shareIntent, "Share script"))
+            context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.scripts_share_chooser_title)))
           } else {
-            Toast.makeText(context, "Script file not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.scripts_file_not_found_toast), Toast.LENGTH_SHORT).show()
           }
         }
       }.onFailure { error ->
-        Toast.makeText(context, "Error sharing script: ${error.message}", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, context.getString(R.string.scripts_error_sharing_toast, error.message ?: "Unknown error"), Toast.LENGTH_LONG).show()
       }
     }
 
@@ -137,7 +138,7 @@ object LuaScriptsScreen : Screen {
         TopAppBar(
           title = {
             Text(
-              text = "Scripts (Lua / JS)",
+              text = stringResource(R.string.scripts_screen_title),
               style = MaterialTheme.typography.headlineSmall,
             )
           },
@@ -145,7 +146,7 @@ object LuaScriptsScreen : Screen {
             IconButton(onClick = { backStack.popSafely() }) {
               Icon(
                 imageVector = Icons.Default.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.cd_back),
               )
             }
           },
@@ -158,7 +159,7 @@ object LuaScriptsScreen : Screen {
         ) {
           Icon(
             imageVector = Icons.Default.Add,
-            contentDescription = "Create new script",
+            contentDescription = stringResource(R.string.cd_create_script),
             tint = MaterialTheme.colorScheme.onPrimary,
           )
         }
@@ -197,16 +198,16 @@ object LuaScriptsScreen : Screen {
           mpvConfStorageLocation.isBlank() -> {
             item {
               LuaScriptsEmptyState(
-                title = "No MPV folder selected",
-                summary = "Choose an MPV config folder in Advanced settings to browse and manage scripts.",
+                title = stringResource(R.string.scripts_empty_no_folder_title),
+                summary = stringResource(R.string.scripts_empty_no_folder_summary),
               )
             }
           }
           catalog.availableScripts.isEmpty() -> {
             item {
               LuaScriptsEmptyState(
-                title = "No scripts found",
-                summary = "Put your .lua or .js files inside the MPV scripts folder to manage them here.",
+                title = stringResource(R.string.scripts_empty_no_scripts_title),
+                summary = stringResource(R.string.scripts_empty_no_scripts_summary),
               )
             }
           }
@@ -221,14 +222,14 @@ object LuaScriptsScreen : Screen {
                   IconButton(onClick = { shareScript(scriptName) }) {
                     Icon(
                       imageVector = Icons.Default.Share,
-                      contentDescription = "Share",
+                      contentDescription = stringResource(R.string.generic_share),
                       tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                   }
                   IconButton(onClick = { backStack.add(LuaScriptEditorScreen(scriptName = scriptName)) }) {
                     Icon(
                       imageVector = Icons.Default.Edit,
-                      contentDescription = "Edit",
+                      contentDescription = stringResource(R.string.cd_edit),
                       tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                   }

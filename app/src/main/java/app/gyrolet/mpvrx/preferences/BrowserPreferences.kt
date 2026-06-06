@@ -1,5 +1,7 @@
 package app.gyrolet.mpvrx.preferences
 
+import androidx.annotation.StringRes
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.preference.PreferenceStore
 import app.gyrolet.mpvrx.preferences.preference.getEnum
 
@@ -74,11 +76,11 @@ enum class SortOrder {
 /**
  * Folder sorting options
  */
-enum class FolderSortType {
-  Title,
-  Date,
-  Size,
-  VideoCount,
+enum class FolderSortType(@StringRes val labelRes: Int) {
+  Title(R.string.folder_sort_type_title),
+  Date(R.string.folder_sort_type_date),
+  Size(R.string.folder_sort_type_size),
+  VideoCount(R.string.folder_sort_type_video_count),
   ;
 
   val displayName: String
@@ -94,11 +96,11 @@ enum class FolderSortType {
 /**
  * Video sorting options
  */
-enum class VideoSortType {
-  Title,
-  Duration,
-  Date,
-  Size,
+enum class VideoSortType(@StringRes val labelRes: Int) {
+  Title(R.string.video_sort_type_title),
+  Duration(R.string.video_sort_type_duration),
+  Date(R.string.video_sort_type_date),
+  Size(R.string.video_sort_type_size),
   ;
 
   val displayName: String
@@ -114,10 +116,10 @@ enum class VideoSortType {
 /**
  * Folder view mode options
  */
-enum class FolderViewMode {
-  AlbumView,
-  FileManager,
-  MediaLibrary,
+enum class FolderViewMode(@StringRes val labelRes: Int) {
+  AlbumView(R.string.folder_view_album),
+  FileManager(R.string.folder_view_file_manager),
+  MediaLibrary(R.string.folder_view_media_library),
   ;
 
   val displayName: String
@@ -129,23 +131,23 @@ enum class FolderViewMode {
       }
 }
 
-enum class MediaLayoutMode {
-  LIST,
-  GRID,
+enum class MediaLayoutMode(@StringRes val labelRes: Int) {
+  LIST(R.string.media_layout_list),
+  GRID(R.string.media_layout_grid),
   ;
 
-  val displayName:  String
+  val displayName: String
     get() = when (this) {
       LIST -> "List"
       GRID -> "Grid"
     }
 }
 
-enum class ThumbnailMode {
-  Smart,
-  FirstFrame,
-  FrameAtPosition,
-  EmbeddedThumbnail,
+enum class ThumbnailMode(@StringRes val labelRes: Int) {
+  Smart(R.string.thumbnail_mode_smart),
+  FirstFrame(R.string.thumbnail_mode_first_frame),
+  FrameAtPosition(R.string.thumbnail_mode_frame_position),
+  EmbeddedThumbnail(R.string.thumbnail_mode_embedded),
   ;
 
   val displayName: String

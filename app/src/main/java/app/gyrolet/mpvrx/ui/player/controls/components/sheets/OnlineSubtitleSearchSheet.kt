@@ -78,18 +78,20 @@ fun OnlineSubtitleSearchSheet(
   onSelectEpisode: (app.gyrolet.mpvrx.repository.wyzie.WyzieEpisode) -> Unit = {},
   onClearMediaSelection: () -> Unit = {}
 ) {
-  val items = remember(searchResults, isSearching, isOnlineSectionExpanded) {
+  val headerText = if (searchResults.isNotEmpty() || isSearching) {
+    val hashMatches = searchResults.count { it.isHashMatch }
+    if (hashMatches > 0) {
+      stringResource(R.string.sheet_verified_matches_header, hashMatches)
+    } else {
+      stringResource(R.string.sheet_online_results_header, searchResults.size)
+    }
+  } else ""
+
+  val items = remember(searchResults, isSearching, isOnlineSectionExpanded, headerText) {
     val list = mutableListOf<OnlineSubtitleItem>()
     
     // Online Search Results section
     if (searchResults.isNotEmpty() || isSearching) {
-        val hashMatches = searchResults.count { it.isHashMatch }
-        val headerText =
-          if (hashMatches > 0) {
-            "Verified Matches ($hashMatches) + Others"
-          } else {
-            "Online Results (${searchResults.size})"
-          }
         list.add(OnlineSubtitleItem.Header(headerText))
         if (isOnlineSectionExpanded) {
             list.addAll(searchResults.map { OnlineSubtitleItem.OnlineTrack(it) })
@@ -140,7 +142,7 @@ fun OnlineSubtitleSearchSheet(
       fun formatWithAi() {
         val input = if (searchQuery.isNotBlank()) searchQuery else mediaInfo.title
         if (input.isBlank()) {
-          Toast.makeText(context, "Search query is empty", Toast.LENGTH_SHORT).show()
+          Toast.makeText(context, context.getString(R.string.sheet_search_empty_toast), Toast.LENGTH_SHORT).show()
           return
         }
         scope.launch {
@@ -152,7 +154,7 @@ fun OnlineSubtitleSearchSheet(
               keyboardController?.hide()
             }
             .onFailure { e ->
-              Toast.makeText(context, "AI format failed: ${e.message}", Toast.LENGTH_SHORT).show()
+              Toast.makeText(context, context.getString(R.string.sheet_ai_format_failed_toast, e.message), Toast.LENGTH_SHORT).show()
             }
           isAiFormatting = false
         }
@@ -254,7 +256,7 @@ fun OnlineSubtitleSearchSheet(
               .padding(horizontal = MaterialTheme.spacing.medium)
           ) {
             Text(
-              text = "Found ${mediaSearchResults.size}",
+              text = stringResource(R.string.sheet_found_results, mediaSearchResults.size),
               style = MaterialTheme.typography.labelSmall,
               color = MaterialTheme.colorScheme.outline,
               modifier = Modifier
@@ -394,7 +396,7 @@ fun OnlineSubtitleRow(
             if (subtitle.isHashMatch) {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "Verified Sync",
+                    contentDescription = stringResource(R.string.cd_verified_sync),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
                 )
@@ -442,7 +444,7 @@ fun OnlineSubtitleRow(
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    text = if (count >= 1000) "${(count / 1000f).toInt()}k" else "$count",
+                                    text = if (count >= 1000) "${(count / 1000f).toInt()}${stringResource(R.string.sheet_thousands_suffix)}" else "$count",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.Bold
@@ -508,11 +510,11 @@ fun OnlineSubtitleRow(
                             color = MaterialTheme.colorScheme.outlineVariant
                         )
                         Text(
-                            text = "SYNC",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
+                        text = stringResource(R.string.sheet_sync_badge),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
                     }
                 }
             }
@@ -532,7 +534,7 @@ fun OnlineSubtitleRow(
             ) {
                 Icon(
                     imageVector = Icons.Default.Download,
-                    contentDescription = "Download",
+                    contentDescription = stringResource(R.string.cd_download_sub),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
@@ -559,7 +561,7 @@ private fun SubdlEpisodeDropdown(
             shape = RoundedCornerShape(8.dp),
         ) {
             Text(
-                text = "Ep $selectedEpisode",
+                text = stringResource(R.string.sheet_episode_button_label, selectedEpisode),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -579,7 +581,7 @@ private fun SubdlEpisodeDropdown(
         ) {
             episodes.forEach { episode ->
                 DropdownMenuItem(
-                    text = { Text("Episode $episode") },
+                    text = { Text(stringResource(R.string.sheet_episode_menu_item, episode)) },
                     onClick = {
                         onEpisodeSelected(episode)
                         expanded = false
@@ -819,7 +821,7 @@ fun SeriesDetailsSection(
                       shape = RoundedCornerShape(8.dp)
                   ) {
                       Text(
-                          text = selectedSeason?.let { "S${it.season_number}" } ?: "Season",
+                          text = selectedSeason?.let { "S${it.season_number}" } ?: stringResource(R.string.sheet_season_dropdown_default),
                           style = MaterialTheme.typography.labelLarge,
                           fontWeight = FontWeight.Bold,
                           maxLines = 1
@@ -836,10 +838,10 @@ fun SeriesDetailsSection(
                       tvShow.seasons.forEach { season ->
                           DropdownMenuItem(
                               text = { 
-                                Text(
-                                  "Season ${season.season_number}",
-                                  style = MaterialTheme.typography.bodyLarge
-                                ) 
+                                  Text(
+                                    stringResource(R.string.sheet_season_menu_item, season.season_number),
+                                    style = MaterialTheme.typography.bodyLarge
+                                  )
                               },
                               onClick = {
                                   onSelectSeason(season)
@@ -869,7 +871,7 @@ fun SeriesDetailsSection(
                           Spacer(Modifier.width(6.dp))
                       }
                       Text(
-                          text = selectedEpisode?.let { "E${it.episode_number}" } ?: "Ep",
+                          text = selectedEpisode?.let { "E${it.episode_number}" } ?: stringResource(R.string.sheet_episode_dropdown_default),
                           style = MaterialTheme.typography.labelLarge,
                           fontWeight = FontWeight.Bold,
                           maxLines = 1
@@ -888,7 +890,7 @@ fun SeriesDetailsSection(
                               text = { 
                                 Column(modifier = Modifier.padding(vertical = 4.dp)) {
                                   Text(
-                                    "Ep ${episode.episode_number}", 
+                                    stringResource(R.string.sheet_episode_button_label, episode.episode_number), 
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Bold
                                   )

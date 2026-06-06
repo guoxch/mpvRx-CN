@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.gyrolet.mpvrx.database.dao.NetworkConnectionDao
@@ -191,7 +192,7 @@ private fun NetworkBrowserContent(
       ) {
         EmptyState(
           icon = Icons.Filled.Folder,
-          title = "Error loading files",
+          title = stringResource(app.gyrolet.mpvrx.R.string.browser_error_loading_files_title),
           message = error,
         )
       }
@@ -204,8 +205,8 @@ private fun NetworkBrowserContent(
       ) {
         EmptyState(
           icon = Icons.Filled.Folder,
-          title = "Empty folder",
-          message = "This folder contains no files or directories",
+          title = stringResource(app.gyrolet.mpvrx.R.string.browser_empty_folder_title),
+          message = stringResource(app.gyrolet.mpvrx.R.string.browser_empty_network_folder_message),
         )
       }
     }
@@ -266,7 +267,7 @@ private fun NetworkBrowserContent(
             if (folders.isNotEmpty()) {
               item {
                 Text(
-                  text = "Folders",
+                  text = stringResource(app.gyrolet.mpvrx.R.string.browser_section_folders),
                   style = MaterialTheme.typography.titleMedium,
                   color = MaterialTheme.colorScheme.primary,
                   modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
@@ -288,7 +289,7 @@ private fun NetworkBrowserContent(
             if (videos.isNotEmpty()) {
               item {
                 Text(
-                  text = "Videos",
+                  text = stringResource(app.gyrolet.mpvrx.R.string.browser_section_videos),
                   style = MaterialTheme.typography.titleMedium,
                   color = MaterialTheme.colorScheme.primary,
                   modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp),

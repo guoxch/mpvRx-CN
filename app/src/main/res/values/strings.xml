@@ -861,4 +861,1400 @@
   <string name="pref_custom_outro_keywords_summary">Enable user-defined keywords for ending matching instead of default ones</string>
   <string name="pref_custom_outro_keywords_title">Custom ending keywords</string>
   <string name="pref_custom_outro_keywords_dialog_desc">Enter comma-separated keywords for endings/outros</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Browser & Navigation Labels                               -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="nav_home">Home</string>
+  <string name="nav_recents">Recents</string>
+  <string name="nav_playlists">Playlists</string>
+  <string name="nav_network">Network</string>
+  <string name="browser_search_videos_hint">Search videos…</string>
+  <string name="browser_search_folders_hint">Search folders and videos…</string>
+  <string name="browser_search_playlists_hint">Search playlists…</string>
+  <string name="browser_search_all_storage_hint">Search in all storage volumes…</string>
+  <string name="browser_search_all_storage_progress">Searching all storage volumes…</string>
+  <string name="browser_search_in_folder_hint">Search in %1$s…</string>
+  <string name="browser_search_no_results_title">No results found</string>
+  <string name="browser_search_no_results_message">No folders or videos match your search query</string>
+  <string name="browser_search_no_results_files_message">No files or folders match \"%1$s\"</string>
+  <string name="browser_search_no_videos_title">No videos found</string>
+  <string name="browser_search_no_videos_message">Try a different search term</string>
+  <string name="browser_search_no_playlists_title">No playlists found</string>
+  <string name="browser_fab_open_file">Open File</string>
+  <string name="browser_fab_recently_played">Recently Played</string>
+  <string name="browser_fab_open_link">Open Link</string>
+  <string name="browser_toggle_menu_tooltip">Toggle menu</string>
+  <string name="browser_media_library_title">Media Library</string>
+  <string name="browser_recently_played_title">Recently Played</string>
+  <string name="browser_recently_played_disabled_title">Recently Played is disabled</string>
+  <string name="browser_recently_played_disabled_message">Enable it in Advanced Settings to track your playback history</string>
+  <string name="browser_no_recent_videos_title">No recently played videos</string>
+  <string name="browser_no_recent_videos_message">Videos you play will appear here</string>
+  <string name="browser_recent_file_missing_toast">Recent file no longer exists</string>
+  <string name="browser_no_videos_in_folder_title">No videos in this folder</string>
+  <string name="browser_no_videos_in_folder_message">Videos you add to this folder will appear here</string>
+  <string name="browser_no_video_folders_title">No video folders found</string>
+  <string name="browser_no_video_folders_message">Add some video files to your device to see them here</string>
+  <string name="browser_scanning_videos_title">Scanning for videos…</string>
+  <string name="browser_scanning_videos_message">Please wait while we search your device</string>
+  <string name="browser_searching_message">Searching…</string>
+  <string name="browser_pinned_label">Pinned</string>
+  <string name="browser_tree_view_fallback">Tree View</string>
+  <string name="browser_error_loading_directory_title">Error loading directory</string>
+  <string name="browser_empty_folder_title">Empty folder</string>
+  <string name="browser_empty_folder_message">This folder contains no videos or subfolders</string>
+  <string name="browser_rename_failed_toast">Rename failed</string>
+  <string name="browser_deleted_successfully_toast">Deleted successfully</string>
+  <string name="browser_failed_to_delete_toast">Failed to delete</string>
+  <string name="browser_rename_successfully_toast">Renamed successfully</string>
+  <string name="browser_failed_to_rename_toast">Failed to rename: %1$s</string>
+  <string name="browser_renamed_items_toast">Renamed %1$d items</string>
+  <string name="browser_failed_rename_items_toast">Failed to rename %1$d items</string>
+  <string name="browser_moving_private_space_message">Moving to private space…</string>
+  <string name="browser_moved_private_space_title">Moved to Private Space</string>
+  <string name="browser_moved_private_space_message">Successfully moved %1$d video(s) to private space.\n\nTo access private space, long press on the app name at the top of the main screen.</string>
+  <string name="browser_close_button">Close</string>
+  <string name="browser_network_title">Network</string>
+  <string name="browser_local_network_title">Local Network</string>
+  <string name="browser_no_connections_title">No network connections</string>
+  <string name="browser_no_connections_message">Add SMB, FTP, or WebDAV connections to browse network files</string>
+  <string name="browser_add_connection_button">Add Connection</string>
+  <string name="browser_error_loading_files_title">Error loading files</string>
+  <string name="browser_empty_network_folder_message">This folder contains no files or directories</string>
+  <string name="browser_section_folders">Folders</string>
+  <string name="browser_section_videos">Videos</string>
+  <string name="browser_stream_link_title">Stream Link</string>
+  <string name="browser_stream_url_placeholder">Enter stream URL…</string>
+  <string name="browser_stream_url_description">Paste stream URL</string>
+  <string name="browser_clear_stream_url_description">Clear stream URL</string>
+  <string name="browser_play_stream_description">Play stream</string>
+  <string name="browser_stream_url_dialog_title">Stream URL</string>
+  <string name="browser_copy_button">Copy</string>
+  <string name="browser_play_button">Play</string>
+  <string name="browser_rename_button">Rename</string>
+  <string name="browser_cancel_button">Cancel</string>
+  <string name="browser_done_button">Done</string>
+  <string name="browser_save_button">Save</string>
+  <string name="browser_create_button">Create</string>
+  <string name="browser_delete_button">Delete</string>
+  <string name="browser_edit_button">Edit</string>
+  <string name="browser_import_button">Import</string>
+  <string name="browser_export_button">Export</string>
+  <string name="browser_select_button">Select</string>
+  <string name="browser_play_recent_or_first_tooltip">Play recently played or first video</string>
+  <string name="browser_playlists_title">Playlists</string>
+  <string name="browser_create_playlist_button">Create Playlist</string>
+  <string name="browser_no_playlists_title">No playlists yet</string>
+  <string name="browser_no_playlists_message">Create a playlist or add one from an m3u URL</string>
+  <string name="browser_rename_playlist_dialog_title">Rename Playlist</string>
+  <string name="browser_playlist_name_label">Playlist Name</string>
+  <string name="browser_playlist_fallback_title">Playlist</string>
+  <string name="browser_done_reordering_description">Done reordering</string>
+  <string name="browser_search_videos_action_description">Search videos</string>
+  <string name="browser_reorder_playlist_description">Reorder playlist</string>
+  <string name="browser_no_videos_in_playlist_title">No videos in playlist</string>
+  <string name="browser_no_videos_in_playlist_message">Add videos to get started</string>
+  <string name="browser_drag_to_reorder_description">Drag to reorder</string>
+  <string name="browser_filter_all_label">All</string>
+  <string name="browser_filter_saved_label">Saved</string>
+  <string name="browser_remove_from_playlist_button">Remove from Playlist</string>
+  <string name="browser_remove_from_playlist_dialog_title">Remove %1$d %2$s from playlist?</string>
+  <string name="browser_remove_from_playlist_dialog_message">The selected %1$s will be removed from this playlist. The original files will not be deleted.</string>
+  <string name="browser_playlist_refreshed_toast">Playlist refreshed successfully</string>
+  <string name="browser_playlist_refresh_failed_toast">Failed to refresh: %1$s</string>
+  <string name="browser_delete_items_dialog_title">Delete %1$d %2$s?</string>
+  <string name="browser_remove_from_history_dialog_title">Remove %1$d %2$s from history?</string>
+  <string name="browser_delete_from_device_message">This will permanently delete the original video file(s) from your device storage.\n\nThis action cannot be undone.</string>
+  <string name="browser_remove_from_history_message">This will remove the selected %1$s from your recently played list. The original video files will not be deleted.</string>
+  <string name="browser_also_delete_original_files_label">Also delete original file(s)</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Accessibility & Content Descriptions                      -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="cd_thumbnail">Thumbnail</string>
+  <string name="cd_play">Play</string>
+  <string name="cd_search">Search</string>
+  <string name="cd_cancel">Cancel</string>
+  <string name="cd_settings">Settings</string>
+  <string name="cd_back">Back</string>
+  <string name="cd_home">Home</string>
+  <string name="cd_clear">Clear</string>
+  <string name="cd_save">Save</string>
+  <string name="cd_delete">Delete</string>
+  <string name="cd_share">Share</string>
+  <string name="cd_help">Help</string>
+  <string name="cd_copy">Copy</string>
+  <string name="cd_copy_path">Copy path</string>
+  <string name="cd_copy_all">Copy all</string>
+  <string name="cd_pin_folders">Pin folders</string>
+  <string name="cd_add_to_playlist">Add to Playlist</string>
+  <string name="cd_folder">Folder</string>
+  <string name="cd_pinned_folder">Pinned folder</string>
+  <string name="cd_edit">Edit</string>
+  <string name="cd_rename">Rename</string>
+  <string name="cd_done">Done</string>
+  <string name="cd_info">Info</string>
+  <string name="cd_refresh">Refresh</string>
+  <string name="cd_restricted">Restricted</string>
+  <string name="cd_create_script">Create new script</string>
+  <string name="cd_drag_to_reorder">Drag to reorder</string>
+  <string name="cd_drag_disabled">Drag disabled</string>
+  <string name="cd_import">Import</string>
+  <string name="cd_device_info">Device Info</string>
+  <string name="cd_copy_upi_id">Copy UPI ID</string>
+  <string name="cd_copy_logs">Copy logs</string>
+  <string name="cd_clear_logs">Clear logs</string>
+  <string name="cd_copy_uri">Copy URI</string>
+  <string name="cd_switch_grid_view">Switch to Grid View</string>
+  <string name="cd_switch_list_view">Switch to List View</string>
+  <string name="cd_decrease_zoom">Decrease zoom</string>
+  <string name="cd_increase_zoom">Increase zoom</string>
+  <string name="cd_add_aspect">Add</string>
+  <string name="cd_verified_sync">Verified Sync</string>
+  <string name="cd_download_sub">Download</string>
+  <string name="cd_collapse">Collapse</string>
+  <string name="cd_expand">Expand</string>
+  <string name="cd_slide_to_unlock">Slide to unlock</string>
+  <string name="cd_previous">Previous</string>
+  <string name="cd_next">Next</string>
+  <string name="cd_playback_speed">Playback Speed</string>
+  <string name="cd_previous_frame">Previous Frame</string>
+  <string name="cd_screenshot">Take Screenshot</string>
+  <string name="cd_next_frame">Next Frame</string>
+  <string name="cd_video_zoom">Video Zoom</string>
+  <string name="cd_vertical_flip">Vertical Flip</string>
+  <string name="cd_clear_loop">Clear Loop</string>
+  <string name="cd_ambience_mode">Ambience Mode</string>
+  <string name="cd_time_network">Time and Network</string>
+  <string name="cd_play_stream">Play stream</string>
+  <string name="cd_valid_url">Valid URL</string>
+  <string name="cd_invalid_url">Invalid URL</string>
+  <string name="cd_save_stream">Save stream</string>
+  <string name="cd_unsave_stream">Unsave stream</string>
+  <string name="cd_create_folder">Create folder</string>
+  <string name="cd_go_back">Go back</string>
+  <string name="cd_go_internal_storage">Go to internal storage</string>
+  <string name="cd_reset_to_default">Reset to default</string>
+  <string name="cd_system_picker">System Picker</string>
+  <string name="cd_remove_language">Remove %1$s</string>
+  <string name="cd_generate_subtitles">Generate subtitles</string>
+  <string name="cd_translate">Translate</string>
+  <string name="cd_cancel_translation">Cancel translation</string>
+  <string name="cd_ab_loop_a">A</string>
+  <string name="cd_ab_loop_b">B</string>
+  <string name="cd_on_state">On</string>
+  <string name="cd_off_state">Off</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Sort / View Mode Labels                                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="sort_a_z">A-Z</string>
+  <string name="sort_z_a">Z-A</string>
+  <string name="sort_oldest">Oldest</string>
+  <string name="sort_newest">Newest</string>
+  <string name="sort_smallest">Smallest</string>
+  <string name="sort_largest">Largest</string>
+  <string name="sort_shortest">Shortest</string>
+  <string name="sort_longest">Longest</string>
+  <string name="sort_biggest">Biggest</string>
+  <string name="sort_asc">Asc</string>
+  <string name="sort_desc">Desc</string>
+  <string name="view_mode_section_label">View Mode</string>
+  <string name="view_mode_folder">Folder</string>
+  <string name="view_mode_tree">Tree</string>
+  <string name="view_mode_library">Library</string>
+  <string name="layout_section_label">Layout</string>
+  <string name="layout_list">List</string>
+  <string name="layout_grid">Grid</string>
+  <string name="sort_section_label">Sort by</string>
+  <string name="fields_section_label">Fields</string>
+  <string name="grid_columns_section_label">Grid Columns</string>
+  <string name="folder_grid_label">Folder Grid</string>
+  <string name="video_grid_label">Video Grid</string>
+  <string name="cols_unit">cols</string>
+  <string name="toggle_thumbnails">Thumbnails</string>
+  <string name="toggle_video_thumbnails">Video Thumbnails</string>
+  <string name="toggle_folder_thumbnails">Folder Thumbnails</string>
+  <string name="toggle_full_name">Full Name</string>
+  <string name="toggle_extension">Extension</string>
+  <string name="toggle_duration">Duration</string>
+  <string name="toggle_subtitle_indicator">Subtitle Indicator</string>
+  <string name="toggle_subtitle">Subtitle</string>
+  <string name="toggle_size">Size</string>
+  <string name="toggle_resolution">Resolution</string>
+  <string name="toggle_framerate">Framerate</string>
+  <string name="toggle_date">Date</string>
+  <string name="toggle_path">Path</string>
+  <string name="toggle_progress_bar">Progress Bar</string>
+  <string name="toggle_center_titles">Center Titles</string>
+  <string name="toggle_total_videos">Total Videos</string>
+  <string name="toggle_total_duration">Total Duration</string>
+  <string name="toggle_folder_size">Folder Size</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Player UI Labels                                          -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="player_previous">Previous</string>
+  <string name="player_next">Next</string>
+  <string name="player_play">Play</string>
+  <string name="player_pause">Pause</string>
+  <string name="player_playing">Playing</string>
+  <string name="player_now_playing">Now Playing</string>
+  <string name="player_slide_to_unlock_label">Slide to Unlock</string>
+  <string name="player_zoom_format">Zoom:%1$d%%</string>
+  <string name="player_sub_zoom_format">Sub: %1$.2fx</string>
+  <string name="player_repeat_off">Repeat: Off</string>
+  <string name="player_repeat_one">Repeat: Current file</string>
+  <string name="player_repeat_all">Repeat: All playlist</string>
+  <string name="player_repeat_all_fallback">Repeat: Current file</string>
+  <string name="player_shuffle_on">Shuffle: On</string>
+  <string name="player_shuffle_off">Shuffle: Off</string>
+  <string name="player_shuffle_na">Shuffle: Not available</string>
+  <string name="player_frame_format">Frame: %1$d/%2$d</string>
+  <string name="player_frame_format_simple">Frame: %1$d</string>
+  <string name="player_speed_playing_label">%1$.2fx Speed Playing</string>
+  <string name="player_speed_compact">%1$.2fx</string>
+  <string name="player_speed_preset">%1$.2f</string>
+  <string name="player_brightness_percent">%1$d%%</string>
+  <string name="player_volume_percent">%1$d%%</string>
+  <string name="player_subtitle_position_osd">Subtitle Position: %1$s</string>
+  <string name="player_hdr_output_osd">HDR Screen Output: %1$s</string>
+  <string name="player_hdrtoys_unavailable_osd">HDR Toys shaders unavailable</string>
+  <string name="player_ambience_on_osd">Ambience Mode: ON</string>
+  <string name="player_ambience_off_osd">Ambience Mode: OFF</string>
+  <string name="player_ambient_style_osd">Ambient Style: %1$s</string>
+  <string name="player_battery_saver_on_osd">Ambient: Battery Saver ON</string>
+  <string name="player_battery_saver_off_osd">Ambient: Battery Saver OFF</string>
+  <string name="player_hflip_on_osd">H-Flip On</string>
+  <string name="player_hflip_off_osd">H-Flip Off</string>
+  <string name="player_vflip_on_osd">V-Flip On</string>
+  <string name="player_vflip_off_osd">V-Flip Off</string>
+  <string name="player_next_dialog_osd">Next Dialog</string>
+  <string name="player_prev_dialog_osd">Prev Dialog</string>
+  <string name="player_subtitle_drag_hint">Drag up/down to move subtitles</string>
+  <string name="player_translating_osd">Translating %1$s %2$s</string>
+  <string name="player_skip_auto">%1$s (auto)</string>
+  <string name="player_skip_manual">%1$s</string>
+  <string name="player_scripts_enabled_toast">Scripts enabled</string>
+  <string name="player_scripts_disabled_toast">Scripts disabled. Reopen the video if a script stays active.</string>
+  <string name="player_script_loaded_toast">Loaded script: %1$s</string>
+  <string name="player_script_load_failed_toast">Failed to load script: %1$s</string>
+  <string name="player_script_disabled_toast">%1$s disabled. Reopen the video if the script stays active.</string>
+  <string name="player_audio_invalid_uri_toast">Failed to load audio file: Invalid URI</string>
+  <string name="player_audio_added_toast">Audio track added</string>
+  <string name="player_audio_load_failed_toast">Failed to load audio: %1$s</string>
+  <string name="player_sub_invalid_format_toast">Invalid subtitle file format</string>
+  <string name="player_sub_added_toast">%1$s added</string>
+  <string name="player_sub_load_failed_toast">Failed to load subtitle</string>
+  <string name="player_sub_deleted_toast">Subtitle deleted</string>
+  <string name="player_snapshot_failed_toast">Failed to save snapshot: %1$s</string>
+  <string name="player_translation_preparing">Preparing translation</string>
+  <string name="player_translation_resuming">Resuming</string>
+  <string name="player_translation_in_progress">Translating</string>
+  <string name="player_translation_complete_toast">Translation complete: %1$s</string>
+  <string name="player_translation_failed_toast">Translation failed: %1$s</string>
+  <string name="player_translation_error_toast">Error: %1$s</string>
+  <string name="player_translation_cancelled_toast">Translation cancelled</string>
+  <string name="player_gen_audio_preparing">Preparing audio</string>
+  <string name="player_gen_complete_toast">Generated subtitles: %1$s</string>
+  <string name="player_gen_failed_toast">Subtitle generation failed: %1$s</string>
+  <string name="player_gen_error_toast">Subtitle generation error: %1$s</string>
+  <string name="player_no_video_path_toast">Could not find current video path</string>
+  <string name="player_duration_unknown_toast">Video duration unknown</string>
+  <string name="player_gen_chunk_progress">Chunk %1$d/%2$d</string>
+  <string name="player_realtime_complete_toast">Real-time subtitles complete</string>
+  <string name="player_realtime_error_toast">Real-time subtitles error: %1$s</string>
+  <string name="player_realtime_stopped_toast">Real-time subtitles stopped</string>
+  <string name="player_series_details_failed_toast">Failed to load series details: %1$s</string>
+  <string name="player_episodes_failed_toast">Failed to load episodes: %1$s</string>
+  <string name="player_search_failed_toast">Search failed: %1$s</string>
+  <string name="player_wyzie_select_season_episode">Select season and episode for Wyzie.</string>
+  <string name="player_wyzie_select_show_season_episode">Select the show, season, and episode for Wyzie.</string>
+  <string name="player_download_failed_toast">Download failed: %1$s</string>
+  <string name="player_stats_header_playback">--- PLAYBACK &amp; DECODER ---</string>
+  <string name="player_stats_header_power">--- POWER &amp; THERMALS ---</string>
+  <string name="player_stats_header_cache">--- CACHE &amp; DATA COST ---</string>
+  <string name="player_stats_header_session">--- SESSION PERFORMANCE SUMMARY ---</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Clipboards / Network / Dialogs                            -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="clipboard_video_single">Share video</string>
+  <string name="clipboard_video_multiple">Share %1$d videos</string>
+  <string name="dialog_add_connection_title">Add Network Connection</string>
+  <string name="dialog_edit_connection_title">Edit Connection</string>
+  <string name="dialog_connection_label_name">Name</string>
+  <string name="dialog_connection_label_protocol">Protocol</string>
+  <string name="dialog_connection_label_host">Host/IP Address</string>
+  <string name="dialog_connection_label_port">Port</string>
+  <string name="dialog_connection_label_path">Path</string>
+  <string name="dialog_connection_label_username">Username</string>
+  <string name="dialog_connection_label_password">Password</string>
+  <string name="dialog_connection_placeholder_host">192.168.1.100</string>
+  <string name="dialog_connection_placeholder_path">/</string>
+  <string name="dialog_connection_anonymous">Anonymous/Guest Access</string>
+  <string name="dialog_connection_https">Use HTTPS (Secure Connection)</string>
+  <string name="dialog_add_m3u_title">Add M3U Playlist</string>
+  <string name="dialog_add_m3u_url_label">Playlist URL</string>
+  <string name="dialog_add_m3u_user_agent">Custom User-Agent (optional)</string>
+  <string name="dialog_add_m3u_or_label">OR</string>
+  <string name="dialog_add_m3u_local_file">Choose Local M3U File</string>
+  <string name="dialog_add_m3u_add_from_url">Add from URL</string>
+  <string name="dialog_rename_item_title">Rename %1$s</string>
+  <string name="dialog_rename_new_name_label">New name</string>
+  <string name="dialog_rename_empty_error">Name cannot be empty</string>
+  <string name="dialog_rename_invalid_error">Name cannot contain / or \\</string>
+  <string name="dialog_rename_ai_failed_error">AI rename failed. Check API key and model.</string>
+  <string name="dialog_rename_ai_thinking">AI is thinking…</string>
+  <string name="dialog_rename_ai_button">AI Rename</string>
+  <string name="dialog_delete_title">Delete %1$d %2$s?</string>
+  <string name="dialog_delete_warning">This action cannot be undone. The selected item(s) will be permanently deleted.</string>
+  <string name="dialog_operation_title">%1$s files</string>
+  <string name="dialog_operation_copying">Copying</string>
+  <string name="dialog_operation_moving">Moving</string>
+  <string name="dialog_operation_complete">Operation completed successfully!</string>
+  <string name="dialog_operation_cancelled">Operation cancelled</string>
+  <string name="dialog_operation_file_progress">File %1$d of %2$d</string>
+  <string name="dialog_operation_current_file">Current file</string>
+  <string name="dialog_operation_overall_progress">Overall progress</string>
+  <string name="dialog_operation_files_processed">Files processed</string>
+  <string name="dialog_operation_total_size">Total size</string>
+  <string name="dialog_loading_message">Loading…</string>
+  <string name="dialog_file_picker_select_subtitle">Select Subtitle</string>
+  <string name="dialog_file_picker_select_storage">Select a storage location</string>
+  <string name="dialog_file_picker_no_storage">No storage devices found</string>
+  <string name="dialog_file_picker_no_files">No folders or supported files</string>
+  <string name="dialog_folder_picker_select_folder">Select Folder</string>
+  <string name="dialog_folder_picker_same_folder_error">Cannot select the same folder</string>
+  <string name="dialog_folder_picker_no_storage">No storage devices found</string>
+  <string name="dialog_folder_picker_no_subfolders">No subfolders</string>
+  <string name="dialog_folder_picker_create_title">Create New Folder</string>
+  <string name="dialog_folder_picker_name_label">Folder name</string>
+  <string name="dialog_folder_picker_name_empty_error">Folder name cannot be empty</string>
+  <string name="dialog_folder_picker_exists_error">Folder already exists</string>
+  <string name="dialog_folder_picker_create_failed_error">Failed to create folder</string>
+  <string name="dialog_unknown_error">Unknown error</string>
+  <string name="dialog_custom_seek_enter">Enter custom seek duration in seconds (1–120)</string>
+  <string name="dialog_custom_seek_label">Seconds</string>
+  <string name="dialog_custom_time_enter">Enter custom hide time in milliseconds</string>
+  <string name="dialog_custom_time_label">Milliseconds</string>
+  <string name="dialog_add_to_playlist_title">Add to Playlist</string>
+  <string name="dialog_add_video_singular">Adding 1 video to playlist</string>
+  <string name="dialog_add_videos_plural">Adding %1$d videos to playlist</string>
+  <string name="dialog_add_create_new">Create New Playlist</string>
+  <string name="dialog_add_existing_playlists">Existing Playlists</string>
+  <string name="dialog_add_playlist_created_toast">Playlist created successfully</string>
+  <string name="dialog_add_playlist_failed_toast">Failed to create playlist: %1$s</string>
+  <string name="dialog_add_m3u_added_toast">M3U Playlist added successfully</string>
+  <string name="dialog_add_m3u_failed_toast">Failed to add M3U playlist: %1$s</string>
+  <string name="dialog_edit_region_content_desc">Edit %1$s</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Settings/Preferences Screens                              -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="dialog_select_subtitle_title">Select Subtitle</string>
+  <string name="dialog_select_folder_title">Select Folder</string>
+  <string name="pref_storage_title">Storage</string>
+  <string name="pref_section_media_library">Media Library</string>
+  <string name="pref_section_hidden_folders">Hidden Folders</string>
+  <string name="pref_base_storage_folder_title">Base Storage Folder</string>
+  <string name="pref_base_storage_folder_hint">Tap to select — creates Subtitles/, Fonts/, scripts/ subdirs</string>
+  <string name="pref_ytdlp_manager_title">yt-dlp Manager</string>
+  <string name="pref_ytdlp_manager_summary">Install and update yt-dlp for streaming support</string>
+  <string name="pref_folders_summary_text">Media library folders, hidden paths, fonts, and subtitle directories.</string>
+  <string name="pref_ai_integration_summary_text">Provider, model, API keys, rename tools, translation, and offline models.</string>
+  <string name="pref_screenshots_section_title">Screenshots</string>
+  <string name="pref_screenshot_format_title">Image format</string>
+  <string name="pref_screenshot_format_summary">%1$s .%2$s</string>
+  <string name="pref_screenshot_include_subtitles_title">Include subtitles in screenshots</string>
+  <string name="pref_screenshot_filename_template_title">Filename template</string>
+  <string name="pref_screenshot_jpeg_quality_title">JPEG/WebP quality</string>
+  <string name="pref_screenshot_png_compression_title">PNG compression</string>
+  <string name="pref_screenshot_webp_lossless_title">WebP lossless</string>
+  <string name="pref_screenshot_webp_lossless_summary">Uses mpv native lossless output; Android fallback uses lossless on Android 11+.</string>
+  <string name="pref_screenshot_template_dialog_title">Filename template</string>
+  <string name="pref_screenshot_template_label">Template</string>
+  <string name="pref_screenshot_template_help">Use placeholders:\n%%wY — Year (4-digit)\n%%wy — Year (2-digit)\n%%wm — Month\n%%wd — Day\n%%wH — Hour (24h)\n%%wM — Minute\n%%wS — Second\n%%wT — Wall-clock time (hour, min, sec, ms)\n%%sN — Source title\n%%sr — Resolution\n%%sc — Codec\n%%sf — FPS</string>
+  <string name="pref_player_clock_format_title">Time + Network clock</string>
+  <string name="pref_player_show_media_info_title">Show Media Info in chooser</string>
+  <string name="pref_player_show_media_info_summary">Show Media Info in system \"Open with\" / sharing menus to analyze files from other apps.</string>
+  <string name="pref_not_set_label">Not set</string>
+  <string name="pref_experimental_suffix"> (Experimental)</string>
+  <string name="pref_anime4k_shaders_options_title">Anime4K Shaders Options</string>
+  <string name="pref_anime4k_ultra_url">github.com/Th-Underscore/Anime4K-Ultra</string>
+  <string name="pref_anime4k_url">github.com/bloc97/Anime4K</string>
+  <string name="pref_intro_keywords_placeholder">e.g. intro, opening, op</string>
+  <string name="pref_outro_keywords_placeholder">e.g. outro, ending, ed</string>
+  <string name="pref_category_appearance">Appearance</string>
+  <string name="pref_category_player">Player</string>
+  <string name="pref_category_gestures">Gestures</string>
+  <string name="pref_category_storage">Storage</string>
+  <string name="pref_category_decoder">Decoder</string>
+  <string name="pref_category_subtitles">Subtitles</string>
+  <string name="pref_category_audio">Audio</string>
+  <string name="pref_category_advanced">Advanced</string>
+  <string name="pref_category_ai">AI</string>
+  <string name="pref_category_about">About</string>
+  <string name="pref_model_search_placeholder">Search models…</string>
+  <string name="pref_no_models_match">No models match \"%1$s\"</string>
+  <string name="pref_no_models_available">No models available</string>
+  <string name="pref_model_count_format">%1$d %2$s</string>
+  <string name="pref_model_free_tag">FREE</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- AI Integration Screen                                     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="ai_section_features">AI Features</string>
+  <string name="ai_enable_features_title">Enable AI Features</string>
+  <string name="ai_features_active_summary">AI features are active</string>
+  <string name="ai_features_disabled_summary">AI features are disabled</string>
+  <string name="ai_section_provider">Provider</string>
+  <string name="ai_provider_title">AI Provider</string>
+  <string name="ai_section_hugging_face">Hugging Face Setup</string>
+  <string name="ai_hugging_face_token_title">Hugging Face Token</string>
+  <string name="ai_hugging_face_token_required">Required for gated models. Get one from huggingface.co/settings/tokens</string>
+  <string name="ai_token_saved_summary">Token saved on device</string>
+  <string name="ai_hugging_face_token_paste">Paste your Hugging Face token</string>
+  <string name="ai_hugging_face_token_placeholder">hf_…</string>
+  <string name="ai_section_offline_models">Offline Models</string>
+  <string name="ai_speed_first_picker">Speed-first model picker</string>
+  <string name="ai_model_ranking_description">Models are ranked by how fast they feel after loading, RAM pressure, and subtitle translation quality.</string>
+  <string name="ai_filter_recommended">Recommended</string>
+  <string name="ai_filter_fastest">Fastest</string>
+  <string name="ai_filter_best_translation">Best translation</string>
+  <string name="ai_filter_downloaded">Downloaded</string>
+  <string name="ai_model_download_success_toast">Model downloaded successfully</string>
+  <string name="ai_model_download_failed_toast">Download failed: %1$s</string>
+  <string name="ai_model_deleted_toast">Model deleted</string>
+  <string name="ai_model_using_toast">Using %1$s</string>
+  <string name="ai_benchmark_saved_toast">Benchmark saved: %1$s</string>
+  <string name="ai_benchmark_failed_toast">Benchmark failed: %1$s</string>
+  <string name="ai_section_api_config">API Configuration</string>
+  <string name="ai_api_key_saved">API key saved on device</string>
+  <string name="ai_paste_api_key">Paste your %1$s</string>
+  <string name="ai_hide_key">Hide Key</string>
+  <string name="ai_show_key">Show Key</string>
+  <string name="ai_verify_key">Verify Key</string>
+  <string name="ai_verification_failed">Verification failed: %1$s</string>
+  <string name="ai_section_model">Model</string>
+  <string name="ai_available_models">Available Models</string>
+  <string name="ai_fetch_models">Fetch Models</string>
+  <string name="ai_tap_to_select_model">Tap to select a model</string>
+  <string name="ai_fetch_models_hint">Tap \'Fetch Models\' to load available models from %1$s</string>
+  <string name="ai_verify_model">Verify Model</string>
+  <string name="ai_check_model_access">Check Model Access</string>
+  <string name="ai_section_general_settings">General Settings</string>
+  <string name="ai_show_reasoning_title">Show AI Reasoning (Thinking)</string>
+  <string name="ai_show_reasoning_summary">Enable this to see the model\'s internal thought process for supported models.</string>
+  <string name="ai_section_features">Features</string>
+  <string name="ai_powered_rename_title">AI-Powered Rename</string>
+  <string name="ai_powered_rename_summary">Use AI to generate clean filenames for bulk rename operations</string>
+  <string name="ai_search_title">AI Search</string>
+  <string name="ai_search_summary">Auto-format video titles for Wyzie/SubHub subtitle search</string>
+  <string name="ai_section_speech_to_text">Speech-to-Text [Extreme Experimental]</string>
+  <string name="ai_realtime_subtitle_gen_title">Real-time Subtitle Generation</string>
+  <string name="ai_realtime_subtitle_gen_summary">Generate subtitles from audio while playing video</string>
+  <string name="ai_default_output_format_title">Default Output Format</string>
+  <string name="ai_stt_provider_title">Speech-to-Text Provider</string>
+  <string name="ai_stt_provider_summary">Used for both real-time streaming and batch subtitle generation</string>
+  <string name="ai_audio_language_title">Audio Language</string>
+  <string name="ai_auto_detect_language">Auto-detect</string>
+  <string name="ai_auto_detect_speech_language">Auto-detect speech language</string>
+  <string name="ai_section_subtitle_translation">Subtitle Translation</string>
+  <string name="ai_enable_translation_title">Enable Translation</string>
+  <string name="ai_enable_translation_summary">Translate external subtitles using AI</string>
+  <string name="ai_section_custom_prompt">Custom Prompt</string>
+  <string name="ai_override_instructions_title">Override Default Instructions</string>
+  <string name="ai_override_enabled_summary">Custom prompt will be used instead of built-in instructions</string>
+  <string name="ai_override_disabled_summary">Built-in AI instructions will be used</string>
+  <string name="ai_custom_prompts_title">Custom Prompts</string>
+  <string name="ai_custom_prompts_description">Leave a field blank to use the built-in instruction for that task. If you have an older global prompt saved, it will be used as a fallback.</string>
+  <string name="ai_custom_rename_prompt_label">Custom rename prompt</string>
+  <string name="ai_custom_rename_prompt_placeholder">Instructions for AI file renaming…</string>
+  <string name="ai_custom_translation_prompt_label">Custom subtitle translation prompt</string>
+  <string name="ai_custom_translation_prompt_placeholder">Instructions for AI subtitle translation…</string>
+  <string name="ai_custom_format_prompt_label">Custom subtitle formatting prompt</string>
+  <string name="ai_custom_format_prompt_placeholder">Instructions for formatting subtitle search queries…</string>
+  <string name="ai_legacy_prompt_saved">Legacy global prompt saved. It will be used whenever a task-specific prompt is empty.</string>
+  <string name="ai_translation_warning_title">Subtitle Translation</string>
+  <string name="ai_translation_warning_text">Subtitle translation can be a bit messy. For best results, use better models and don\'t rant that subs aren\'t working properly.</string>
+  <string name="ai_realtime_model_label">Real-time Model</string>
+  <string name="ai_loading_label">Loading…</string>
+  <string name="ai_tap_to_select_stt">Tap to select STT model</string>
+  <string name="ai_auto_translate_target_languages">Auto-Translate Target Languages</string>
+  <string name="ai_auto_translate_description">When translating subtitles, if 1 language is configured it translates directly. If 2+ are configured, a picker appears.</string>
+  <string name="ai_no_target_languages">No target languages configured</string>
+  <string name="ai_search_languages_placeholder">Search languages…</string>
+  <string name="ai_add_language_button">Add Language</string>
+  <string name="ai_done_button">Done</string>
+  <string name="ai_model_ram_label">%1$sGB RAM+</string>
+  <string name="ai_model_recommended_here">Recommended here</string>
+  <string name="ai_model_speed_rank">Speed %1$d</string>
+  <string name="ai_model_translation_rank">Translation %1$d</string>
+  <string name="ai_benchmark_button">Benchmark</string>
+  <string name="ai_retest_button">Re-test</string>
+  <string name="ai_download_button">Download</string>
+  <string name="ai_use_model_button">Use Model</string>
+  <string name="ai_model_active_badge">Active</string>
+  <string name="ai_failed_to_load_models_toast">Failed to load models: %1$s</string>
+  <string name="ai_dialog_got_it">Got it</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- yt-dlp Settings Screen                                    -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="ytdlp_installed_label">Installed</string>
+  <string name="ytdlp_not_configured_label">Not Configured</string>
+  <string name="ytdlp_screen_title">yt-dlp Streaming</string>
+  <string name="ytdlp_core_engine_title">yt-dlp Core Engine</string>
+  <string name="ytdlp_active_summary">Subprocess active and ready for streaming</string>
+  <string name="ytdlp_missing_summary">Engine missing. Please run installation below.</string>
+  <string name="ytdlp_streaming_quality_title">Streaming Quality</string>
+  <string name="ytdlp_quality_any_label">Any</string>
+  <string name="ytdlp_quality_p_label">%1$dp</string>
+  <string name="ytdlp_video_codec_title">Video Codec</string>
+  <string name="ytdlp_any_fps">Any FPS</string>
+  <string name="ytdlp_fps_30">30 FPS</string>
+  <string name="ytdlp_fps_60">60 FPS</string>
+  <string name="ytdlp_fps_120">120 FPS</string>
+  <string name="ytdlp_hdr_preference_title">HDR Preference</string>
+  <string name="ytdlp_container_title">Container</string>
+  <string name="ytdlp_format_sort_label">Format Sort</string>
+  <string name="ytdlp_format_sort_placeholder">res,fps,hdr:12,vcodec:vp9.2</string>
+  <string name="ytdlp_format_sort_supporting">Passed to yt-dlp as format-sort for advanced ranking.</string>
+  <string name="ytdlp_merge_output_label">Merge Output Format</string>
+  <string name="ytdlp_merge_output_placeholder">mp4, mkv, webm</string>
+  <string name="ytdlp_generated_format_string">Generated Format String</string>
+  <string name="ytdlp_default_label">(default)</string>
+  <string name="ytdlp_section_subtitles_language">Subtitles &amp; Language</string>
+  <string name="ytdlp_download_subs_title">Download Media Subtitles</string>
+  <string name="ytdlp_download_subs_summary">Automatically extract and load physical subtitle tracks from supported URLs.</string>
+  <string name="ytdlp_auto_captions_title">Include Auto-Generated Subtitles</string>
+  <string name="ytdlp_auto_captions_summary">Fetch auto-caption tracks (e.g. YouTube Speech-to-Text) when regular subs are absent.</string>
+  <string name="ytdlp_subtitle_languages_label">Subtitle Languages</string>
+  <string name="ytdlp_subtitle_languages_placeholder">all or en.*,ja</string>
+  <string name="ytdlp_subtitle_languages_supporting">Overrides app subtitle languages only for yt-dlp downloads.</string>
+  <string name="ytdlp_section_advanced_networking">Advanced Networking</string>
+  <string name="ytdlp_custom_user_agent_label">Custom User-Agent Override</string>
+  <string name="ytdlp_custom_user_agent_placeholder">Mozilla/5.0 …</string>
+  <string name="ytdlp_custom_user_agent_supporting">Leave blank to use default browser User-Agent. Helps bypass anti-bot scrapers.</string>
+  <string name="ytdlp_referer_label">Referer</string>
+  <string name="ytdlp_referer_placeholder">https://www.youtube.com/</string>
+  <string name="ytdlp_cookies_label">Cookies File</string>
+  <string name="ytdlp_cookies_placeholder">/storage/emulated/0/Download/cookies.txt</string>
+  <string name="ytdlp_proxy_label">Proxy</string>
+  <string name="ytdlp_proxy_placeholder">socks5://127.0.0.1:1080</string>
+  <string name="ytdlp_extractor_args_label">Extractor Args</string>
+  <string name="ytdlp_extractor_args_placeholder">youtube:player_client=android,web</string>
+  <string name="ytdlp_playlist_behavior_title">Playlist Behavior</string>
+  <string name="ytdlp_geo_bypass_title">Geo Bypass</string>
+  <string name="ytdlp_geo_bypass_summary">Ask yt-dlp to use its extractor-level region bypass logic.</string>
+  <string name="ytdlp_live_from_start_title">Live From Start</string>
+  <string name="ytdlp_live_from_start_summary">Start live streams from the beginning when the extractor supports it.</string>
+  <string name="ytdlp_sponsorblock_mark_label">SponsorBlock Mark</string>
+  <string name="ytdlp_sponsorblock_mark_placeholder">sponsor,selfpromo</string>
+  <string name="ytdlp_sponsorblock_remove_label">SponsorBlock Remove</string>
+  <string name="ytdlp_sponsorblock_remove_placeholder">sponsor</string>
+  <string name="ytdlp_raw_options_label">Raw yt-dlp Options</string>
+  <string name="ytdlp_raw_options_placeholder">extractor-args=\"youtube:player_client=android,web\"\ngeo-bypass=</string>
+  <string name="ytdlp_raw_options_supporting">Anything not exposed above. Separate options with new lines or commas; quote values that contain commas.</string>
+  <string name="ytdlp_section_engine_installer">Engine Installer</string>
+  <string name="ytdlp_manage_environment">Manage yt-dlp Environment</string>
+  <string name="ytdlp_manage_environment_desc">Download the latest wrapper modules and compile python-friendly native binaries inside local sandboxed folders.</string>
+  <string name="ytdlp_install_core_button">Install Core</string>
+  <string name="ytdlp_update_core_button">Update Core</string>
+  <string name="ytdlp_installing_status">Installing yt-dlp…</string>
+  <string name="ytdlp_updating_status">Updating yt-dlp…</string>
+  <string name="ytdlp_ready_status">Ready…</string>
+  <string name="ytdlp_installing_updating_status">Installing/Updating…</string>
+  <string name="ytdlp_terminal_idle_status">Terminal Idle</string>
+  <string name="ytdlp_console_placeholder">Console output is ready…\nInstall or update to trigger output.</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Advanced / Config / Scripts / Control Layout              -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="edit_mpv_conf_title">Edit mpv.conf</string>
+  <string name="edit_input_conf_title">Edit input.conf</string>
+  <string name="config_no_storage_toast">No storage location set</string>
+  <string name="config_create_file_failed_toast">Failed to create file</string>
+  <string name="config_saved_toast">%1$s saved</string>
+  <string name="config_save_failed_toast">Failed to save: %1$s</string>
+  <string name="config_unsaved_changes">Unsaved changes</string>
+  <string name="layout_edit_top_right">Edit Top Right</string>
+  <string name="layout_edit_bottom_right">Edit Bottom Right</string>
+  <string name="layout_edit_bottom_left">Edit Bottom Left</string>
+  <string name="layout_edit_portrait_bottom">Edit Portrait Bottom</string>
+  <string name="layout_reset_default_title">Reset to default?</string>
+  <string name="layout_reset_default_subtitle">This will reset the controls in this region to their default configuration.</string>
+  <string name="layout_reorder_instructions">Long press to reorder items. Tap the \'-\' icon to remove them.</string>
+  <string name="layout_drop_zone_empty">Drop zone is empty</string>
+  <string name="layout_drop_zone_hint">Tap buttons from the \'Available Palette\' below</string>
+  <string name="layout_all_buttons_used">All available buttons are in use.</string>
+  <string name="layout_icons_legend">Icons Legend</string>
+  <string name="layout_icons_legend_subtitle">What is each icon for?</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Scripts & Lua Screens                                     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="scripts_share_chooser_title">Share script</string>
+  <string name="scripts_file_not_found_toast">Script file not found</string>
+  <string name="scripts_error_sharing_toast">Error sharing script: %1$s</string>
+  <string name="scripts_no_storage_toast">No storage location configured</string>
+  <string name="scripts_screen_title">Scripts (Lua / JS)</string>
+  <string name="scripts_empty_no_folder_title">No MPV folder selected</string>
+  <string name="scripts_empty_no_folder_summary">Choose an MPV config folder in Advanced settings to browse and manage scripts.</string>
+  <string name="scripts_empty_no_scripts_title">No scripts found</string>
+  <string name="scripts_empty_no_scripts_summary">Put your .lua or .js files inside the MPV scripts folder to manage them here.</string>
+  <string name="editor_file_name_missing_toast">Please enter a file name</string>
+  <string name="editor_no_storage_toast">No storage location set</string>
+  <string name="editor_create_failed_toast">Failed to create file</string>
+  <string name="editor_output_stream_failed_toast">Failed to open output stream</string>
+  <string name="editor_saved_toast">%1$s saved successfully</string>
+  <string name="editor_save_failed_toast">Failed to save: %1$s</string>
+  <string name="editor_save_before_share_toast">Save the script first before sharing</string>
+  <string name="editor_share_failed_toast">Failed to share: %1$s</string>
+  <string name="editor_deleted_toast">%1$s deleted</string>
+  <string name="editor_delete_failed_toast">Failed to delete: %1$s</string>
+  <string name="editor_script_name_placeholder">Script name</string>
+  <string name="editor_lang_lua">Lua</string>
+  <string name="editor_lang_js">JS</string>
+  <string name="editor_delete_dialog_title">Delete Script?</string>
+  <string name="editor_delete_dialog_subtitle">Are you sure you want to delete \"%1$s\"? This action cannot be undone.</string>
+  <string name="lua_error_loading_toast">Error loading scripts: %1$s</string>
+  <string name="lua_no_config_summary">Set an MPV config folder in Advanced settings to browse scripts.</string>
+  <string name="lua_no_scripts_summary">Script runtime is on, but no .lua or .js files were found in your scripts folder.</string>
+  <string name="lua_on_enabled_summary">%1$d of %2$d scripts enabled for playback.</string>
+  <string name="lua_on_none_enabled_summary">Script runtime is on. Tap a script below to arm it for playback.</string>
+  <string name="lua_off_summary">Script runtime is off. Enabled scripts stay saved and can be reactivated anytime.</string>
+  <string name="lua_runtime_card_title">Script runtime</string>
+  <string name="lua_status_enabled">Enabled</string>
+  <string name="lua_status_saved_off">Saved, but script runtime is off</string>
+  <string name="lua_status_disabled">Disabled</string>
+  <string name="lua_footnote">Newly enabled scripts can load during playback. Scripts you turn off may need the video to be reopened before they fully stop running.</string>
+  <string name="lua_scripts_panel_title">Scripts (Lua / JS)</string>
+  <string name="lua_no_folder_title">No MPV folder selected</string>
+  <string name="lua_no_folder_summary">Choose an MPV config folder in Advanced settings, then open this panel again to manage scripts.</string>
+  <string name="lua_no_scripts_title">No scripts found</string>
+  <string name="lua_no_scripts_summary">Put your .lua or .js files inside the MPV scripts folder to manage them here.</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Custom Buttons Screen                                     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="custom_buttons_title">Custom Buttons</string>
+  <string name="custom_buttons_subtitle">Drag to reorder \u2022 Tap any slot to expand &amp; edit</string>
+  <string name="custom_buttons_import_export_title">Import / Export</string>
+  <string name="custom_buttons_import_export_desc">Backup or share all your custom buttons with their script code as an XML file</string>
+  <string name="custom_buttons_export_success_toast">Buttons exported successfully</string>
+  <string name="custom_buttons_export_failed_toast">Export failed: %1$s</string>
+  <string name="custom_buttons_import_failed_toast">Failed to read file: %1$s</string>
+  <string name="custom_buttons_imported_toast">Imported %1$d button(s)</string>
+  <string name="custom_buttons_empty_slot">Empty slot</string>
+  <string name="custom_buttons_tap_action_label">Tap action \u00b7 %1$s</string>
+  <string name="custom_buttons_long_press_label">Long press \u00b7 %1$s</string>
+  <string name="custom_buttons_on_startup_label">On startup \u00b7 %1$s</string>
+  <string name="custom_buttons_title_label">Button title *</string>
+  <string name="custom_buttons_scripts_section">Scripts (Lua / JS)</string>
+  <string name="custom_buttons_tap_action">Tap action *</string>
+  <string name="custom_buttons_long_press_action">Long press action</string>
+  <string name="custom_buttons_on_startup">On startup</string>
+  <string name="custom_buttons_settings_section">Settings</string>
+  <string name="custom_buttons_enabled">Button enabled</string>
+  <string name="custom_buttons_active_summary">Button is active in the player</string>
+  <string name="custom_buttons_hidden_summary">Button is saved but hidden</string>
+  <string name="custom_buttons_save">Save</string>
+  <string name="custom_buttons_add">Add button</string>
+  <string name="custom_buttons_tap_to_write">Tap to write code…</string>
+  <string name="custom_buttons_select_import_title">Select Buttons to Import</string>
+  <string name="custom_buttons_select_import_message">Choose which buttons to import</string>
+  <string name="custom_buttons_will_overwrite">Will overwrite existing button</string>
+  <string name="custom_buttons_lang_lua">Lua</string>
+  <string name="custom_buttons_lang_javascript">JavaScript</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- About Screen                                              -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="about_section_support">Support</string>
+  <string name="about_buy_me_coffee">Buy Me a Coffee</string>
+  <string name="about_donation_description">If you enjoy MpvRx, consider supporting its development. Every bit helps!</string>
+  <string name="about_send_love">Send Love</string>
+  <string name="about_upi_id_label">UPI ID</string>
+  <string name="about_upi_id_copied_toast">UPI ID copied!</string>
+  <string name="about_no_upi_app_toast">No UPI app found</string>
+  <string name="about_section_updates">Updates</string>
+  <string name="about_auto_check_updates">Auto Check for Updates</string>
+  <string name="about_check_on_startup">Check on startup</string>
+  <string name="about_check_now">Check for Updates Now</string>
+  <string name="about_already_latest_toast">Already using latest version</string>
+  <string name="about_app_name">MpvRx</string>
+  <string name="about_by_author">By Ritesh Pandit</string>
+  <string name="about_github">GitHub</string>
+  <string name="about_device_info">Device Info</string>
+  <string name="about_section_system">System</string>
+  <string name="about_stat_manufacturer">Manufacturer</string>
+  <string name="about_stat_device">Device</string>
+  <string name="about_stat_android">Android</string>
+  <string name="about_stat_cpu_abi">CPU ABI</string>
+  <string name="about_stat_cpu_cores">CPU Cores</string>
+  <string name="about_stat_ram">RAM</string>
+  <string name="about_stat_opengl_es">OpenGL ES</string>
+  <string name="about_stat_vulkan">Vulkan</string>
+  <string name="about_stat_gpu_renderer">GPU Renderer</string>
+  <string name="about_stat_board">Board</string>
+  <string name="about_stat_kernel">Kernel</string>
+  <string name="about_cpu_cores_format">%1$d cores</string>
+  <string name="about_oss_description">Core open source dependencies used by MpvRx.</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Media Info Screen                                         -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="media_info_screen_title">Media Info</string>
+  <string name="media_info_no_file">No media file provided</string>
+  <string name="media_info_load_failed">Failed to load media information</string>
+  <string name="media_info_analyzing">Analyzing media file…</string>
+  <string name="media_info_error_prefix">Error: %1$s</string>
+  <string name="media_info_tab_overview">Overview</string>
+  <string name="media_info_tab_video">Video</string>
+  <string name="media_info_tab_audio">Audio</string>
+  <string name="media_info_tab_subtitles">Subtitles</string>
+  <string name="media_info_tab_chapters">Chapters</string>
+  <string name="media_info_video_stream">Video Stream</string>
+  <string name="media_info_audio_stream">Audio Stream</string>
+  <string name="media_info_subtitle_track">Subtitle Track</string>
+  <string name="media_info_copied_value_toast">Copied: %1$s</string>
+  <string name="media_info_copied_specs_toast">Copied specifications to clipboard</string>
+  <string name="media_info_share_chooser_title">Share Media Info</string>
+  <string name="media_info_share_failed_toast">Failed to share: %1$s</string>
+  <string name="media_info_quick_stat_resolution">Resolution</string>
+  <string name="media_info_quick_stat_file_size">File Size</string>
+  <string name="media_info_quick_stat_duration">Duration</string>
+  <string name="media_info_quick_stat_bitrate">Bitrate</string>
+  <string name="media_info_tracks_summary">Media Tracks Summary</string>
+  <string name="media_info_container_metadata">Container Metadata</string>
+  <string name="media_info_chapters_title">Video Chapters &amp; Timeline</string>
+  <string name="media_info_chapter_default">Chapter %1$d</string>
+  <string name="media_info_unknown">Unknown</string>
+  <string name="media_info_no_video">No Video</string>
+  <string name="media_info_res_4k">4K UHD</string>
+  <string name="media_info_res_2k">2K QHD</string>
+  <string name="media_info_res_1080p">1080p FHD</string>
+  <string name="media_info_res_720p">720p HD</string>
+  <string name="media_info_hero_res_4k">4K UHD</string>
+  <string name="media_info_hero_res_2k">2K QHD</string>
+  <string name="media_info_hero_res_1080p">1080p</string>
+  <string name="media_info_hero_res_720p">720p</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Update Feature                                            -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="update_dialog_title_ready">Ready to Install</string>
+  <string name="update_dialog_title_available">Update Available</string>
+  <string name="update_info_current_version">Current Version</string>
+  <string name="update_info_latest_version">Latest Version</string>
+  <string name="update_info_release_date">Release Date</string>
+  <string name="update_info_size">Size</string>
+  <string name="update_downloading_status">Downloading…</string>
+  <string name="update_progress_format">%1$d%%</string>
+  <string name="update_install_button">Install</string>
+  <string name="update_download_button">Download</string>
+  <string name="update_ignore_button">Ignore</string>
+  <string name="update_cancel_button">Cancel</string>
+  <string name="update_unknown_size">Unknown size</string>
+  <string name="update_date_format">MMM dd, yyyy</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Permission Denied State                                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="permission_storage_required_title">Storage Access Required</string>
+  <string name="permission_photos_videos_desc">MpvRx requires \"Photos and videos\" permission to access and play your video files stored on your device.</string>
+  <string name="permission_storage_desc">MpvRx requires \"Storage\" permission to access and play your media files stored on your device.</string>
+  <string name="permission_all_files_desc">MpvRx requires \"All file access\" permission to discover media and subtitles on your device due to a change in security policy in Android 11 and later versions.</string>
+  <string name="permission_allow_access_button">ALLOW ACCESS</string>
+  <string name="permission_why_link">Why do I see this?</string>
+  <string name="permission_explanation_title">Why this permission is needed</string>
+  <string name="permission_play_store_need">MpvRx needs access to your video files to provide its core functionality as a media player.</string>
+  <string name="permission_android_13_desc">On Android 13 and above, this permission allows the app to read video files from your device\'s storage, including Downloads, Movies, and DCIM folders.</string>
+  <string name="permission_android_legacy_desc">This permission allows the app to read media files from your device\'s storage to play videos and audio.</string>
+  <string name="permission_used_for_label">The permission is used exclusively for:</string>
+  <string name="permission_use_cases">\u2022 Discovering and displaying your video files\n\u2022 Playing media content\n\u2022 Loading subtitle files</string>
+  <string name="permission_standard_need">MpvRx has always required storage access permission as it\'s essential for the app to find all media and subtitle files on your device, including the ones that are not supported by the system.</string>
+  <string name="permission_security_policy_change">However, due to a change in security policy, apps built for Android 11 and above now require additional permission to continue accessing the same.</string>
+  <string name="permission_privacy_assurance">Please know that this permission is only used for the auto-discovery of media/subtitle files on your device and will not allow us to access the private data files stored by other apps in any way.</string>
+  <string name="permission_open_source_note">MpvRx is an open source project. You can review the source code and verify how permissions are used by visiting our GitHub repository at:</string>
+  <string name="permission_privacy_priority">Be rest assured, your privacy is our utmost priority, and we neither access your files for other purposes nor transfer or store them to our servers. They remain safe on your device.</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Player Sheets & Panels                                    -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="sheet_scripts_label">Scripts</string>
+  <string name="sheet_scripts_count_label">Scripts (%1$d)</string>
+  <string name="sheet_anime4k_not_available">Not available for 4K/8K video</string>
+  <string name="sheet_quick_presets_title">Quick Presets</string>
+  <string name="sheet_minutes_preset_label">%1$dm</string>
+  <string name="sheet_items_count_label">%1$d items</string>
+  <string name="sheet_playing_badge">Playing</string>
+  <string name="sheet_bullet_separator">\u2022</string>
+  <string name="sheet_aspect_ratio_title">Aspect Ratio</string>
+  <string name="sheet_presets_section">Presets</string>
+  <string name="sheet_custom_section">Custom</string>
+  <string name="sheet_add_custom_ratio_hint">Add Custom Ratio (e.g. 16:9)</string>
+  <string name="sheet_width_label">Width</string>
+  <string name="sheet_colon_separator">:</string>
+  <string name="sheet_height_label">Height</string>
+  <string name="sheet_invalid_ratio_error">Invalid</string>
+  <string name="sheet_embedded_subtitles_header">Embedded Subtitles</string>
+  <string name="sheet_local_subtitles_header">Local Subtitles</string>
+  <string name="sheet_external_subtitles_header">External Subtitles</string>
+  <string name="sheet_translate_to_title">Translate to…</string>
+  <string name="sheet_search_language_placeholder">Search language…</string>
+  <string name="sheet_no_languages_found">No languages found</string>
+  <string name="sheet_translation_progress">%1$s %2$s… %3$d%%</string>
+  <string name="sheet_translation_status_fallback">Translating</string>
+  <string name="sheet_generation_status_fallback">Generating subtitles</string>
+  <string name="sheet_pan_and_zoom_label">Pan &amp; Zoom</string>
+  <string name="sheet_remove_speed_button">Remove</string>
+  <string name="sheet_add_speed_button">Add</string>
+  <string name="sheet_frame_label">Frame: </string>
+  <string name="sheet_timestamp_label">Timestamp: </string>
+  <string name="sheet_ambience_mode_title">Ambience Mode</string>
+  <string name="sheet_preset_eco">Eco</string>
+  <string name="sheet_preset_fast">Fast</string>
+  <string name="sheet_preset_balanced">Balanced</string>
+  <string name="sheet_preset_hq">HQ</string>
+  <string name="sheet_glow_section">Glow</string>
+  <string name="sheet_blur_samples">Blur Samples</string>
+  <string name="sheet_spread">Spread</string>
+  <string name="sheet_glow_intensity">Glow Intensity</string>
+  <string name="sheet_fade_curve">Fade Curve</string>
+  <string name="sheet_color_section">Color</string>
+  <string name="sheet_saturation">Saturation</string>
+  <string name="sheet_warmth">Warmth</string>
+  <string name="sheet_compositing_section">Compositing</string>
+  <string name="sheet_opacity">Opacity</string>
+  <string name="sheet_vignette">Vignette</string>
+  <string name="sheet_visual_style_section">Visual Style</string>
+  <string name="sheet_frame_extend_section">Frame Extend</string>
+  <string name="sheet_strength">Strength</string>
+  <string name="sheet_detail_protect">Detail Protect</string>
+  <string name="sheet_glow_mix">Glow Mix</string>
+  <string name="sheet_bezel">Bezel</string>
+  <string name="sheet_dither">Dither</string>
+  <string name="sheet_verified_matches_header">Verified Matches (%1$d) + Others</string>
+  <string name="sheet_online_results_header">Online Results (%1$d)</string>
+  <string name="sheet_search_empty_toast">Search query is empty</string>
+  <string name="sheet_ai_format_failed_toast">AI format failed: %1$s</string>
+  <string name="sheet_found_results">Found %1$d</string>
+  <string name="sheet_sync_badge">SYNC</string>
+  <string name="sheet_episode_button_label">Ep %1$d</string>
+  <string name="sheet_episode_menu_item">Episode %1$d</string>
+  <string name="sheet_season_dropdown_default">Season</string>
+  <string name="sheet_season_menu_item">Season %1$d</string>
+  <string name="sheet_episode_dropdown_default">Ep</string>
+  <string name="sheet_thousands_suffix">k</string>
+  <string name="sheet_filter_presets_title">Filter Presets</string>
+  <string name="sheet_default_font_label">Default</string>
+  <string name="sheet_enable_ass_override_button">Enable ASS Override</string>
+  <string name="sheet_seconds_suffix">s</string>
+  <string name="sheet_quality_any_label">Any</string>
+  <string name="sheet_quality_p_label">%1$dp</string>
+  <string name="sheet_ytdlp_manager_title">yt-dlp Manager</string>
+  <string name="sheet_settings_tab">Settings</string>
+  <string name="sheet_console_tab">Console</string>
+  <string name="sheet_core_installed_status">yt-dlp core is installed &amp; active</string>
+  <string name="sheet_core_not_installed_status">yt-dlp core not installed</string>
+  <string name="sheet_quick_quality_title">Quick Quality Selection</string>
+  <string name="sheet_codec_preset_title">Codec Preset</string>
+  <string name="sheet_quick_subtitle_title">Quick Subtitle Config</string>
+  <string name="sheet_download_subtitles_label">Download Subtitles</string>
+  <string name="sheet_download_subtitles_summary">Fetch subs from stream sources</string>
+  <string name="sheet_auto_captions_label">Auto-Generated Captions</string>
+  <string name="sheet_auto_captions_summary">Include auto-captions/transcripts</string>
+  <string name="sheet_hdr_output_title">HDR Output</string>
+  <string name="sheet_hdr_cannot_enable_title">HDR cannot be enabled</string>
+  <string name="sheet_hdr_cannot_enable_desc">Enable GPU Next and Vulkan before using HDR modes</string>
+  <string name="sheet_default_aspect_ratio">Default</string>
+  <string name="sheet_aspect_4_3">4:3</string>
+  <string name="sheet_aspect_16_9">16:9</string>
+  <string name="sheet_aspect_16_10">16:10</string>
+  <string name="sheet_aspect_21_9">21:9</string>
+  <string name="sheet_aspect_32_9">32:9</string>
+  <string name="sheet_aspect_1_1">1:1</string>
+  <string name="sheet_aspect_2_35_1">2.35:1</string>
+  <string name="sheet_aspect_2_39_1">2.39:1</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Mpv Help Screen                                           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="help_screen_title">mpv Documentation</string>
+  <string name="help_search_placeholder">Search commands, options, properties…</string>
+  <string name="help_filter_all">All</string>
+  <string name="help_no_results">No results found</string>
+  <string name="help_no_android_badge">No Android</string>
+  <string name="help_android_note_prefix">\u26a0 %1$s</string>
+  <string name="help_kind_option">mpv.conf Option</string>
+  <string name="help_kind_command">Input Command</string>
+  <string name="help_kind_property">Property</string>
+  <string name="help_kind_js_api">JavaScript API</string>
+  <string name="help_copied_toast">Copied: %1$s</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Crash Screen                                              -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="crash_logcat_title">Logcat:</string>
+  <string name="crash_clipboard_label">mpvrx_crash_logs</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Bulk AI Rename Dialog                                     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="bulk_ai_rename_title_idle">Bulk AI Rename</string>
+  <string name="bulk_ai_rename_title_generating">Generating Previews…</string>
+  <string name="bulk_ai_rename_title_preview">Review &amp; Confirm</string>
+  <string name="bulk_ai_rename_disabled_warning">AI Rename is disabled. Enable it in Settings \u2192 AI Integration.</string>
+  <string name="bulk_ai_rename_description_idle">AI will suggest new names for %1$d selected file(s). You can review and edit each name before confirming.</string>
+  <string name="bulk_ai_rename_progress">Processing %1$d file(s)…</string>
+  <string name="bulk_ai_rename_selected_progress">%1$d / %2$d file(s) selected to rename</string>
+  <string name="bulk_ai_rename_generate_button">Generate Previews</string>
+  <string name="bulk_ai_rename_rename_button">Rename %1$d File(s)</string>
+  <string name="bulk_ai_rename_failed_all_error">AI rename failed for all %1$d items. Check your model/API key.</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Play Sheet & Play Link                                    -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="play_sheet_title">Play Link</string>
+  <string name="play_sheet_enter_url_label">Enter URL</string>
+  <string name="play_sheet_url_placeholder">https://example.com/video.mp4</string>
+  <string name="play_sheet_unsupported_protocol">Unsupported URL protocol</string>
+  <string name="play_sheet_play_button">Play</string>
+  <string name="playlist_sheet_options_title">Playlist Options</string>
+  <string name="playlist_sheet_create_empty">Create Empty Playlist</string>
+  <string name="playlist_sheet_create_empty_desc">Create a new blank playlist</string>
+  <string name="playlist_sheet_add_m3u_url">Add M3U Playlist from URL</string>
+  <string name="playlist_sheet_add_m3u_url_desc">Import a playlist from a web URL</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Language Names (for AI/Subtitles)                         -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="lang_auto_detect">Auto-detect</string>
+  <string name="lang_english">English</string>
+  <string name="lang_spanish">Spanish</string>
+  <string name="lang_french">French</string>
+  <string name="lang_german">German</string>
+  <string name="lang_hindi">Hindi</string>
+  <string name="lang_japanese">Japanese</string>
+  <string name="lang_chinese">Chinese</string>
+  <string name="lang_korean">Korean</string>
+  <string name="lang_portuguese">Portuguese</string>
+  <string name="lang_russian">Russian</string>
+  <string name="lang_arabic">Arabic</string>
+  <string name="lang_italian">Italian</string>
+  <string name="lang_dutch">Dutch</string>
+  <string name="lang_polish">Polish</string>
+  <string name="lang_turkish">Turkish</string>
+  <string name="lang_vietnamese">Vietnamese</string>
+  <string name="lang_thai">Thai</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Error / Status Messages                                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="error_failed_to_fetch_sources">Failed to fetch sources</string>
+  <string name="error_loading_sources">Error loading sources</string>
+  <string name="error_failed_to_clear_toast">Failed to clear: %1$s</string>
+  <string name="error_unknown">Unknown error</string>
+  <string name="error_network_connection_failed">Connection failed</string>
+  <string name="error_ytdlp_needed">You need to install yt-dlp to play this link (Settings &gt; Advanced &gt; yt-dlp Manager)</string>
+  <string name="status_connecting">Connecting</string>
+  <string name="status_connected">Connected</string>
+  <string name="status_disconnected">Disconnected</string>
+  <string name="status_loading">Loading…</string>
+  <string name="scanning_message">Scanning for videos…</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Enum Display Names (Sort, View, Decoder, etc.)            -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="sort_type_title">Title</string>
+  <string name="sort_type_date">Date</string>
+  <string name="sort_type_size">Size</string>
+  <string name="sort_type_duration">Duration</string>
+  <string name="sort_type_video_count">Count</string>
+  <string name="folder_view_album">Folder View</string>
+  <string name="folder_view_file_manager">Tree View</string>
+  <string name="folder_view_media_library">Media Library</string>
+  <string name="media_layout_list">List</string>
+  <string name="media_layout_grid">Grid</string>
+  <string name="thumbnail_mode_smart">Smart (embedded + 33%)</string>
+  <string name="thumbnail_mode_first_frame">First frame</string>
+  <string name="thumbnail_mode_frame_position">Frame position</string>
+  <string name="thumbnail_mode_embedded">Embedded thumbnail</string>
+  <string name="folder_sort_type_title">Title</string>
+  <string name="folder_sort_type_date">Date</string>
+  <string name="folder_sort_type_size">Size</string>
+  <string name="folder_sort_type_video_count">Count</string>
+  <string name="video_sort_type_title">Title</string>
+  <string name="video_sort_type_duration">Duration</string>
+  <string name="video_sort_type_date">Date</string>
+  <string name="video_sort_type_size">Size</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Player Button Labels                                      -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="player_button_back_arrow">Back Arrow</string>
+  <string name="player_button_video_title">Video Title</string>
+  <string name="player_button_bookmarks">Chapters / Bookmarks</string>
+  <string name="player_button_playback_speed">Playback Speed</string>
+  <string name="player_button_decoder">Decoder</string>
+  <string name="player_button_hdr_mode">HDR Screen Output</string>
+  <string name="player_button_screen_rotation">Screen Rotation</string>
+  <string name="player_button_frame_navigation">Frame Navigation</string>
+  <string name="player_button_video_zoom">Video Zoom</string>
+  <string name="player_button_pip">Picture-in-Picture</string>
+  <string name="player_button_aspect_ratio">Aspect Ratio</string>
+  <string name="player_button_lock_controls">Lock Controls</string>
+  <string name="player_button_audio_track">Audio Track</string>
+  <string name="player_button_subtitles">Subtitles</string>
+  <string name="player_button_more_options">More Options</string>
+  <string name="player_button_current_chapter">Current Chapter</string>
+  <string name="player_button_repeat_mode">Repeat Mode</string>
+  <string name="player_button_shuffle">Shuffle</string>
+  <string name="player_button_mirror">Horizontal Flip</string>
+  <string name="player_button_vertical_flip">Vertical Flip</string>
+  <string name="player_button_ab_loop">A-B Loop</string>
+  <string name="player_button_custom_skip">Custom Skip</string>
+  <string name="player_button_background_playback">Background Playback</string>
+  <string name="player_button_ambient_mode">Ambience Mode</string>
+  <string name="player_button_time_network">Time + Network</string>
+  <string name="player_button_none">None</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Intro Segment Providers                                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="intro_provider_intro_db">IntroDB</string>
+  <string name="intro_provider_tidb">TIDB</string>
+  <string name="intro_provider_ani_skip">AniSkip (Anime)</string>
+  <string name="intro_provider_hybrid">Hybrid (Fastest)</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Clock Formats                                             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="clock_format_system">System</string>
+  <string name="clock_format_12h">12 hour</string>
+  <string name="clock_format_24h">24 hour</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- AI Provider Names                                         -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="ai_provider_opencode">OpenCode</string>
+  <string name="ai_provider_groq">Groq</string>
+  <string name="ai_provider_openai">OpenAI</string>
+  <string name="ai_provider_anthropic">Anthropic</string>
+  <string name="ai_provider_openrouter">OpenRouter</string>
+  <string name="ai_provider_together">Together</string>
+  <string name="ai_provider_local">Offline Model</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- yt-dlp Options Enum Values                                -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="ytdlp_codec_auto">Auto</string>
+  <string name="ytdlp_codec_h264">H.264 / AVC</string>
+  <string name="ytdlp_codec_hevc">HEVC / H.265</string>
+  <string name="ytdlp_codec_vp9">VP9</string>
+  <string name="ytdlp_codec_vp9_profile2">VP9 Profile 2</string>
+  <string name="ytdlp_codec_av1">AV1</string>
+  <string name="ytdlp_container_any">Any</string>
+  <string name="ytdlp_container_mp4">MP4</string>
+  <string name="ytdlp_container_webm">WebM</string>
+  <string name="ytdlp_hdr_any">Any</string>
+  <string name="ytdlp_hdr_sdr">Prefer SDR</string>
+  <string name="ytdlp_hdr_hdr">Prefer HDR</string>
+  <string name="ytdlp_playlist_default">yt-dlp default</string>
+  <string name="ytdlp_playlist_single">Single video only</string>
+  <string name="ytdlp_playlist_whole">Whole playlist</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Decoder / MPV Profile Labels                              -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="decoder_auto">Auto</string>
+  <string name="decoder_sw">SW</string>
+  <string name="decoder_hw">HW</string>
+  <string name="decoder_hw_plus">HW+</string>
+  <string name="mpv_profile_fast">Fast</string>
+  <string name="mpv_profile_default">Default</string>
+  <string name="mpv_profile_high_quality">High Quality</string>
+  <string name="mpv_profile_gpu_hq">GPU HQ</string>
+  <string name="mpv_profile_low_latency">Low Latency</string>
+  <string name="mpv_profile_sw_fast">SW Fast</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Skip Segment Labels                                       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="skip_intro">Skip intro</string>
+  <string name="skip_recap">Skip recap</string>
+  <string name="skip_outro">Skip outro</string>
+  <string name="skip_credits">Skip credits</string>
+  <string name="skip_preview">Skip preview</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Animation Style Labels                                    -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="anim_controls_default">Default</string>
+  <string name="anim_controls_elastic">Elastic Bounce</string>
+  <string name="anim_controls_cinematic">Cinematic Scale</string>
+  <string name="anim_controls_slide_up">Slide Up</string>
+  <string name="anim_controls_minimal">Minimal Fade</string>
+  <string name="anim_controls_none">None</string>
+  <string name="anim_video_open_default">Default</string>
+  <string name="anim_video_open_fade_black">Fade from Black</string>
+  <string name="anim_video_open_zoom_burst">Zoom Burst</string>
+  <string name="anim_video_open_slide_up">Slide Up</string>
+  <string name="anim_video_open_cinema_bars">Cinema Bars</string>
+  <string name="anim_video_open_none">None</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- HDR Screen Output Mode Labels                             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="hdr_off">Off</string>
+  <string name="hdr_off_short">Off</string>
+  <string name="hdr_off_desc">Normal SDR output</string>
+  <string name="hdr_bt2100_pq">BT.2100 PQ</string>
+  <string name="hdr_pq_short">PQ</string>
+  <string name="hdr_pq_desc">HDR10-style PQ with Astra tone mapping and Bottosson gamut mapping</string>
+  <string name="hdr_bt2100_hlg">BT.2100 HLG</string>
+  <string name="hdr_hlg_short">HLG</string>
+  <string name="hdr_hlg_desc">HLG HDR through the hdr-toys Astra and Bottosson shader chain</string>
+  <string name="hdr_bt2020">BT.2020</string>
+  <string name="hdr_bt2020_short">BT.2020</string>
+  <string name="hdr_bt2020_desc">BT.2020 / BT.1886 conversion using hdr-toys gamut mapping</string>
+  <string name="hdr_linear">Linear HDR</string>
+  <string name="hdr_linear_short">Linear</string>
+  <string name="hdr_linear_desc">High-quality mpv HDR output without hdr-toys shaders</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Ambient Visual Mode Labels                                -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="ambient_visual_glow">Glow</string>
+  <string name="ambient_visual_frame_extend">Frame Extend</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- File Size / Units / Formatting                            -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="file_size_bytes">%1$d B</string>
+  <string name="file_size_kb">%1$.1f KB</string>
+  <string name="file_size_mb">%1$.1f MB</string>
+  <string name="file_size_gb">%1$.2f GB</string>
+  <string name="file_size_tb">%1$.2f TB</string>
+  <string name="file_size_unit_b">B</string>
+  <string name="file_size_unit_kb">KB</string>
+  <string name="file_size_unit_mb">MB</string>
+  <string name="file_size_unit_gb">GB</string>
+  <string name="file_size_unit_tb">TB</string>
+  <string name="file_size_zero">0 B</string>
+  <string name="duration_zero">0s</string>
+  <string name="duration_seconds">%1$ds</string>
+  <string name="resolution_unknown">--</string>
+  <string name="resolution_4320p">4320p</string>
+  <string name="resolution_2160p">2160p</string>
+  <string name="resolution_1440p">1440p</string>
+  <string name="resolution_1080p">1080p</string>
+  <string name="resolution_720p">720p</string>
+  <string name="resolution_480p">480p</string>
+  <string name="resolution_360p">360p</string>
+  <string name="resolution_240p">240p</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Screenshot Defaults                                       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="screenshot_default_media_title">video</string>
+  <string name="screenshot_default_template">mpv_snapshot_%%Y%%m%%d_%%H%%M%%S</string>
+  <string name="screenshot_default_filename">mpv_snapshot</string>
+  <string name="screenshot_format_unsupported_error">mpv does not support %1$s format on this device</string>
+  <string name="screenshot_android_encoder_failed">Android encoder failed for %1$s</string>
+  <string name="screenshot_mediastore_create_failed">Failed to create MediaStore entry</string>
+  <string name="screenshot_mediastore_output_failed">Failed to open MediaStore output</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- AI Service / Repository Strings                           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="ai_api_key_not_configured">API key not configured for %1$s</string>
+  <string name="ai_api_key_not_configured_generic">API key not configured</string>
+  <string name="ai_unknown_provider">Unknown provider: %1$s</string>
+  <string name="ai_local_model_ready">Local model ready</string>
+  <string name="ai_empty_input_error">Empty input provided to AI</string>
+  <string name="ai_no_model_selected_error">No AI model selected</string>
+  <string name="ai_no_local_model_selected">No local model selected. Go to AI Settings to select a model.</string>
+  <string name="ai_local_model_not_selected">Local model not selected. Go to AI Settings to download a model.</string>
+  <string name="ai_model_file_not_found">Model file not found. Please download the model first.</string>
+  <string name="ai_local_model_not_downloaded">Local model not downloaded</string>
+  <string name="ai_model_available">Available</string>
+  <string name="ai_model_free">Free model</string>
+  <string name="ai_model_paid">Paid model</string>
+  <string name="ai_api_access_working">API access working</string>
+  <string name="ai_quota_exceeded">Quota exceeded / rate limited</string>
+  <string name="ai_model_not_available">Model not available</string>
+  <string name="ai_paid_model_billing">Paid model — billing required</string>
+  <string name="ai_access_error_prefix">Access error: %1$s</string>
+  <string name="ai_download_before_benchmark">Download %1$s before benchmarking.</string>
+  <string name="ai_translate_target_language_header">TARGET LANGUAGE: %1$s</string>
+  <string name="ai_translate_output_format">OUTPUT FORMAT: keep the exact subtitle format and structure of the original file.</string>
+  <string name="ai_translate_source_format">SOURCE FORMAT: .%1$s</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Local Model Catalog                                       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="local_model_tier_fastest">Fastest output</string>
+  <string name="local_model_tier_balanced">Best balanced</string>
+  <string name="local_model_tier_multilingual">Best translation</string>
+  <string name="local_model_tier_utility">Utility only</string>
+  <string name="local_model_lang_tier_broad">Broad multilingual</string>
+  <string name="local_model_lang_tier_targeted">Targeted languages</string>
+  <string name="local_model_lang_tier_limited">Limited multilingual</string>
+  <string name="local_model_lang_tier_not_translation">Not for translation</string>
+  <string name="local_model_size_gb">%1$.1f GB</string>
+  <string name="local_model_size_mb">%1$d MB</string>
+  <string name="local_model_hint_limited">Limited for %1$s</string>
+  <string name="local_model_hint_good">Good for %1$s</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Model Download Errors                                     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="download_error_unauthorized">Download failed: HTTP 401 (Unauthorized). This model may require a Hugging Face token. Go to Settings → AI Integration → Offline Model and enter your Hugging Face token (get one from huggingface.co/settings/tokens)</string>
+  <string name="download_error_http">Download failed: HTTP %1$d</string>
+  <string name="download_error_file_too_small">Downloaded file too small: %1$d bytes (expected ~%2$d bytes)</string>
+  <string name="download_error_move_failed">Failed to move downloaded file into place</string>
+  <string name="download_error_unknown">Unknown download error</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Subtitle Generation Service                               -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="subtitle_gen_extracting_chunk">Extracting chunk %1$d/%2$d</string>
+  <string name="subtitle_gen_transcribing_chunk">Transcribing chunk %1$d/%2$d</string>
+  <string name="subtitle_gen_writing">Writing subtitle</string>
+  <string name="subtitle_gen_ready">Subtitle ready</string>
+  <string name="subtitle_stt_groq_key_error">Groq API key not configured.</string>
+  <string name="subtitle_stt_openai_key_error">OpenAI API key not configured.</string>
+  <string name="subtitle_stt_openrouter_key_error">OpenRouter API key not configured.</string>
+  <string name="subtitle_stt_only_online">Only online providers (Groq, OpenAI, OpenRouter) are supported.</string>
+  <string name="subtitle_stt_http_failed">STT failed: HTTP %1$d %2$s</string>
+  <string name="subtitle_realtime_extracting">Extracting audio chunk %1$d/%2$d</string>
+  <string name="subtitle_realtime_skipping">Skipping chunk %1$d/%2$d</string>
+  <string name="subtitle_realtime_transcribing">Transcribing chunk %1$d/%2$d</string>
+  <string name="subtitle_realtime_file_too_large">Audio file too large (%1$s MB) for transcription API limit. Try a shorter video.</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Benchmark Labels                                          -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="benchmark_load_seconds">%1$.1fs load</string>
+  <string name="benchmark_load_ms">%1$dms load</string>
+  <string name="benchmark_tokens_per_second">%1$.1f tok/s</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Local AI Client                                           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="local_ai_library_not_available">Local AI native library is not available on this device. Please use OpenCode or Groq instead.</string>
+  <string name="local_ai_no_api_key_needed">Offline local model - no API key needed</string>
+  <string name="local_ai_not_supported">Local AI is not supported on this device. Please use OpenCode or Groq.</string>
+  <string name="local_ai_no_model_downloaded">No local model downloaded. Go to AI Settings → Offline Model → Download.</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- IntroDB Repository                                        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="introdb_loaded_markers">%1$s: loaded %2$d marker(s)</string>
+  <string name="introdb_no_markers">%1$s: no markers for %2$s</string>
+  <string name="introdb_could_not_match">%1$s: couldn\'t match \"%2$s\"</string>
+  <string name="introdb_failed">%1$s failed: %2$s</string>
+  <string name="introdb_hybrid_cannot_resolve">Hybrid provider cannot be resolved sequentially</string>
+  <string name="introdb_segment_type_ending">ending</string>
+  <string name="introdb_segment_type_opening">opening</string>
+  <string name="introdb_segment_type_intro">intro</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- M3U Parser                                                -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="m3u_error_http">HTTP error: %1$d</string>
+  <string name="m3u_error_parse_failed">Failed to parse playlist: %1$s</string>
+  <string name="m3u_error_open_file">Failed to open file</string>
+  <string name="m3u_error_playlist_empty">Playlist is empty</string>
+  <string name="m3u_error_no_valid_urls">No valid media URLs found in playlist</string>
+  <string name="m3u_error_parse_content_failed">Failed to parse playlist content: %1$s</string>
+  <string name="m3u_default_local_name">Local M3U Playlist</string>
+  <string name="m3u_default_name">M3U Playlist</string>
+  <string name="m3u_subtitle_network_stream">network stream</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Network / HTTP Utils                                      -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="http_fallback_filename">Network Stream</string>
+  <string name="playlist_local_badge">Local</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Settings Manager                                          -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="settings_export_error_output">Failed to open output stream</string>
+  <string name="settings_import_error_input">Failed to open input stream</string>
+  <string name="settings_import_error_pref">Failed to import preference: %1$s</string>
+  <string name="settings_import_error_network">Failed to import network connection: %1$s</string>
+  <string name="settings_import_error_database">Failed to insert database data: %1$s</string>
+  <string name="settings_export_filename_prefix">mpvrx_settings_</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Media File Repository                                     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="media_breadcrumb_root">Root</string>
+  <string name="media_storage_internal">Internal Storage</string>
+  <string name="media_scan_error_directory_not_exist">Directory does not exist: %1$s</string>
+  <string name="media_scan_error_cannot_read">Cannot read directory: %1$s</string>
+  <string name="media_scan_error_not_directory">Path is not a directory: %1$s</string>
+  <string name="media_scan_error_permission_denied">Permission denied: %1$s</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Notification                                              -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="notification_prev_action">Previous</string>
+  <string name="notification_play_action">Play</string>
+  <string name="notification_pause_action">Pause</string>
+  <string name="notification_next_action">Next</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Connection Card Labels                                    -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="connection_path_label">Path: </string>
+  <string name="connection_user_label">User: </string>
+  <string name="connection_error_label">Error: </string>
+  <string name="connection_auto_connect">Connect automatically on app launch</string>
+  <string name="connection_browse_button">Browse</string>
+  <string name="connection_disconnect_button">Disconnect</string>
+  <string name="connection_connect_button">Connect</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- M3U Video Card                                            -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="video_chip_drm">DRM</string>
+  <string name="video_chip_ua">UA</string>
+  <string name="video_chip_saved">Saved</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Floating Bottom Bar                                       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="bottom_bar_copy">Copy</string>
+  <string name="bottom_bar_move">Move</string>
+  <string name="bottom_bar_compressor">Compressor</string>
+  <string name="bottom_bar_rename">Rename</string>
+  <string name="bottom_bar_add_to_playlist">Add to Playlist</string>
+  <string name="bottom_bar_delete">Delete</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Video Chip Labels                                         -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="folder_chip_video_singular">1 Video</string>
+  <string name="folder_chip_videos_plural">%1$d Videos</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Source headers in subtitle search                          -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="subtitle_free_sources_header">Free Sources</string>
+  <string name="subtitle_paid_sources_header">Paid Sources</string>
+  <string name="subtitle_restricted_requires_paid">Restricted (Requires Paid API Key)</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Player Button Chip (preview/placeholder)                  -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="player_button_chip_video_title">Video Title</string>
+  <string name="player_button_chip_chapter">1:06 \u2022 Chapter 1</string>
 </resources>

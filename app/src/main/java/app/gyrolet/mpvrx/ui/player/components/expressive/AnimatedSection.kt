@@ -21,8 +21,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.theme.AppMotion
@@ -65,7 +67,7 @@ fun AnimatedSection(
       }
       Icon(
         imageVector = Icons.Default.KeyboardArrowDown,
-        contentDescription = if (isExpanded) "Collapse" else "Expand",
+        contentDescription = if (isExpanded) stringResource(R.string.cd_collapse) else stringResource(R.string.cd_expand),
         modifier = Modifier.rotate(iconRotation),
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
       )
@@ -125,7 +127,7 @@ fun AnimatedSection(
       )
       Icon(
         imageVector = Icons.Default.KeyboardArrowDown,
-        contentDescription = if (isExpanded) "Collapse" else "Expand",
+        contentDescription = if (isExpanded) stringResource(R.string.cd_collapse) else stringResource(R.string.cd_expand),
         modifier = Modifier.rotate(iconRotation),
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
       )

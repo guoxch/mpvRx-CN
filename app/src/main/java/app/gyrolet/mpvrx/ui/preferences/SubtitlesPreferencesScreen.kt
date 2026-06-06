@@ -195,7 +195,7 @@ object SubtitlesPreferencesScreen : Screen {
             sourcesResponse = it
             isLoadingSources = false
           }.onFailure { err ->
-            sourcesError = err.message ?: "Failed to fetch sources"
+            sourcesError = err.message ?: context.getString(R.string.error_failed_to_fetch_sources)
             isLoadingSources = false
           }
         }
@@ -540,7 +540,7 @@ object SubtitlesPreferencesScreen : Screen {
                         ) {
                           Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh",
+                            contentDescription = stringResource(R.string.cd_refresh),
                             modifier = Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.primary
                           )
@@ -572,7 +572,7 @@ object SubtitlesPreferencesScreen : Screen {
 
                       if (sourcesError != null && sourcesResponse == null) {
                         Text(
-                          text = sourcesError ?: "Error loading sources",
+                          text = sourcesError ?: stringResource(R.string.error_loading_sources),
                           color = MaterialTheme.colorScheme.error,
                           style = MaterialTheme.typography.bodyMedium,
                           modifier = Modifier.padding(vertical = 16.dp)
@@ -621,7 +621,7 @@ object SubtitlesPreferencesScreen : Screen {
                           if (freeItems.isNotEmpty()) {
                             item {
                               Text(
-                                text = "Free Sources",
+                                text = stringResource(R.string.subtitle_free_sources_header),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(vertical = 8.dp)
@@ -680,7 +680,7 @@ object SubtitlesPreferencesScreen : Screen {
                           if (paidItems.isNotEmpty()) {
                             item {
                               Text(
-                                text = "Paid Sources",
+                                text = stringResource(R.string.subtitle_paid_sources_header),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(vertical = 8.dp)
@@ -737,7 +737,7 @@ object SubtitlesPreferencesScreen : Screen {
                                   }
                                   if (!isAvailable) {
                                     Text(
-                                      text = "Restricted (Requires Paid API Key)",
+                                      text = stringResource(R.string.subtitle_restricted_requires_paid),
                                       style = MaterialTheme.typography.bodySmall,
                                       color = MaterialTheme.colorScheme.error
                                     )
@@ -747,7 +747,7 @@ object SubtitlesPreferencesScreen : Screen {
                                 if (!isAvailable) {
                                   Icon(
                                     imageVector = Icons.Filled.Lock,
-                                    contentDescription = "Restricted",
+                                    contentDescription = stringResource(R.string.cd_restricted),
                                     tint = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.size(16.dp)
                                   )

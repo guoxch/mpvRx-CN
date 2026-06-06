@@ -29,10 +29,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.presentation.components.PlayerSheet
 import app.gyrolet.mpvrx.ui.theme.spacing
 
@@ -73,7 +75,7 @@ fun AspectRatioSheet(
           .padding(vertical = MaterialTheme.spacing.medium),
     ) {
       Text(
-        text = "Aspect Ratio",
+        text = stringResource(R.string.sheet_aspect_ratio_title),
         style = MaterialTheme.typography.headlineSmall,
         modifier =
           Modifier
@@ -83,7 +85,7 @@ fun AspectRatioSheet(
 
       // Preset ratios
       Text(
-        text = "Presets",
+        text = stringResource(R.string.sheet_presets_section),
         style = MaterialTheme.typography.titleSmall,
         modifier =
           Modifier
@@ -109,7 +111,7 @@ fun AspectRatioSheet(
       // Custom ratios
       if (customRatios.isNotEmpty()) {
         Text(
-          text = "Custom",
+          text = stringResource(R.string.sheet_custom_section),
           style = MaterialTheme.typography.titleSmall,
           modifier =
             Modifier
@@ -158,6 +160,7 @@ private fun AddCustomRatioRow(
   var heightText by remember { mutableStateOf("") }
   var errorMessage by remember { mutableStateOf<String?>(null) }
   val keyboardController = LocalSoftwareKeyboardController.current
+  val invalidRatioError = stringResource(R.string.sheet_invalid_ratio_error)
 
   Column(
     modifier =
@@ -166,7 +169,7 @@ private fun AddCustomRatioRow(
         .padding(horizontal = MaterialTheme.spacing.medium),
   ) {
     Text(
-      text = "Add Custom Ratio (e.g. 16:9)",
+      text = stringResource(R.string.sheet_add_custom_ratio_hint),
       style = MaterialTheme.typography.titleSmall,
       modifier = Modifier.padding(bottom = MaterialTheme.spacing.small),
     )
@@ -183,7 +186,7 @@ private fun AddCustomRatioRow(
           widthText = it.filter { char -> char.isDigit() || char == '.' }
           errorMessage = null
         },
-        label = { Text("Width") },
+        label = { Text(stringResource(R.string.sheet_width_label)) },
         isError = errorMessage != null,
         keyboardOptions =
           KeyboardOptions(
@@ -196,7 +199,7 @@ private fun AddCustomRatioRow(
 
       // Colon separator
       Text(
-        text = ":",
+        text = stringResource(R.string.sheet_colon_separator),
         style = MaterialTheme.typography.headlineMedium,
         textAlign = TextAlign.Center,
         modifier = Modifier.padding(horizontal = MaterialTheme.spacing.extraSmall),
@@ -209,7 +212,7 @@ private fun AddCustomRatioRow(
           heightText = it.filter { char -> char.isDigit() || char == '.' }
           errorMessage = null
         },
-        label = { Text("Height") },
+        label = { Text(stringResource(R.string.sheet_height_label)) },
         isError = errorMessage != null,
         keyboardOptions =
           KeyboardOptions(
@@ -226,7 +229,7 @@ private fun AddCustomRatioRow(
                 heightText = ""
                 keyboardController?.hide()
               } else {
-                errorMessage = "Invalid"
+                errorMessage = invalidRatioError
               }
             },
           ),
@@ -244,11 +247,11 @@ private fun AddCustomRatioRow(
             heightText = ""
             keyboardController?.hide()
           } else {
-            errorMessage = "Invalid"
+            errorMessage = invalidRatioError
           }
         },
       ) {
-        Icon(Icons.Default.Add, contentDescription = "Add")
+        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add_aspect))
       }
     }
 

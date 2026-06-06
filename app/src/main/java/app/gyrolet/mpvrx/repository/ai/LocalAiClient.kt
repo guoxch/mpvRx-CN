@@ -1,6 +1,8 @@
 package app.gyrolet.mpvrx.repository.ai
 
+import android.content.Context
 import android.util.Log
+import app.gyrolet.mpvrx.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -8,6 +10,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.max
 
 class LocalAiClient(
+  private val context: Context,
   private val inference: LlmInference,
 ) : AiClient {
 
@@ -34,12 +37,11 @@ class LocalAiClient(
     if (!inference.isAvailable()) {
       return Result.failure(
         IllegalStateException(
-          "Local AI native library is not available on this device. " +
-            "Please use OpenCode or Groq instead.",
+          context.getString(R.string.local_ai_library_not_available),
         ),
       )
     }
-    return Result.success("Offline local model - no API key needed")
+    return Result.success(context.getString(R.string.local_ai_no_api_key_needed))
   }
 
   override suspend fun generateContent(
@@ -51,18 +53,16 @@ class LocalAiClient(
   ): Result<String> = withContext(Dispatchers.IO) {
     generationMutex.withLock {
       runCatching {
-        // Guard #1: native library must be present
         if (!inference.isAvailable()) {
           throw IllegalStateException(
-            "Local AI is not supported on this device. Please use OpenCode or Groq.",
+            context.getString(R.string.local_ai_not_supported),
           )
         }
 
-        // Guard #2: model must be loaded (lazy-load on first use)
         val modelPath = apiKey
         if (modelPath.isBlank()) {
           throw IllegalStateException(
-            "No local model downloaded. Go to AI Settings -> Offline Model -> Download.",
+            context.getString(R.string.local_ai_no_model_downloaded),
           )
         }
         if (!inference.isLoaded() || loadedModelPath != modelPath || loadedModelId != model) {

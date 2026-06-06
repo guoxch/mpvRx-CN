@@ -46,6 +46,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -112,7 +113,7 @@ object NetworkStreamingScreen : Screen {
     Scaffold(
         topBar = {
           BrowserTopBar(
-            title = "Network",
+            title = stringResource(app.gyrolet.mpvrx.R.string.browser_network_title),
             isInSelectionMode = false,
             selectedCount = 0,
             totalCount = 0,
@@ -141,7 +142,7 @@ object NetworkStreamingScreen : Screen {
           ExtendedFloatingActionButton(
             onClick = { showAddSheet = true },
             icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-            text = { Text("Add Connection") },
+            text = { Text(stringResource(app.gyrolet.mpvrx.R.string.browser_add_connection_button)) },
             modifier = Modifier.padding(bottom = navigationBarHeight)
           )
         }
@@ -172,7 +173,7 @@ object NetworkStreamingScreen : Screen {
           item {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-              text = "Local Network",
+              text = stringResource(app.gyrolet.mpvrx.R.string.browser_local_network_title),
               style = MaterialTheme.typography.titleLarge,
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.primary,
@@ -203,14 +204,14 @@ object NetworkStreamingScreen : Screen {
                   )
                   Spacer(modifier = Modifier.height(16.dp))
                   Text(
-                    text = "No network connections",
+                    text = stringResource(app.gyrolet.mpvrx.R.string.browser_no_connections_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface, // a
                   )
                   Spacer(modifier = Modifier.height(8.dp))
                   Text(
-                    text = "Add SMB, FTP, or WebDAV connections to browse network files",
+                    text = stringResource(app.gyrolet.mpvrx.R.string.browser_no_connections_message),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -312,7 +313,7 @@ private fun StreamLinkSection(
     modifier = Modifier.fillMaxWidth(),
   ) {
     Text(
-      text = "Stream Link",
+      text = stringResource(app.gyrolet.mpvrx.R.string.browser_stream_link_title),
       style = MaterialTheme.typography.titleLarge,
       fontWeight = FontWeight.Bold,
       color = MaterialTheme.colorScheme.primary,
@@ -337,7 +338,7 @@ private fun StreamLinkSection(
           modifier = Modifier.weight(1f),
           placeholder = {
             Text(
-              text = "Enter stream URL…",
+              text = stringResource(app.gyrolet.mpvrx.R.string.browser_stream_url_placeholder),
               color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             )
           },
@@ -356,7 +357,7 @@ private fun StreamLinkSection(
               IconButton(onClick = { pasteFromClipboard() }) {
                 Icon(
                   imageVector = Icons.Filled.ContentPaste,
-                  contentDescription = "Paste stream URL",
+                  contentDescription = stringResource(app.gyrolet.mpvrx.R.string.browser_stream_url_description),
                   modifier = Modifier.size(18.dp),
                 )
               }
@@ -364,7 +365,7 @@ private fun StreamLinkSection(
                 IconButton(onClick = { linkUrl = "" }) {
                   Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Clear stream URL",
+                    contentDescription = stringResource(app.gyrolet.mpvrx.R.string.browser_clear_stream_url_description),
                     modifier = Modifier.size(18.dp),
                   )
                 }
@@ -394,7 +395,7 @@ private fun StreamLinkSection(
             containerColor = MaterialTheme.colorScheme.primary,
           ),
           modifier = Modifier.semantics {
-            contentDescription = "Play stream"
+            contentDescription = stringResource(app.gyrolet.mpvrx.R.string.browser_play_stream_description)
           },
         ) {
           Icon(

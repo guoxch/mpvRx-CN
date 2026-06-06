@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.presentation.Screen
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
 import app.gyrolet.mpvrx.ui.utils.popSafely
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.utils.clipboard.SafeClipboard
 import kotlinx.serialization.Serializable
 
@@ -125,7 +126,7 @@ data class MpvHelpScreen(
                 HelpEntryKind.JS_API -> entry.signature.substringBefore("(") + "()"
             }
             SafeClipboard.copyPlainText(context, "mpv_help", text, showToast = false)
-            Toast.makeText(context, "Copied: $text", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.help_copied_toast, text), Toast.LENGTH_SHORT).show()
         }
 
         LaunchedEffect(Unit) {
@@ -137,7 +138,7 @@ data class MpvHelpScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "mpv Documentation",
+                            text = stringResource(R.string.help_screen_title),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.primary,
@@ -169,7 +170,7 @@ data class MpvHelpScreen(
                         .focusRequester(focusRequester),
                     placeholder = {
                         Text(
-                            text = "Search commands, options, properties...",
+                            text = stringResource(R.string.help_search_placeholder),
                             color = MaterialTheme.colorScheme.outline,
                         )
                     },
@@ -189,7 +190,7 @@ data class MpvHelpScreen(
                             IconButton(onClick = { searchQuery = "" }) {
                                 Icon(
                                     imageVector = Icons.Outlined.Clear,
-                                    contentDescription = "Clear",
+                                    contentDescription = stringResource(R.string.cd_clear),
                                     tint = MaterialTheme.colorScheme.outline,
                                 )
                             }
@@ -219,7 +220,7 @@ data class MpvHelpScreen(
                     FilterChip(
                         selected = selectedKind == null,
                         onClick = { selectedKind = null },
-                        label = { Text("All") },
+                        label = { Text(stringResource(R.string.help_filter_all)) },
                         colors = filterChipColors(),
                     )
                     HelpEntryKind.entries.forEach { kind ->
@@ -250,7 +251,7 @@ data class MpvHelpScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "No results found",
+                                text = stringResource(R.string.help_no_results),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.outline,
                             )

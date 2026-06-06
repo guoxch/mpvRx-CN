@@ -184,9 +184,9 @@ fun MoreSheet(
               Text(
                 text =
                   if (selectedLuaScripts.isEmpty()) {
-                    "Scripts"
+                    stringResource(R.string.sheet_scripts_label)
                   } else {
-                    "Scripts (${selectedLuaScripts.size})"
+                    stringResource(R.string.sheet_scripts_count_label, selectedLuaScripts.size)
                   },
                 color =
                   if (enableLuaScripts && selectedLuaScripts.isNotEmpty()) {
@@ -258,7 +258,7 @@ fun MoreSheet(
         
         if (isHighRes) {
             Text(
-                text = "Not available for 4K/8K video",
+                text = stringResource(R.string.sheet_anime4k_not_available),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(bottom = 4.dp)
@@ -460,7 +460,7 @@ fun TimePickerDialog(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                "Quick Presets",
+                stringResource(R.string.sheet_quick_presets_title),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -476,7 +476,7 @@ fun TimePickerDialog(
                             onTimeSelect(minutes * 60)
                             onDismissRequest()
                         },
-                        label = { Text("${minutes}m") },
+                        label = { Text(stringResource(R.string.sheet_minutes_preset_label, minutes)) },
                         leadingIcon = null,
                     )
                 }
@@ -537,7 +537,7 @@ fun SectionHeaderWithInfo(
     IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
       Icon(
         imageVector = Icons.Outlined.Info,
-        contentDescription = "Info",
+        contentDescription = stringResource(R.string.cd_info),
         tint = MaterialTheme.colorScheme.primary,
         modifier = Modifier.size(16.dp)
       )

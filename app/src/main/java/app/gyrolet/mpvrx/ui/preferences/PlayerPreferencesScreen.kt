@@ -238,7 +238,7 @@ object PlayerPreferencesScreen : Screen {
                     android.util.Log.e("PlayerPreferencesScreen", "Failed to set alias state", e)
                   }
                 },
-                title = { Text("Show Media Info in chooser") },
+                title = { Text(stringResource(R.string.pref_player_show_media_info_title)) },
                 summary = {
                   Text(
                     "Show Media Info in system \"Open with\" / " +
@@ -414,7 +414,7 @@ object PlayerPreferencesScreen : Screen {
                           value = value,
                           onValueChange = onValueChange,
                           modifier = Modifier.fillMaxWidth(),
-                          placeholder = { Text("e.g. intro, opening, op") },
+                          placeholder = { Text(stringResource(R.string.pref_intro_keywords_placeholder)) },
                           singleLine = true,
                         )
                       }
@@ -459,7 +459,7 @@ object PlayerPreferencesScreen : Screen {
                           value = value,
                           onValueChange = onValueChange,
                           modifier = Modifier.fillMaxWidth(),
-                          placeholder = { Text("e.g. outro, ending, ed") },
+                          placeholder = { Text(stringResource(R.string.pref_outro_keywords_placeholder)) },
                           singleLine = true,
                         )
                       }
@@ -589,7 +589,7 @@ object PlayerPreferencesScreen : Screen {
                 onValueChange = preferences.screenshotFormat::set,
                 values = ScreenshotFormat.entries,
                 valueToText = { AnnotatedString(it.title) },
-                title = { Text("Image format") },
+                title = { Text(stringResource(R.string.pref_screenshot_format_title)) },
                 summary = { Text("${screenshotFormat.title} .${screenshotFormat.extension}", color = MaterialTheme.colorScheme.outline) },
               )
 
@@ -599,14 +599,14 @@ object PlayerPreferencesScreen : Screen {
               SwitchPreference(
                 value = includeSubtitles,
                 onValueChange = preferences.includeSubtitlesInSnapshot::set,
-                title = { Text("Include subtitles in screenshots") },
+                title = { Text(stringResource(R.string.pref_screenshot_include_subtitles_title)) },
               )
 
               PreferenceDivider()
 
               val screenshotTemplate by preferences.screenshotTemplate.collectAsState()
               Preference(
-                title = { Text("Filename template") },
+title = { Text(stringResource(R.string.pref_screenshot_filename_template_title)) },
                 summary = { Text(screenshotTemplate, color = MaterialTheme.colorScheme.outline) },
                 onClick = {
                   templateDraft = screenshotTemplate
@@ -620,7 +620,7 @@ object PlayerPreferencesScreen : Screen {
               SliderPreference(
                 value = screenshotQuality.toFloat(),
                 onValueChange = { preferences.screenshotQuality.set(it.roundToInt().coerceIn(1, 100)) },
-                title = { Text("JPEG/WebP quality") },
+                title = { Text(stringResource(R.string.pref_screenshot_jpeg_quality_title)) },
                 valueRange = 1f..100f,
                 summary = { Text("$screenshotQuality", color = MaterialTheme.colorScheme.outline) },
                 onSliderValueChange = { preferences.screenshotQuality.set(it.roundToInt().coerceIn(1, 100)) },
@@ -633,7 +633,7 @@ object PlayerPreferencesScreen : Screen {
               SliderPreference(
                 value = pngCompression.toFloat(),
                 onValueChange = { preferences.screenshotPngCompression.set(it.roundToInt().coerceIn(0, 9)) },
-                title = { Text("PNG compression") },
+                title = { Text(stringResource(R.string.pref_screenshot_png_compression_title)) },
                 valueRange = 0f..9f,
                 summary = { Text("$pngCompression", color = MaterialTheme.colorScheme.outline) },
                 onSliderValueChange = { preferences.screenshotPngCompression.set(it.roundToInt().coerceIn(0, 9)) },
@@ -647,8 +647,8 @@ object PlayerPreferencesScreen : Screen {
                 SwitchPreference(
                   value = webpLossless,
                   onValueChange = preferences.screenshotWebpLossless::set,
-                  title = { Text("WebP lossless") },
-                  summary = { Text("Uses mpv native lossless output; Android fallback uses lossless on Android 11+.", color = MaterialTheme.colorScheme.outline) },
+                  title = { Text(stringResource(R.string.pref_screenshot_webp_lossless_title)) },
+                  summary = { Text(stringResource(R.string.pref_screenshot_webp_lossless_summary), color = MaterialTheme.colorScheme.outline) },
                 )
               }
             }
@@ -768,13 +768,13 @@ object PlayerPreferencesScreen : Screen {
     if (showTemplateDialog) {
       AlertDialog(
         onDismissRequest = { showTemplateDialog = false },
-        title = { Text("Filename template") },
+        title = { Text(stringResource(R.string.pref_screenshot_filename_template_title)) },
         text = {
           Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
               value = templateDraft,
               onValueChange = { templateDraft = it },
-              label = { Text("Template") },
+              label = { Text(stringResource(R.string.pref_screenshot_template_label)) },
               modifier = Modifier.fillMaxWidth()
             )
             Text(
@@ -796,12 +796,12 @@ object PlayerPreferencesScreen : Screen {
               showTemplateDialog = false
             },
           ) {
-            Text("Save")
+                    Text(stringResource(R.string.browser_save_button))
           }
         },
         dismissButton = {
-          TextButton(onClick = { showTemplateDialog = false }) {
-            Text("Cancel")
+            TextButton(onClick = { showTemplateDialog = false }) {
+            Text(stringResource(R.string.generic_cancel))
           }
         },
       )

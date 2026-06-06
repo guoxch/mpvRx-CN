@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import `is`.xyz.mpv.MPVLib
 import kotlinx.coroutines.Dispatchers
@@ -79,7 +80,7 @@ object ScreenshotSaver {
         )
         val tempFile = captureNative(context, settings, includeSubtitles)
           ?: captureWithAndroidFallback(context, settings, includeSubtitles)
-          ?: error("mpv does not support ${settings.format.title} format on this device")
+          ?: error(context.getString(R.string.screenshot_format_unsupported_error, settings.format.title))
 
         saveToPictures(context, tempFile, displayName, settings.format).also {
           tempFile.delete()
@@ -131,7 +132,7 @@ object ScreenshotSaver {
     output.delete()
     output.outputStream().use { stream ->
       if (!bitmap.compress(settings.compressFormat(), settings.compressQuality(), stream)) {
-        error("Android encoder failed for ${settings.format.title}")
+        error(context.getString(R.string.screenshot_android_encoder_failed, settings.format.title))
       }
     }
     bitmap.recycle()
@@ -178,10 +179,10 @@ object ScreenshotSaver {
       }
       val resolver = context.contentResolver
       val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-        ?: error("Failed to create MediaStore entry")
+        ?: error(context.getString(R.string.screenshot_mediastore_create_failed))
       resolver.openOutputStream(uri)?.use { output ->
         tempFile.inputStream().use { input -> input.copyTo(output) }
-      } ?: error("Failed to open MediaStore output")
+      } ?: error(context.getString(R.string.screenshot_mediastore_output_failed))
       values.clear()
       values.put(MediaStore.Images.Media.IS_PENDING, 0)
       resolver.update(uri, values, null, null)

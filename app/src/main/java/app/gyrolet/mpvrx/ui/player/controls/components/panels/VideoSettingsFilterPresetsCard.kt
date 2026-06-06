@@ -27,6 +27,8 @@ import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.presentation.components.ExpandableCard
 import app.gyrolet.mpvrx.ui.player.FilterPreset
 import app.gyrolet.mpvrx.ui.player.controls.CARDS_MAX_WIDTH
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.player.controls.panelCardsColors
 import app.gyrolet.mpvrx.ui.theme.spacing
 import `is`.xyz.mpv.MPVLib
@@ -66,7 +68,7 @@ fun VideoSettingsFilterPresetsCard(modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium),
       ) {
         Icon(Icons.Default.AutoAwesome, null)
-        Text("Filter Presets")
+        Text(stringResource(R.string.sheet_filter_presets_title))
       }
     },
     colors = panelCardsColors(),

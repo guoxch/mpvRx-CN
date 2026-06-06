@@ -31,6 +31,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.network.NetworkConnection
 import app.gyrolet.mpvrx.ui.theme.AppMotion
 import app.gyrolet.mpvrx.ui.theme.AppShapeScale
@@ -107,14 +109,14 @@ fun NetworkConnectionCard(
           IconButton(onClick = { onEdit(connection) }) {
             Icon(
               Icons.Filled.Edit,
-              contentDescription = "Edit",
+              contentDescription = stringResource(R.string.browser_edit_button),
               tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
           }
           IconButton(onClick = { onDelete(connection) }) {
             Icon(
               Icons.Filled.Delete,
-              contentDescription = "Delete",
+              contentDescription = stringResource(R.string.delete),
               tint = MaterialTheme.colorScheme.error,
             )
           }
@@ -124,7 +126,7 @@ fun NetworkConnectionCard(
       // Connection details
       if (connection.path != "/") {
         Text(
-          text = "Path: ${connection.path}",
+          text = stringResource(R.string.connection_path_label) + connection.path,
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           modifier = Modifier.padding(top = 4.dp),
@@ -133,7 +135,7 @@ fun NetworkConnectionCard(
 
       if (connection.username.isNotEmpty() && !connection.isAnonymous) {
         Text(
-          text = "User: ${connection.username}",
+          text = stringResource(R.string.connection_user_label) + connection.username,
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           modifier = Modifier.padding(top = 4.dp),
@@ -143,7 +145,7 @@ fun NetworkConnectionCard(
       // Error message
       if (error != null) {
         Text(
-          text = "Error: $error",
+          text = stringResource(R.string.connection_error_label) + error,
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.error,
           modifier = Modifier.padding(top = 8.dp),
@@ -164,7 +166,7 @@ fun NetworkConnectionCard(
           },
         )
         Text(
-          text = "Connect automatically on app launch",
+          text = stringResource(R.string.connection_auto_connect),
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -193,7 +195,7 @@ fun NetworkConnectionCard(
                   color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                 )
                 Text(
-                  "Connecting",
+                  stringResource(R.string.status_connecting),
                   color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                 )
               }
@@ -216,7 +218,7 @@ fun NetworkConnectionCard(
                   contentDescription = null,
                   modifier = Modifier.padding(end = 8.dp),
                 )
-                Text("Browse")
+                Text(stringResource(R.string.connection_browse_button))
               }
 
               FilledTonalButton(
@@ -231,7 +233,7 @@ fun NetworkConnectionCard(
                   contentDescription = null,
                   modifier = Modifier.padding(end = 8.dp),
                 )
-                Text("Disconnect")
+                Text(stringResource(R.string.connection_disconnect_button))
               }
             }
           }
@@ -249,7 +251,7 @@ fun NetworkConnectionCard(
                 contentDescription = null,
                 modifier = Modifier.padding(end = 8.dp),
               )
-              Text("Connect")
+              Text(stringResource(R.string.connection_connect_button))
             }
           }
         }
@@ -257,7 +259,6 @@ fun NetworkConnectionCard(
     }
   }
 }
-
 
 
 

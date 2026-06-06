@@ -33,9 +33,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.preferences.AiPreferences
 import app.gyrolet.mpvrx.preferences.AiProvider
@@ -67,6 +70,7 @@ fun BulkAiRenameDialog(
   if (!isOpen) return
 
   val scope = rememberCoroutineScope()
+  val context = LocalContext.current
   val aiService = koinInject<AiService>()
   val aiPreferences = koinInject<AiPreferences>()
 
@@ -118,7 +122,7 @@ fun BulkAiRenameDialog(
       deferred.forEach { it.join() }
 
       if (results.isEmpty()) {
-        errorMessage = "AI rename failed for all ${failCount} items. Check your model/API key."
+        errorMessage = context.getString(R.string.bulk_ai_rename_failed_all_error, failCount)
         phase = RenamePhase.IDLE
         return@launch
       }
@@ -154,9 +158,9 @@ fun BulkAiRenameDialog(
     title = {
       Text(
         text = when (phase) {
-          RenamePhase.IDLE -> "Bulk AI Rename"
-          RenamePhase.GENERATING -> "Generating Previews…"
-          RenamePhase.PREVIEW -> "Review & Confirm"
+          RenamePhase.IDLE -> stringResource(R.string.bulk_ai_rename_title_idle)
+          RenamePhase.GENERATING -> stringResource(R.string.bulk_ai_rename_title_generating)
+          RenamePhase.PREVIEW -> stringResource(R.string.bulk_ai_rename_title_preview)
         },
         style = MaterialTheme.typography.headlineMedium,
         fontWeight = FontWeight.Bold,
@@ -166,13 +170,12 @@ fun BulkAiRenameDialog(
       Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         when {
           !canUseAi -> Text(
-            "AI Rename is disabled. Enable it in Settings → AI Integration.",
+            stringResource(R.string.bulk_ai_rename_disabled_warning),
             color = MaterialTheme.colorScheme.error,
           )
 
           phase == RenamePhase.IDLE -> Text(
-            "AI will suggest new names for ${selectedVideos.size} selected file(s). " +
-              "You can review and edit each name before confirming.",
+            stringResource(R.string.bulk_ai_rename_description_idle, selectedVideos.size),
             style = MaterialTheme.typography.bodyMedium,
           )
 
@@ -182,7 +185,7 @@ fun BulkAiRenameDialog(
           ) {
             CircularProgressIndicator(modifier = Modifier.padding(bottom = 8.dp))
             Text(
-              "Processing ${selectedVideos.size} file(s)…",
+              stringResource(R.string.bulk_ai_rename_progress, selectedVideos.size),
               style = MaterialTheme.typography.bodyMedium,
             )
           }
@@ -194,7 +197,7 @@ fun BulkAiRenameDialog(
 
             val checkedCount = checkedState.values.count { it }
             Text(
-              "$checkedCount / ${previewItems.size} file(s) selected to rename",
+              stringResource(R.string.bulk_ai_rename_selected_progress, checkedCount, previewItems.size),
               style = MaterialTheme.typography.labelMedium,
               color = MaterialTheme.colorScheme.outline,
             )
@@ -234,7 +237,7 @@ fun BulkAiRenameDialog(
                       modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 48.dp),
-                      label = { Text("New name") },
+                      label = { Text(stringResource(R.string.dialog_rename_new_name_label)) },
                       suffix = { item.extension?.let { Text(it, color = MaterialTheme.colorScheme.outline) } },
                       singleLine = true,
                       keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
@@ -268,7 +271,7 @@ fun BulkAiRenameDialog(
           ) {
             Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Generate Previews", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.bulk_ai_rename_generate_button), fontWeight = FontWeight.Bold)
           }
 
         RenamePhase.GENERATING -> {}
@@ -283,7 +286,7 @@ fun BulkAiRenameDialog(
           ) {
             Icon(imageVector = app.gyrolet.mpvrx.ui.icons.Icons.Filled.DriveFileRenameOutline, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Rename $checkedCount File(s)", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.bulk_ai_rename_rename_button, checkedCount), fontWeight = FontWeight.Bold)
           }
         }
       }
@@ -297,7 +300,10 @@ fun BulkAiRenameDialog(
         enabled = phase != RenamePhase.GENERATING,
         shape = MaterialTheme.shapes.extraLarge,
       ) {
-        Text(if (phase == RenamePhase.PREVIEW) "Back" else "Cancel", fontWeight = FontWeight.Medium)
+        Text(
+          if (phase == RenamePhase.PREVIEW) stringResource(R.string.back) else stringResource(R.string.generic_cancel),
+          fontWeight = FontWeight.Medium,
+        )
       }
     },
     containerColor = MaterialTheme.colorScheme.surface,

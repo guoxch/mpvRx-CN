@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.PlayerButton
 import app.gyrolet.mpvrx.preferences.allPlayerButtons
@@ -142,15 +143,14 @@ data class ControlLayoutEditorScreen(
       }
     }
 
-    val title =
-      remember(region) {
-        when (region) {
-          ControlRegion.TOP_RIGHT -> stringResource(R.string.layout_edit_top_right)
-          ControlRegion.BOTTOM_RIGHT -> stringResource(R.string.layout_edit_bottom_right)
-          ControlRegion.BOTTOM_LEFT -> stringResource(R.string.layout_edit_bottom_left)
-          ControlRegion.PORTRAIT_BOTTOM -> stringResource(R.string.layout_edit_portrait_bottom)
-        }
+    val title = stringResource(
+      when (region) {
+        ControlRegion.TOP_RIGHT -> R.string.layout_edit_top_right
+        ControlRegion.BOTTOM_RIGHT -> R.string.layout_edit_bottom_right
+        ControlRegion.BOTTOM_LEFT -> R.string.layout_edit_bottom_left
+        ControlRegion.PORTRAIT_BOTTOM -> R.string.layout_edit_portrait_bottom
       }
+    )
 
     var showResetDialog by remember { mutableStateOf(false) }
 

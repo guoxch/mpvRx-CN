@@ -580,7 +580,7 @@ object PlayerPreferencesScreen : Screen {
           }
 
           // ── Screenshots ─────────────────────────────────────────────────
-          item { PreferenceSectionHeader(title = "Screenshots") }
+          item { PreferenceSectionHeader(title = stringResource(R.string.pref_screenshots_section_title)) }
           item {
             PreferenceCard {
               val screenshotFormat by preferences.screenshotFormat.collectAsState()
@@ -778,12 +778,7 @@ title = { Text(stringResource(R.string.pref_screenshot_filename_template_title))
               modifier = Modifier.fillMaxWidth()
             )
             Text(
-              text = "Use placeholders to customize the screenshot filename:\n" +
-                  "• %f — Video title or filename\n" +
-                  "• %p — Playback position (seconds)\n" +
-                  "• %Y, %m, %d — Year, Month, Day\n" +
-                  "• %H, %M, %S — Hour, Minute, Second\n" +
-                  "• %wH, %wM, %wS, %wT — Wall-clock time (hour, min, sec, ms)",
+              text = stringResource(R.string.screenshot_template_help_text),
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant
             )

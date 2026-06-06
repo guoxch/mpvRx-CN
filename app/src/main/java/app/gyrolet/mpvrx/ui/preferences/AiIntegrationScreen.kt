@@ -421,12 +421,12 @@ object AiIntegrationScreen : Screen {
 
             if (provider != AiProvider.LOCAL) {
               val apiKeyInfo = when (provider) {
-                AiProvider.OPENCODE -> ApiKeyInfo(stringResource(R.string.pref_opencode_api_key_title), stringResource(R.string.pref_opencode_api_key_hint), stringResource(R.string.pref_opencode_api_key_placeholder), openCodeKey, preferences.openCodeApiKey::set)
-                AiProvider.GROQ -> ApiKeyInfo(stringResource(R.string.pref_groq_api_key_title), stringResource(R.string.pref_groq_api_key_hint), stringResource(R.string.pref_groq_api_key_placeholder), groqKey, preferences.groqApiKey::set)
-                AiProvider.OPENAI -> ApiKeyInfo(stringResource(R.string.pref_openai_api_key_title), stringResource(R.string.pref_openai_api_key_hint), stringResource(R.string.pref_openai_api_key_placeholder), openaiKey, preferences.openaiApiKey::set)
-                AiProvider.ANTHROPIC -> ApiKeyInfo(stringResource(R.string.pref_anthropic_api_key_title), stringResource(R.string.pref_anthropic_api_key_hint), stringResource(R.string.pref_anthropic_api_key_placeholder), anthropicKey, preferences.anthropicApiKey::set)
-                AiProvider.OPENROUTER -> ApiKeyInfo(stringResource(R.string.pref_openrouter_api_key_title), stringResource(R.string.pref_openrouter_api_key_hint), stringResource(R.string.pref_openrouter_api_key_placeholder), openrouterKey, preferences.openrouterApiKey::set)
-                AiProvider.TOGETHER -> ApiKeyInfo(stringResource(R.string.pref_together_api_key_title), stringResource(R.string.pref_together_api_key_hint), stringResource(R.string.pref_together_api_key_placeholder), togetherKey, preferences.togetherApiKey::set)
+                AiProvider.OPENCODE -> ApiKeyInfo(context.getString(R.string.pref_opencode_api_key_title), context.getString(R.string.pref_opencode_api_key_hint), context.getString(R.string.pref_opencode_api_key_placeholder), openCodeKey, preferences.openCodeApiKey::set)
+                AiProvider.GROQ -> ApiKeyInfo(context.getString(R.string.pref_groq_api_key_title), context.getString(R.string.pref_groq_api_key_hint), context.getString(R.string.pref_groq_api_key_placeholder), groqKey, preferences.groqApiKey::set)
+                AiProvider.OPENAI -> ApiKeyInfo(context.getString(R.string.pref_openai_api_key_title), context.getString(R.string.pref_openai_api_key_hint), context.getString(R.string.pref_openai_api_key_placeholder), openaiKey, preferences.openaiApiKey::set)
+                AiProvider.ANTHROPIC -> ApiKeyInfo(context.getString(R.string.pref_anthropic_api_key_title), context.getString(R.string.pref_anthropic_api_key_hint), context.getString(R.string.pref_anthropic_api_key_placeholder), anthropicKey, preferences.anthropicApiKey::set)
+                AiProvider.OPENROUTER -> ApiKeyInfo(context.getString(R.string.pref_openrouter_api_key_title), context.getString(R.string.pref_openrouter_api_key_hint), context.getString(R.string.pref_openrouter_api_key_placeholder), openrouterKey, preferences.openrouterApiKey::set)
+                AiProvider.TOGETHER -> ApiKeyInfo(context.getString(R.string.pref_together_api_key_title), context.getString(R.string.pref_together_api_key_hint), context.getString(R.string.pref_together_api_key_placeholder), togetherKey, preferences.togetherApiKey::set)
                 else -> null
               }
 
@@ -1124,7 +1124,7 @@ private fun OfflineModelCard(
 
             if (benchmark != null) {
                 Text(
-                    text = "${benchmark.speedLabel} - ${benchmark.loadLabel} - about ${benchmark.memoryEstimateMb} MB while loaded",
+                    text = stringResource(R.string.ai_benchmark_info_format, benchmark.speedLabel, benchmark.loadLabel, benchmark.memoryEstimateMb),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -1142,7 +1142,7 @@ private fun OfflineModelCard(
                     trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                 )
                 Text(
-                    text = "${(percentage * 100).toInt()}% downloaded",
+                    text = stringResource(R.string.ai_download_progress_format, (percentage * 100).toInt()),
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(top = 4.dp),
                     color = MaterialTheme.colorScheme.primary

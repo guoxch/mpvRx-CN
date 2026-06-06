@@ -58,6 +58,7 @@ import app.gyrolet.mpvrx.presentation.crash.CrashActivity
 import app.gyrolet.mpvrx.ui.player.NotificationStyle
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
 import app.gyrolet.mpvrx.ui.utils.popSafely
+import app.gyrolet.mpvrx.utils.LocaleHelper
 import app.gyrolet.mpvrx.utils.clipboard.SafeClipboard
 import app.gyrolet.mpvrx.utils.history.RecentlyPlayedOps
 import kotlinx.coroutines.Dispatchers
@@ -803,6 +804,47 @@ object AdvancedPreferencesScreen : Screen {
                 summary = {
                   Text(
                     text = selectedNotificationStyle.displayName,
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+            }
+          }
+
+          // Language Section
+          item {
+            PreferenceSectionHeader(title = stringResource(R.string.pref_section_language))
+          }
+
+          item {
+            val appLanguage by preferences.appLanguage.collectAsState()
+            val supportedLanguages = remember { LocaleHelper.supportedLanguages }
+            val selectedLanguage = remember(appLanguage) {
+              supportedLanguages.find { it.code == appLanguage } ?: supportedLanguages.first()
+            }
+
+            PreferenceCard {
+              ListPreference(
+                value = appLanguage,
+                onValueChange = { newLanguage ->
+                  preferences.appLanguage.set(newLanguage)
+                  LocaleHelper.persistLocale(context, newLanguage)
+                  Toast
+                    .makeText(
+                      context,
+                      context.getString(R.string.pref_app_language_restart_toast),
+                      Toast.LENGTH_LONG,
+                    ).show()
+                },
+                values = supportedLanguages.map { it.code },
+                valueToText = { code ->
+                  val lang = supportedLanguages.find { it.code == code }
+                  AnnotatedString(lang?.displayName ?: code)
+                },
+                title = { Text(text = stringResource(R.string.pref_app_language_title)) },
+                summary = {
+                  Text(
+                    text = selectedLanguage.displayName,
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },

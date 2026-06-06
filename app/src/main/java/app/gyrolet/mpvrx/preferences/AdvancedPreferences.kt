@@ -23,5 +23,8 @@ class AdvancedPreferences(
 
   /** Notification style for the playback service (Media vs Progress-centric on Android 16+). */
   val notificationStyle = preferenceStore.getEnum("notification_style", NotificationStyle.Media)
+
+  /** App UI language (locale code like "hi", "de", "fr", or empty for system default). */
+  val appLanguage = preferenceStore.getString("app_language", "")
 }
 

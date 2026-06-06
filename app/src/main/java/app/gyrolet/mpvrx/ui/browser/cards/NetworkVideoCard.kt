@@ -36,6 +36,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import app.gyrolet.mpvrx.domain.thumbnail.ThumbnailRepository
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
@@ -43,6 +44,7 @@ import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.domain.network.NetworkConnection
 import app.gyrolet.mpvrx.domain.network.NetworkFile
 import androidx.compose.foundation.combinedClickable
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.theme.AppShapeScale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -142,14 +144,14 @@ fun NetworkVideoCard(
         if (thumbnail != null) {
           Image(
             bitmap = thumbnail!!.asImageBitmap(),
-            contentDescription = "Thumbnail",
+            contentDescription = stringResource(R.string.cd_thumbnail),
             modifier = Modifier.matchParentSize(),
             contentScale = ContentScale.Crop,
           )
         } else {
           Icon(
             Icons.Filled.PlayArrow,
-            contentDescription = "Play",
+            contentDescription = stringResource(R.string.browser_play_button),
             modifier = Modifier.size(48.dp),
             tint = MaterialTheme.colorScheme.secondary,
           )

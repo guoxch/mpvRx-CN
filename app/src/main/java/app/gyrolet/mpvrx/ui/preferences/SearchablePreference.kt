@@ -783,7 +783,7 @@ object SearchablePreferences {
             ))
             add(SearchablePreference(
                 titleRes = R.string.pref_advanced_notification_style,
-                summary = "Choose media controls, progress with chapters, or no playback notification",
+                summaryRes = R.string.pref_advanced_notification_style_summary,
                 keywords = listOf("notification", "media controls", "progress", "chapters", "no notification", "hide notification", "background playback"),
                 category = "Advanced",
                 screen = AdvancedPreferencesScreen,
@@ -799,6 +799,13 @@ object SearchablePreferences {
                 titleRes = R.string.pref_advanced_dump_logs_title,
                 summaryRes = R.string.pref_advanced_dump_logs_summary,
                 keywords = listOf("logs", "debug", "dump", "share", "export"),
+                category = "Advanced",
+                screen = AdvancedPreferencesScreen,
+            ))
+            add(SearchablePreference(
+                titleRes = R.string.pref_app_language_title,
+                summaryRes = R.string.pref_app_language_summary,
+                keywords = listOf("language", "locale", "i18n", "translation", "internationalization", "app language", "l10n"),
                 category = "Advanced",
                 screen = AdvancedPreferencesScreen,
             ))

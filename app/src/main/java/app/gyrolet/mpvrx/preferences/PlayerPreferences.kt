@@ -21,7 +21,14 @@ enum class IntroSegmentProvider(
   INTRO_DB(R.string.intro_provider_intro_db, "introdb"),
   THE_INTRO_DB(R.string.intro_provider_tidb, "theintrodb"),
   ANI_SKIP(R.string.intro_provider_ani_skip, "aniskip"),
-  HYBRID(R.string.intro_provider_hybrid, "hybrid"),
+  HYBRID(R.string.intro_provider_hybrid, "hybrid");
+
+  val displayName: String get() = when (this) {
+    INTRO_DB -> "IntroDB"
+    THE_INTRO_DB -> "TheIntroDB"
+    ANI_SKIP -> "AniSkip"
+    HYBRID -> "Hybrid"
+  }
 }
 
 enum class PlayerClockFormat(
@@ -29,7 +36,13 @@ enum class PlayerClockFormat(
 ) {
   SYSTEM(R.string.clock_format_system),
   TWELVE_HOUR(R.string.clock_format_12h),
-  TWENTY_FOUR_HOUR(R.string.clock_format_24h),
+  TWENTY_FOUR_HOUR(R.string.clock_format_24h);
+
+  val displayName: String get() = when (this) {
+    SYSTEM -> "System"
+    TWELVE_HOUR -> "12 Hour"
+    TWENTY_FOUR_HOUR -> "24 Hour"
+  }
 }
 
 class PlayerPreferences(

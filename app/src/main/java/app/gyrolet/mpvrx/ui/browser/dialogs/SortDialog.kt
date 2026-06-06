@@ -47,6 +47,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.AppIcon
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
@@ -98,7 +100,7 @@ fun SortDialog(
             .verticalScroll(rememberScrollState()),
         ) {
           if (showSortOptions) {
-            DialogSectionTitle(text = "Sort by")
+            DialogSectionTitle(text = stringResource(R.string.sort_section_label))
             SortTypeSelector(
               sortType = sortType,
               onSortTypeChange = onSortTypeChange,
@@ -205,12 +207,12 @@ fun SortDialog(
                 verticalAlignment = Alignment.CenterVertically
               ) {
                 Text(
-                  text = "Fields",
+                  text = stringResource(R.string.fields_section_label),
                   style = MaterialTheme.typography.titleSmall,
                 )
                 Icon(
                   imageVector = if (isFieldsExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                  contentDescription = if (isFieldsExpanded) "Collapse" else "Expand",
+                  contentDescription = if (isFieldsExpanded) stringResource(R.string.cd_collapse) else stringResource(R.string.cd_expand),
                   tint = MaterialTheme.colorScheme.onSurfaceVariant,
                   modifier = Modifier.size(20.dp)
                 )
@@ -245,7 +247,7 @@ fun SortDialog(
     },
     confirmButton = {
       TextButton(onClick = onDismiss) {
-        Text(text = "Done")
+        Text(text = stringResource(R.string.browser_done_button))
       }
     },
     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -382,7 +384,7 @@ private fun GridColumnsNextSection(
   if (folderGridColumnSelector == null && videoGridColumnSelector == null) return
 
   HorizontalDivider(modifier = Modifier.padding(top = 10.dp))
-  DialogSectionTitle(text = "Grid Columns")
+  DialogSectionTitle(text = stringResource(R.string.grid_columns_section_label))
 
   Row(
     modifier = Modifier.fillMaxWidth(),
@@ -397,12 +399,12 @@ private fun GridColumnsNextSection(
           verticalAlignment = Alignment.CenterVertically
         ) {
           Text(
-            text = "Folder Grid",
+            text = stringResource(R.string.folder_grid_label),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
           Text(
-            text = "${folderGridColumnSelector.currentValue} cols",
+            text = stringResource(R.string.dialog_grid_columns_value, folderGridColumnSelector.currentValue),
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.primary,
@@ -426,12 +428,12 @@ private fun GridColumnsNextSection(
           verticalAlignment = Alignment.CenterVertically
         ) {
           Text(
-            text = "Video Grid",
+            text = stringResource(R.string.video_grid_label),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
           Text(
-            text = "${videoGridColumnSelector.currentValue} cols",
+            text = stringResource(R.string.dialog_grid_columns_value, videoGridColumnSelector.currentValue),
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.primary,

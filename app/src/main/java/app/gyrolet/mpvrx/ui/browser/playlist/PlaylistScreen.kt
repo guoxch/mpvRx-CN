@@ -1,5 +1,6 @@
 package app.gyrolet.mpvrx.ui.browser.playlist
 
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 

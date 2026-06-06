@@ -1347,7 +1347,6 @@
   <string name="ai_section_general_settings">General Settings</string>
   <string name="ai_show_reasoning_title">Show AI Reasoning (Thinking)</string>
   <string name="ai_show_reasoning_summary">Enable this to see the model\'s internal thought process for supported models.</string>
-  <string name="ai_section_features">Features</string>
   <string name="ai_powered_rename_title">AI-Powered Rename</string>
   <string name="ai_powered_rename_summary">Use AI to generate clean filenames for bulk rename operations</string>
   <string name="ai_search_title">AI Search</string>
@@ -1535,7 +1534,6 @@
   <string name="lua_no_folder_title">No MPV folder selected</string>
   <string name="lua_no_folder_summary">Choose an MPV config folder in Advanced settings, then open this panel again to manage scripts.</string>
   <string name="lua_no_scripts_title">No scripts found</string>
-  <string name="lua_no_scripts_summary">Put your .lua or .js files inside the MPV scripts folder to manage them here.</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- Custom Buttons Screen                                     -->
@@ -2257,4 +2255,342 @@
   <!-- ═══════════════════════════════════════════════════════════ -->
   <string name="player_button_chip_video_title">Video Title</string>
   <string name="player_button_chip_chapter">1:06 \u2022 Chapter 1</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- App Language / Internationalization                        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="pref_section_language">Language</string>
+  <string name="pref_app_language_title">App Language</string>
+  <string name="pref_app_language_summary">Change the app UI language</string>
+  <string name="pref_app_language_system">Follow System</string>
+  <string name="pref_app_language_restart_toast">Language changed. Restart the app for full effect.</string>
+  <string name="pref_lang_de">Deutsch</string>
+  <string name="pref_lang_es">Español</string>
+  <string name="pref_lang_fr">Français</string>
+  <string name="pref_lang_hi">हिन्दी</string>
+  <string name="pref_lang_it">Italiano</string>
+  <string name="pref_lang_ja">日本語</string>
+  <string name="pref_lang_ko">한국어</string>
+  <string name="pref_lang_pl">Polski</string>
+  <string name="pref_lang_pt">Português</string>
+  <string name="pref_lang_pt_rBR">Português (Brasil)</string>
+  <string name="pref_lang_ru">Русский</string>
+  <string name="pref_lang_tr">Türkçe</string>
+  <string name="pref_lang_zh_rCN">简体中文</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Nav Animation Styles (AnimationStyles.kt)                 -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="anim_nav_elastic_slide">Elastic Slide</string>
+  <string name="anim_nav_depth_zoom">Depth Zoom</string>
+  <string name="anim_nav_flip_fade">Flip Fade</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Notification Styles (PlayerEnums.kt)                      -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="notification_style_none">No Notification</string>
+  <string name="notification_style_media">Media Controls</string>
+  <string name="notification_style_progress">Progress with Chapters</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Filter Presets (PlayerEnums.kt)                           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="filter_preset_none">None</string>
+  <string name="filter_preset_none_desc">Default settings with no adjustments</string>
+  <string name="filter_preset_vivid">Vivid</string>
+  <string name="filter_preset_vivid_desc">Enhanced colors with crisp details</string>
+  <string name="filter_preset_warm_tone">Warm Tone</string>
+  <string name="filter_preset_warm_tone_desc">Warmer colors with golden tint</string>
+  <string name="filter_preset_cool_tone">Cool Tone</string>
+  <string name="filter_preset_cool_tone_desc">Cooler colors with blue tint</string>
+  <string name="filter_preset_soft_pastel">Soft Pastel</string>
+  <string name="filter_preset_soft_pastel_desc">Soft, muted colors with gentle look</string>
+  <string name="filter_preset_cinematic">Cinematic</string>
+  <string name="filter_preset_cinematic_desc">Film-like color grading with depth</string>
+  <string name="filter_preset_dramatic">Dramatic</string>
+  <string name="filter_preset_dramatic_desc">High contrast dramatic look</string>
+  <string name="filter_preset_night_mode">Night Mode</string>
+  <string name="filter_preset_night_mode_desc">Reduced brightness for dark environments</string>
+  <string name="filter_preset_nostalgic">Nostalgic</string>
+  <string name="filter_preset_nostalgic_desc">Vintage film look with soft focus</string>
+  <string name="filter_preset_ghibli_style">Ghibli Style</string>
+  <string name="filter_preset_ghibli_style_desc">Soft, dreamy anime colors</string>
+  <string name="filter_preset_neon_pop">Neon Pop</string>
+  <string name="filter_preset_neon_pop_desc">Vibrant neon-like colors with edge</string>
+  <string name="filter_preset_deep_black">Deep Black</string>
+  <string name="filter_preset_deep_black_desc">Enhanced blacks for OLED displays</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Open Source Library Descriptions (AboutScreen.kt)         -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="oss_compose_desc">Declarative UI toolkit used across the app interface.</string>
+  <string name="oss_material3_desc">Compose Material components and theming.</string>
+  <string name="oss_navigation_desc">Navigation model used for app screens and flows.</string>
+  <string name="oss_koin_desc">Dependency injection for repositories, preferences, and view models.</string>
+  <string name="oss_room_desc">Local database layer for playback state and cached metadata.</string>
+  <string name="oss_okhttp_desc">HTTP client for subtitle search and other network requests.</string>
+  <string name="oss_coil_desc">Async image loading for posters, thumbnails, and artwork.</string>
+  <string name="oss_kotlinx_serialization_desc">JSON serialization for API payloads and internal models.</string>
+  <string name="oss_accompanist_permissions_desc">Compose helpers for Android runtime permission flows.</string>
+  <string name="oss_mediainfo_desc">Media inspection for codecs, subtitles, and technical metadata.</string>
+  <string name="oss_smbj_desc">SMB/CIFS client support for network shares.</string>
+  <string name="oss_commons_net_desc">FTP and related network protocol support.</string>
+  <string name="oss_sardine_desc">WebDAV client support for remote file access.</string>
+  <string name="oss_nanohttpd_desc">Embedded HTTP server components used by local streaming features.</string>
+  <string name="oss_fsaf_desc">Storage Access Framework helpers for file and tree operations.</string>
+  <string name="oss_truetype_parser_desc">Reads font metadata for subtitle font handling.</string>
+  <string name="oss_compose_preference_desc">Preference UI components used across settings screens.</string>
+  <string name="oss_lazycolumn_scrollbar_desc">Scrollbar component for long Compose lists.</string>
+  <string name="oss_reorderable_desc">Drag-and-drop list reordering for Compose surfaces.</string>
+  <string name="oss_seeker_desc">A customizable seekbar component for Jetpack Compose.</string>
+  <string name="oss_sora_editor_desc">A powerful, efficient code editor for Android with TextMate highlighting.</string>
+  <string name="oss_media3_desc">Android media libraries for advanced playback and effects.</string>
+  <string name="oss_jsoup_desc">Java HTML Parser for web scraping and document extraction.</string>
+  <string name="oss_llamatik_desc">Local LLM inference bridge for running AI models on Android.</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Local Model Catalog (LocalModelCatalog.kt)                -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="model_desc_qwen3_0_6b">Smallest useful default. Loads fast, answers fast, good first pick for subtitle translation on most phones.</string>
+  <string name="model_desc_gemma_3_1b">Fast 1B model with stronger wording than tiny models. Good when Qwen feels too literal.</string>
+  <string name="model_desc_llama_3_2_1b">Very responsive for English and common languages. Better for rename/cleanup than broad translation.</string>
+  <string name="model_desc_qwen3_1_7b">Best speed-to-quality upgrade from Qwen 0.6B. Recommended when the phone has enough RAM.</string>
+  <string name="model_desc_tiny_aya_global">Best pick for broad and lower-resource multilingual subtitles. Heavier, but worth it when translation quality matters.</string>
+  <string name="model_desc_gemma_3_4b">Higher quality balanced model for stronger phones. Use when output quality beats raw speed.</string>
+  <string name="model_desc_phi_4_mini">Utility model for rename, formatting, and reasoning-style cleanup. Not the default for subtitles.</string>
+  <string name="model_hint_limited">Limited for %1$s</string>
+  <string name="model_hint_good">Good for %1$s</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Wyzie Search Repository (WyzieSearchRepository.kt)        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="wyzie_unknown_subtitle">Unknown Subtitle</string>
+  <string name="wyzie_unknown">Unknown</string>
+  <string name="wyzie_all">All</string>
+  <string name="wyzie_could_not_find_media">Could not find media ID for \'%1$s\'</string>
+  <string name="wyzie_select_season_episode">Please select both a Season and an Episode.</string>
+  <string name="wyzie_untitled">Untitled</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Subtitle Hub Sources (MpvRxSubtitleHubSources.kt)         -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="subhub_all_sources">All verified SubtitleHub sources</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Selection Manager (SelectionManager.kt)                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="selection_deleted_success">Deleted successfully</string>
+  <string name="selection_failed_to_delete">Failed to delete</string>
+  <string name="selection_renamed_success">Renamed successfully</string>
+  <string name="selection_failed_to_rename">Failed to rename: %1$s</string>
+  <string name="selection_renamed_items">Renamed %1$d items</string>
+  <string name="selection_failed_rename_items">Failed to rename %1$d items</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- M3U Parser Error Messages (M3UParser.kt)                  -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- AI Service Messages (AiService.kt)                        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="ai_api_key_not_configured_for">API key not configured for %1$s</string>
+  <string name="ai_model_available_status">Available</string>
+  <string name="ai_model_free_label">Free model</string>
+  <string name="ai_model_paid_label">Paid model</string>
+  <string name="ai_paid_billing">Paid model — billing required</string>
+  <string name="ai_access_error">Access error: %1$s</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LlmInference Messages                                     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="ai_model_file_not_found_path">Model file not found: %1$s</string>
+  <string name="ai_bridge_init_failed">LlamaBridge failed to initialise model: %1$s</string>
+  <string name="ai_no_model_loaded">No model loaded</string>
+  <string name="ai_raw_prompt_fallback">Model has no embedded chat template. Using raw prompt fallback.</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- IntroDB Repository (IntroDbRepository.kt)                 -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="introdb_hybrid_cannot_resolve_seq">Hybrid provider cannot be resolved sequentially</string>
+  <string name="introdb_request_failed">%1$s request failed with HTTP %2$d</string>
+  <string name="introdb_tmdb_or_imdb_required">TheIntroDB lookup requires a TMDB or IMDb id</string>
+  <string name="introdb_tv_season_episode_required">TheIntroDB TV lookup requires season and episode</string>
+  <string name="introdb_invalid_subdl_json">Invalid SubDL JSON</string>
+  <string name="introdb_subdl_pageprops_missing">SubDL pageProps missing</string>
+  <string name="introdb_subdl_build_id_missing">SubDL build id not found</string>
+  <string name="introdb_mysubs_download_url_missing">My Subs download URL not found</string>
+  <string name="introdb_tvsubtitles_download_url_missing">TVSubtitles download URL not found</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Subtitle Generation Service                               -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="subtitle_gen_extracting_audio">Extracting audio chunk %1$d/%2$d</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Crash/Device Info Labels (CrashActivity.kt)               -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="crash_info_app_version">App version: </string>
+  <string name="crash_info_android_version">Android version: </string>
+  <string name="crash_info_device_brand">Device brand: </string>
+  <string name="crash_info_device_manufacturer">Device manufacturer: </string>
+  <string name="crash_info_device_model">Device model: </string>
+  <string name="crash_info_mpv_version">MPV version: </string>
+  <string name="crash_info_ffmpeg_version">ffmpeg version: </string>
+  <string name="crash_info_libplacebo_version">libplacebo version: </string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- About Screen (AboutScreen.kt)                             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="about_version_format">v%1$s %2$s</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- ModelSearchDialog (ModelSearchDialog.kt)                  -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="model_search_models_hint">Search models...</string>
+  <string name="model_search_no_models">No models match \"%1$s\"</string>
+  <string name="model_search_count">%1$d %2$s</string>
+  <string name="model_search_model_singular">model</string>
+  <string name="model_search_model_plural">models</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Player Stats Overlay Labels (PlayerControls.kt)           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="stats_label_file">File: </string>
+  <string name="stats_label_decoder_vo">Decoder &amp; VO: </string>
+  <string name="stats_label_refresh_rate">Refresh Rate: </string>
+  <string name="stats_label_audio">Audio: </string>
+  <string name="stats_label_battery_level">Battery Level: </string>
+  <string name="stats_label_temp">Temp: </string>
+  <string name="stats_label_thermal_state">Thermal State: </string>
+  <string name="stats_label_session_drain">Session Drain: </string>
+  <string name="stats_label_buffer_health">Buffer Health: </string>
+  <string name="stats_label_data_consumed">Data Consumed: </string>
+  <string name="stats_label_active_playtime">Active Playtime: </string>
+  <string name="stats_label_app_cpu">App CPU (this process) </string>
+  <string name="stats_label_frame_pressure">Frame Pressure (drop-based est.) </string>
+  <string name="stats_network_mbps"> Mbps</string>
+  <string name="stats_calculating">Calculating...</string>
+  <string name="stats_unknown">Unknown</string>
+  <string name="stats_normal">Normal</string>
+  <string name="stats_zero_stalls">0 stalls</string>
+  <string name="stats_zero_bytes">0 Bytes</string>
+  <string name="stats_zero_kbps">0 KB/s</string>
+  <string name="stats_time_zero">00:00:00</string>
+  <string name="stats_percent_zero">0%</string>
+  <string name="stats_temp_celsius">--°C</string>
+  <string name="stats_temp_rise">+0.0°C</string>
+  <string name="stats_watts">-- W</string>
+  <string name="stats_dash">--</string>
+  <string name="stats_dash_percent">--%</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Screenshot Template Help (PlayerPreferencesScreen.kt)     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="screenshot_template_help_text">Use placeholders to customize the screenshot filename:\n• %f — Video title or filename\n• %p — Playback position (seconds)\n• %Y, %m, %d — Year, Month, Day\n• %H, %M, %S — Hour, Minute, Second\n• %wH, %wM, %wS, %wT — Wall-clock time (hour, min, sec, ms)</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- AI Integration Screen (AiIntegrationScreen.kt)            -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="ai_benchmark_info_format">%1$s - %2$s - about %3$d MB while loaded</string>
+  <string name="ai_download_progress_format">%1$d%% downloaded</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Lua Scripts Screen (LuaScriptsUi.kt)                      -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+
+  <!-- UI strings extracted from Compose screens -->
+  <string name="dialog_add_video_to_playlist_success">Video added to "%1$s"</string>
+  <string name="dialog_add_videos_to_playlist_success">%1$d videos added to "%2$s"</string>
+  <string name="dialog_playlist_item_summary">%1$d videos • %2$s</string>
+  <string name="dialog_add_create_first_playlist">Create your first playlist above</string>
+  <string name="dialog_file_operation_copying">Copying</string>
+  <string name="dialog_file_operation_moving">Moving</string>
+  <string name="dialog_file_operation_title">%1$s files</string>
+  <string name="dialog_file_operation_file_count">File %1$d of %2$d</string>
+  <string name="dialog_file_operation_current_file">Current file</string>
+  <string name="dialog_file_operation_overall_progress">Overall progress</string>
+  <string name="dialog_file_operation_files_processed">Files processed</string>
+  <string name="dialog_file_operation_total_size">Total size</string>
+  <string name="dialog_loading">Loading...</string>
+  <string name="dialog_delete_warning_singular">This action cannot be undone. The selected item will be permanently deleted.</string>
+  <string name="dialog_delete_warning_plural">This action cannot be undone. The selected items will be permanently deleted.</string>
+  <string name="dialog_rename_title">Rename %1$s</string>
+  <string name="dialog_item_folder">folder</string>
+  <string name="browser_failed_to_delete_with_error_toast">Failed to delete: %1$s</string>
+  <string name="dialog_grid_columns_value">%1$d cols</string>
+  <string name="dialog_grid_columns_device">Grid Columns (%1$s)</string>
+  <string name="dialog_video_grid_columns_device">Video Grid Columns (%1$s)</string>
+  <string name="dialog_sort_view_options">Sort &amp; View Options</string>
+  <string name="dialog_view_options">View Options</string>
+  <string name="pref_api_key_type_label">API Key: %1$s</string>
+  <string name="pref_advanced_notification_style_summary">Choose media controls, progress with chapters, or no playback notification</string>
+  <string name="model_search_no_models_available">No models available</string>
+  <string name="stats_label_efficiency">Efficiency:</string>
+  <string name="stats_label_dropped">Dropped:</string>
+  <string name="stats_label_hdr">HDR:</string>
+  <string name="stats_label_power">Power:</string>
+  <string name="stats_label_rate">Rate:</string>
+  <string name="stats_label_peak">Peak:</string>
+  <string name="stats_label_rise">Rise:</string>
+  <string name="stats_label_burn_rate">Burn Rate:</string>
+  <string name="stats_label_projected_playback">Projected Playback:</string>
+  <string name="stats_label_stall_count">Stall Count:</string>
+  <string name="stats_label_speed">Speed:</string>
+  <string name="compressor_error_title">Compression failed</string>
+  <string name="compressor_try_again">Try again</string>
+  <string name="compressor_info_app_format">App: %1$s</string>
+  <string name="compressor_info_device_format">Device: %1$s %2$s</string>
+  <string name="compressor_info_android_format">Android: %1$s</string>
+  <string name="compressor_info_supported_encoders_format">Supported encoders: %1$s</string>
+  <string name="compressor_share_device_info">Share device info</string>
+  <string name="compressor_share_compressed_video">Share compressed video</string>
+  <string name="compressor_cannot_share_video">Cannot share video: %1$s</string>
+  <string name="compressor_tab_presets">Presets</string>
+  <string name="compressor_tab_video">Video</string>
+  <string name="compressor_tab_audio">Audio</string>
+  <string name="compressor_loading_video_info">Loading video info</string>
+  <string name="compressor_save_to">Save to</string>
+  <string name="compressor_videos_selected">%1$d videos selected</string>
+  <string name="compressor_current_folder">Current folder</string>
+  <string name="compressor_movies_compressor">Movies/Compressor</string>
+  <string name="compressor_destination_pending">Destination will be resolved when compression starts.</string>
+  <string name="compressor_start_batch">Start Batch Compression</string>
+  <string name="compressor_start">Start Compression</string>
+  <string name="compressor_source_preview">Source preview</string>
+  <string name="compressor_original">Original</string>
+  <string name="compressor_estimated">Estimated</string>
+  <string name="compressor_resolution_fps">%1$dx%2$d - %3$dfps</string>
+  <string name="compressor_change_video_quality">Change Video Quality</string>
+  <string name="compressor_preset_high">High</string>
+  <string name="compressor_preset_high_desc">Optimized bitrate only</string>
+  <string name="compressor_preset_medium">Medium</string>
+  <string name="compressor_preset_medium_desc">1080p - 30fps</string>
+  <string name="compressor_preset_low">Low</string>
+  <string name="compressor_preset_low_desc">720p - 30fps</string>
+  <string name="compressor_target_size_presets">Target Size Presets</string>
+  <string name="compressor_advanced_options">Advanced Options</string>
+  <string name="compressor_target_size">Target Size</string>
+  <string name="compressor_encoding">Encoding</string>
+  <string name="compressor_original_fps">Original - %1$d</string>
+  <string name="compressor_original_bitrate">Original - %1$dk</string>
+  <string name="compressor_audio_options">Audio Options</string>
+  <string name="compressor_remove_audio">Remove audio</string>
+  <string name="compressor_audio_bitrate">Audio Bitrate</string>
+  <string name="compressor_compressing_video">COMPRESSING VIDEO</string>
+  <string name="compressor_file_progress">File %1$d of %2$d - %3$s</string>
+  <string name="compressor_overall_current_progress">Overall %1$d%% - Current %2$d%%</string>
+  <string name="compressor_batch_complete">Batch Compression Complete!</string>
+  <string name="compressor_complete">Compression Complete!</string>
+  <string name="compressor_videos_saved">%1$d videos saved</string>
+  <string name="compressor_saved_to">Saved to</string>
+  <string name="compressor_unknown_destination">Unknown destination</string>
+  <string name="compressor_warnings">Warnings</string>
+  <string name="compressor_save_copy">Save copy</string>
+  <string name="compressor_back_to_list">Back to list</string>
+  <string name="compressor_device_app_info">Device and App Info</string>
+  <string name="compressor_version_format">Compressor v%1$s</string>
+  <string name="compressor_show_bitrate">Show bitrate</string>
+  <string name="compressor_use_mbps">Use Mbps</string>
+  <string name="compressor_preserve_metadata">Preserve metadata</string>
+  <string name="compressor_supported_codecs">Supported Codecs</string>
 </resources>

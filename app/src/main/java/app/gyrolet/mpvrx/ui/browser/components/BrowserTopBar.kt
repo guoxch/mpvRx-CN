@@ -246,7 +246,7 @@ private fun NormalTopBar(
         ) {
           Icon(
             Icons.Filled.Search,
-            contentDescription = "Search",
+            contentDescription = stringResource(R.string.settings_search_title),
             modifier = Modifier.size(24.dp),
             tint = MaterialTheme.colorScheme.secondary,
           )
@@ -272,7 +272,7 @@ private fun NormalTopBar(
         ) {
           Icon(
             Icons.Filled.Settings,
-            contentDescription = "Settings",
+            contentDescription = stringResource(R.string.cd_settings),
             modifier = Modifier.size(24.dp),
             tint = MaterialTheme.colorScheme.secondary,
           )
@@ -393,7 +393,7 @@ private fun SelectionTopBar(
         ) {
           Icon(
             Icons.Filled.PlayArrow,
-            contentDescription = "Play",
+            contentDescription = stringResource(R.string.browser_play_button),
             modifier = Modifier.size(28.dp),
             tint = MaterialTheme.colorScheme.primary,
           )
@@ -407,7 +407,7 @@ private fun SelectionTopBar(
         ) {
           Icon(
             Icons.Filled.PushPin,
-            contentDescription = "Pin folders",
+            contentDescription = stringResource(R.string.cd_pin_folders),
             modifier = Modifier.size(24.dp),
             tint = MaterialTheme.colorScheme.secondary,
           )
@@ -422,7 +422,7 @@ private fun SelectionTopBar(
         ) {
           Icon(
             Icons.Filled.PlaylistAdd,
-            contentDescription = "Add to Playlist",
+            contentDescription = stringResource(R.string.cd_add_to_playlist),
             modifier = Modifier.size(28.dp),
             tint = MaterialTheme.colorScheme.secondary,
           )
@@ -493,7 +493,7 @@ private fun SelectionTopBar(
         ) {
           Icon(
             Icons.Filled.ContentCopy,
-            contentDescription = "Copy path",
+            contentDescription = stringResource(R.string.cd_copy_path),
             modifier = Modifier.size(24.dp),
             tint = MaterialTheme.colorScheme.secondary,
           )

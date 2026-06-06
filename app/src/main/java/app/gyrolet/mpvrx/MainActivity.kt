@@ -1,5 +1,6 @@
 package app.gyrolet.mpvrx
 
+import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
 import android.util.Log
@@ -40,6 +41,7 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
+import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
@@ -117,6 +119,14 @@ private fun screenNavTransition(
  */
 class MainActivity : ComponentActivity() {
   private val appearancePreferences by inject<AppearancePreferences>()
+
+  override fun attachBaseContext(newBase: Context?) {
+    if (newBase == null) {
+      super.attachBaseContext(null)
+      return
+    }
+    super.attachBaseContext(app.gyrolet.mpvrx.utils.LocaleHelper.wrapContext(newBase))
+  }
   private val playerPreferences by inject<PlayerPreferences>()
   private val networkRepository by inject<NetworkRepository>()
   private var appliedEdgeToEdgeDarkMode: Boolean? = null

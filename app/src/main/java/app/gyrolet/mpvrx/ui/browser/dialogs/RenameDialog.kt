@@ -36,6 +36,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.AiPreferences
 import app.gyrolet.mpvrx.repository.ai.AiService
 import app.gyrolet.mpvrx.ui.icons.Icons
@@ -62,6 +64,9 @@ fun RenameDialog(
   val aiService = koinInject<AiService>()
   val aiPreferences = koinInject<AiPreferences>()
   var isAiLoading by remember { mutableStateOf(false) }
+  val emptyNameError = stringResource(R.string.dialog_rename_empty_error)
+  val invalidNameError = stringResource(R.string.dialog_rename_invalid_error)
+  val aiRenameFailedError = stringResource(R.string.dialog_rename_ai_failed_error)
 
   LaunchedEffect(Unit) {
     focusRequester.requestFocus()
@@ -71,12 +76,12 @@ fun RenameDialog(
     when {
       baseName.value.isBlank() -> {
         isError.value = true
-        errorMessage.value = "Name cannot be empty"
+        errorMessage.value = emptyNameError
       }
 
       baseName.value.contains("/") || baseName.value.contains("\\") -> {
         isError.value = true
-        errorMessage.value = "Name cannot contain / or \\"
+        errorMessage.value = invalidNameError
       }
 
       else -> {
@@ -90,7 +95,7 @@ fun RenameDialog(
     onDismissRequest = onDismiss,
     title = {
       Text(
-        text = "Rename $itemType",
+        text = stringResource(R.string.dialog_rename_title, itemType),
         style = MaterialTheme.typography.headlineMedium,
         fontWeight = FontWeight.Bold,
       )
@@ -110,7 +115,7 @@ fun RenameDialog(
             Modifier
               .fillMaxWidth()
               .focusRequester(focusRequester),
-          label = { Text("New name", fontWeight = FontWeight.Medium) },
+          label = { Text(stringResource(R.string.dialog_rename_new_name_label), fontWeight = FontWeight.Medium) },
           singleLine = false,
           maxLines = 5,
           isError = isError.value,
@@ -147,7 +152,7 @@ fun RenameDialog(
                   }
                   .onFailure { _ ->
                     isError.value = true
-                    errorMessage.value = "AI rename failed. Check API key and model."
+                    errorMessage.value = aiRenameFailedError
                   }
                 isAiLoading = false
               }
@@ -162,7 +167,7 @@ fun RenameDialog(
                 strokeWidth = 2.dp,
               )
               Spacer(modifier = Modifier.width(8.dp))
-              Text("AI is thinking...")
+              Text(stringResource(R.string.dialog_rename_ai_thinking))
             } else {
               Icon(
                 imageVector = Icons.Default.AutoAwesome,
@@ -170,7 +175,7 @@ fun RenameDialog(
                 modifier = Modifier.size(18.dp),
               )
               Spacer(modifier = Modifier.width(8.dp))
-              Text("AI Rename", fontWeight = FontWeight.Medium)
+              Text(stringResource(R.string.dialog_rename_ai_button), fontWeight = FontWeight.Medium)
             }
           }
         }
@@ -187,7 +192,7 @@ fun RenameDialog(
         shape = MaterialTheme.shapes.extraLarge,
       ) {
         Text(
-          text = "Rename",
+          text = stringResource(R.string.rename),
           fontWeight = FontWeight.Bold,
         )
       }
@@ -197,7 +202,7 @@ fun RenameDialog(
         onClick = onDismiss,
         shape = MaterialTheme.shapes.extraLarge,
       ) {
-        Text("Cancel", fontWeight = FontWeight.Medium)
+        Text(stringResource(R.string.generic_cancel), fontWeight = FontWeight.Medium)
       }
     },
     containerColor = MaterialTheme.colorScheme.surface,

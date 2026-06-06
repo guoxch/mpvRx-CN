@@ -3,6 +3,7 @@ package app.gyrolet.mpvrx.ui.mediainfo
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -14,6 +15,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -85,6 +87,14 @@ import java.io.File
 
 class MediaInfoActivity : ComponentActivity() {
   private val appearancePreferences by inject<AppearancePreferences>()
+
+  override fun attachBaseContext(newBase: Context?) {
+    if (newBase == null) {
+      super.attachBaseContext(null)
+      return
+    }
+    super.attachBaseContext(app.gyrolet.mpvrx.utils.LocaleHelper.wrapContext(newBase))
+  }
   private val TAG = "MediaInfoActivity"
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -416,9 +426,9 @@ class MediaInfoActivity : ComponentActivity() {
             subtitleSections.size,
             menuSections.firstOrNull()?.properties?.size ?: 0
           )
-          InfoTab.VIDEO -> StreamTabContent(videoSections, context.getString(R.string.media_info_video_stream))
-          InfoTab.AUDIO -> StreamTabContent(audioSections, context.getString(R.string.media_info_audio_stream))
-          InfoTab.SUBTITLES -> StreamTabContent(subtitleSections, context.getString(R.string.media_info_subtitle_track))
+          InfoTab.VIDEO -> StreamTabContent(videoSections, stringResource(R.string.media_info_video_stream))
+          InfoTab.AUDIO -> StreamTabContent(audioSections, stringResource(R.string.media_info_audio_stream))
+          InfoTab.SUBTITLES -> StreamTabContent(subtitleSections, stringResource(R.string.media_info_subtitle_track))
           InfoTab.CHAPTERS -> ChaptersTabContent(menuSections)
         }
       }
@@ -962,6 +972,7 @@ class MediaInfoActivity : ComponentActivity() {
     sections: List<InfoSection>,
     streamTypeLabel: String
   ) {
+    val context = LocalContext.current
     Column(
       modifier = Modifier
         .fillMaxSize()
@@ -1011,6 +1022,7 @@ class MediaInfoActivity : ComponentActivity() {
   private fun ChaptersTabContent(
     sections: List<InfoSection>
   ) {
+    val context = LocalContext.current
     val menuSection = sections.firstOrNull() ?: return
 
     Column(

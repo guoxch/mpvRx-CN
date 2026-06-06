@@ -28,6 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -57,7 +59,7 @@ fun DeleteConfirmationDialog(
           modifier = Modifier.size(28.dp),
         )
         Text(
-          text = "Delete $itemCount $itemText?",
+          text = stringResource(R.string.dialog_delete_title, itemCount, itemText),
           style = MaterialTheme.typography.headlineSmall,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurface,
@@ -87,7 +89,9 @@ fun DeleteConfirmationDialog(
               modifier = Modifier.size(20.dp),
             )
             Text(
-              text = "This action cannot be undone. The selected item${if (itemCount == 1) "" else "s"} will be permanently deleted.",
+              text = stringResource(
+                if (itemCount == 1) R.string.dialog_delete_warning_singular else R.string.dialog_delete_warning_plural,
+              ),
               style = MaterialTheme.typography.bodyMedium,
               fontWeight = FontWeight.Medium,
               color = MaterialTheme.colorScheme.onErrorContainer,
@@ -156,7 +160,7 @@ fun DeleteConfirmationDialog(
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(
-          text = "Delete",
+          text = stringResource(R.string.delete),
           fontWeight = FontWeight.Bold,
         )
       }
@@ -172,7 +176,7 @@ fun DeleteConfirmationDialog(
           modifier = Modifier.size(16.dp),
         )
         Spacer(modifier = Modifier.width(4.dp))
-        Text("Cancel", fontWeight = FontWeight.Medium)
+        Text(stringResource(R.string.generic_cancel), fontWeight = FontWeight.Medium)
       }
     },
     containerColor = MaterialTheme.colorScheme.surface,

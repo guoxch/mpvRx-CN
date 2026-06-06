@@ -26,6 +26,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.utils.media.CopyPasteOps
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -42,8 +44,8 @@ fun FileOperationProgressDialog(
 
   val operationName =
     when (operationType) {
-      is CopyPasteOps.OperationType.Copy -> "Copying"
-      is CopyPasteOps.OperationType.Move -> "Moving"
+      is CopyPasteOps.OperationType.Copy -> stringResource(R.string.dialog_file_operation_copying)
+      is CopyPasteOps.OperationType.Move -> stringResource(R.string.dialog_file_operation_moving)
     }
 
   val isOperationComplete = progress.isComplete || progress.isCancelled || progress.error != null
@@ -56,7 +58,7 @@ fun FileOperationProgressDialog(
     },
     title = {
       Text(
-        text = "$operationName files",
+        text = stringResource(R.string.dialog_file_operation_title, operationName),
         style = MaterialTheme.typography.headlineMedium,
         fontWeight = FontWeight.Bold,
       )
@@ -77,14 +79,14 @@ fun FileOperationProgressDialog(
           }
           progress.isComplete -> {
             StatusCard(
-              message = "Operation completed successfully!",
+              message = stringResource(R.string.dialog_operation_complete),
               containerColor = MaterialTheme.colorScheme.primaryContainer,
               contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             )
           }
           progress.isCancelled -> {
             StatusCard(
-              message = "Operation cancelled",
+              message = stringResource(R.string.dialog_operation_cancelled),
               containerColor = MaterialTheme.colorScheme.secondaryContainer,
               contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
             )
@@ -97,7 +99,7 @@ fun FileOperationProgressDialog(
             // Current File Info
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
               Text(
-                text = "File ${progress.currentFileIndex} of ${progress.totalFiles}",
+                text = stringResource(R.string.dialog_file_operation_file_count, progress.currentFileIndex, progress.totalFiles),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -114,13 +116,13 @@ fun FileOperationProgressDialog(
 
             // Current File Progress
             ProgressSection(
-              label = "Current file",
+              label = stringResource(R.string.dialog_file_operation_current_file),
               progress = progress.currentFileProgress,
             )
 
             // Overall Progress
             ProgressSection(
-              label = "Overall progress",
+              label = stringResource(R.string.dialog_file_operation_overall_progress),
               progress = progress.overallProgress,
             )
 
@@ -141,11 +143,11 @@ fun FileOperationProgressDialog(
         if (isOperationComplete) {
           Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SummaryRow(
-              label = "Files processed",
+              label = stringResource(R.string.dialog_file_operation_files_processed),
               value = "${progress.currentFileIndex} / ${progress.totalFiles}",
             )
             SummaryRow(
-              label = "Total size",
+              label = stringResource(R.string.dialog_file_operation_total_size),
               value = CopyPasteOps.formatBytes(progress.totalBytes),
             )
           }
@@ -162,7 +164,7 @@ fun FileOperationProgressDialog(
             ),
           shape = MaterialTheme.shapes.extraLarge,
         ) {
-          Text("Done", fontWeight = FontWeight.Bold)
+          Text(stringResource(R.string.browser_done_button), fontWeight = FontWeight.Bold)
         }
       } else {
         TextButton(
@@ -171,10 +173,10 @@ fun FileOperationProgressDialog(
         ) {
           Icon(
             imageVector = Icons.Default.Cancel,
-            contentDescription = "Cancel",
+            contentDescription = stringResource(R.string.generic_cancel),
             modifier = Modifier.padding(end = 4.dp),
           )
-          Text("Cancel", fontWeight = FontWeight.Medium)
+          Text(stringResource(R.string.generic_cancel), fontWeight = FontWeight.Medium)
         }
       }
     },
@@ -189,10 +191,11 @@ fun FileOperationProgressDialog(
 @Composable
 fun LoadingDialog(
   isOpen: Boolean,
-  message: String = "Loading...",
+  message: String? = null,
   onDismissRequest: () -> Unit = {},
 ) {
   if (!isOpen) return
+  val displayMessage = message ?: stringResource(R.string.dialog_loading)
 
   AlertDialog(
     onDismissRequest = onDismissRequest,
@@ -207,7 +210,7 @@ fun LoadingDialog(
         verticalArrangement = Arrangement.spacedBy(16.dp),
       ) {
         Text(
-          text = message,
+          text = displayMessage,
           style = MaterialTheme.typography.bodyLarge,
           fontWeight = FontWeight.Medium,
           color = MaterialTheme.colorScheme.onSurface,
@@ -312,7 +315,5 @@ private fun SummaryRow(
     )
   }
 }
-
-
 
 

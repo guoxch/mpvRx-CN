@@ -1,5 +1,6 @@
 package app.gyrolet.mpvrx.ui.browser.medialibrary
 
+import app.gyrolet.mpvrx.R
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility

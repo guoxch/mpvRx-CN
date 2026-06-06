@@ -551,7 +551,7 @@ object SubtitlesPreferencesScreen : Screen {
                   text = {
                     Column(modifier = Modifier.fillMaxWidth()) {
                       sourcesResponse?.key?.let { keyInfo ->
-                        val keyType = keyInfo.type?.replaceFirstChar { it.uppercase() } ?: "Unknown"
+                        val keyType = keyInfo.type?.replaceFirstChar { it.uppercase() } ?: stringResource(R.string.media_info_unknown)
                         val badgeColor = if (keyInfo.valid) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
                         val badgeTextColor = if (keyInfo.valid) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
                         
@@ -561,7 +561,7 @@ object SubtitlesPreferencesScreen : Screen {
                         ) {
                           SuggestionChip(
                             onClick = {},
-                            label = { Text("API Key: $keyType") },
+                            label = { Text(stringResource(R.string.pref_api_key_type_label, keyType)) },
                             colors = SuggestionChipDefaults.suggestionChipColors(
                               containerColor = badgeColor,
                               labelColor = badgeTextColor

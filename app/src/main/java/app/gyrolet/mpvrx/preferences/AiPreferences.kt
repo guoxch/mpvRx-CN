@@ -12,7 +12,17 @@ enum class AiProvider(@StringRes val labelRes: Int) {
   ANTHROPIC(R.string.ai_provider_anthropic),
   OPENROUTER(R.string.ai_provider_openrouter),
   TOGETHER(R.string.ai_provider_together),
-  LOCAL(R.string.ai_provider_local),
+  LOCAL(R.string.ai_provider_local);
+
+  val displayName: String get() = when (this) {
+    OPENCODE -> "OpenCode"
+    GROQ -> "Groq"
+    OPENAI -> "OpenAI"
+    ANTHROPIC -> "Anthropic"
+    OPENROUTER -> "OpenRouter"
+    TOGETHER -> "Together"
+    LOCAL -> "Local"
+  }
 }
 
 class AiPreferences(

@@ -42,6 +42,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,7 +78,7 @@ fun PlaylistActionSheet(
     ) {
       // Title
       Text(
-        text = "Playlist Options",
+        text = stringResource(R.string.playlist_sheet_options_title),
         style = MaterialTheme.typography.headlineSmall,
         fontWeight = FontWeight.Medium,
         color = MaterialTheme.colorScheme.onSurface,
@@ -109,12 +111,12 @@ fun PlaylistActionSheet(
           )
           Column(modifier = Modifier.weight(1f)) {
             Text(
-              text = "Create Empty Playlist",
+              text = stringResource(R.string.playlist_sheet_create_empty),
               style = MaterialTheme.typography.bodyLarge,
               fontWeight = FontWeight.Medium,
             )
             Text(
-              text = "Create a new blank playlist",
+              text = stringResource(R.string.playlist_sheet_create_empty_desc),
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -146,12 +148,12 @@ fun PlaylistActionSheet(
           )
           Column(modifier = Modifier.weight(1f)) {
             Text(
-              text = "Add M3U Playlist from URL",
+              text = stringResource(R.string.playlist_sheet_add_m3u_url),
               style = MaterialTheme.typography.bodyLarge,
               fontWeight = FontWeight.Medium,
             )
             Text(
-              text = "Import a playlist from a web URL",
+              text = stringResource(R.string.playlist_sheet_add_m3u_url_desc),
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -180,13 +182,13 @@ fun PlaylistActionSheet(
           verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
           Text(
-            text = "Create Playlist",
+            text = stringResource(R.string.browser_create_playlist_button),
             style = MaterialTheme.typography.headlineSmall,
           )
           OutlinedTextField(
             value = playlistName,
             onValueChange = { playlistName = it },
-            label = { Text("Playlist Name") },
+            label = { Text(stringResource(R.string.browser_playlist_name_label)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
           )
@@ -198,7 +200,7 @@ fun PlaylistActionSheet(
               onClick = { showCreateDialog = false },
               shape = MaterialTheme.shapes.extraLarge,
             ) {
-              Text("Cancel")
+              Text(stringResource(R.string.generic_cancel))
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
@@ -226,7 +228,7 @@ fun PlaylistActionSheet(
               enabled = playlistName.isNotBlank(),
               shape = MaterialTheme.shapes.extraLarge,
             ) {
-              Text("Create")
+              Text(stringResource(R.string.browser_create_button))
             }
           }
         }
@@ -280,7 +282,7 @@ fun PlaylistActionSheet(
           verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
           Text(
-            text = "Add M3U Playlist",
+            text = stringResource(R.string.playlist_add_m3u_title),
             style = MaterialTheme.typography.headlineSmall,
           )
 
@@ -288,7 +290,7 @@ fun PlaylistActionSheet(
             OutlinedTextField(
               value = playlistUrl,
               onValueChange = { playlistUrl = it },
-              label = { Text("Playlist URL") },
+              label = { Text(stringResource(R.string.playlist_url_label)) },
               singleLine = false,
               maxLines = 3,
               modifier = Modifier.fillMaxWidth(),
@@ -298,7 +300,7 @@ fun PlaylistActionSheet(
             OutlinedTextField(
               value = playlistUserAgent,
               onValueChange = { playlistUserAgent = it },
-              label = { Text("Custom User-Agent (optional)") },
+              label = { Text(stringResource(R.string.dialog_add_m3u_user_agent)) },
               singleLine = true,
               modifier = Modifier.fillMaxWidth(),
               enabled = !isLoading
@@ -312,7 +314,7 @@ fun PlaylistActionSheet(
             ) {
               androidx.compose.material3.HorizontalDivider(modifier = Modifier.weight(1f))
               Text(
-                text = "OR",
+                text = stringResource(R.string.dialog_add_m3u_or_label),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
               )
@@ -333,7 +335,7 @@ fun PlaylistActionSheet(
                 modifier = Modifier.size(20.dp)
               )
               Spacer(modifier = Modifier.width(8.dp))
-              Text("Choose Local M3U File")
+              Text(stringResource(R.string.dialog_add_m3u_local_file))
             }
 
             if (isLoading) {
@@ -357,7 +359,7 @@ fun PlaylistActionSheet(
               enabled = !isLoading,
               shape = MaterialTheme.shapes.extraLarge,
             ) {
-              Text("Cancel")
+              Text(stringResource(R.string.generic_cancel))
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
@@ -391,7 +393,7 @@ fun PlaylistActionSheet(
               enabled = playlistUrl.isNotBlank() && !isLoading,
               shape = MaterialTheme.shapes.extraLarge,
             ) {
-              Text("Add from URL")
+              Text(stringResource(R.string.dialog_add_m3u_add_from_url))
             }
           }
         }

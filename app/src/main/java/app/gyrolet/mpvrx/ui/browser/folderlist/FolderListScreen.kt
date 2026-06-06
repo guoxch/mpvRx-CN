@@ -1,5 +1,6 @@
 package app.gyrolet.mpvrx.ui.browser.folderlist
 
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -813,13 +814,17 @@ object FolderListScreen : Screen {
                   android.widget.Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.browser_failed_to_delete_toast), android.widget.Toast.LENGTH_SHORT).show()
                 }
               }.onFailure {
-                android.widget.Toast.makeText(context, "Failed to delete: ${it.message}", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(
+                  context,
+                  context.getString(app.gyrolet.mpvrx.R.string.browser_failed_to_delete_with_error_toast, it.message),
+                  android.widget.Toast.LENGTH_SHORT,
+                ).show()
               }
               selectionManager.clear()
               viewModel.refresh()
             }
           },
-          itemType = "folder",
+          itemType = stringResource(app.gyrolet.mpvrx.R.string.dialog_item_folder),
           itemCount = pendingDeleteFolders.size,
           itemNames = pendingDeleteFolders.map { it.name },
         )
@@ -879,7 +884,7 @@ private fun FolderListContent(
         if (showLoading) {
           LoadingState(
             icon = Icons.Filled.Folder,
-            title = "Scanning for videos...",
+            title = stringResource(app.gyrolet.mpvrx.R.string.browser_scanning_videos_title),
             message = scanStatus ?: stringResource(app.gyrolet.mpvrx.R.string.browser_scanning_videos_message),
           )
         } else if (showEmpty) {

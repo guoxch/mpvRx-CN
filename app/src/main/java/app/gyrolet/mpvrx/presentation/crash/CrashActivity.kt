@@ -5,6 +5,7 @@ import app.gyrolet.mpvrx.ui.icons.Icons
 
 import android.app.Activity
 import android.content.ClipData
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -77,6 +78,14 @@ import java.io.InputStreamReader
 class CrashActivity : ComponentActivity() {
   private var logcat: String = ""
   private val appearancePreferences: AppearancePreferences by inject()
+
+  override fun attachBaseContext(newBase: Context?) {
+    if (newBase == null) {
+      super.attachBaseContext(null)
+      return
+    }
+    super.attachBaseContext(app.gyrolet.mpvrx.utils.LocaleHelper.wrapContext(newBase))
+  }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -293,7 +302,7 @@ class CrashActivity : ComponentActivity() {
               onClick = {
                 SafeClipboard.copyPlainText(
                   context = this@CrashActivity,
-                  label = context.getString(R.string.crash_clipboard_label),
+                  label = this@CrashActivity.getString(R.string.crash_clipboard_label),
                   text = concatLogs(collectDeviceInfo(), exceptionString, logcat),
                 )
               },

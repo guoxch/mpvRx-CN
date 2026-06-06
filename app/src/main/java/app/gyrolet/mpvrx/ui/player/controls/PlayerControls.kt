@@ -1999,23 +1999,23 @@ private fun CustomStatsPageSixOverlay(
       )
     val headerStyle = textStyle.copy(fontWeight = FontWeight.Bold, fontSize = 8.5.sp)
 
-    OutlinedText("--- PLAYBACK & DECODER ---", style = headerStyle)
-    OutlinedText("File: ${stats.fileName}", style = textStyle)
-    OutlinedText("Decoder & VO: ${stats.renderContext} | ${stats.video} | Efficiency: ${stats.decoderEfficiencyText}", style = textStyle)
-    OutlinedText("Refresh Rate: ${stats.fps} Hz | Dropped: ${stats.droppedFrames}", style = textStyle)
-    OutlinedText("Audio: ${stats.audio} | HDR: ${stats.hdrActive}", style = textStyle)
+    OutlinedText(stringResource(R.string.player_stats_header_playback), style = headerStyle)
+    OutlinedText(stringResource(R.string.stats_label_file) + stats.fileName, style = textStyle)
+    OutlinedText(stringResource(R.string.stats_label_decoder_vo) + "${stats.renderContext} | ${stats.video} | ${stringResource(R.string.stats_label_efficiency)} ${stats.decoderEfficiencyText}", style = textStyle)
+    OutlinedText(stringResource(R.string.stats_label_refresh_rate) + "${stats.fps} Hz | ${stringResource(R.string.stats_label_dropped)} ${stats.droppedFrames}", style = textStyle)
+    OutlinedText(stringResource(R.string.stats_label_audio) + "${stats.audio} | ${stringResource(R.string.stats_label_hdr)} ${stats.hdrActive}", style = textStyle)
 
     Spacer(modifier = Modifier.height(2.dp))
-    OutlinedText("--- POWER & THERMALS ---", style = headerStyle)
-    OutlinedText("Battery Level: ${stats.batteryPercentText} | Power: ${stats.batteryWattsText} | Rate: ${stats.batteryRateText}", style = textStyle)
-    OutlinedText("Temp: ${stats.batteryTempText} (Peak: ${stats.peakTempText} | Rise: ${stats.tempRiseText})", style = textStyle)
-    OutlinedText("Thermal State: ${stats.thermalStateText}", style = textStyle)
-    OutlinedText("Session Drain: ${stats.sessionDrainText} | Burn Rate: ${stats.burnRateText} | Projected Playback: ${stats.estRemainingPlaybackText}", style = textStyle)
+    OutlinedText(stringResource(R.string.player_stats_header_power), style = headerStyle)
+    OutlinedText(stringResource(R.string.stats_label_battery_level) + "${stats.batteryPercentText} | ${stringResource(R.string.stats_label_power)} ${stats.batteryWattsText} | ${stringResource(R.string.stats_label_rate)} ${stats.batteryRateText}", style = textStyle)
+    OutlinedText(stringResource(R.string.stats_label_temp) + "${stats.batteryTempText} (${stringResource(R.string.stats_label_peak)} ${stats.peakTempText} | ${stringResource(R.string.stats_label_rise)} ${stats.tempRiseText})", style = textStyle)
+    OutlinedText(stringResource(R.string.stats_label_thermal_state) + stats.thermalStateText, style = textStyle)
+    OutlinedText(stringResource(R.string.stats_label_session_drain) + "${stats.sessionDrainText} | ${stringResource(R.string.stats_label_burn_rate)} ${stats.burnRateText} | ${stringResource(R.string.stats_label_projected_playback)} ${stats.estRemainingPlaybackText}", style = textStyle)
 
     Spacer(modifier = Modifier.height(2.dp))
-    OutlinedText("--- CACHE & DATA COST ---", style = headerStyle)
-    OutlinedText("Buffer Health: ${stats.cache} | Stall Count: ${stats.stallCountText}", style = textStyle)
-    OutlinedText("Data Consumed: ${stats.totalDataConsumedText} | Speed: ${stats.networkText} (${String.format("%.1f", stats.networkMbps)} Mbps)", style = textStyle)
+    OutlinedText(stringResource(R.string.player_stats_header_cache), style = headerStyle)
+    OutlinedText(stringResource(R.string.stats_label_buffer_health) + "${stats.cache} | ${stringResource(R.string.stats_label_stall_count)} ${stats.stallCountText}", style = textStyle)
+    OutlinedText(stringResource(R.string.stats_label_data_consumed) + "${stats.totalDataConsumedText} | ${stringResource(R.string.stats_label_speed)} ${stats.networkText} (${String.format("%.1f", stats.networkMbps)}${stringResource(R.string.stats_network_mbps)})", style = textStyle)
 
     NetworkSparkline(
       points = stats.networkHistory,
@@ -2027,8 +2027,8 @@ private fun CustomStatsPageSixOverlay(
     )
 
     Spacer(modifier = Modifier.height(2.dp))
-    OutlinedText("--- SESSION PERFORMANCE SUMMARY ---", style = headerStyle)
-    OutlinedText("Active Playtime: ${stats.sessionPlayTimeText}", style = textStyle)
+    OutlinedText(stringResource(R.string.player_stats_header_session), style = headerStyle)
+    OutlinedText(stringResource(R.string.stats_label_active_playtime) + stats.sessionPlayTimeText, style = textStyle)
 
     LinearProgressIndicator(
       progress = { stats.cpuPercent / 100f },
@@ -2037,7 +2037,7 @@ private fun CustomStatsPageSixOverlay(
         .height(3.dp)
         .padding(vertical = 0.5.dp)
     )
-    OutlinedText("App CPU (this process) ${stats.cpuPercent.toInt()}%", style = textStyle)
+      OutlinedText(stringResource(R.string.stats_label_app_cpu) + "${stats.cpuPercent.toInt()}%", style = textStyle)
     LinearProgressIndicator(
       progress = { stats.gpuEstimatePercent / 100f },
       modifier = Modifier
@@ -2045,7 +2045,7 @@ private fun CustomStatsPageSixOverlay(
         .height(3.dp)
         .padding(vertical = 0.5.dp)
     )
-    OutlinedText("Frame Pressure (drop-based est.) ${stats.gpuEstimatePercent.toInt()}%", style = textStyle)
+      OutlinedText(stringResource(R.string.stats_label_frame_pressure) + "${stats.gpuEstimatePercent.toInt()}%", style = textStyle)
   }
 }
 
@@ -2135,4 +2135,3 @@ private fun OutlinedText(
     )
   }
 }
-

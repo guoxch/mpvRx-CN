@@ -58,7 +58,7 @@ fun ModelSearchDialog(
         value = searchQuery,
         onValueChange = { searchQuery = it },
         modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("Search models...") },
+        placeholder = { Text(stringResource(R.string.model_search_models_hint)) },
         singleLine = true,
         colors = TextFieldDefaults.colors(
           focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -70,7 +70,11 @@ fun ModelSearchDialog(
     text = {
       if (sortedFiltered.isEmpty()) {
         Text(
-          text = if (searchQuery.isNotBlank()) "No models match \"$searchQuery\"" else "No models available",
+          text = if (searchQuery.isNotBlank()) {
+            stringResource(R.string.model_search_no_models, searchQuery)
+          } else {
+            stringResource(R.string.model_search_no_models_available)
+          },
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.outline,
           modifier = Modifier.padding(vertical = 24.dp),
@@ -78,7 +82,11 @@ fun ModelSearchDialog(
       } else {
         Column(modifier = Modifier.heightIn(max = 480.dp)) {
           Text(
-            text = "${sortedFiltered.size} model${if (sortedFiltered.size != 1) "s" else ""}",
+            text = stringResource(
+              R.string.model_search_count,
+              sortedFiltered.size,
+              stringResource(if (sortedFiltered.size == 1) R.string.model_search_model_singular else R.string.model_search_model_plural),
+            ),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.outline,
             modifier = Modifier.padding(bottom = 8.dp),
@@ -160,7 +168,7 @@ fun FreeTag() {
     color = MaterialTheme.colorScheme.primary,
   ) {
     Text(
-      text = "FREE",
+      text = stringResource(R.string.pref_model_free_tag),
       modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
       color = MaterialTheme.colorScheme.onPrimary,
       style = MaterialTheme.typography.labelSmall,

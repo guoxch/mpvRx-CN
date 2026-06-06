@@ -766,7 +766,6 @@ private fun YtdlpOptionSettings.Companion.fromYtdlPreferences(prefs: YtdlPrefere
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-    @Composable
     private fun <T> OptionDropdown(
     title: String,
     value: T,

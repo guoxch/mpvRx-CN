@@ -27,10 +27,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.domain.network.NetworkFile
 import androidx.compose.foundation.combinedClickable
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.theme.AppShapeScale
 import org.koin.compose.koinInject
 
@@ -80,7 +82,7 @@ fun NetworkFolderCard(
       ) {
         Icon(
           Icons.Filled.Folder,
-          contentDescription = "Folder",
+          contentDescription = stringResource(R.string.cd_folder),
           modifier = Modifier.size(48.dp),
           tint = MaterialTheme.colorScheme.secondary,
         )

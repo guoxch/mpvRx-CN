@@ -366,7 +366,7 @@ object AboutScreen : Screen {
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "UPI ID",
+                                text = stringResource(R.string.about_upi_id_label),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = cs.outline,
                             )

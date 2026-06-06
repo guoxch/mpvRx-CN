@@ -297,7 +297,7 @@ object DecoderPreferencesScreen : Screen {
                       color = MaterialTheme.colorScheme.outline,
                     )
                     Text(
-                      text = "github.com/Th-Underscore/Anime4K-Ultra",
+                      text = stringResource(R.string.pref_anime4k_ultra_url),
                       color = MaterialTheme.colorScheme.primary,
                       style = MaterialTheme.typography.bodySmall,
                       textDecoration = TextDecoration.Underline,
@@ -422,7 +422,7 @@ object DecoderPreferencesScreen : Screen {
                   verticalAlignment = Alignment.CenterVertically
                 ) {
                   Text(
-                    text = "Anime4K Shaders Options",
+                    text = stringResource(R.string.pref_anime4k_shaders_options_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,

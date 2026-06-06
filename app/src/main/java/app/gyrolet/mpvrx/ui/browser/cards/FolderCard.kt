@@ -39,6 +39,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.media.model.VideoFolder
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
@@ -139,7 +141,7 @@ fun FolderCard(
     ) {
       Icon(
         imageVector = Icons.Default.PushPin,
-        contentDescription = "Pinned folder",
+        contentDescription = stringResource(R.string.cd_pinned_folder),
         modifier =
           Modifier
             .padding(horizontal = 6.dp, vertical = 4.dp)
@@ -223,7 +225,7 @@ fun FolderCard(
             } else {
               Icon(
                 customIcon ?: Icons.Filled.Folder,
-                contentDescription = "Folder",
+                contentDescription = stringResource(R.string.cd_folder),
                 modifier = Modifier.size(56.dp),
                 tint = MaterialTheme.colorScheme.secondary,
               )
@@ -325,7 +327,7 @@ fun FolderCard(
             } else {
               Icon(
                 customIcon ?: Icons.Filled.Folder,
-                contentDescription = "Folder",
+                contentDescription = stringResource(R.string.cd_folder),
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.secondary,
               )

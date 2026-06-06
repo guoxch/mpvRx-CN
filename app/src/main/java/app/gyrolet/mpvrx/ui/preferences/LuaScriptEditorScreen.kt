@@ -348,7 +348,7 @@ data class LuaScriptEditorScreen(
             }
             if (hasUnsavedChanges) {
               Text(
-                text = stringResource(R.string.editor_unsaved_changes),
+                text = stringResource(R.string.config_unsaved_changes),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.secondary,
               )

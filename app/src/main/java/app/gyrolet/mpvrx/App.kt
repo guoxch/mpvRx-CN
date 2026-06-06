@@ -1,6 +1,9 @@
 package app.gyrolet.mpvrx
 
 import android.app.Application
+import android.content.ComponentName
+import android.content.Context
+import android.content.pm.PackageManager
 import android.util.Log
 import app.gyrolet.mpvrx.database.repository.VideoMetadataCacheRepository
 import app.gyrolet.mpvrx.di.DatabaseModule
@@ -8,6 +11,7 @@ import app.gyrolet.mpvrx.di.FileManagerModule
 import app.gyrolet.mpvrx.di.PreferencesModule
 import app.gyrolet.mpvrx.presentation.crash.CrashActivity
 import app.gyrolet.mpvrx.presentation.crash.GlobalExceptionHandler
+import app.gyrolet.mpvrx.utils.LocaleHelper
 import app.gyrolet.mpvrx.utils.media.MediaLibraryEvents
 import io.github.rosemoe.sora.langs.textmate.registry.FileProviderRegistry
 import io.github.rosemoe.sora.langs.textmate.registry.GrammarRegistry
@@ -24,8 +28,6 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.core.annotation.KoinExperimentalAPI
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
-import android.content.ComponentName
-import android.content.pm.PackageManager
 
 @OptIn(KoinExperimentalAPI::class)
 class App : Application() {
@@ -36,6 +38,14 @@ class App : Application() {
     private const val LAUNCH_SCAN_PREFS = "launch_media_scan"
     private const val LAST_LAUNCH_SCAN_MS = "last_launch_scan_ms"
     private const val LAUNCH_SCAN_INTERVAL_MS = 24L * 60L * 60L * 1000L
+  }
+
+  override fun attachBaseContext(newBase: Context?) {
+    if (newBase == null) {
+      super.attachBaseContext(null)
+      return
+    }
+    super.attachBaseContext(LocaleHelper.wrapContext(newBase))
   }
 
   override fun onCreate() {

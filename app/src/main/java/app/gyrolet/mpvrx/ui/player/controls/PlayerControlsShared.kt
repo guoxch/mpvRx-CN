@@ -51,6 +51,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.PlayerButton
 import app.gyrolet.mpvrx.preferences.PlayerClockFormat
@@ -222,7 +224,7 @@ fun RenderPlayerButton(
           ) {
             AppSymbolIcon(
               imageVector = Icons.Default.Speed,
-              contentDescription = "Playback Speed",
+              contentDescription = stringResource(R.string.cd_playback_speed),
               tint = MaterialTheme.colorScheme.primary,
               modifier = Modifier.size(20.dp),
             )
@@ -362,7 +364,7 @@ fun RenderPlayerButton(
                 Box(contentAlignment = Alignment.Center) {
                   AppSymbolIcon(
                     imageVector = Icons.Default.FastRewind,
-                    contentDescription = "Previous Frame",
+                    contentDescription = stringResource(R.string.cd_previous_frame),
                     tint = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp),
                   )
@@ -405,7 +407,7 @@ fun RenderPlayerButton(
                   Box(contentAlignment = Alignment.Center) {
                     AppSymbolIcon(
                       imageVector = Icons.Default.Aperture,
-                      contentDescription = "Take Screenshot",
+                      contentDescription = stringResource(R.string.cd_screenshot),
                       tint = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
                       modifier = Modifier.size(20.dp),
                     )
@@ -428,7 +430,7 @@ fun RenderPlayerButton(
                 Box(contentAlignment = Alignment.Center) {
                   AppSymbolIcon(
                     imageVector = Icons.Default.FastForward,
-                    contentDescription = "Next Frame",
+                    contentDescription = stringResource(R.string.cd_next_frame),
                     tint = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp),
                   )
@@ -488,7 +490,7 @@ fun RenderPlayerButton(
           ) {
             AppSymbolIcon(
               imageVector = Icons.Default.ZoomIn,
-              contentDescription = "Video Zoom",
+              contentDescription = stringResource(R.string.player_sheets_zoom_slider_label),
               tint = MaterialTheme.colorScheme.primary,
               modifier = Modifier.size(20.dp),
             )
@@ -687,7 +689,7 @@ fun RenderPlayerButton(
         Box(contentAlignment = Alignment.Center) {
           AppSymbolIcon(
             imageVector = Icons.Default.Flip,
-            contentDescription = "Vertical Flip",
+            contentDescription = stringResource(R.string.cd_vertical_flip),
             tint = vFlipColor,
             modifier = Modifier
               .padding(MaterialTheme.spacing.small)
@@ -765,7 +767,7 @@ fun RenderPlayerButton(
                 Box(contentAlignment = Alignment.Center) {
                   AppSymbolIcon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Clear Loop",
+                    contentDescription = stringResource(R.string.cd_clear_loop),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(16.dp),
                   )
@@ -861,7 +863,7 @@ fun RenderPlayerButton(
           Box(contentAlignment = Alignment.Center) {
             AppSymbolIcon(
               imageVector = if (isAmbientEnabled) Icons.Filled.BlurOn else Icons.Outlined.BlurOff,
-              contentDescription = "Ambience Mode",
+              contentDescription = stringResource(R.string.cd_ambience_mode),
               tint = if (isAmbientEnabled) MaterialTheme.colorScheme.primary else (if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface),
               modifier = Modifier.size(24.dp)
             )
@@ -906,7 +908,7 @@ fun RenderPlayerButton(
         ) {
           AppSymbolIcon(
             imageVector = Icons.Default.AccessTime,
-            contentDescription = "Time and Network",
+            contentDescription = stringResource(R.string.cd_time_network),
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(18.dp),
           )

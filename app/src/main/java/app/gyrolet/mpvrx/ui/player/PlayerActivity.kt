@@ -652,14 +652,14 @@ class PlayerActivity :
       return
     }
 
-    val originalConfiguration = newBase.resources.configuration
+    val localeContext = app.gyrolet.mpvrx.utils.LocaleHelper.wrapContext(newBase)
+    val originalConfiguration = localeContext.resources.configuration
     val contextToUse =
       if (originalConfiguration.fontScale == 1f) {
-        newBase
+        localeContext
       } else {
         val updatedConfiguration = Configuration(originalConfiguration).apply { fontScale = 1f }
-        val configurationContext = newBase.createConfigurationContext(updatedConfiguration)
-        configurationContext
+        localeContext.createConfigurationContext(updatedConfiguration)
       }
 
     super.attachBaseContext(contextToUse)

@@ -44,6 +44,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.utils.storage.StorageVolumeUtils
 import java.io.File
 
@@ -177,7 +179,7 @@ fun FilePickerDialog(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                   Column(modifier = Modifier.fillMaxWidth()) {
                       Text(
-                        text = "Select Subtitle",
+                        text = stringResource(R.string.dialog_file_picker_select_subtitle),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                       )
@@ -215,7 +217,7 @@ fun FilePickerDialog(
                   ) {
                       Column(modifier = Modifier.weight(1f)) {
                           Text(
-                            text = "Select Subtitle",
+                            text = stringResource(R.string.dialog_file_picker_select_subtitle),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                           )
@@ -271,7 +273,7 @@ fun FilePickerDialog(
                     }
                     if (storageVolumes.isEmpty()) {
                       item {
-                         Text("No storage devices found", modifier = Modifier.padding(16.dp))
+                         Text(stringResource(R.string.dialog_file_picker_no_storage), modifier = Modifier.padding(16.dp))
                       }
                     }
                   } else {
@@ -291,7 +293,7 @@ fun FilePickerDialog(
                     }
                     if (folders.isEmpty() && files.isEmpty()) {
                       item {
-                         Text("No folders or supported files", modifier = Modifier.padding(16.dp))
+                         Text(stringResource(R.string.dialog_file_picker_no_files), modifier = Modifier.padding(16.dp))
                       }
                     }
                   }
@@ -308,7 +310,7 @@ fun FilePickerDialog(
                     shape = MaterialTheme.shapes.extraLarge,
                     // Reduced padding for the button itself if needed, or rely on Row padding
                   ) {
-                    Text("Cancel", fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.generic_cancel), fontWeight = FontWeight.Medium)
                   }
               }
           }

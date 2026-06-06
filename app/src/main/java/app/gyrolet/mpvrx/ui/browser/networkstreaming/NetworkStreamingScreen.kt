@@ -386,6 +386,7 @@ private fun StreamLinkSection(
           ),
         )
         Spacer(modifier = Modifier.size(6.dp))
+        val playDescription = stringResource(app.gyrolet.mpvrx.R.string.browser_play_stream_description)
         Button(
           onClick = { playCurrentLink() },
           enabled = linkUrl.isNotBlank(),
@@ -395,7 +396,7 @@ private fun StreamLinkSection(
             containerColor = MaterialTheme.colorScheme.primary,
           ),
           modifier = Modifier.semantics {
-            contentDescription = stringResource(app.gyrolet.mpvrx.R.string.browser_play_stream_description)
+            contentDescription = playDescription
           },
         ) {
           Icon(

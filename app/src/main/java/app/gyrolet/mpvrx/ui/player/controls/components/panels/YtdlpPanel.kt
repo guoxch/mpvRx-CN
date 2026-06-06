@@ -399,7 +399,7 @@ fun YtdlpPanel(
             verticalAlignment = Alignment.CenterVertically
           ) {
             Text(
-              text = if (isRunning) stringResource(R.string.sheet_installing_updating_label) else stringResource(R.string.sheet_terminal_idle_label),
+              text = if (isRunning) stringResource(R.string.ytdlp_installing_updating_status) else stringResource(R.string.ytdlp_terminal_idle_status),
               style = MaterialTheme.typography.bodySmall,
               fontWeight = FontWeight.Bold,
               color = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant

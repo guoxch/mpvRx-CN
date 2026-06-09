@@ -46,9 +46,6 @@ import androidx.compose.ui.text.style.TextAlign
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.domain.thumbnail.ThumbnailRepository
-import app.gyrolet.mpvrx.preferences.AppearancePreferences
-import app.gyrolet.mpvrx.preferences.BrowserPreferences
-import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import androidx.compose.foundation.combinedClickable
 import app.gyrolet.mpvrx.ui.theme.AppShapeScale
 import kotlinx.coroutines.Dispatchers
@@ -92,33 +89,19 @@ fun VideoCard(
   useFolderNameStyle: Boolean = false,
   allowThumbnailGeneration: Boolean = true,
   uiConfig: VideoCardUiConfig? = null,
+  centerGridTitles: Boolean = false,
 ) {
-  val appearancePreferences = koinInject<AppearancePreferences>()
-  val browserPreferences = koinInject<BrowserPreferences>()
-  val resolvedUiConfig =
-    uiConfig ?: VideoCardUiConfig(
-      unlimitedNameLines = appearancePreferences.unlimitedNameLines.collectAsState().value,
-      showThumbnails = browserPreferences.showVideoThumbnails.collectAsState().value,
-      showSizeChip = browserPreferences.showSizeChip.collectAsState().value,
-      showResolutionChip = browserPreferences.showResolutionChip.collectAsState().value,
-      showFramerateInResolution = browserPreferences.showFramerateInResolution.collectAsState().value,
-      showProgressBar = browserPreferences.showProgressBar.collectAsState().value,
-      showDateChip = browserPreferences.showDateChip.collectAsState().value,
-      showUnplayedOldVideoLabel = appearancePreferences.showUnplayedOldVideoLabel.collectAsState().value,
-      unplayedOldVideoDays = appearancePreferences.unplayedOldVideoDays.collectAsState().value,
-      showExtensionField = browserPreferences.showExtensionField.collectAsState().value,
-      showDurationField = browserPreferences.showDurationField.collectAsState().value,
-    )
-  val maxLines = if (resolvedUiConfig.unlimitedNameLines) Int.MAX_VALUE else 2
+  val config = uiConfig!!
+  val maxLines = if (config.unlimitedNameLines) Int.MAX_VALUE else 2
 
-  val showThumbnails = resolvedUiConfig.showThumbnails
-  val showFramerateInResolution = resolvedUiConfig.showFramerateInResolution
-  val showProgressBar = resolvedUiConfig.showProgressBar
-  val showDateChip = resolvedUiConfig.showDateChip
-  val showUnplayedOldVideoLabel = resolvedUiConfig.showUnplayedOldVideoLabel
-  val unplayedOldVideoDays = resolvedUiConfig.unplayedOldVideoDays
-  val showDurationField = resolvedUiConfig.showDurationField
-  val displayName = if (resolvedUiConfig.showExtensionField) {
+  val showThumbnails = config.showThumbnails
+  val showFramerateInResolution = config.showFramerateInResolution
+  val showProgressBar = config.showProgressBar
+  val showDateChip = config.showDateChip
+  val showUnplayedOldVideoLabel = config.showUnplayedOldVideoLabel
+  val unplayedOldVideoDays = config.unplayedOldVideoDays
+  val showDurationField = config.showDurationField
+  val displayName = if (config.showExtensionField) {
     video.displayName
   } else {
     video.displayName.substringBeforeLast('.')
@@ -132,9 +115,8 @@ fun VideoCard(
       Color.Transparent
     }
 
-  // Use override parameters if provided, otherwise use preferences
-  val showSizeChip = overrideShowSizeChip ?: resolvedUiConfig.showSizeChip
-  val showResolutionChip = overrideShowResolutionChip ?: resolvedUiConfig.showResolutionChip
+  val showSizeChip = overrideShowSizeChip ?: config.showSizeChip
+  val showResolutionChip = overrideShowResolutionChip ?: config.showResolutionChip
 
   val cardShape = AppShapeScale.large
 
@@ -163,7 +145,6 @@ fun VideoCard(
       }
 
       if (isGridMode) {
-        val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
         val horizontalAlignment = if (gridColumns == 1) {
           Alignment.Start
         } else {
@@ -176,7 +157,7 @@ fun VideoCard(
             .padding(12.dp),
           horizontalAlignment = horizontalAlignment,
         ) {
-        val thumbnailRepository = koinInject<ThumbnailRepository>()
+        val thumbnailRepository: ThumbnailRepository = org.koin.compose.koinInject()
         val thumbWidthDp = 160.dp
         val aspect = 16f / 9f
         val thumbWidthPx = with(LocalDensity.current) { thumbWidthDp.roundToPx() }
@@ -200,9 +181,11 @@ fun VideoCard(
             }
         }
 
-        // Optional immediate generation (used on screens that don't run folder-wide sequential generation).
+        // Optional immediate generation with debounce for fast scrolling
         LaunchedEffect(thumbnailKey, allowThumbnailGeneration, showThumbnails) {
           if (thumbnail == null && showThumbnails) {
+            kotlinx.coroutines.delay(150)
+            if (!isActive) return@LaunchedEffect
             thumbnail =
               withContext(Dispatchers.IO) {
                 if (allowThumbnailGeneration) {
@@ -475,9 +458,11 @@ fun VideoCard(
             }
         }
 
-        // Optional immediate generation (used on screens that don't run folder-wide sequential generation).
+        // Optional immediate generation with debounce for fast scrolling
         LaunchedEffect(thumbnailKey, allowThumbnailGeneration, showThumbnails) {
           if (thumbnail == null && showThumbnails) {
+            kotlinx.coroutines.delay(150)
+            if (!isActive) return@LaunchedEffect
             thumbnail =
               withContext(Dispatchers.IO) {
                 if (allowThumbnailGeneration) {

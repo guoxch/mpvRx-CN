@@ -625,6 +625,7 @@ internal fun VideoListContent(
     )
   }
   val tapThumbnailToSelect by gesturePreferences.tapThumbnailToSelect.collectAsState()
+  val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
   val showSubtitleIndicator by browserPreferences.showSubtitleIndicator.collectAsState()
   val showVideoThumbnails by browserPreferences.showVideoThumbnails.collectAsState()
   val unlimitedNameLines by appearancePreferences.unlimitedNameLines.collectAsState()
@@ -744,14 +745,20 @@ internal fun VideoListContent(
           initialFirstVisibleItemScrollOffset = rememberedGridOffset.intValue
       )
       
-      LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
-          rememberedListIndex.intValue = listState.firstVisibleItemIndex
-          rememberedListOffset.intValue = listState.firstVisibleItemScrollOffset
+      LaunchedEffect(Unit) {
+          snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+              rememberedListIndex.intValue = index
+              rememberedListOffset.intValue = offset
+            }
       }
       
-      LaunchedEffect(gridState.firstVisibleItemIndex, gridState.firstVisibleItemScrollOffset) {
-          rememberedGridIndex.intValue = gridState.firstVisibleItemIndex
-          rememberedGridOffset.intValue = gridState.firstVisibleItemScrollOffset
+      LaunchedEffect(Unit) {
+          snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+              rememberedGridIndex.intValue = index
+              rememberedGridOffset.intValue = offset
+            }
       }
 
       val latestVideosWithInfo by rememberUpdatedState(videosWithInfo)
@@ -877,6 +884,7 @@ internal fun VideoListContent(
               items(
                 count = videosWithInfo.size,
                 key = { index -> "${videosWithInfo[index].video.id}_${videosWithInfo[index].video.path}" },
+                contentType = { _ -> "video_grid" },
               ) { index ->
                 val videoWithInfo = videosWithInfo[index]
                 val isRecentlyPlayed = recentlyPlayedFilePath?.let { videoWithInfo.video.path == it } ?: false
@@ -900,6 +908,7 @@ internal fun VideoListContent(
                   showSubtitleIndicator = showSubtitleIndicator,
                   allowThumbnailGeneration = false,
                   uiConfig = videoCardUiConfig,
+                  centerGridTitles = centerGridTitles,
                 )
               }
             }
@@ -937,6 +946,7 @@ internal fun VideoListContent(
               items(
                 count = videosWithInfo.size,
                 key = { index -> "${videosWithInfo[index].video.id}_${videosWithInfo[index].video.path}" },
+                contentType = { _ -> "video_list" },
               ) { index ->
                 val videoWithInfo = videosWithInfo[index]
                 val isRecentlyPlayed = recentlyPlayedFilePath?.let { videoWithInfo.video.path == it } ?: false
@@ -956,6 +966,7 @@ internal fun VideoListContent(
                     { onVideoClick(videoWithInfo.video) }
                   },
                   isGridMode = false,
+                  centerGridTitles = centerGridTitles,
                   showSubtitleIndicator = showSubtitleIndicator,
                   allowThumbnailGeneration = false,
                   uiConfig = videoCardUiConfig,

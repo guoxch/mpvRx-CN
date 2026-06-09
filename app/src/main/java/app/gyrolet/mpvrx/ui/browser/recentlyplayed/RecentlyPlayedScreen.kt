@@ -442,6 +442,7 @@ private fun RecentItemsContent(
   val thumbnailRepository = koinInject<ThumbnailRepository>()
   val density = LocalDensity.current
   val tapThumbnailToSelect by gesturePreferences.tapThumbnailToSelect.collectAsState()
+  val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
   val showSubtitleIndicator by browserPreferences.showSubtitleIndicator.collectAsState()
   val showVideoThumbnails by browserPreferences.showVideoThumbnails.collectAsState()
   val unlimitedNameLines by appearancePreferences.unlimitedNameLines.collectAsState()
@@ -575,6 +576,12 @@ private fun RecentItemsContent(
                 is RecentlyPlayedItem.PlaylistItem -> "playlist_${item.playlist.id}_${item.timestamp}"
               }
             },
+            contentType = { index ->
+              when (recentItems[index]) {
+                is RecentlyPlayedItem.VideoItem -> "video_grid"
+                is RecentlyPlayedItem.PlaylistItem -> "playlist_grid"
+              }
+            },
           ) { index ->
             when (val item = recentItems[index]) {
               is RecentlyPlayedItem.VideoItem -> {
@@ -603,6 +610,7 @@ private fun RecentItemsContent(
                   },
                   isGridMode = true,
                   gridColumns = videoGridColumns,
+                  centerGridTitles = centerGridTitles,
                   showSubtitleIndicator = showSubtitleIndicator,
                   uiConfig = videoCardUiConfig,
                 )
@@ -696,6 +704,12 @@ private fun RecentItemsContent(
                 is RecentlyPlayedItem.PlaylistItem -> "playlist_${item.playlist.id}_${item.timestamp}"
               }
             },
+            contentType = { index ->
+              when (recentItems[index]) {
+                is RecentlyPlayedItem.VideoItem -> "video_list"
+                is RecentlyPlayedItem.PlaylistItem -> "playlist_list"
+              }
+            },
           ) { index ->
             when (val item = recentItems[index]) {
               is RecentlyPlayedItem.VideoItem -> {
@@ -723,6 +737,7 @@ private fun RecentItemsContent(
                     }
                   },
                   isGridMode = false,
+                  centerGridTitles = centerGridTitles,
                   showSubtitleIndicator = showSubtitleIndicator,
                   uiConfig = videoCardUiConfig,
                 )

@@ -1313,6 +1313,7 @@ private fun FileSystemBrowserContent(
             items(
               items = items.filterIsInstance<FileSystemItem.Folder>(),
               key = { it.path },
+              contentType = { _ -> "folder" },
             ) { folder ->
               val folderModel = app.gyrolet.mpvrx.domain.media.model.VideoFolder(
                 bucketId = folder.path,
@@ -1344,6 +1345,7 @@ private fun FileSystemBrowserContent(
             items(
               items = items.filterIsInstance<FileSystemItem.VideoFile>(),
               key = { "${it.video.id}_${it.video.path}" },
+              contentType = { _ -> "video" },
             ) { videoFile ->
               VideoCard(
                 video = videoFile.video,
@@ -1544,7 +1546,8 @@ private fun FileSystemSearchContent(
             // Folders first
             items(
               items = folders,
-              key = { "search_folder_${it.path}_${it.hashCode()}" },
+              key = { "search_folder_${it.path}" },
+              contentType = { _ -> "search_folder" },
             ) { folder ->
               val folderModel = app.gyrolet.mpvrx.domain.media.model.VideoFolder(
                 bucketId = folder.path,
@@ -1571,7 +1574,8 @@ private fun FileSystemSearchContent(
             // Videos second
             items(
               items = videos,
-              key = { "search_video_${it.video.id}_${it.video.path}_${it.hashCode()}" },
+              key = { "search_video_${it.video.id}_${it.video.path}" },
+              contentType = { _ -> "search_video" },
             ) { videoFile ->
               VideoCard(
                 video = videoFile.video,

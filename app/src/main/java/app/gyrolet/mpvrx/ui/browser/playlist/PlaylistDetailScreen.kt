@@ -586,6 +586,7 @@ private fun PlaylistVideoListContent(
   val browserPreferences = koinInject<app.gyrolet.mpvrx.preferences.BrowserPreferences>()
   val appearancePreferences = koinInject<AppearancePreferences>()
   val tapThumbnailToSelect by gesturePreferences.tapThumbnailToSelect.collectAsState()
+  val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
   val showSubtitleIndicator by browserPreferences.showSubtitleIndicator.collectAsState()
   val unlimitedNameLines by appearancePreferences.unlimitedNameLines.collectAsState()
   val showVideoThumbnails by browserPreferences.showVideoThumbnails.collectAsState()
@@ -705,6 +706,7 @@ private fun PlaylistVideoListContent(
           items(
             count = videoItems.size,
             key = { index -> videoItems[index].playlistItem.id },
+            contentType = { "playlist_video" },
           ) { index ->
             ReorderableItem(reorderableLazyListState, key = videoItems[index].playlistItem.id) {
               val item = videoItems[index]
@@ -747,6 +749,7 @@ private fun PlaylistVideoListContent(
                     } else {
                       { onVideoItemClick(item) }
                     },
+                    centerGridTitles = centerGridTitles,
                     showSubtitleIndicator = showSubtitleIndicator,
                     modifier = Modifier.weight(1f),
                     uiConfig = videoCardUiConfig,

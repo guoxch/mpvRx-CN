@@ -1143,6 +1143,7 @@ private fun SearchResultsContent(
   val showProgressBar by browserPreferences.showProgressBar.collectAsState()
   val showDateChip by browserPreferences.showDateChip.collectAsState()
   val showSubtitleIndicator by browserPreferences.showSubtitleIndicator.collectAsState()
+  val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
   val unlimitedNameLines by appearancePreferences.unlimitedNameLines.collectAsState()
   val showUnplayedOldVideoLabel by appearancePreferences.showUnplayedOldVideoLabel.collectAsState()
   val unplayedOldVideoDays by appearancePreferences.unplayedOldVideoDays.collectAsState()
@@ -1193,7 +1194,7 @@ private fun SearchResultsContent(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
       ) {
-        items(count = folders.size, key = { index -> folders[index].bucketId }) { index ->
+        items(count = folders.size, key = { index -> folders[index].bucketId }, contentType = { _ -> "folder_grid" }) { index ->
           val folder = folders[index]
           FolderCard(
             folder = folder,
@@ -1207,7 +1208,7 @@ private fun SearchResultsContent(
           )
         }
         
-        items(count = videos.size, key = { index -> videos[index].id }) { index ->
+        items(count = videos.size, key = { index -> videos[index].id }, contentType = { _ -> "video_grid" }) { index ->
           val video = videos[index]
           VideoCard(
             video = video,
@@ -1216,6 +1217,7 @@ private fun SearchResultsContent(
             onLongClick = {},
             onThumbClick = { onVideoClick(video) },
             isGridMode = true,
+            centerGridTitles = centerGridTitles,
             showSubtitleIndicator = showSubtitleIndicator,
             uiConfig = videoCardUiConfig,
           )
@@ -1231,7 +1233,7 @@ private fun SearchResultsContent(
           bottom = navigationBarHeight + 8.dp
         ),
       ) {
-        items(count = folders.size, key = { index -> folders[index].bucketId }) { index ->
+        items(count = folders.size, key = { index -> folders[index].bucketId }, contentType = { _ -> "folder_list" }) { index ->
           val folder = folders[index]
           FolderCard(
             folder = folder,
@@ -1245,7 +1247,7 @@ private fun SearchResultsContent(
           )
         }
         
-        items(count = videos.size, key = { index -> videos[index].id }) { index ->
+        items(count = videos.size, key = { index -> videos[index].id }, contentType = { _ -> "video_list" }) { index ->
           val video = videos[index]
           VideoCard(
             video = video,
@@ -1254,6 +1256,7 @@ private fun SearchResultsContent(
             onLongClick = {},
             onThumbClick = { onVideoClick(video) },
             isGridMode = false,
+            centerGridTitles = centerGridTitles,
             showSubtitleIndicator = showSubtitleIndicator,
             uiConfig = videoCardUiConfig,
           )

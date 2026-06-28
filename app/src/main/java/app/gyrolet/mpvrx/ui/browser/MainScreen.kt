@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.presentation.Screen
+import app.gyrolet.mpvrx.ui.browser.anime.AnimeScreen
 import app.gyrolet.mpvrx.ui.browser.folderlist.FolderListScreen
 import app.gyrolet.mpvrx.ui.browser.networkstreaming.NetworkStreamingScreen
 import app.gyrolet.mpvrx.ui.browser.playlist.PlaylistScreen
@@ -60,6 +61,7 @@ object MainScreen : Screen {
     RECENTS,
     PLAYLISTS,
     NETWORK,
+    ANIME,
   }
 
   // Use a companion object to store state more persistently
@@ -115,6 +117,7 @@ object MainScreen : Screen {
     val showRecentsTab by appearancePreferences.showRecentsTab.collectAsState()
     val showPlaylistsTab by appearancePreferences.showPlaylistsTab.collectAsState()
     val showNetworkTab by appearancePreferences.showNetworkTab.collectAsState()
+    val showAnimeTab by appearancePreferences.showAnimeTab.collectAsState()
     val hideNavigationBar = NavigationBarState.shouldHideNavigationBar
     val isPermissionDenied = NavigationBarState.isPermissionDenied
     
@@ -123,12 +126,14 @@ object MainScreen : Screen {
       showRecentsTab,
       showPlaylistsTab,
       showNetworkTab,
+      showAnimeTab,
     ) {
       buildList {
         if (showHomeTab) add(MainTab.HOME)
         if (showRecentsTab) add(MainTab.RECENTS)
         if (showPlaylistsTab) add(MainTab.PLAYLISTS)
         if (showNetworkTab) add(MainTab.NETWORK)
+        if (showAnimeTab) add(MainTab.ANIME)
       }
     }
     
@@ -179,6 +184,7 @@ object MainScreen : Screen {
                     MainTab.RECENTS -> Icon(Icons.Filled.History, contentDescription = "Recents")
                     MainTab.PLAYLISTS -> Icon(Icons.Filled.PlaylistPlay, contentDescription = "Playlists")
                     MainTab.NETWORK -> Icon(Icons.Filled.BringYourOwnIp, contentDescription = "Network")
+                    MainTab.ANIME -> Icon(Icons.Filled.Movie, contentDescription = "Anime")
                   }
                 },
                 label = {
@@ -188,6 +194,7 @@ object MainScreen : Screen {
                       MainTab.RECENTS -> "Recents"
                       MainTab.PLAYLISTS -> "Playlists"
                       MainTab.NETWORK -> "Network"
+                      MainTab.ANIME -> "Anime"
                     }
                   )
                 },
@@ -225,6 +232,7 @@ object MainScreen : Screen {
               MainTab.RECENTS -> RecentlyPlayedScreen.Content()
               MainTab.PLAYLISTS -> PlaylistScreen.Content()
               MainTab.NETWORK -> NetworkStreamingScreen.Content()
+              MainTab.ANIME -> AnimeScreen.Content()
             }
           }
         }

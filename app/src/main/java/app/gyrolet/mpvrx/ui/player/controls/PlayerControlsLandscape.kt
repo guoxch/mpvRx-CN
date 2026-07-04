@@ -4,6 +4,8 @@ import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -39,6 +41,7 @@ import app.gyrolet.mpvrx.ui.theme.controlColor
 import app.gyrolet.mpvrx.ui.theme.spacing
 import dev.vivvvek.seeker.Segment
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TopLeftPlayerControlsLandscape(
   mediaTitle: String?,
@@ -124,9 +127,9 @@ fun TopLeftPlayerControlsLandscape(
               Text(
                 mediaTitle ?: "",
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Visible,
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.weight(1f, fill = false).basicMarquee(),
               )
               viewModel.getPlaylistInfo()?.let { playlistInfo ->
                 Text(

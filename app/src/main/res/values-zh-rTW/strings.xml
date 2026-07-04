@@ -98,6 +98,42 @@
   <string name="settings_search_hint">搜尋設定…</string>
   <string name="settings_search_no_results">未找到相關設定</string>
   <string name="settings_search_title">搜尋</string>
+  <!-- Search hints -->
+  <string name="search_hint_folders_videos">搜尋資料夾和影片…</string>
+  <string name="search_hint_videos">搜尋影片…</string>
+  <string name="search_hint_playlists">搜尋播放清單…</string>
+  <string name="search_hint_stream_url">輸入串流網址</string>
+  <string name="search_no_results_title">未找到結果</string>
+  <string name="search_no_results_message">沒有找到符合的資料夾或影片</string>
+  <!-- Bottom navigation tab labels -->
+  <string name="nav_tab_home">首頁</string>
+  <string name="nav_tab_recents">最近</string>
+  <string name="nav_tab_playlists">播放清單</string>
+  <string name="nav_tab_network">網路</string>
+  <!-- Content descriptions for navigation icons -->
+  <string name="nav_icon_home">首頁</string>
+  <string name="nav_icon_recents">最近播放</string>
+  <string name="nav_icon_playlists">播放清單</string>
+  <string name="nav_icon_network">網路</string>
+  <string name="nav_icon_search">搜尋</string>
+  <!-- Common strings -->
+  <string name="common_browse">瀏覽</string>
+  <string name="common_select">選取</string>
+  <string name="common_done">完成</string>
+  <string name="common_cancel">取消</string>
+  <string name="common_close">關閉</string>
+  <string name="common_save_to">儲存到</string>
+  <string name="common_playlist_name">播放清單名稱</string>
+  <string name="common_toggle_menu">切換選單</string>
+  <string name="common_open_file">開啟檔案</string>
+  <string name="common_recently_played">最近播放</string>
+  <string name="common_open_link">開啟連結</string>
+  <!-- Network strings -->
+  <string name="network_stream_link">串流連結</string>
+  <string name="network_enter_url">輸入串流位址…</string>
+  <!-- Empty states -->
+  <string name="no_playlists_title">未找到播放清單</string>
+  <string name="no_playlists_message">還沒有播放清單</string>
   <!-- Player Preferences Hardcoded -->
   <string name="pref_autoplay_title">啟用上一個/下一個導覽</string>
   <string name="pref_autoplay_summary">為資料夾中的所有影片顯示上一個/下一個按鈕</string>

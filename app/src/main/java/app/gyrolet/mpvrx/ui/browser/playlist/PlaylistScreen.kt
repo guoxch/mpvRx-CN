@@ -2,6 +2,7 @@ package app.gyrolet.mpvrx.ui.browser.playlist
 
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import androidx.compose.ui.res.stringResource
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
@@ -183,11 +184,11 @@ object PlaylistScreen : Screen {
                   onSearch = { },
                   expanded = false,
                   onExpandedChange = { },
-                  placeholder = { Text("Search playlists...") },
+                  placeholder = { Text(stringResource(app.gyrolet.mpvrx.R.string.search_hint_playlists)) },
                   leadingIcon = {
                     Icon(
                       imageVector = Icons.Filled.Search,
-                      contentDescription = "Search",
+                      contentDescription = stringResource(app.gyrolet.mpvrx.R.string.nav_icon_search),
                     )
                   },
                   trailingIcon = {
@@ -199,7 +200,7 @@ object PlaylistScreen : Screen {
                     ) {
                       Icon(
                         imageVector = Icons.Filled.Close,
-                        contentDescription = "Cancel",
+                        contentDescription = stringResource(app.gyrolet.mpvrx.R.string.generic_cancel),
                       )
                     }
                   },
@@ -218,7 +219,7 @@ object PlaylistScreen : Screen {
             }
           } else {
             BrowserTopBar(
-              title = "Playlists",
+              title = stringResource(app.gyrolet.mpvrx.R.string.nav_tab_playlists),
               isInSelectionMode = selectionManager.isInSelectionMode,
               selectedCount = selectionManager.selectedCount,
               totalCount = playlistsWithCount.size,
@@ -261,8 +262,8 @@ object PlaylistScreen : Screen {
           ) {
             EmptyState(
               icon = Icons.Filled.Search,
-              title = "No playlists found",
-              message = "Try a different search term",
+              title = stringResource(app.gyrolet.mpvrx.R.string.no_playlists_title),
+              message = stringResource(app.gyrolet.mpvrx.R.string.search_hint_videos),
             )
           }
         } else if (playlistsWithCount.isEmpty() && hasCompletedInitialLoad) {
@@ -278,8 +279,8 @@ object PlaylistScreen : Screen {
             ) {
               EmptyState(
                 icon = Icons.Outlined.PlaylistAdd,
-                title = "No playlists yet",
-                message = "Create a playlist or add one from an m3u URL",
+                title = stringResource(app.gyrolet.mpvrx.R.string.no_playlists_message),
+                message = stringResource(app.gyrolet.mpvrx.R.string.no_playlists_title),
               )
             }
           }

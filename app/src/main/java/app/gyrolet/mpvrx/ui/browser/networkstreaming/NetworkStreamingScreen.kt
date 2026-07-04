@@ -2,6 +2,7 @@ package app.gyrolet.mpvrx.ui.browser.networkstreaming
 
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -112,7 +113,7 @@ object NetworkStreamingScreen : Screen {
     Scaffold(
         topBar = {
           BrowserTopBar(
-            title = "Network",
+            title = stringResource(app.gyrolet.mpvrx.R.string.nav_tab_network),
             isInSelectionMode = false,
             selectedCount = 0,
             totalCount = 0,
@@ -312,7 +313,7 @@ private fun StreamLinkSection(
     modifier = Modifier.fillMaxWidth(),
   ) {
     Text(
-      text = "Stream Link",
+      text = stringResource(app.gyrolet.mpvrx.R.string.network_stream_link),
       style = MaterialTheme.typography.titleLarge,
       fontWeight = FontWeight.Bold,
       color = MaterialTheme.colorScheme.primary,
@@ -337,7 +338,7 @@ private fun StreamLinkSection(
           modifier = Modifier.weight(1f),
           placeholder = {
             Text(
-              text = "Enter stream URL…",
+              text = stringResource(app.gyrolet.mpvrx.R.string.network_enter_url),
               color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             )
           },

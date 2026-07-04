@@ -247,6 +247,39 @@
   <string name="pref_audio_summary">首选语言、音轨、音调校正</string>
   <string name="pref_audio_pitch_correction_title">启用音频音调校正</string>
   <string name="pref_audio_pitch_correction_summary">防止音频在快进时变高、慢放时变低</string>
+  <!-- Search hints -->
+  <string name="search_hint_folders_videos">搜索文件夹和视频…</string>
+  <string name="search_hint_videos">搜索视频…</string>
+  <string name="search_hint_playlists">搜索播放列表…</string>
+  <string name="search_hint_stream_url">输入流媒体地址</string>
+  <string name="common_browse">浏览</string>
+  <string name="common_select">选择</string>
+  <string name="common_done">完成</string>
+  <string name="common_cancel">取消</string>
+  <string name="common_close">关闭</string>
+  <string name="common_save_to">保存到</string>
+  <string name="common_playlist_name">播放列表名称</string>
+  <string name="common_toggle_menu">切换菜单</string>
+  <string name="common_open_file">打开文件</string>
+  <string name="common_recently_played">最近播放</string>
+  <string name="common_open_link">打开链接</string>
+  <string name="nav_icon_search">搜索</string>
+  <string name="search_no_results_title">未找到结果</string>
+  <string name="search_no_results_message">没有找到匹配的文件夹或视频</string>
+  <string name="no_playlists_title">未找到播放列表</string>
+  <string name="no_playlists_message">还没有播放列表</string>
+  <string name="network_stream_link">流媒体链接</string>
+  <string name="network_enter_url">输入流媒体地址…</string>
+  <!-- Bottom navigation tab labels -->
+  <string name="nav_tab_home">首页</string>
+  <string name="nav_tab_recents">最近</string>
+  <string name="nav_tab_playlists">播放列表</string>
+  <string name="nav_tab_network">网络</string>
+  <!-- Content descriptions for navigation icons -->
+  <string name="nav_icon_home">首页</string>
+  <string name="nav_icon_recents">最近播放</string>
+  <string name="nav_icon_playlists">播放列表</string>
+  <string name="nav_icon_network">网络</string>
   <string name="pref_audio_volume_normalization_title">音量归一化</string>
   <string name="pref_audio_volume_normalization_summary">自动调整音量以保持一致的响度水平</string>
   <string name="pref_audio_channels">音轨</string>

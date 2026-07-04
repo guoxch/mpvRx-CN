@@ -2,6 +2,7 @@ package app.gyrolet.mpvrx.ui.browser.recentlyplayed
 
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import androidx.compose.ui.res.stringResource
 
 import android.content.Intent
 import android.widget.Toast
@@ -188,7 +189,7 @@ object RecentlyPlayedScreen : Screen {
     Scaffold(
         topBar = {
           BrowserTopBar(
-            title = "Recently Played",
+            title = stringResource(app.gyrolet.mpvrx.R.string.nav_tab_recents),
             isInSelectionMode = selectionManager.isInSelectionMode,
             selectedCount = selectionManager.selectedCount,
             totalCount = recentItems.size,
@@ -222,7 +223,7 @@ object RecentlyPlayedScreen : Screen {
                   TooltipAnchorPosition.Above
                 }
               ),
-              tooltip = { PlainTooltip { Text("Toggle menu") } },
+              tooltip = { PlainTooltip { Text(stringResource(app.gyrolet.mpvrx.R.string.common_toggle_menu)) } },
               state = rememberTooltipState(),
             ) {
               ToggleFloatingActionButton(
@@ -254,7 +255,7 @@ object RecentlyPlayedScreen : Screen {
               filePicker.launch(arrayOf("video/*"))
             },
             icon = { Icon(Icons.Filled.FileOpen, contentDescription = null) },
-            text = { Text(text = "Open File") },
+            text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.common_open_file)) },
           )
 
           FloatingActionButtonMenuItem(
@@ -274,7 +275,7 @@ object RecentlyPlayedScreen : Screen {
               }
             },
             icon = { Icon(Icons.Filled.History, contentDescription = null) },
-            text = { Text(text = "Recently Played") },
+            text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.nav_tab_recents)) },
           )
 
           FloatingActionButtonMenuItem(
@@ -283,7 +284,7 @@ object RecentlyPlayedScreen : Screen {
               showLinkDialog.value = true
             },
             icon = { Icon(Icons.Filled.Link, contentDescription = null) },
-            text = { Text(text = "Open Link") },
+            text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.common_open_link)) },
           )
         }
       },

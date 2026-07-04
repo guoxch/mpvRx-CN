@@ -247,6 +247,39 @@
   <string name="pref_audio_summary">Preferred languages, audio channels, pitch correction</string>
   <string name="pref_audio_pitch_correction_title">Enable audio pitch correction</string>
   <string name="pref_audio_pitch_correction_summary">Prevents the audio from becoming high-pitched at faster speeds and low-pitched at slower speeds</string>
+  <!-- Search hints -->
+  <string name="search_hint_folders_videos">Search folders and videos…</string>
+  <string name="search_hint_videos">Search videos…</string>
+  <string name="search_hint_playlists">Search playlists…</string>
+  <string name="search_hint_stream_url">Enter stream URL</string>
+  <string name="common_browse">Browse</string>
+  <string name="common_select">Select</string>
+  <string name="common_done">Done</string>
+  <string name="common_cancel">Cancel</string>
+  <string name="common_close">Close</string>
+  <string name="common_save_to">Save to</string>
+  <string name="common_playlist_name">Playlist Name</string>
+  <string name="common_toggle_menu">Toggle menu</string>
+  <string name="common_open_file">Open File</string>
+  <string name="common_recently_played">Recently Played</string>
+  <string name="common_open_link">Open Link</string>
+  <string name="nav_icon_search">Search</string>
+  <string name="search_no_results_title">No results found</string>
+  <string name="search_no_results_message">No folders or videos match your search query</string>
+  <string name="no_playlists_title">No playlists found</string>
+  <string name="no_playlists_message">No playlists yet</string>
+  <string name="network_stream_link">Stream Link</string>
+  <string name="network_enter_url">Enter stream URL…</string>
+  <!-- Bottom navigation tab labels -->
+  <string name="nav_tab_home">Home</string>
+  <string name="nav_tab_recents">Recents</string>
+  <string name="nav_tab_playlists">Playlists</string>
+  <string name="nav_tab_network">Network</string>
+  <!-- Content descriptions for navigation icons -->
+  <string name="nav_icon_home">Home</string>
+  <string name="nav_icon_recents">Recents</string>
+  <string name="nav_icon_playlists">Playlists</string>
+  <string name="nav_icon_network">Network</string>
   <string name="pref_audio_volume_normalization_title">Volume normalization</string>
   <string name="pref_audio_volume_normalization_summary">Automatically adjust audio volume to maintain consistent loudness levels</string>
   <string name="pref_audio_channels">Audio channels</string>

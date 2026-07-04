@@ -1672,6 +1672,8 @@ fun PlayerControls(
       onDismissRequest = { onOpenPanel(Panels.None) },
     )
 
+    val activity = LocalActivity.current as PlayerActivity
+
     // Delete video confirmation dialog
     if (activity.showDeleteDialog) {
       ConfirmDialog(

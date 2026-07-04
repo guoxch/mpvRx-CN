@@ -56,7 +56,6 @@
   <string name="sort_order_asc">升序</string>
   <string name="sort_order_desc">降序</string>
   <string name="sort_by_label">排序方式</string>
-  <string name="sort_fields_label">显示字段</string>
   <string name="sort_collapse">收起</string>
   <string name="sort_expand">展开</string>
   <string name="sort_grid_columns_label">网格列数</string>

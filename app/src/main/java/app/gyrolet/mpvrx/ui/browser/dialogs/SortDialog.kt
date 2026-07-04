@@ -69,7 +69,7 @@ fun SortDialog(
   onSortOrderChange: (Boolean) -> Unit,
   types: List<String>,
   icons: List<AppIcon>,
-  getLabelForType: (String, Boolean) -> Pair<String, String>,
+  getLabelForType: @Composable (String, Boolean) -> Pair<String, String>,
   modifier: Modifier = Modifier,
   visibilityToggles: List<VisibilityToggle> = emptyList(),
   viewModeSelector: MultiViewModeSelector? = null,

@@ -56,7 +56,6 @@
   <string name="sort_order_asc">Asc</string>
   <string name="sort_order_desc">Desc</string>
   <string name="sort_by_label">Sort by</string>
-  <string name="sort_fields_label">Fields</string>
   <string name="sort_collapse">Collapse</string>
   <string name="sort_expand">Expand</string>
   <string name="sort_grid_columns_label">Grid Columns</string>

@@ -56,7 +56,6 @@
   <string name="sort_order_asc">遞增</string>
   <string name="sort_order_desc">遞減</string>
   <string name="sort_by_label">排序方式</string>
-  <string name="sort_fields_label">顯示欄位</string>
   <string name="sort_collapse">收合</string>
   <string name="sort_expand">展開</string>
   <string name="sort_grid_columns_label">格狀欄數</string>

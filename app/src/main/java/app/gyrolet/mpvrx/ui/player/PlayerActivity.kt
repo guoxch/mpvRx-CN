@@ -373,7 +373,7 @@ class PlayerActivity :
 
         // Play next video or finish
         if (playlist.isNotEmpty() && playlistIndex >= 0 && playlistIndex < playlist.size) {
-          playVideoAtIndex(playlistIndex)
+          loadPlaylistItem(playlistIndex)
         } else {
           isUserFinishing = true
           finish()

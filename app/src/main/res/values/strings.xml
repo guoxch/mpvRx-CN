@@ -5,6 +5,9 @@
   <string name="generic_confirm">Confirm</string>
   <string name="generic_cancel">Cancel</string>
   <string name="generic_ok">OK</string>
+  <string name="generic_error">Error</string>
+  <string name="player_delete_video_title">Delete Video</string>
+  <string name="player_delete_video_message">Are you sure you want to delete this video file? This action cannot be undone.</string>
   <string name="generic_unit_ms">ms</string>
   <string name="generic_disabled">Disabled</string>
   <string name="pref_preferences">Preferences</string>

@@ -324,6 +324,71 @@ class PlayerActivity :
   private var currentPlayableUri: String? = null // Store current URI for notification re-entry
   private val playbackRenderDispatcher = Dispatchers.Main
 
+  // ==================== Delete Video Dialog ====================
+  internal var showDeleteDialog by mutableStateOf(false)
+
+  fun showDeleteConfirmDialog() {
+    showDeleteDialog = true
+  }
+
+  fun deleteCurrentVideo() {
+    val currentUri = if (playlist.isNotEmpty() && playlistIndex >= 0 && playlistIndex < playlist.size) {
+      playlist[playlistIndex]
+    } else {
+      null
+    }
+
+    if (currentUri == null) {
+      Toast.makeText(this, getString(R.string.generic_error), Toast.LENGTH_SHORT).show()
+      return
+    }
+
+    val path = currentUri.path
+    if (path == null || !path.startsWith("/")) {
+      Toast.makeText(this, "Cannot delete network or content URIs", Toast.LENGTH_SHORT).show()
+      return
+    }
+
+    val file = java.io.File(path)
+    if (!file.exists() || !file.canWrite()) {
+      Toast.makeText(this, "File not found or cannot be deleted", Toast.LENGTH_SHORT).show()
+      return
+    }
+
+    try {
+      // Stop playback first
+      MPVLib.command("stop")
+
+      // Delete the file
+      if (file.delete()) {
+        // Remove from playlist if applicable
+        if (playlist.isNotEmpty() && playlistIndex >= 0 && playlistIndex < playlist.size) {
+          playlist = playlist.toMutableList().apply { removeAt(playlistIndex) }
+          if (playlistIndex >= playlist.size && playlist.isNotEmpty()) {
+            playlistIndex = playlist.size - 1
+          }
+        }
+
+        Toast.makeText(this, "Video deleted: ${file.name}", Toast.LENGTH_SHORT).show()
+
+        // Play next video or finish
+        if (playlist.isNotEmpty() && playlistIndex >= 0 && playlistIndex < playlist.size) {
+          playVideoAtIndex(playlistIndex)
+        } else {
+          isUserFinishing = true
+          finish()
+        }
+      } else {
+        Toast.makeText(this, "Failed to delete file", Toast.LENGTH_SHORT).show()
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error deleting video: ${e.message}", e)
+      Toast.makeText(this, "Error deleting file: ${e.message}", Toast.LENGTH_SHORT).show()
+    }
+
+    showDeleteDialog = false
+  }
+
   // ==================== Background Playback ====================
 
   /**

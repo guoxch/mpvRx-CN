@@ -923,6 +923,15 @@ fun RenderPlayerButton(
       }
     }
 
+    PlayerButton.DELETE_VIDEO -> {
+      ControlsButton(
+        Icons.Default.Delete,
+        onClick = { activity.showDeleteConfirmDialog() },
+        color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.size(buttonSize),
+      )
+    }
+
     PlayerButton.NONE -> { /* Do nothing */
     }
   }

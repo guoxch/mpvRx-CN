@@ -148,6 +148,7 @@ import app.gyrolet.mpvrx.ui.player.controls.components.sheets.toFixed
 import app.gyrolet.mpvrx.ui.theme.controlColor
 import app.gyrolet.mpvrx.ui.theme.playerRippleConfiguration
 import app.gyrolet.mpvrx.ui.theme.spacing
+import app.gyrolet.mpvrx.presentation.components.ConfirmDialog
 import `is`.xyz.mpv.MPVLib
 import `is`.xyz.mpv.Utils
 import dev.vivvvek.seeker.Segment
@@ -1670,6 +1671,16 @@ fun PlayerControls(
       viewModel = viewModel,
       onDismissRequest = { onOpenPanel(Panels.None) },
     )
+
+    // Delete video confirmation dialog
+    if (activity.showDeleteDialog) {
+      ConfirmDialog(
+        title = stringResource(R.string.player_delete_video_title),
+        subtitle = stringResource(R.string.player_delete_video_message),
+        onConfirm = { activity.deleteCurrentVideo() },
+        onCancel = { activity.showDeleteDialog = false },
+      )
+    }
   }
 }
 

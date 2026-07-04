@@ -5,6 +5,9 @@
   <string name="generic_confirm">确认</string>
   <string name="generic_cancel">取消</string>
   <string name="generic_ok">确定</string>
+  <string name="generic_error">错误</string>
+  <string name="player_delete_video_title">删除视频</string>
+  <string name="player_delete_video_message">确定要删除此视频文件吗？此操作无法撤销。</string>
   <string name="generic_unit_ms">毫秒</string>
   <string name="generic_disabled">已禁用</string>
   <string name="pref_preferences">偏好设置</string>

@@ -37,6 +37,8 @@ import app.gyrolet.mpvrx.repository.subtitle.OnlineSubtitleSearchRequest
 import app.gyrolet.mpvrx.repository.subtitle.OnlineSubtitleSearchMode
 import app.gyrolet.mpvrx.repository.ai.SubtitleGenerationService
 import app.gyrolet.mpvrx.repository.wyzie.WyzieSearchRepository
+import app.gyrolet.mpvrx.domain.media.model.Video
+import app.gyrolet.mpvrx.utils.permission.PermissionUtils
 import app.gyrolet.mpvrx.utils.media.ChecksumUtils
 import app.gyrolet.mpvrx.utils.media.MediaInfoParser
 import app.gyrolet.mpvrx.utils.media.ParsedMediaInfo
@@ -4664,6 +4666,47 @@ class PlayerViewModel(
       }
 
     return AmbientShaderBuilder.build(spec)
+  }
+
+  // ==================== Video Deletion ====================
+
+  fun deleteCurrentVideo() {
+    val activity = host as? PlayerActivity ?: return
+    val currentUri = activity.getCurrentPlayableUriForLookup() ?: return
+    val uri = Uri.parse(currentUri)
+
+    val video = Video(
+      id = 0,
+      title = "",
+      displayName = activity.getPlaylistItemTitle(uri),
+      path = currentUri,
+      uri = uri,
+      duration = 0,
+      durationFormatted = "",
+      size = 0,
+      sizeFormatted = "",
+      dateModified = 0,
+      dateAdded = 0,
+      mimeType = "",
+      bucketId = "",
+      bucketDisplayName = "",
+      width = 0,
+      height = 0,
+      fps = 0f,
+      resolution = "",
+    )
+
+    viewModelScope.launch(Dispatchers.IO) {
+      val (deleted, failed) = PermissionUtils.StorageOps.deleteVideos(activity, listOf(video))
+
+      launch(Dispatchers.Main) {
+        if (deleted > 0) {
+          activity.deleteCurrentVideoAndPlayNext()
+        } else {
+          showToast("Failed to delete video")
+        }
+      }
+    }
   }
 
   // ==================== Utility ====================

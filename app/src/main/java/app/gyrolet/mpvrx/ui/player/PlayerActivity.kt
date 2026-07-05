@@ -4466,6 +4466,40 @@ class PlayerActivity :
   }
 
   /**
+   * Delete current video from playlist and play next
+   */
+  fun deleteCurrentVideoAndPlayNext() {
+    if (playlist.isEmpty()) {
+      finish()
+      return
+    }
+
+    val currentIndex = playlistIndex
+    playlist = playlist.toMutableList().apply {
+      removeAt(currentIndex)
+    }
+
+    if (playlist.isEmpty()) {
+      finish()
+      return
+    }
+
+    if (viewModel.shuffleEnabled.value) {
+      shuffledIndices = shuffledIndices.filter { it != currentIndex }.map {
+        if (it > currentIndex) it - 1 else it
+      }
+      if (shuffledPosition >= shuffledIndices.size) {
+        shuffledPosition = shuffledIndices.size - 1
+      }
+      playlistIndex = shuffledIndices.getOrElse(shuffledPosition) { 0 }
+      loadPlaylistItem(playlistIndex)
+    } else {
+      playlistIndex = currentIndex.coerceAtMost(playlist.lastIndex)
+      loadPlaylistItem(playlistIndex)
+    }
+  }
+
+  /**
    * Play the previous video in the playlist
    */
   fun playPrevious() {

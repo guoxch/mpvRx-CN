@@ -300,6 +300,7 @@ report it in the [Issues](https://github.com/Riteshp2001/mpvRx/issues).
 
 ```powershell
 ./gradlew.bat assembleRelease
+./gradlew.bat assembleRelease -PenableX86=false -PsingleAbi=arm64-v8a
 ```
 
 ### Release Variants

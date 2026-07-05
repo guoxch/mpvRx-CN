@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 val enableX86 = project.findProperty("enableX86") != "false"
 val x86Abis = if (enableX86) listOf("x86", "x86_64") else emptyList()
+val singleAbi = project.findProperty("singleAbi")?.toString()
 
 plugins {
   alias(libs.plugins.android.application)
@@ -63,9 +64,13 @@ android {
     abi {
       isEnable = true
       reset()
-      include("armeabi-v7a", "arm64-v8a")
-      if (enableX86) {
-        include("x86", "x86_64")
+      if (singleAbi != null) {
+        include(singleAbi!!)
+      } else {
+        include("armeabi-v7a", "arm64-v8a")
+        if (enableX86) {
+          include("x86", "x86_64")
+        }
       }
       isUniversalApk = true
     }

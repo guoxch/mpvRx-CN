@@ -340,18 +340,14 @@ class PlayerActivity :
 
     if (currentUri == null) {
       Toast.makeText(this, getString(R.string.generic_error), Toast.LENGTH_SHORT).show()
+      showDeleteDialog = false
       return
     }
 
-    val path = currentUri.path
-    if (path == null || !path.startsWith("/")) {
-      Toast.makeText(this, "Cannot delete network or content URIs", Toast.LENGTH_SHORT).show()
-      return
-    }
-
-    val file = java.io.File(path)
-    if (!file.exists() || !file.canWrite()) {
-      Toast.makeText(this, "File not found or cannot be deleted", Toast.LENGTH_SHORT).show()
+    // Reject network/content URIs that can't be deleted
+    if (currentUri.scheme != "file" && currentUri.scheme != "content") {
+      Toast.makeText(this, getString(R.string.player_delete_unsupported_uri), Toast.LENGTH_SHORT).show()
+      showDeleteDialog = false
       return
     }
 
@@ -359,8 +355,32 @@ class PlayerActivity :
       // Stop playback first
       MPVLib.command("stop")
 
-      // Delete the file
-      if (file.delete()) {
+      var deleted = false
+      val fileName = getFileNameFromUri(currentUri)
+
+      if (currentUri.scheme == "file") {
+        // File URI: use java.io.File
+        val file = java.io.File(currentUri.path!!)
+        if (file.exists()) {
+          deleted = file.delete()
+        } else {
+          Toast.makeText(this, getString(R.string.player_delete_file_not_found), Toast.LENGTH_SHORT).show()
+          showDeleteDialog = false
+          return
+        }
+      } else {
+        // Content URI: use ContentResolver to delete via DocumentsProvider
+        deleted = try {
+          contentResolver.delete(currentUri, null, null) > 0
+        } catch (e: SecurityException) {
+          Log.e(TAG, "No permission to delete content URI: ${e.message}", e)
+          Toast.makeText(this, getString(R.string.player_delete_no_permission), Toast.LENGTH_SHORT).show()
+          showDeleteDialog = false
+          return
+        }
+      }
+
+      if (deleted) {
         // Remove from playlist if applicable
         if (playlist.isNotEmpty() && playlistIndex >= 0 && playlistIndex < playlist.size) {
           playlist = playlist.toMutableList().apply { removeAt(playlistIndex) }
@@ -369,7 +389,7 @@ class PlayerActivity :
           }
         }
 
-        Toast.makeText(this, "Video deleted: ${file.name}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "$fileName ${getString(R.string.player_delete_success)}", Toast.LENGTH_SHORT).show()
 
         // Play next video or finish
         if (playlist.isNotEmpty() && playlistIndex >= 0 && playlistIndex < playlist.size) {
@@ -379,11 +399,11 @@ class PlayerActivity :
           finish()
         }
       } else {
-        Toast.makeText(this, "Failed to delete file", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.player_delete_failed), Toast.LENGTH_SHORT).show()
       }
     } catch (e: Exception) {
       Log.e(TAG, "Error deleting video: ${e.message}", e)
-      Toast.makeText(this, "Error deleting file: ${e.message}", Toast.LENGTH_SHORT).show()
+      Toast.makeText(this, "${getString(R.string.player_delete_error)} ${e.message}", Toast.LENGTH_SHORT).show()
     }
 
     showDeleteDialog = false

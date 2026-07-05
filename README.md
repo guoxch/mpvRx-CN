@@ -296,6 +296,12 @@ report it in the [Issues](https://github.com/Riteshp2001/mpvRx/issues).
 ./gradlew.bat :app:assembleStandardDebug
 ```
 
+### Release Build
+
+```powershell
+./gradlew.bat assembleRelease
+```
+
 ### Release Variants
 
 | Variant | Description |

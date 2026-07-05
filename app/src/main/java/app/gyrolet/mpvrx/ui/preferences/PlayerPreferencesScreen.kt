@@ -238,11 +238,10 @@ object PlayerPreferencesScreen : Screen {
                     android.util.Log.e("PlayerPreferencesScreen", "Failed to set alias state", e)
                   }
                 },
-                title = { Text("Show Media Info in chooser") },
+                title = { Text(stringResource(R.string.media_info_show_in_chooser_title)) },
                 summary = {
                   Text(
-                    "Show Media Info in system \"Open with\" / " +
-                    "sharing menus to analyze files from other apps.",
+                    stringResource(R.string.media_info_show_in_chooser_summary),
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },

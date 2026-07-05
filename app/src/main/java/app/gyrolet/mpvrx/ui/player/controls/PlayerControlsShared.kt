@@ -927,7 +927,7 @@ fun RenderPlayerButton(
       ControlsButton(
         Icons.Default.Delete,
         onClick = { activity.showDeleteConfirmDialog() },
-        color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
+        color = if (hideBackground) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.error,
         modifier = Modifier.size(buttonSize),
       )
     }

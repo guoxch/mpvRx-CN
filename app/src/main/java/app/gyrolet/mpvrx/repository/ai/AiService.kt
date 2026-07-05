@@ -22,6 +22,7 @@ class AiService(
   private val anthropicClient: AiClient,
   private val openRouterClient: AiClient,
   private val togetherClient: AiClient,
+  private val deepSeekClient: AiClient,
   private val localAiClient: LocalAiClient,
   private val modelDownloadManager: ModelDownloadManager,
   private val json: Json,
@@ -37,6 +38,7 @@ class AiService(
     AiProvider.ANTHROPIC to anthropicClient,
     AiProvider.OPENROUTER to openRouterClient,
     AiProvider.TOGETHER to togetherClient,
+    AiProvider.DEEPSEEK to deepSeekClient,
     AiProvider.LOCAL to localAiClient,
   )
 
@@ -300,6 +302,7 @@ class AiService(
     AiProvider.ANTHROPIC -> preferences.anthropicApiKey.get()
     AiProvider.OPENROUTER -> preferences.openrouterApiKey.get()
     AiProvider.TOGETHER -> preferences.togetherApiKey.get()
+    AiProvider.DEEPSEEK -> preferences.deepseekApiKey.get()
     AiProvider.LOCAL -> ""
   }
 

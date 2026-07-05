@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.repository.ai.AiModelInfo
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 
 @Composable
 fun ModelSearchDialog(
@@ -56,7 +58,7 @@ fun ModelSearchDialog(
         value = searchQuery,
         onValueChange = { searchQuery = it },
         modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("Search models...") },
+        placeholder = { Text(stringResource(R.string.pref_search_models_placeholder)) },
         singleLine = true,
         colors = TextFieldDefaults.colors(
           focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -68,7 +70,7 @@ fun ModelSearchDialog(
     text = {
       if (sortedFiltered.isEmpty()) {
         Text(
-          text = if (searchQuery.isNotBlank()) "No models match \"$searchQuery\"" else "No models available",
+          text = if (searchQuery.isNotBlank()) stringResource(R.string.pref_no_models_match, searchQuery) else stringResource(R.string.pref_no_models_available),
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.outline,
           modifier = Modifier.padding(vertical = 24.dp),
@@ -76,7 +78,7 @@ fun ModelSearchDialog(
       } else {
         Column(modifier = Modifier.heightIn(max = 480.dp)) {
           Text(
-            text = "${sortedFiltered.size} model${if (sortedFiltered.size != 1) "s" else ""}",
+            text = if (sortedFiltered.size == 1) stringResource(R.string.pref_models_count, sortedFiltered.size) else stringResource(R.string.pref_models_count_plural, sortedFiltered.size),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.outline,
             modifier = Modifier.padding(bottom = 8.dp),
@@ -100,7 +102,7 @@ fun ModelSearchDialog(
     },
     confirmButton = {
       TextButton(onClick = onDismiss) {
-        Text("Cancel")
+        Text(stringResource(R.string.generic_cancel))
       }
     },
   )
@@ -158,7 +160,7 @@ fun FreeTag() {
     color = MaterialTheme.colorScheme.primary,
   ) {
     Text(
-      text = "FREE",
+      text = stringResource(R.string.pref_free_tag),
       modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
       color = MaterialTheme.colorScheme.onPrimary,
       style = MaterialTheme.typography.labelSmall,

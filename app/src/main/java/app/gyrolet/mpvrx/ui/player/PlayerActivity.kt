@@ -381,23 +381,9 @@ class PlayerActivity :
       }
 
       if (deleted) {
-        // Remove from playlist if applicable
-        if (playlist.isNotEmpty() && playlistIndex >= 0 && playlistIndex < playlist.size) {
-          playlist = playlist.toMutableList().apply { removeAt(playlistIndex) }
-          if (playlistIndex >= playlist.size && playlist.isNotEmpty()) {
-            playlistIndex = playlist.size - 1
-          }
-        }
-
         Toast.makeText(this, "$fileName ${getString(R.string.player_delete_success)}", Toast.LENGTH_SHORT).show()
-
-        // Play next video or finish
-        if (playlist.isNotEmpty() && playlistIndex >= 0 && playlistIndex < playlist.size) {
-          loadPlaylistItem(playlistIndex)
-        } else {
-          isUserFinishing = true
-          finish()
-        }
+        // Use existing method to remove from playlist, handle shuffle, and play next
+        deleteCurrentVideoAndPlayNext()
       } else {
         Toast.makeText(this, getString(R.string.player_delete_failed), Toast.LENGTH_SHORT).show()
       }
@@ -4477,6 +4463,10 @@ class PlayerActivity :
     val currentIndex = playlistIndex
     playlist = playlist.toMutableList().apply {
       removeAt(currentIndex)
+    }
+    // Keep playlistItems in sync so index-based lookups remain correct
+    if (currentIndex < playlistItems.size) {
+      playlistItems = playlistItems.toMutableList().apply { removeAt(currentIndex) }
     }
 
     if (playlist.isEmpty()) {

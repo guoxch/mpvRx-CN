@@ -25,6 +25,7 @@ import app.gyrolet.mpvrx.repository.ai.OpenRouterClient
 import app.gyrolet.mpvrx.repository.ai.RealtimeSubtitleService
 import app.gyrolet.mpvrx.repository.ai.SubtitleGenerationService
 import app.gyrolet.mpvrx.repository.ai.TogetherClient
+import app.gyrolet.mpvrx.repository.ai.DeepSeekClient
 import app.gyrolet.mpvrx.preferences.AiPreferences
 import kotlinx.serialization.json.Json
 import coil3.ImageLoader
@@ -105,6 +106,7 @@ val domainModule = module {
     single { AnthropicClient(get(), get()) }
     single { OpenRouterClient(get(), get()) }
     single { TogetherClient(get(), get()) }
+    single { DeepSeekClient(get(), get()) }
     single { GroqSpeechClient(get(), get()) }
     single<app.gyrolet.mpvrx.repository.ai.LlmInference> { app.gyrolet.mpvrx.repository.ai.LlamaCppInference() }
     single<AiClient>(named("opencode")) { OpenCodeClient(get(), get()) }
@@ -113,6 +115,7 @@ val domainModule = module {
     single<AiClient>(named("anthropic")) { AnthropicClient(get(), get()) }
     single<AiClient>(named("openrouter")) { OpenRouterClient(get(), get()) }
     single<AiClient>(named("together")) { TogetherClient(get(), get()) }
+    single<AiClient>(named("deepseek")) { DeepSeekClient(get(), get()) }
     single { LocalAiClient(get()) }
     single { ModelDownloadManager(get()) }
     single { SubtitleGenerationService(androidContext(), get(), get(), get(), get()) }
@@ -127,6 +130,7 @@ val domainModule = module {
             get<AiClient>(named("anthropic")),
             get<AiClient>(named("openrouter")),
             get<AiClient>(named("together")),
+            get<AiClient>(named("deepseek")),
             get<LocalAiClient>(),
             get<ModelDownloadManager>(),
             get<Json>()

@@ -903,6 +903,55 @@
   <string name="pref_together_api_key_title">Together API Key</string>
   <string name="pref_together_api_key_hint">Get a key from api.together.ai</string>
   <string name="pref_together_api_key_placeholder">…</string>
+  <string name="pref_deepseek_api_key_title">DeepSeek API Key</string>
+  <string name="pref_deepseek_api_key_hint">Get your key from platform.deepseek.com/api-keys</string>
+  <string name="pref_deepseek_api_key_placeholder">sk-…</string>
+
+  <!-- AI Integration - Missing strings for AiIntegrationScreen    -->
+  <string name="pref_model_label">Model</string>
+  <string name="pref_fetch_models_hint">Tap \'Fetch Models\' to load available models from %1$s</string>
+  <string name="pref_verify_failed">Verification failed: %1$s</string>
+  <string name="pref_verify_error">Error: %1$s</string>
+  <string name="pref_stt_model_title">Real-time Model</string>
+  <string name="pref_stt_model_loading">Loading…</string>
+  <string name="pref_stt_model_placeholder">Tap to select STT model</string>
+  <string name="pref_failed_load_models">Failed to load models: %1$s</string>
+  <string name="pref_auto_translate_title">Auto-Translate Target Languages</string>
+  <string name="pref_auto_translate_desc">When translating subtitles, if 1 language is configured it translates directly. If 2+ are configured, a picker appears.</string>
+  <string name="pref_auto_translate_empty">No target languages configured</string>
+  <string name="pref_search_languages">Search languages…</string>
+  <string name="pref_add_language">Add Language</string>
+  <string name="pref_done">Done</string>
+  <string name="pref_download">Download</string>
+  <string name="pref_use_model">Use Model</string>
+  <string name="pref_active">Active</string>
+  <string name="pref_benchmark">Benchmark</string>
+  <string name="pref_re_test">Re-test</string>
+  <string name="pref_model_chip_speed">Speed %1$d</string>
+  <string name="pref_model_chip_translation">Translation %1$d</string>
+  <string name="pref_model_chip_recommended">Recommended here</string>
+  <string name="pref_model_chip_ram">%1$dGB RAM+</string>
+  <string name="pref_percentage_downloaded">%1$d%% downloaded</string>
+  <string name="pref_paste_key">Paste your %1$s</string>
+  <string name="pref_remove_lang_desc">Remove %1$s</string>
+  <string name="pref_auto_detect">Auto-detect</string>
+  <string name="pref_yes">Yes</string>
+  <string name="pref_no">No</string>
+  <string name="pref_delete">Delete</string>
+  <string name="pref_search_models_placeholder">Search models…</string>
+  <string name="pref_no_models_match">No models match "%1$s"</string>
+  <string name="pref_no_models_available">No models available</string>
+  <string name="pref_models_count">%1$d model</string>
+  <string name="pref_models_count_plural">%1$d models</string>
+  <string name="pref_free_tag">FREE</string>
+  <string name="pref_ai_rename_disabled">AI Rename is disabled. Enable it in Settings → AI Integration.</string>
+  <string name="pref_ai_rename_suggest">AI will suggest new names for %1$d selected file(s). You can review and edit each name before confirming.</string>
+  <string name="pref_ai_bulk_rename_title">AI-Powered Bulk Rename</string>
+  <string name="pref_ai_bulk_rename_confirm">Confirm</string>
+  <string name="pref_ai_bulk_rename_reject">Reject</string>
+  <string name="pref_ai_bulk_rename_apply">Apply Rename</string>
+  <string name="pref_ai_bulk_rename_generating">Generating names…</string>
+  <string name="pref_ai_bulk_rename_retry">Retry</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- Folders Preferences                                        -->

@@ -798,36 +798,36 @@ object SearchablePreferences {
 
             // AI / Intelligence
             add(SearchablePreference(
-                title = "AI Integration",
+                titleRes = R.string.pref_section_ai_title,
                 summary = "AI-powered rename, subtitle formatting, speech-to-text, subtitle translation, offline models",
                 keywords = listOf("ai", "opencode", "groq", "openai", "anthropic", "together", "openrouter", "machine learning", "intelligence"),
                 category = "AI",
                 screen = AiIntegrationScreen,
             ))
             add(SearchablePreference(
-                title = "AI Provider",
+                titleRes = R.string.pref_ai_provider_title,
                 summary = "Choose OpenCode, Groq, OpenAI, Anthropic, OpenRouter, Together, or offline local models",
                 keywords = listOf("provider", "opencode", "groq", "openai", "anthropic", "together", "openrouter", "local", "offline", "api"),
                 category = "AI",
                 screen = AiIntegrationScreen,
             ))
             add(SearchablePreference(
-                title = "API Key Configuration",
+                titleRes = R.string.pref_api_config_section,
                 summary = "Enter and verify your AI provider API key",
                 keywords = listOf("api key", "key", "authentication", "token", "verify", "opencode", "groq", "openai"),
                 category = "AI",
                 screen = AiIntegrationScreen,
             ))
             add(SearchablePreference(
-                title = "AI Model Selection",
+                titleRes = R.string.pref_model_section,
                 summary = "Fetch and select which AI model to use",
                 keywords = listOf("model", "llm", "opencode", "gpt", "claude", "mixtral", "deepseek", "selection"),
                 category = "AI",
                 screen = AiIntegrationScreen,
             ))
             add(SearchablePreference(
-                title = "Show AI Reasoning (Thinking)",
-                summary = "Show the model's internal thought process for supported models",
+                titleRes = R.string.pref_show_ai_reasoning_title,
+                summaryRes = R.string.pref_show_ai_reasoning_summary,
                 keywords = listOf("reasoning", "thinking", "thought", "chain of thought", "cot", "explanation"),
                 category = "AI",
                 screen = AiIntegrationScreen,

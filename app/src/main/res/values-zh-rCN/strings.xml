@@ -902,6 +902,47 @@
   <string name="pref_together_api_key_title">Together API 密钥</string>
   <string name="pref_together_api_key_hint">从 api.together.ai 获取密钥</string>
   <string name="pref_together_api_key_placeholder">…</string>
+  <string name="pref_deepseek_api_key_title">DeepSeek API 密钥</string>
+  <string name="pref_deepseek_api_key_hint">从 platform.deepseek.com/api-keys 获取密钥</string>
+  <string name="pref_deepseek_api_key_placeholder">sk-…</string>
+
+  <!-- AI Integration - Missing strings for AiIntegrationScreen    -->
+  <string name="pref_model_label">模型</string>
+  <string name="pref_fetch_models_hint">点击"获取模型"从 %1$s 加载可用模型</string>
+  <string name="pref_verify_failed">验证失败：%1$s</string>
+  <string name="pref_verify_error">错误：%1$s</string>
+  <string name="pref_stt_model_title">实时模型</string>
+  <string name="pref_stt_model_loading">加载中…</string>
+  <string name="pref_stt_model_placeholder">点击选择 STT 模型</string>
+  <string name="pref_failed_load_models">加载模型失败：%1$s</string>
+  <string name="pref_auto_translate_title">自动翻译目标语言</string>
+  <string name="pref_auto_translate_desc">翻译字幕时，如果配置了 1 种语言则直接翻译，如果配置了 2 种或更多语言则会显示选择器。</string>
+  <string name="pref_auto_translate_empty">未配置目标语言</string>
+  <string name="pref_search_languages">搜索语言…</string>
+  <string name="pref_add_language">添加语言</string>
+  <string name="pref_done">完成</string>
+  <string name="pref_download">下载</string>
+  <string name="pref_use_model">使用模型</string>
+  <string name="pref_active">已激活</string>
+  <string name="pref_benchmark">基准测试</string>
+  <string name="pref_re_test">重新测试</string>
+  <string name="pref_model_chip_speed">速度 %1$d</string>
+  <string name="pref_model_chip_translation">翻译 %1$d</string>
+  <string name="pref_model_chip_recommended">此处推荐</string>
+  <string name="pref_model_chip_ram">%1$dGB 内存+</string>
+  <string name="pref_percentage_downloaded">已下载 %1$d%%</string>
+  <string name="pref_paste_key">粘贴你的 %1$s</string>
+  <string name="pref_remove_lang_desc">移除 %1$s</string>
+  <string name="pref_auto_detect">自动检测</string>
+  <string name="pref_yes">是</string>
+  <string name="pref_no">否</string>
+  <string name="pref_delete">删除</string>
+  <string name="pref_search_models_placeholder">搜索模型…</string>
+  <string name="pref_no_models_match">没有与"%1$s"匹配的模型</string>
+  <string name="pref_no_models_available">没有可用模型</string>
+  <string name="pref_models_count">%1$d 个模型</string>
+  <string name="pref_models_count_plural">%1$d 个模型</string>
+  <string name="pref_free_tag">免费</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- Folders Preferences                                        -->

@@ -10,6 +10,7 @@ enum class AiProvider(val displayName: String) {
   ANTHROPIC("Anthropic"),
   OPENROUTER("OpenRouter"),
   TOGETHER("Together"),
+  DEEPSEEK("DeepSeek"),
   LOCAL("Offline Model"),
 }
 
@@ -26,6 +27,7 @@ class AiPreferences(
   val anthropicApiKey = preferenceStore.getString("ai_anthropic_api_key", "")
   val openrouterApiKey = preferenceStore.getString("ai_openrouter_api_key", "")
   val togetherApiKey = preferenceStore.getString("ai_together_api_key", "")
+  val deepseekApiKey = preferenceStore.getString("ai_deepseek_api_key", "")
 
   val selectedModel = preferenceStore.getString("ai_selected_model", "")
 

@@ -388,20 +388,6 @@ fun VideoCard(
                 }
               }
             }
-            if (showSizeChip && video.sizeFormatted != "0 B" && video.sizeFormatted != "--") {
-              Text(
-                video.sizeFormatted,
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier
-                  .background(
-                    MaterialTheme.colorScheme.surfaceContainerHigh,
-                    AppShapeScale.small,
-                  )
-                  .padding(horizontal = 8.dp, vertical = 4.dp),
-                color = MaterialTheme.colorScheme.onSurface,
-              )
-            }
-
             val fpsOnly = video.resolution.substringAfter("@", "")
             val hasFps = fpsOnly.isNotEmpty()
             
@@ -675,20 +661,6 @@ fun VideoCard(
                   )
                 }
               }
-            }
-            if (showSizeChip && video.sizeFormatted != "0 B" && video.sizeFormatted != "--") {
-              Text(
-                video.sizeFormatted,
-                style = MaterialTheme.typography.labelSmall,
-                modifier =
-                  Modifier
-                    .background(
-                      MaterialTheme.colorScheme.surfaceContainerHigh,
-                      AppShapeScale.small,
-                    )
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                color = MaterialTheme.colorScheme.onSurface,
-              )
             }
             // Resolution and Framerate logic (List view)
             val fpsOnly = video.resolution.substringAfter("@", "")

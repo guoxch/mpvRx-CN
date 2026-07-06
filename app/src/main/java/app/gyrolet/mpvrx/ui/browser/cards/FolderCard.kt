@@ -330,6 +330,14 @@ fun FolderCard(
               color = MaterialTheme.colorScheme. onSurfaceVariant,
             )
           }
+
+          if (showTotalSizeChip && folder.totalSize > 0) {
+            Text(
+              formatFileSize(folder.totalSize),
+              style = MaterialTheme.typography.labelSmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
         }
       } else {
         Row(

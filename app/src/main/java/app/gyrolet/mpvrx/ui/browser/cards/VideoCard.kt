@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.FlowRow
@@ -283,8 +284,8 @@ fun VideoCard(
             }
           }
 
-          // Duration overlay
-          if (showDurationField) {
+          // Duration & file size overlay (bottom-end)
+          if (showDurationField || (showSizeChip && video.sizeFormatted != "0 B" && video.sizeFormatted != "--")) {
             Box(
               modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -293,11 +294,25 @@ fun VideoCard(
                 .background(Color.Black.copy(alpha = 0.65f))
                 .padding(horizontal = 6.dp, vertical = 2.dp),
             ) {
-              Text(
-                text = video.durationFormatted,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White,
-              )
+              Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                if (showDurationField) {
+                  Text(
+                    text = video.durationFormatted,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                  )
+                }
+                if (showSizeChip && video.sizeFormatted != "0 B" && video.sizeFormatted != "--") {
+                  Text(
+                    text = video.sizeFormatted,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                  )
+                }
+              }
             }
           }
 
@@ -351,12 +366,11 @@ fun VideoCard(
             }
           },
         )
-        if (gridColumns == 1) {
-          Spacer(modifier = Modifier.height(4.dp))
-          FlowRow(
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
-            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)
-          ) {
+        Spacer(modifier = Modifier.height(4.dp))
+        FlowRow(
+          horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
+          verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)
+        ) {
             if (showSubtitleIndicator) {
               if (video.hasEmbeddedSubtitles && video.subtitleCodec.isNotBlank()) {
                 video.subtitleCodec.split(" ").forEach { codec ->
@@ -439,7 +453,6 @@ fun VideoCard(
               )
             }
           }
-        }
         }
       } else {
         Row(
@@ -558,8 +571,8 @@ fun VideoCard(
             }
           }
 
-          // Duration timestamp overlay at bottom-right of the thumbnail
-          if (showDurationField) {
+          // Duration & file size overlay at bottom-right of the thumbnail
+          if (showDurationField || (showSizeChip && video.sizeFormatted != "0 B" && video.sizeFormatted != "--")) {
             Box(
               modifier =
                 Modifier
@@ -569,11 +582,25 @@ fun VideoCard(
                   .background(Color.Black.copy(alpha = 0.65f))
                   .padding(horizontal = 6.dp, vertical = 2.dp),
             ) {
-              Text(
-                text = video.durationFormatted,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White,
-              )
+              Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                if (showDurationField) {
+                  Text(
+                    text = video.durationFormatted,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                  )
+                }
+                if (showSizeChip && video.sizeFormatted != "0 B" && video.sizeFormatted != "--") {
+                  Text(
+                    text = video.sizeFormatted,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                  )
+                }
+              }
             }
           }
 

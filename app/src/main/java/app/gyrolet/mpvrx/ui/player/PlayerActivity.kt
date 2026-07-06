@@ -352,9 +352,6 @@ class PlayerActivity :
     }
 
     try {
-      // Stop playback first
-      MPVLib.command("stop")
-
       var deleted = false
       val fileName = getFileNameFromUri(currentUri)
 
@@ -382,8 +379,12 @@ class PlayerActivity :
 
       if (deleted) {
         Toast.makeText(this, "$fileName ${getString(R.string.player_delete_success)}", Toast.LENGTH_SHORT).show()
-        // Use existing method to remove from playlist, handle shuffle, and play next
-        deleteCurrentVideoAndPlayNext()
+        // Give the file system / content provider a moment to settle,
+        // then remove from playlist and play the next video.
+        lifecycleScope.launch(Dispatchers.Main) {
+          delay(150)
+          deleteCurrentVideoAndPlayNext()
+        }
       } else {
         Toast.makeText(this, getString(R.string.player_delete_failed), Toast.LENGTH_SHORT).show()
       }

@@ -921,23 +921,23 @@ private fun CompressorVideoTab(
       FilterChip(
         selected = state.targetFps == 0,
         onClick = { onSetFps(0) },
-        label = { Text("Original - ${state.originalFps.toInt()}") },
+        label = { Text(stringResource(R.string.compressor_fps_original, state.originalFps.toInt())) },
       )
       FilterChip(
         selected = state.targetFps == 60,
         enabled = state.originalFps >= 50f,
         onClick = { onSetFps(60) },
-        label = { Text("60fps") },
+        label = { Text(stringResource(R.string.compressor_fps_60)) },
       )
       FilterChip(
         selected = state.targetFps == 30,
         onClick = { onSetFps(30) },
-        label = { Text("30fps") },
+        label = { Text(stringResource(R.string.compressor_fps_30)) },
       )
       FilterChip(
         selected = state.targetFps == 24,
         onClick = { onSetFps(24) },
-        label = { Text("24fps") },
+        label = { Text(stringResource(R.string.compressor_fps_24)) },
       )
     }
   }

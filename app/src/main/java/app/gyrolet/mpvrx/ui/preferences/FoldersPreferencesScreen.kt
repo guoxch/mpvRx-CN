@@ -118,7 +118,7 @@ object FoldersPreferencesScreen : Screen {
     Scaffold(
       topBar = {
         BrowserTopBar(
-          title = "Storage",
+          title = stringResource(R.string.pref_section_storage),
           isInSelectionMode = selectionState.isInSelectionMode,
           selectedCount = selectionState.selectedCount,
           totalCount = blacklistedFoldersList.size,
@@ -162,7 +162,7 @@ object FoldersPreferencesScreen : Screen {
         if (!selectionState.isInSelectionMode) {
 
           // ── Media Library ─────────────────────────────────────────────
-          PreferenceSectionHeader(title = "Media Library")
+          PreferenceSectionHeader(title = stringResource(R.string.pref_section_media_library))
 
           NoMediaPreferenceCard(
             includeNoMediaFolders = includeNoMediaFolders,
@@ -176,7 +176,7 @@ object FoldersPreferencesScreen : Screen {
           Spacer(modifier = Modifier.height(16.dp))
 
           // ── Hidden Folders ────────────────────────────────────────────
-          PreferenceSectionHeader(title = "Hidden Folders")
+          PreferenceSectionHeader(title = stringResource(R.string.pref_section_hidden_folders))
 
           Text(
             text = stringResource(R.string.pref_folders_summary),
@@ -534,7 +534,7 @@ internal fun StorageRootPickerCard(
         IconButton(onClick = onClearClick) {
           Icon(
             imageVector = Icons.Default.Clear,
-            contentDescription = "Clear",
+            contentDescription = stringResource(R.string.cd_clear),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }

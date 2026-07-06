@@ -561,7 +561,7 @@ object AiIntegrationScreen : Screen {
                           .padding(horizontal = 16.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                       ) {
-                        val isSuccess = verifyResult!!.contains("successfully") || verifyResult!!.contains("ready")
+                        val isSuccess = verifyResult!!.contains("successfully") || verifyResult!!.contains("ready") || verifyResult!!.contains("验证成功") || verifyResult!!.contains("就绪")
                         Icon(
                           imageVector = if (isSuccess) Icons.Default.Check else Icons.Default.Warning,
                           contentDescription = null,
@@ -907,7 +907,7 @@ object AiIntegrationScreen : Screen {
                       onVerified = {
                         showSttKeyDialog = false
                         pendingSttProvider = null
-                        Toast.makeText(context, "${pendingSttProvider?.displayName} API key verified", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.ai_stt_key_verified, pendingSttProvider?.displayName ?: ""), Toast.LENGTH_SHORT).show()
                       },
                       onDismiss = {
                         showSttKeyDialog = false
@@ -927,7 +927,7 @@ object AiIntegrationScreen : Screen {
                         pendingSttProvider = it
                         showSttKeyDialog = true
                       } else {
-                        Toast.makeText(context, "Configure ${it.displayName} API key in the section above first", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.ai_stt_key_configure_first, it.displayName), Toast.LENGTH_SHORT).show()
                       }
                     },
                   )
@@ -1608,13 +1608,12 @@ private fun SttApiKeySetupDialog(
   AlertDialog(
     onDismissRequest = onDismiss,
     title = {
-      Text("Configure ${provider.displayName} API Key")
+      Text(stringResource(R.string.ai_stt_configure_key, provider.displayName))
     },
     text = {
       Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-          "This STT provider is different from your main AI provider. " +
-            "Please enter your ${provider.displayName} API key to enable speech-to-text.",
+          stringResource(R.string.ai_stt_provider_different, provider.displayName),
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.outline,
         )
@@ -1638,7 +1637,7 @@ private fun SttApiKeySetupDialog(
             ),
             shape = MaterialTheme.shapes.extraLarge,
           ) {
-            Text(if (showKey) "Hide" else "Show")
+            Text(stringResource(if (showKey) R.string.action_hide else R.string.action_show))
           }
 
           Button(
@@ -1648,8 +1647,8 @@ private fun SttApiKeySetupDialog(
                 verifyResult = null
                 setSttApiKey(preferences, provider, apiKey.trim())
                 aiService.fetchModelsForProvider(provider)
-                  .onSuccess { verifyResult = "Verified successfully" }
-                  .onFailure { e -> verifyResult = "Verification failed: ${e.message}" }
+                  .onSuccess { verifyResult = context.getString(R.string.ai_verified_successfully) }
+                  .onFailure { e -> verifyResult = context.getString(R.string.ai_verification_failed, e.message ?: "") }
                 isVerifying = false
               }
             },
@@ -1660,12 +1659,12 @@ private fun SttApiKeySetupDialog(
               CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
               Spacer(Modifier.width(6.dp))
             }
-            Text("Verify")
+            Text(stringResource(R.string.ai_action_verify))
           }
         }
 
         if (verifyResult != null) {
-          val isSuccess = verifyResult!!.contains("successfully")
+          val isSuccess = verifyResult!!.contains("successfully") || verifyResult!!.contains("验证成功")
           Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
               imageVector = if (isSuccess) Icons.Default.Check else Icons.Default.Warning,
@@ -1686,24 +1685,24 @@ private fun SttApiKeySetupDialog(
     confirmButton = {
       TextButton(
         onClick = {
-          if (verifyResult?.contains("successfully") == true) {
+          if (verifyResult?.contains("successfully") == true || verifyResult?.contains("验证成功") == true) {
             onVerified()
           }
         },
-        enabled = verifyResult?.contains("successfully") == true,
+        enabled = verifyResult?.contains("successfully") == true || verifyResult?.contains("验证成功") == true,
       ) {
-        Text("Done")
+        Text(stringResource(R.string.action_done))
       }
     },
     dismissButton = {
       TextButton(onClick = {
         // Clear the key if verification didn't succeed
-        if (verifyResult?.contains("successfully") != true && apiKey.isNotBlank()) {
+        if (verifyResult?.contains("successfully") != true && verifyResult?.contains("验证成功") != true && apiKey.isNotBlank()) {
           setSttApiKey(preferences, provider, "")
         }
         onDismiss()
       }) {
-        Text("Cancel")
+        Text(stringResource(R.string.action_cancel))
       }
     },
   )

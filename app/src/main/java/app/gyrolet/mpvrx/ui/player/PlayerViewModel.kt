@@ -3236,7 +3236,7 @@ class PlayerViewModel(
     val newPosition = clampSubtitlePosition(position)
     subtitlesPreferences.subPos.set(newPosition)
     syncSubtitleLayout(newPosition)
-    playerUpdate.value = PlayerUpdates.ShowText("Subtitle Position: $newPosition")
+    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_subtitle_position, newPosition))
   }
 
   private fun syncSubtitleLayout(primaryPosition: Int = subtitlesPreferences.subPos.get()) {
@@ -3634,7 +3634,7 @@ class PlayerViewModel(
         }
       } catch (e: Exception) {
         withContext(Dispatchers.Main) {
-          Toast.makeText(context, "Failed to save snapshot: ${e.message}", Toast.LENGTH_LONG).show()
+          Toast.makeText(context, context.getString(R.string.player_snapshot_save_failed, e.message ?: ""), Toast.LENGTH_LONG).show()
         }
       } finally {
         _isSnapshotLoading.value = false
@@ -4114,7 +4114,7 @@ class PlayerViewModel(
     } else {
       MPVLib.command("vf", "remove", "@mpvrx_hflip")
     }
-    playerUpdate.value = PlayerUpdates.ShowText(if (newMirrorState) "H-Flip On" else "H-Flip Off")
+    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(if (newMirrorState) R.string.player_hflip_on else R.string.player_hflip_off))
   }
 
   fun toggleVerticalFlip() {
@@ -4128,7 +4128,7 @@ class PlayerViewModel(
       MPVLib.command("vf", "remove", "@mpvrx_vflip")
     }
 
-    playerUpdate.value = PlayerUpdates.ShowText(if (newState) "V-Flip On" else "V-Flip Off")
+    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(if (newState) R.string.player_vflip_on else R.string.player_vflip_off))
   }
 
   fun toggleHdrScreenOutput() {
@@ -4141,8 +4141,8 @@ class PlayerViewModel(
   fun setHdrScreenMode(mode: HdrScreenMode) {
     val pipelineReady = isHdrScreenOutputAvailable(mode)
     if (mode != HdrScreenMode.OFF && !pipelineReady) {
-      val message = if (mode == HdrScreenMode.LINEAR) "Linear HDR needs GPU Next + Vulkan"
-                    else "HDR Screen output needs GPU Next"
+      val message = if (mode == HdrScreenMode.LINEAR) host.context.getString(R.string.player_hdr_linear_needs_gpu_next)
+                    else host.context.getString(R.string.player_hdr_needs_gpu_next)
       playerUpdate.value = PlayerUpdates.ShowText(message)
       applyHdrScreenOutput(HdrScreenMode.OFF)
       return
@@ -4153,7 +4153,7 @@ class PlayerViewModel(
     decoderPreferences.hdrScreenMode.set(mode)
     decoderPreferences.hdrScreenOutput.set(mode != HdrScreenMode.OFF)
     applyHdrScreenOutput(mode)
-    playerUpdate.value = PlayerUpdates.ShowText("HDR Screen Output: ${mode.shortTitle}")
+    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_hdr_screen_output, mode.shortTitle))
   }
 
   private fun isHdrScreenOutputAvailable(mode: HdrScreenMode = _hdrScreenMode.value): Boolean {
@@ -4214,7 +4214,7 @@ class PlayerViewModel(
       return
     }
     if (!hdrToysManager.apply(profile)) {
-      playerUpdate.value = PlayerUpdates.ShowText("HDR Toys shaders unavailable")
+      playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_hdr_toys_unavailable))
     }
   }
 
@@ -4226,10 +4226,10 @@ class PlayerViewModel(
     if (_isAmbientEnabled.value) {
       lastAmbientScaleX = -1.0 // Force rewrite
       updateAmbientStretch()
-      playerUpdate.value = PlayerUpdates.ShowText("Ambience Mode: ON")
+      playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_ambient_on))
     } else {
       disableAmbientShader()
-      playerUpdate.value = PlayerUpdates.ShowText("Ambience Mode: OFF")
+      playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_ambient_off))
     }
   }
 
@@ -4304,7 +4304,7 @@ class PlayerViewModel(
     playerPreferences.ambientVisualMode.set(mode)
 
     if (_isAmbientEnabled.value) {
-      playerUpdate.value = PlayerUpdates.ShowText("Ambient Style: ${mode.label}")
+      playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_ambient_style, mode.label))
       scheduleAmbientUpdate(75)
     }
   }
@@ -4485,7 +4485,7 @@ class PlayerViewModel(
     ambientPreBatterySaverOpacity = _ambientOpacity.value
     ambientWasOnBattery = true
     applyAmbientProfileFast()
-    playerUpdate.value = PlayerUpdates.ShowText("Ambient: Battery Saver ON")
+    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_ambient_battery_saver_on))
   }
 
   private fun restoreFromBatterySaver() {
@@ -4501,7 +4501,7 @@ class PlayerViewModel(
       fadeCurve = ambientPreBatterySaverFadeCurve,
       opacity = ambientPreBatterySaverOpacity,
     )
-    playerUpdate.value = PlayerUpdates.ShowText("Ambient: Battery Saver OFF")
+    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_ambient_battery_saver_off))
   }
 
   fun onBatteryStateChanged(isCharging: Boolean) {

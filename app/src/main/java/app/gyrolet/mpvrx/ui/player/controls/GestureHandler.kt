@@ -1141,7 +1141,7 @@ fun GestureHandler(
                     MPVLib.command("sub-seek", direction)
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     viewModel.playerUpdate.update {
-                      PlayerUpdates.ShowText(if (isForward) "Next Dialog" else "Prev Dialog")
+                      PlayerUpdates.ShowText(if (isForward) context.getString(R.string.player_next_dialog) else context.getString(R.string.player_prev_dialog))
                     }
                     change.consume()
                   }

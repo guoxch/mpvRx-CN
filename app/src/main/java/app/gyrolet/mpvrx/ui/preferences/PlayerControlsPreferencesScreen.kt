@@ -297,7 +297,7 @@ object PlayerControlsPreferencesScreen : Screen {
                 onValueChange = { playerPrefs.clockFormat.set(it) },
                 values = PlayerClockFormat.entries,
                 valueToText = { AnnotatedString(it.displayName) },
-                title = { Text("Time + Network clock") },
+                title = { Text(stringResource(R.string.pref_time_network_clock)) },
                 summary = { Text(clockFormat.displayName) },
               )
             }

@@ -126,7 +126,7 @@ object SubtitlesPreferencesScreen : Screen {
         }.onFailure { error ->
           Toast.makeText(
             context,
-            context.getString(R.string.pref_subtitles_font_copy_failed, error.message ?: "Unknown error"),
+            context.getString(R.string.pref_subtitles_font_copy_failed, error.message ?: context.getString(R.string.error_unknown)),
             Toast.LENGTH_SHORT,
           ).show()
         }
@@ -918,7 +918,7 @@ object SubtitlesPreferencesScreen : Screen {
                             }
                           }.onFailure { e ->
                             withContext(Dispatchers.Main) {
-                              android.widget.Toast.makeText(context, context.getString(R.string.pref_subtitle_search_error, e.message ?: "Unknown error"), android.widget.Toast.LENGTH_SHORT).show()
+                              android.widget.Toast.makeText(context, context.getString(R.string.pref_subtitle_search_error, e.message ?: context.getString(R.string.error_unknown)), android.widget.Toast.LENGTH_SHORT).show()
                             }
                           }
                         }

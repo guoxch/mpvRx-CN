@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,6 +60,7 @@ import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.presentation.components.PlayerSheet
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.theme.spacing
@@ -348,7 +350,7 @@ fun PlaylistTrackListItem(
           AsyncImage(
             model = remember(item.uri, item.path) { buildPlaylistThumbnailRequest(context, item) },
             imageLoader = imageLoader,
-            contentDescription = "Thumbnail",
+            contentDescription = stringResource(R.string.cd_thumbnail),
             modifier = Modifier.matchParentSize(),
             contentScale = ContentScale.Crop,
           )
@@ -520,7 +522,7 @@ fun PlaylistTrackGridItem(
           AsyncImage(
             model = remember(item.uri, item.path) { buildPlaylistThumbnailRequest(context, item) },
             imageLoader = imageLoader,
-            contentDescription = "Thumbnail",
+            contentDescription = stringResource(R.string.cd_thumbnail),
             modifier = Modifier.matchParentSize(),
             contentScale = ContentScale.Crop,
           )

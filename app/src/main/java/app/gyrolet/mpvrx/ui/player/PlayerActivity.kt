@@ -2073,7 +2073,7 @@ class PlayerActivity :
         withContext(Dispatchers.Main) {
           android.widget.Toast.makeText(
             this@PlayerActivity,
-            "Failed to load script: ${e.message}",
+            getString(R.string.player_script_load_failed, e.message ?: ""),
             android.widget.Toast.LENGTH_LONG
           ).show()
         }

@@ -1,7 +1,9 @@
 package app.gyrolet.mpvrx.ui.browser.cards
 
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -107,14 +109,14 @@ fun NetworkConnectionCard(
           IconButton(onClick = { onEdit(connection) }) {
             Icon(
               Icons.Filled.Edit,
-              contentDescription = "Edit",
+              contentDescription = stringResource(R.string.cd_edit),
               tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
           }
           IconButton(onClick = { onDelete(connection) }) {
             Icon(
               Icons.Filled.Delete,
-              contentDescription = "Delete",
+              contentDescription = stringResource(R.string.cd_delete),
               tint = MaterialTheme.colorScheme.error,
             )
           }
@@ -124,7 +126,7 @@ fun NetworkConnectionCard(
       // Connection details
       if (connection.path != "/") {
         Text(
-          text = "Path: ${connection.path}",
+          text = stringResource(R.string.network_connection_path, connection.path),
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           modifier = Modifier.padding(top = 4.dp),
@@ -133,7 +135,7 @@ fun NetworkConnectionCard(
 
       if (connection.username.isNotEmpty() && !connection.isAnonymous) {
         Text(
-          text = "User: ${connection.username}",
+          text = stringResource(R.string.network_connection_user, connection.username),
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           modifier = Modifier.padding(top = 4.dp),
@@ -143,7 +145,7 @@ fun NetworkConnectionCard(
       // Error message
       if (error != null) {
         Text(
-          text = "Error: $error",
+          text = stringResource(R.string.network_connection_error, error),
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.error,
           modifier = Modifier.padding(top = 8.dp),
@@ -164,7 +166,7 @@ fun NetworkConnectionCard(
           },
         )
         Text(
-          text = "Connect automatically on app launch",
+          text = stringResource(R.string.network_auto_connect),
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -193,7 +195,7 @@ fun NetworkConnectionCard(
                   color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                 )
                 Text(
-                  "Connecting",
+                  stringResource(R.string.network_connecting),
                   color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                 )
               }
@@ -216,7 +218,7 @@ fun NetworkConnectionCard(
                   contentDescription = null,
                   modifier = Modifier.padding(end = 8.dp),
                 )
-                Text("Browse")
+                Text(stringResource(R.string.common_browse))
               }
 
               FilledTonalButton(
@@ -231,7 +233,7 @@ fun NetworkConnectionCard(
                   contentDescription = null,
                   modifier = Modifier.padding(end = 8.dp),
                 )
-                Text("Disconnect")
+                Text(stringResource(R.string.network_disconnect))
               }
             }
           }
@@ -249,7 +251,7 @@ fun NetworkConnectionCard(
                 contentDescription = null,
                 modifier = Modifier.padding(end = 8.dp),
               )
-              Text("Connect")
+              Text(stringResource(R.string.network_connect))
             }
           }
         }

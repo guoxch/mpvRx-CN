@@ -195,7 +195,7 @@ object SubtitlesPreferencesScreen : Screen {
             sourcesResponse = it
             isLoadingSources = false
           }.onFailure { err ->
-            sourcesError = err.message ?: "Failed to fetch sources"
+            sourcesError = err.message ?: context.getString(R.string.pref_subtitle_sources_error)
             isLoadingSources = false
           }
         }
@@ -545,7 +545,7 @@ object SubtitlesPreferencesScreen : Screen {
                         ) {
                           Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh",
+                            contentDescription = stringResource(R.string.cd_refresh),
                             modifier = Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.primary
                           )
@@ -556,9 +556,10 @@ object SubtitlesPreferencesScreen : Screen {
                   text = {
                     Column(modifier = Modifier.fillMaxWidth()) {
                       sourcesResponse?.key?.let { keyInfo ->
-                        val keyType = keyInfo.type?.replaceFirstChar { it.uppercase() } ?: "Unknown"
+                        val keyType = keyInfo.type?.replaceFirstChar { it.uppercase() } ?: stringResource(R.string.unknown)
                         val badgeColor = if (keyInfo.valid) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
                         val badgeTextColor = if (keyInfo.valid) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+                        val keyTypeDisplay = keyInfo.type?.replaceFirstChar { it.uppercase() } ?: stringResource(R.string.unknown)
                         
                         Row(
                           modifier = Modifier.padding(bottom = 8.dp),
@@ -566,7 +567,7 @@ object SubtitlesPreferencesScreen : Screen {
                         ) {
                           SuggestionChip(
                             onClick = {},
-                            label = { Text("API Key: $keyType") },
+                            label = { Text(stringResource(R.string.pref_wyzie_api_key_label, keyType)) },
                             colors = SuggestionChipDefaults.suggestionChipColors(
                               containerColor = badgeColor,
                               labelColor = badgeTextColor
@@ -577,7 +578,7 @@ object SubtitlesPreferencesScreen : Screen {
 
                       if (sourcesError != null && sourcesResponse == null) {
                         Text(
-                          text = sourcesError ?: "Error loading sources",
+                          text = sourcesError ?: stringResource(R.string.pref_subtitle_sources_error),
                           color = MaterialTheme.colorScheme.error,
                           style = MaterialTheme.typography.bodyMedium,
                           modifier = Modifier.padding(vertical = 16.dp)
@@ -626,7 +627,7 @@ object SubtitlesPreferencesScreen : Screen {
                           if (freeItems.isNotEmpty()) {
                             item {
                               Text(
-                                text = "Free Sources",
+                                text = stringResource(R.string.pref_subtitle_sources_free),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(vertical = 8.dp)
@@ -685,7 +686,7 @@ object SubtitlesPreferencesScreen : Screen {
                           if (paidItems.isNotEmpty()) {
                             item {
                               Text(
-                                text = "Paid Sources",
+                                text = stringResource(R.string.pref_subtitle_sources_paid),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(vertical = 8.dp)
@@ -742,7 +743,7 @@ object SubtitlesPreferencesScreen : Screen {
                                   }
                                   if (!isAvailable) {
                                     Text(
-                                      text = "Restricted (Requires Paid API Key)",
+                                      text = stringResource(R.string.pref_subtitle_source_restricted),
                                       style = MaterialTheme.typography.bodySmall,
                                       color = MaterialTheme.colorScheme.error
                                     )
@@ -752,7 +753,7 @@ object SubtitlesPreferencesScreen : Screen {
                                 if (!isAvailable) {
                                   Icon(
                                     imageVector = Icons.Filled.Lock,
-                                    contentDescription = "Restricted",
+                                    contentDescription = stringResource(R.string.cd_restricted),
                                     tint = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.size(16.dp)
                                   )

@@ -1,5 +1,6 @@
 package app.gyrolet.mpvrx.ui.browser.dialogs
 
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -26,6 +27,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -57,7 +59,7 @@ fun DeleteConfirmationDialog(
           modifier = Modifier.size(28.dp),
         )
         Text(
-          text = "Delete $itemCount $itemText?",
+          text = stringResource(R.string.dialog_delete_title, itemCount, itemText),
           style = MaterialTheme.typography.headlineSmall,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurface,
@@ -87,7 +89,7 @@ fun DeleteConfirmationDialog(
               modifier = Modifier.size(20.dp),
             )
             Text(
-              text = "This action cannot be undone. The selected item${if (itemCount == 1) "" else "s"} will be permanently deleted.",
+              text = if (itemCount == 1) stringResource(R.string.dialog_delete_warning_single) else stringResource(R.string.dialog_delete_warning_multiple),
               style = MaterialTheme.typography.bodyMedium,
               fontWeight = FontWeight.Medium,
               color = MaterialTheme.colorScheme.onErrorContainer,
@@ -156,7 +158,7 @@ fun DeleteConfirmationDialog(
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(
-          text = "Delete",
+          text = stringResource(R.string.dialog_delete),
           fontWeight = FontWeight.Bold,
         )
       }
@@ -172,7 +174,7 @@ fun DeleteConfirmationDialog(
           modifier = Modifier.size(16.dp),
         )
         Spacer(modifier = Modifier.width(4.dp))
-        Text("Cancel", fontWeight = FontWeight.Medium)
+        Text(stringResource(R.string.generic_cancel), fontWeight = FontWeight.Medium)
       }
     },
     containerColor = MaterialTheme.colorScheme.surface,

@@ -46,6 +46,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -266,11 +267,11 @@ fun MediaLibraryContent() {
               onSearch = { },
               expanded = false,
               onExpandedChange = { },
-              placeholder = { Text("Search videos...") },
+              placeholder = { Text(stringResource(app.gyrolet.mpvrx.R.string.search_hint_videos)) },
               leadingIcon = {
                 Icon(
                   imageVector = Icons.Filled.Search,
-                  contentDescription = "Search",
+                  contentDescription = stringResource(app.gyrolet.mpvrx.R.string.nav_icon_search),
                 )
               },
               trailingIcon = {
@@ -282,7 +283,7 @@ fun MediaLibraryContent() {
                 ) {
                   Icon(
                     imageVector = Icons.Filled.Close,
-                    contentDescription = "Cancel",
+                    contentDescription = stringResource(app.gyrolet.mpvrx.R.string.generic_cancel),
                   )
                 }
               },
@@ -297,7 +298,7 @@ fun MediaLibraryContent() {
         ) { }
       } else {
         BrowserTopBar(
-          title = "Media Library",
+          title = stringResource(app.gyrolet.mpvrx.R.string.media_library_title),
           isInSelectionMode = selectionManager.isInSelectionMode,
           selectedCount = selectionManager.selectedCount,
           totalCount = filteredVideosWithInfo.size,
@@ -345,7 +346,7 @@ fun MediaLibraryContent() {
       if (filteredVideosWithInfo.isNotEmpty()) {
         TooltipBox(
           positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-          tooltip = { PlainTooltip { Text("Play recently played or first video") } },
+          tooltip = { PlainTooltip { Text(stringResource(app.gyrolet.mpvrx.R.string.common_play_first_or_recent)) } },
           state = rememberTooltipState(),
         ) {
           FloatingActionButton(
@@ -371,7 +372,7 @@ fun MediaLibraryContent() {
               }
             },
           ) {
-            Icon(Icons.Filled.PlayArrow, contentDescription = "Play recently played or first video")
+            Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(app.gyrolet.mpvrx.R.string.common_play_first_or_recent))
           }
         }
       }
@@ -390,8 +391,8 @@ fun MediaLibraryContent() {
         ) {
           EmptyState(
             icon = Icons.Filled.Search,
-            title = "No videos found",
-            message = "Try a different search term",
+            title = stringResource(app.gyrolet.mpvrx.R.string.media_library_no_results_title),
+            message = stringResource(app.gyrolet.mpvrx.R.string.media_library_no_results_message),
           )
         }
       } else {

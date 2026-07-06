@@ -2,6 +2,7 @@ package app.gyrolet.mpvrx.ui.player.controls.components.panels
 
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.R
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
@@ -58,7 +60,7 @@ fun LuaScriptsPanel(
       if (isEnabled) {
         Toast.makeText(
           context,
-          "$scriptName disabled. Reopen the video if the script stays active.",
+          context.getString(R.string.player_lua_script_disabled, scriptName),
           Toast.LENGTH_LONG,
         ).show()
         selectedScripts - scriptName
@@ -81,7 +83,7 @@ fun LuaScriptsPanel(
             .padding(top = MaterialTheme.spacing.small),
       ) {
         Text(
-          text = "Scripts (Lua / JS)",
+          text = stringResource(R.string.player_lua_scripts_title),
           style = MaterialTheme.typography.titleLarge,
         )
         Spacer(Modifier.weight(1f))
@@ -112,14 +114,14 @@ fun LuaScriptsPanel(
         }
         mpvConfStorageLocation.isBlank() -> {
           LuaScriptsEmptyState(
-            title = "No MPV folder selected",
-            summary = "Choose an MPV config folder in Advanced settings, then open this panel again to manage scripts.",
+            title = stringResource(R.string.player_lua_no_folder),
+            summary = stringResource(R.string.player_lua_choose_folder),
           )
         }
         catalog.availableScripts.isEmpty() -> {
           LuaScriptsEmptyState(
-            title = "No scripts found",
-            summary = "Put your .lua or .js files inside the MPV scripts folder to manage them here.",
+            title = stringResource(R.string.player_lua_no_scripts),
+            summary = stringResource(R.string.player_lua_put_scripts),
           )
         }
         else -> {

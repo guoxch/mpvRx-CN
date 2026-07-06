@@ -12,6 +12,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.ui.player.PlayerActivity
 import app.gyrolet.mpvrx.utils.media.MediaUtils
@@ -128,12 +129,12 @@ class SelectionManager<T, ID>(
       runCatching {
         val (deleted, failed) = onDeleteItems(selected, deleteFiles)
         if (deleted > 0) {
-          Toast.makeText(context, "Deleted successfully", Toast.LENGTH_SHORT).show()
+          Toast.makeText(context, context.getString(R.string.folder_deleted_success), Toast.LENGTH_SHORT).show()
         } else if (failed > 0) {
-          Toast.makeText(context, "Failed to delete", Toast.LENGTH_SHORT).show()
+          Toast.makeText(context, context.getString(R.string.folder_delete_failed), Toast.LENGTH_SHORT).show()
         }
       }.onFailure {
-        Toast.makeText(context, "Failed to delete: ${it.message}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.folder_delete_failed_detail, it.message), Toast.LENGTH_SHORT).show()
       }
       clear()
       onOperationComplete()
@@ -152,12 +153,12 @@ class SelectionManager<T, ID>(
       runCatching {
         val result = onRenameItem(item, newName)
         result.onSuccess {
-          Toast.makeText(context, "Renamed successfully", Toast.LENGTH_SHORT).show()
+          Toast.makeText(context, context.getString(R.string.folder_renamed_success), Toast.LENGTH_SHORT).show()
         }.onFailure { error ->
-          Toast.makeText(context, "Failed to rename: ${error.message}", Toast.LENGTH_SHORT).show()
+          Toast.makeText(context, context.getString(R.string.folder_rename_failed_detail_with_message, error.message), Toast.LENGTH_SHORT).show()
         }
       }.onFailure {
-        Toast.makeText(context, "Failed to rename: ${it.message}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.folder_rename_failed_detail_with_message, it.message), Toast.LENGTH_SHORT).show()
       }
       clear()
       onOperationComplete()
@@ -186,10 +187,10 @@ class SelectionManager<T, ID>(
         }
       }
       if (successCount > 0) {
-        Toast.makeText(context, "Renamed $successCount items", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.folder_renamed_items, successCount), Toast.LENGTH_SHORT).show()
       }
       if (failureCount > 0) {
-        Toast.makeText(context, "Failed to rename $failureCount items", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.folder_rename_failed_items, failureCount), Toast.LENGTH_SHORT).show()
       }
       clear()
       onOperationComplete()

@@ -78,6 +78,7 @@ fun OnlineSubtitleSearchSheet(
   onSelectEpisode: (app.gyrolet.mpvrx.repository.wyzie.WyzieEpisode) -> Unit = {},
   onClearMediaSelection: () -> Unit = {}
 ) {
+  val context = LocalContext.current
   val items = remember(searchResults, isSearching, isOnlineSectionExpanded) {
     val list = mutableListOf<OnlineSubtitleItem>()
     
@@ -86,9 +87,9 @@ fun OnlineSubtitleSearchSheet(
         val hashMatches = searchResults.count { it.isHashMatch }
         val headerText =
           if (hashMatches > 0) {
-            "Verified Matches ($hashMatches) + Others"
+            context.getString(R.string.online_subtitle_verified_matches, hashMatches)
           } else {
-            "Online Results (${searchResults.size})"
+            context.getString(R.string.online_subtitle_online_results, searchResults.size)
           }
         list.add(OnlineSubtitleItem.Header(headerText))
         if (isOnlineSectionExpanded) {
@@ -102,7 +103,6 @@ fun OnlineSubtitleSearchSheet(
   PlayerSheet(onDismissRequest) {
     Column(modifier) {
       val keyboardController = LocalSoftwareKeyboardController.current
-      val context = LocalContext.current
       val mediaInfo = remember(mediaTitle) { MediaInfoParser.parse(mediaTitle) }
       var searchQuery by remember { mutableStateOf(mediaInfo.title) }
       val aiPreferences = koinInject<AiPreferences>()
@@ -140,7 +140,7 @@ fun OnlineSubtitleSearchSheet(
       fun formatWithAi() {
         val input = if (searchQuery.isNotBlank()) searchQuery else mediaInfo.title
         if (input.isBlank()) {
-          Toast.makeText(context, "Search query is empty", Toast.LENGTH_SHORT).show()
+          Toast.makeText(context, context.getString(R.string.online_subtitle_search_empty_query), Toast.LENGTH_SHORT).show()
           return
         }
         scope.launch {
@@ -152,7 +152,7 @@ fun OnlineSubtitleSearchSheet(
               keyboardController?.hide()
             }
             .onFailure { e ->
-              Toast.makeText(context, "AI format failed: ${e.message}", Toast.LENGTH_SHORT).show()
+              Toast.makeText(context, context.getString(R.string.online_subtitle_ai_format_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
             }
           isAiFormatting = false
         }
@@ -226,7 +226,7 @@ fun OnlineSubtitleSearchSheet(
                     Spacer(Modifier.width(4.dp))
                   } else {
                     IconButton(onClick = { formatWithAi() }) {
-                      Icon(Icons.Default.AutoAwesome, "Format with AI", tint = MaterialTheme.colorScheme.tertiary)
+                      Icon(Icons.Default.AutoAwesome, stringResource(R.string.online_subtitle_format_with_ai), tint = MaterialTheme.colorScheme.tertiary)
                     }
                   }
                 }
@@ -273,7 +273,7 @@ fun OnlineSubtitleSearchSheet(
               .padding(horizontal = MaterialTheme.spacing.medium)
           ) {
             Text(
-              text = "Found ${mediaSearchResults.size}",
+              text = stringResource(R.string.online_subtitle_found_results, mediaSearchResults.size),
               style = MaterialTheme.typography.labelSmall,
               color = MaterialTheme.colorScheme.outline,
               modifier = Modifier
@@ -399,7 +399,7 @@ fun OnlineSubtitleRow(
             if (subtitle.isHashMatch) {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "Verified Sync",
+                    contentDescription = stringResource(R.string.cd_online_subtitle_verified_sync),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
                 )
@@ -513,7 +513,7 @@ fun OnlineSubtitleRow(
                             color = MaterialTheme.colorScheme.outlineVariant
                         )
                         Text(
-                            text = "SYNC",
+                            text = stringResource(R.string.cd_online_subtitle_sync),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
@@ -537,7 +537,7 @@ fun OnlineSubtitleRow(
             ) {
                 Icon(
                     imageVector = Icons.Default.Download,
-                    contentDescription = "Download",
+                    contentDescription = stringResource(R.string.cd_online_subtitle_download),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
@@ -564,7 +564,7 @@ private fun SubdlEpisodeDropdown(
             shape = RoundedCornerShape(8.dp),
         ) {
             Text(
-                text = "Ep $selectedEpisode",
+                text = stringResource(R.string.cd_online_subtitle_ep_short, selectedEpisode),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -584,7 +584,7 @@ private fun SubdlEpisodeDropdown(
         ) {
             episodes.forEach { episode ->
                 DropdownMenuItem(
-                    text = { Text("Episode $episode") },
+                    text = { Text(stringResource(R.string.cd_online_subtitle_episode, episode)) },
                     onClick = {
                         onEpisodeSelected(episode)
                         expanded = false

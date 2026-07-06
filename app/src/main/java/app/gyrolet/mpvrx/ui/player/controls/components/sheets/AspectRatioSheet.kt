@@ -2,6 +2,7 @@ package app.gyrolet.mpvrx.ui.player.controls.components.sheets
 
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.R
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,7 +29,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -54,7 +57,7 @@ fun AspectRatioSheet(
 ) {
   val presetRatios =
     listOf(
-      AspectRatio("Default", -1.0),
+      AspectRatio(stringResource(R.string.player_aspect_default), -1.0),
       AspectRatio("4:3", 4.0 / 3.0),
       AspectRatio("16:9", 16.0 / 9.0),
       AspectRatio("16:10", 16.0 / 10.0),
@@ -73,7 +76,7 @@ fun AspectRatioSheet(
           .padding(vertical = MaterialTheme.spacing.medium),
     ) {
       Text(
-        text = "Aspect Ratio",
+        text = stringResource(R.string.player_aspect_ratio_title),
         style = MaterialTheme.typography.headlineSmall,
         modifier =
           Modifier
@@ -83,7 +86,7 @@ fun AspectRatioSheet(
 
       // Preset ratios
       Text(
-        text = "Presets",
+        text = stringResource(R.string.player_aspect_presets),
         style = MaterialTheme.typography.titleSmall,
         modifier =
           Modifier
@@ -109,7 +112,7 @@ fun AspectRatioSheet(
       // Custom ratios
       if (customRatios.isNotEmpty()) {
         Text(
-          text = "Custom",
+          text = stringResource(R.string.player_aspect_custom),
           style = MaterialTheme.typography.titleSmall,
           modifier =
             Modifier
@@ -158,6 +161,7 @@ private fun AddCustomRatioRow(
   var heightText by remember { mutableStateOf("") }
   var errorMessage by remember { mutableStateOf<String?>(null) }
   val keyboardController = LocalSoftwareKeyboardController.current
+  val context = LocalContext.current
 
   Column(
     modifier =
@@ -166,7 +170,7 @@ private fun AddCustomRatioRow(
         .padding(horizontal = MaterialTheme.spacing.medium),
   ) {
     Text(
-      text = "Add Custom Ratio (e.g. 16:9)",
+      text = stringResource(R.string.player_aspect_add_custom_ratio),
       style = MaterialTheme.typography.titleSmall,
       modifier = Modifier.padding(bottom = MaterialTheme.spacing.small),
     )
@@ -183,7 +187,7 @@ private fun AddCustomRatioRow(
           widthText = it.filter { char -> char.isDigit() || char == '.' }
           errorMessage = null
         },
-        label = { Text("Width") },
+        label = { Text(stringResource(R.string.player_aspect_width)) },
         isError = errorMessage != null,
         keyboardOptions =
           KeyboardOptions(
@@ -209,7 +213,7 @@ private fun AddCustomRatioRow(
           heightText = it.filter { char -> char.isDigit() || char == '.' }
           errorMessage = null
         },
-        label = { Text("Height") },
+        label = { Text(stringResource(R.string.player_aspect_height)) },
         isError = errorMessage != null,
         keyboardOptions =
           KeyboardOptions(
@@ -226,7 +230,7 @@ private fun AddCustomRatioRow(
                 heightText = ""
                 keyboardController?.hide()
               } else {
-                errorMessage = "Invalid"
+                errorMessage = context.getString(R.string.player_aspect_invalid)
               }
             },
           ),
@@ -244,11 +248,11 @@ private fun AddCustomRatioRow(
             heightText = ""
             keyboardController?.hide()
           } else {
-            errorMessage = "Invalid"
+            errorMessage = context.getString(R.string.player_aspect_invalid)
           }
         },
       ) {
-        Icon(Icons.Default.Add, contentDescription = "Add")
+        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.player_aspect_add))
       }
     }
 

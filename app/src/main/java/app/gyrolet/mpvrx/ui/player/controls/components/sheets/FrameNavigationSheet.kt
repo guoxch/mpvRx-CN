@@ -189,7 +189,7 @@ fun FrameNavigationSheet(
                   Toast.LENGTH_SHORT,
                 ).show()
             }.onFailure { error ->
-              Toast.makeText(context, "Failed to save snapshot: ${error.message}", Toast.LENGTH_LONG).show()
+              Toast.makeText(context, context.getString(R.string.player_sheets_frame_navigation_failed_save, error.message), Toast.LENGTH_LONG).show()
             }
           } finally {
             isSnapshotLoading = false
@@ -439,7 +439,7 @@ private fun FrameInfoDisplay(
       verticalAlignment = Alignment.CenterVertically,
     ) {
       Text(
-        text = "Frame: ",
+        text = stringResource(R.string.player_sheets_frame_navigation_label_frame),
         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.ExtraBold),
         color = MaterialTheme.colorScheme.tertiary,
       )
@@ -459,7 +459,7 @@ private fun FrameInfoDisplay(
       verticalAlignment = Alignment.CenterVertically,
     ) {
       Text(
-        text = "Timestamp: ",
+        text = stringResource(R.string.player_sheets_frame_navigation_label_timestamp),
         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.ExtraBold),
         color = MaterialTheme.colorScheme.tertiary,
       )

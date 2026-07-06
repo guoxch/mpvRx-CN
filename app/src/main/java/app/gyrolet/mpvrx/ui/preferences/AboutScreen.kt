@@ -100,7 +100,7 @@ object AboutScreen : Screen {
     // Show toast when no update is available after manual check (only if update feature is enabled)
     LaunchedEffect(updateState) {
         if (BuildConfig.ENABLE_UPDATE_FEATURE && updateViewModel != null && updateState is UpdateViewModel.UpdateState.NoUpdate) {
-            Toast.makeText(context, "Already using latest version", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.about_latest), Toast.LENGTH_SHORT).show()
             updateViewModel.dismissNoUpdate()
         }
     }
@@ -194,14 +194,14 @@ object AboutScreen : Screen {
 
                 Column(modifier = Modifier.weight(1f)) {
                   Text(
-                    text = "MpvRx",
+                    text = stringResource(R.string.about_app_name),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = cs.onPrimaryContainer,
                   )
                   Spacer(Modifier.height(4.dp))
                   Text(
-                    text = "v$versionName $buildType",
+                    text = stringResource(R.string.about_version, versionName, buildType),
                     style = MaterialTheme.typography.bodyMedium,
                     color = cs.onPrimaryContainer.copy(alpha = 0.85f),
                   )
@@ -211,7 +211,7 @@ object AboutScreen : Screen {
                     color = cs.primary.copy(alpha = 0.16f),
                   ) {
                     Text(
-                      text = "By Ritesh Pandit",
+                      text = stringResource(R.string.about_author),
                       modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                       style = MaterialTheme.typography.titleSmall,
                       fontWeight = FontWeight.SemiBold,
@@ -270,7 +270,7 @@ object AboutScreen : Screen {
                     ),
                 ) {
                   Text(
-                    text = "GitHub",
+                    text = stringResource(R.string.about_github),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                   )
@@ -293,13 +293,13 @@ object AboutScreen : Screen {
                 ) {
                   Icon(
                     imageVector = Icons.Filled.Info,
-                    contentDescription = "Device Info",
+                    contentDescription = stringResource(R.string.cd_device_info),
                     modifier = Modifier.size(20.dp),
                     tint = cs.onPrimaryContainer,
                   )
                   Spacer(modifier = Modifier.width(8.dp))
                   Text(
-                    text = "Device Info",
+                    text = stringResource(R.string.about_device_info),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = cs.onPrimaryContainer,
@@ -318,7 +318,7 @@ object AboutScreen : Screen {
         Spacer(Modifier.height(8.dp))
 
         // Support / Donation Section
-        PreferenceSectionHeader(title = "Support")
+        PreferenceSectionHeader(title = stringResource(R.string.about_support))
         PreferenceCard {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -330,7 +330,7 @@ object AboutScreen : Screen {
                     )
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        text = "Buy Me a Coffee",
+                        text = stringResource(R.string.about_buy_coffee),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = cs.onSurface,
@@ -338,7 +338,7 @@ object AboutScreen : Screen {
                 }
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text = "If you enjoy MpvRx, consider supporting its development. Every bit helps!",
+                    text = stringResource(R.string.about_donate_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     color = cs.onSurfaceVariant,
                 )
@@ -358,7 +358,7 @@ object AboutScreen : Screen {
                                     text = "panditritesh2001@okhdfcbank",
                                     showToast = false,
                                 )
-                                Toast.makeText(context, "UPI ID copied!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.about_upi_copied), Toast.LENGTH_SHORT).show()
                             }
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -366,7 +366,7 @@ object AboutScreen : Screen {
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "UPI ID",
+                                text = stringResource(R.string.about_upi_id_label),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = cs.outline,
                             )
@@ -380,7 +380,7 @@ object AboutScreen : Screen {
                         }
                         Icon(
                             imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "Copy UPI ID",
+                            contentDescription = stringResource(R.string.cd_copy_upi),
                             modifier = Modifier.size(20.dp),
                             tint = cs.primary,
                         )
@@ -396,7 +396,7 @@ object AboutScreen : Screen {
                             )
                             context.startActivity(upiIntent)
                         } catch (_: Exception) {
-                            Toast.makeText(context, "No UPI app found", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.about_no_upi_app), Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
@@ -409,7 +409,7 @@ object AboutScreen : Screen {
                 ) {
                     Icon(Icons.Filled.MonetizationOn, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Send Love", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.about_send_love), fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -418,7 +418,7 @@ object AboutScreen : Screen {
 
         // Updates Section (only show if update feature is enabled)
         if (BuildConfig.ENABLE_UPDATE_FEATURE && updateViewModel != null) {
-          PreferenceSectionHeader(title = "Updates")
+          PreferenceSectionHeader(title = stringResource(R.string.about_updates))
           PreferenceCard {
                 val isAutoUpdateEnabled by updateViewModel.isAutoUpdateEnabled.collectAsState()
                 Column {
@@ -434,14 +434,14 @@ object AboutScreen : Screen {
                             modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                text = "Auto Check for Updates",
+                                text = stringResource(R.string.about_auto_check),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = cs.onSurface
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Check on startup",
+                                text = stringResource(R.string.about_check_on_startup),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = cs.outline
                             )
@@ -467,7 +467,7 @@ object AboutScreen : Screen {
                         ) {
                              Icon(Icons.Default.Update, null, modifier = Modifier.size(18.dp))
                              Spacer(Modifier.width(8.dp))
-                             Text("Check for Updates Now", fontWeight = FontWeight.SemiBold)
+                             Text(stringResource(R.string.about_check_now), fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -477,7 +477,7 @@ object AboutScreen : Screen {
         }
 
         // System Stats Section
-        PreferenceSectionHeader(title = "System")
+        PreferenceSectionHeader(title = stringResource(R.string.about_system))
 
         val systemStats = remember { collectSystemStats(context) }
         PreferenceCard {

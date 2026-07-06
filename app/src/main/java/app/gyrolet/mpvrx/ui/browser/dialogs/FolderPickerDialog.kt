@@ -1,5 +1,6 @@
 package app.gyrolet.mpvrx.ui.browser.dialogs
 
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -35,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -114,12 +116,12 @@ fun FolderPickerDialog(
     title = {
       Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-          text = "Select Folder",
+          text = stringResource(R.string.dialog_select_folder),
           style = MaterialTheme.typography.headlineMedium,
           fontWeight = FontWeight.Bold,
         )
         Text(
-          text = selectedPath ?: "Select a storage location",
+          text = selectedPath ?: stringResource(R.string.dialog_select_a_location),
           style = MaterialTheme.typography.bodyMedium,
           fontWeight = FontWeight.Medium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -129,7 +131,7 @@ fun FolderPickerDialog(
         )
         if (isSameAsSource) {
           Text(
-            text = "Cannot select the same folder",
+            text = stringResource(R.string.dialog_cannot_select_same_folder),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.error,
@@ -164,7 +166,7 @@ fun FolderPickerDialog(
             ) {
               Icon(
                 imageVector = Icons.Filled.ArrowBack,
-                contentDescription = "Go back",
+                contentDescription = stringResource(R.string.cd_go_back),
               )
             }
           }
@@ -183,7 +185,7 @@ fun FolderPickerDialog(
           ) {
             Icon(
               imageVector = Icons.Default.Home,
-              contentDescription = "Go to internal storage",
+              contentDescription = stringResource(R.string.cd_go_to_internal_storage),
             )
           }
 
@@ -200,7 +202,7 @@ fun FolderPickerDialog(
           ) {
             Icon(
               imageVector = Icons.Default.CreateNewFolder,
-              contentDescription = "Create folder",
+              contentDescription = stringResource(R.string.cd_create_folder),
             )
           }
         }
@@ -230,7 +232,7 @@ fun FolderPickerDialog(
             if (storageVolumes.isEmpty()) {
               item {
                 Text(
-                  text = "No storage devices found",
+                  text = stringResource(R.string.dialog_no_storage_devices),
                   style = MaterialTheme.typography.bodyLarge,
                   fontWeight = FontWeight.Medium,
                   color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -250,7 +252,7 @@ fun FolderPickerDialog(
             if (folders.isEmpty()) {
               item {
                 Text(
-                  text = "No subfolders",
+                  text = stringResource(R.string.dialog_no_subfolders),
                   style = MaterialTheme.typography.bodyLarge,
                   fontWeight = FontWeight.Medium,
                   color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -272,7 +274,7 @@ fun FolderPickerDialog(
           ),
         shape = MaterialTheme.shapes.extraLarge,
       ) {
-        Text("Select", fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.common_select), fontWeight = FontWeight.Bold)
       }
     },
     dismissButton = {
@@ -280,7 +282,7 @@ fun FolderPickerDialog(
         onClick = onDismiss,
         shape = MaterialTheme.shapes.extraLarge,
       ) {
-        Text("Cancel", fontWeight = FontWeight.Medium)
+        Text(stringResource(R.string.common_cancel), fontWeight = FontWeight.Medium)
       }
     },
     containerColor = MaterialTheme.colorScheme.surface,
@@ -384,6 +386,7 @@ private fun CreateFolderDialog(
   onDismiss: () -> Unit,
   onFolderCreated: (String) -> Unit,
 ) {
+  val context = LocalContext.current
   var folderName by remember { mutableStateOf("") }
   var error by remember { mutableStateOf<String?>(null) }
 
@@ -391,7 +394,7 @@ private fun CreateFolderDialog(
     onDismissRequest = onDismiss,
     title = {
       Text(
-        "Create New Folder",
+        stringResource(R.string.dialog_create_new_folder),
         style = MaterialTheme.typography.headlineMedium,
         fontWeight = FontWeight.Bold,
       )
@@ -404,7 +407,7 @@ private fun CreateFolderDialog(
             folderName = it
             error = null
           },
-          label = { Text("Folder name", fontWeight = FontWeight.Medium) },
+          label = { Text(stringResource(R.string.dialog_folder_name), fontWeight = FontWeight.Medium) },
           singleLine = true,
           isError = error != null,
           modifier = Modifier.fillMaxWidth(),
@@ -429,13 +432,13 @@ private fun CreateFolderDialog(
       Button(
         onClick = {
           if (folderName.isBlank()) {
-            error = "Folder name cannot be empty"
+            error = context.getString(R.string.dialog_folder_name_cannot_be_empty)
             return@Button
           }
 
           val newFolder = File(parentPath, folderName)
           if (newFolder.exists()) {
-            error = "Folder already exists"
+            error = context.getString(R.string.dialog_folder_already_exists)
             return@Button
           }
 
@@ -443,10 +446,10 @@ private fun CreateFolderDialog(
             if (newFolder.mkdirs()) {
               onFolderCreated(newFolder.absolutePath)
             } else {
-              error = "Failed to create folder"
+              error = context.getString(R.string.dialog_folder_create_failed)
             }
           } catch (e: Exception) {
-            error = e.message ?: "Unknown error"
+            error = e.message ?: context.getString(R.string.dialog_unknown_error)
           }
         },
         enabled = folderName.isNotBlank(),
@@ -456,7 +459,7 @@ private fun CreateFolderDialog(
           ),
         shape = MaterialTheme.shapes.extraLarge,
       ) {
-        Text("Create", fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.dialog_create), fontWeight = FontWeight.Bold)
       }
     },
     dismissButton = {
@@ -464,7 +467,7 @@ private fun CreateFolderDialog(
         onClick = onDismiss,
         shape = MaterialTheme.shapes.extraLarge,
       ) {
-        Text("Cancel", fontWeight = FontWeight.Medium)
+        Text(stringResource(R.string.common_cancel), fontWeight = FontWeight.Medium)
       }
     },
     containerColor = MaterialTheme.colorScheme.surface,

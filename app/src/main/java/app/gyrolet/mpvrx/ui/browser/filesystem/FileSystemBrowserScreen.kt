@@ -485,16 +485,16 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 placeholder = {
                   Text(
                     if (isAtRoot) {
-                      "Search in all storage volumes..."
+                      stringResource(app.gyrolet.mpvrx.R.string.common_search_hint_all_volumes)
                     } else {
-                      "Search in ${breadcrumbs.lastOrNull()?.name ?: "folder"}..."
+                      stringResource(app.gyrolet.mpvrx.R.string.common_search_hint_folder, breadcrumbs.lastOrNull()?.name ?: stringResource(app.gyrolet.mpvrx.R.string.common_folder))
                     }
                   )
                 },
                 leadingIcon = {
                   Icon(
                     imageVector = Icons.Filled.Search,
-                    contentDescription = "Search",
+                    contentDescription = stringResource(app.gyrolet.mpvrx.R.string.nav_icon_search),
                   )
                 },
                 trailingIcon = {
@@ -506,7 +506,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                   ) {
                     Icon(
                       imageVector = Icons.Filled.Close,
-                      contentDescription = "Cancel",
+                      contentDescription = stringResource(app.gyrolet.mpvrx.R.string.generic_cancel),
                     )
                   }
                 },
@@ -528,7 +528,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
             title = if (isAtRoot) {
               stringResource(app.gyrolet.mpvrx.R.string.app_name)
             } else {
-              breadcrumbs.lastOrNull()?.name ?: "Tree View"
+              breadcrumbs.lastOrNull()?.name ?: stringResource(app.gyrolet.mpvrx.R.string.common_tree_view)
             },
             isInSelectionMode = isInSelectionMode,
             selectedCount = selectedCount,
@@ -617,7 +617,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                     TooltipAnchorPosition.Above
                   }
                 ),
-                tooltip = { PlainTooltip { Text("Toggle menu") } },
+                tooltip = { PlainTooltip { Text(stringResource(app.gyrolet.mpvrx.R.string.common_toggle_menu)) } },
                 state = rememberTooltipState(),
               ) {
                 ToggleFloatingActionButton(
@@ -649,7 +649,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 filePicker.launch(arrayOf("video/*"))
               },
               icon = { Icon(Icons.Filled.FileOpen, contentDescription = null) },
-              text = { Text(text = "Open File") },
+              text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.common_open_file)) },
             )
 
             FloatingActionButtonMenuItem(
@@ -664,7 +664,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 }
               },
               icon = { Icon(Icons.Filled.History, contentDescription = null) },
-              text = { Text(text = "Recently Played") },
+              text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.common_recently_played)) },
             )
 
             FloatingActionButtonMenuItem(
@@ -673,7 +673,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 showLinkDialog.value = true
               },
               icon = { Icon(Icons.Filled.Link, contentDescription = null) },
-              text = { Text(text = "Open Link") },
+              text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.common_open_link)) },
             )
           }
         }
@@ -1249,7 +1249,7 @@ private fun FileSystemBrowserContent(
       ) {
         EmptyState(
           icon = Icons.Filled.Folder,
-          title = "Error loading directory",
+          title = stringResource(app.gyrolet.mpvrx.R.string.common_error_loading_directory),
           message = error,
         )
       }
@@ -1262,8 +1262,8 @@ private fun FileSystemBrowserContent(
       ) {
         EmptyState(
           icon = Icons.Filled.FolderOpen,
-          title = "Empty folder",
-          message = "This folder contains no videos or subfolders",
+          title = stringResource(app.gyrolet.mpvrx.R.string.common_empty_folder),
+          message = stringResource(app.gyrolet.mpvrx.R.string.common_folder_empty_videos),
         )
       }
     }
@@ -1645,7 +1645,7 @@ private fun FileSystemSearchContent(
               color = MaterialTheme.colorScheme.primary,
             )
             Text(
-              text = if (isAtRoot) "Searching all storage volumes..." else "Searching...",
+              text = if (isAtRoot) stringResource(app.gyrolet.mpvrx.R.string.common_search_hint_all_volumes) else stringResource(app.gyrolet.mpvrx.R.string.generic_searching),
               style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1660,8 +1660,8 @@ private fun FileSystemSearchContent(
         ) {
           EmptyState(
             icon = Icons.Filled.Search,
-            title = "No results found",
-            message = "No files or folders match \"$searchQuery\"",
+            title = stringResource(app.gyrolet.mpvrx.R.string.search_no_results_title),
+            message = stringResource(app.gyrolet.mpvrx.R.string.common_no_files_match_query, searchQuery),
           )
         }
       }

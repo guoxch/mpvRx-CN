@@ -299,8 +299,8 @@ object RecentlyPlayedScreen : Screen {
           ) {
             EmptyState(
               icon = Icons.Filled.History,
-              title = "Recently Played is disabled",
-              message = "Enable it in Advanced Settings to track your playback history",
+              title = stringResource(app.gyrolet.mpvrx.R.string.recents_disabled_title),
+              message = stringResource(app.gyrolet.mpvrx.R.string.recents_disabled_message),
             )
           }
         }
@@ -328,8 +328,8 @@ object RecentlyPlayedScreen : Screen {
           ) {
             EmptyState(
               icon = Icons.Filled.History,
-              title = "No recently played videos",
-              message = "Videos you play will appear here",
+              title = stringResource(app.gyrolet.mpvrx.R.string.recents_empty_title),
+              message = stringResource(app.gyrolet.mpvrx.R.string.recents_empty_message),
             )
           }
         }
@@ -346,7 +346,7 @@ object RecentlyPlayedScreen : Screen {
                   // Always play individual videos without creating a playlist.
                   MediaUtils.playFile(playableVideo, context, "recently_played")
                 } else {
-                  Toast.makeText(context, "Recent file no longer exists", Toast.LENGTH_SHORT).show()
+                  Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.recents_file_not_found), Toast.LENGTH_SHORT).show()
                 }
               }
             },
@@ -366,22 +366,20 @@ object RecentlyPlayedScreen : Screen {
       if (deleteDialogOpen.value && selectionManager.isInSelectionMode) {
         // Remove selected items from history
         val itemCount = selectionManager.selectedCount
-        val itemText = if (itemCount == 1) "item" else "items"
+        val itemText = if (itemCount == 1) context.getString(app.gyrolet.mpvrx.R.string.recents_item) else context.getString(app.gyrolet.mpvrx.R.string.recents_items)
         val deleteFiles = deleteFilesCheckbox.value
 
         val title = if (deleteFiles) {
-          "Delete $itemCount $itemText?"
+          context.getString(app.gyrolet.mpvrx.R.string.recents_delete_title_delete, itemCount, itemText)
         } else {
-          "Remove $itemCount $itemText from history?"
+          context.getString(app.gyrolet.mpvrx.R.string.recents_delete_title_remove, itemCount, itemText)
         }
 
         val subtitle = buildString {
           if (deleteFiles) {
-            append("This will permanently delete the original video file(s) from your device storage.\n\n")
-            append("This action cannot be undone.")
+            append(context.getString(app.gyrolet.mpvrx.R.string.recents_delete_subtitle_delete))
           } else {
-            append("This will remove the selected $itemText from your recently played list. ")
-            append("The original video files will not be deleted.")
+            append(context.getString(app.gyrolet.mpvrx.R.string.recents_delete_subtitle_remove, itemText))
           }
         }
 
@@ -400,7 +398,7 @@ object RecentlyPlayedScreen : Screen {
                 },
               )
               androidx.compose.material3.Text(
-                text = "Also delete original file(s)",
+                text = context.getString(app.gyrolet.mpvrx.R.string.recents_delete_files_checkbox),
                 modifier = Modifier.padding(start = 8.dp),
                 style = MaterialTheme.typography.bodyMedium,
               )

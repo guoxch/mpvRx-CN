@@ -1,7 +1,9 @@
 package app.gyrolet.mpvrx.ui.browser.sheets
 
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -100,7 +102,7 @@ fun PlayLinkSheet(
     ) {
       // Title
       Text(
-        text = "Play Link",
+        text = stringResource(R.string.play_link_title),
         style = MaterialTheme.typography.headlineSmall,
         fontWeight = FontWeight.Medium,
         color = MaterialTheme.colorScheme.onSurface,
@@ -117,8 +119,8 @@ fun PlayLinkSheet(
             isLinkInputUrlValid = newValue.isBlank() || MediaUtils.isURLValid(newValue)
           },
           modifier = Modifier.fillMaxWidth(),
-          label = { Text("Enter URL") },
-          placeholder = { Text("https://example.com/video.mp4") },
+          label = { Text(stringResource(R.string.play_link_enter_url)) },
+          placeholder = { Text(stringResource(R.string.play_link_url_placeholder)) },
           singleLine = true,
           isError = linkInputUrl.isNotBlank() && !isLinkInputUrlValid,
           trailingIcon = {
@@ -130,7 +132,7 @@ fun PlayLinkSheet(
 
         if (linkInputUrl.isNotBlank() && !isLinkInputUrlValid) {
           Text(
-            text = "Unsupported URL protocol",
+            text = stringResource(R.string.play_link_unsupported_protocol),
             color = MaterialTheme.colorScheme.error,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
@@ -145,7 +147,7 @@ fun PlayLinkSheet(
       ) {
         TextButton(onClick = handleDismiss) {
           Text(
-            text = "Cancel",
+            text = stringResource(android.R.string.cancel),
             fontWeight = FontWeight.Medium,
           )
         }
@@ -159,7 +161,7 @@ fun PlayLinkSheet(
             ),
         ) {
           Text(
-            text = "Play",
+            text = stringResource(R.string.common_play),
             fontWeight = FontWeight.SemiBold,
           )
         }
@@ -175,13 +177,13 @@ private fun ValidationIcon(isValid: Boolean) {
   if (isValid) {
     Icon(
       Icons.Filled.Check,
-      contentDescription = "Valid URL",
+      contentDescription = stringResource(R.string.cd_play_link_valid),
       tint = MaterialTheme.colorScheme.primary,
     )
   } else {
     Icon(
       Icons.Filled.Close,
-      contentDescription = "Invalid URL",
+      contentDescription = stringResource(R.string.cd_play_link_invalid),
       tint = MaterialTheme.colorScheme.error,
     )
   }

@@ -2,6 +2,7 @@ package app.gyrolet.mpvrx.ui.player.controls.components.panels
 
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.R
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -29,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.ui.player.HdrScreenMode
@@ -56,7 +58,7 @@ fun HdrScreenOutputPanel(
           .padding(top = MaterialTheme.spacing.small),
       ) {
         Text(
-          text = "HDR Output",
+          text = stringResource(R.string.player_hdr_output_title),
           style = MaterialTheme.typography.titleLarge,
         )
         Spacer(Modifier.weight(1f))
@@ -125,12 +127,12 @@ private fun HdrPipelineUnavailableStatus(
       }
       Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(
-          text = "HDR cannot be enabled",
+          text = stringResource(R.string.player_hdr_cannot_enable),
           style = MaterialTheme.typography.titleLarge,
           fontWeight = FontWeight.SemiBold,
         )
         Text(
-          text = "Enable GPU Next and Vulkan before using HDR modes",
+          text = stringResource(R.string.player_hdr_enable_gpu_next_vulkan),
           style = MaterialTheme.typography.bodySmall,
           color = contentColor.copy(alpha = 0.78f),
         )

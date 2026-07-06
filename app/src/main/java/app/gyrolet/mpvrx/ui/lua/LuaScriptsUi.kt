@@ -1,9 +1,11 @@
 package app.gyrolet.mpvrx.ui.lua
 
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
 import android.widget.Toast
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -96,7 +98,7 @@ fun rememberLuaScriptsCatalog(
         }
       }.onFailure { error ->
         state = LuaScriptsCatalogState(availableScripts = emptyList(), isLoading = false)
-        Toast.makeText(context, "Error loading scripts: ${error.message}", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, context.getString(R.string.lua_error_loading, error.message), Toast.LENGTH_LONG).show()
       }
   }
 
@@ -131,11 +133,11 @@ fun LuaRuntimeStatusCard(
     }
   val summary =
     when {
-      !hasStorageLocation -> "Set an MPV config folder in Advanced settings to browse scripts."
-      enabled && availableScriptsCount == 0 -> "Script runtime is on, but no .lua or .js files were found in your scripts folder."
-      enabled && enabledScriptsCount == 0 -> "Script runtime is on. Tap a script below to arm it for playback."
-      enabled -> "$enabledScriptsCount of $availableScriptsCount scripts enabled for playback."
-      else -> "Script runtime is off. Enabled scripts stay saved and can be reactivated anytime."
+      !hasStorageLocation -> stringResource(R.string.lua_summary_no_folder)
+      enabled && availableScriptsCount == 0 -> stringResource(R.string.lua_summary_runtime_on_no_scripts)
+      enabled && enabledScriptsCount == 0 -> stringResource(R.string.lua_summary_runtime_on_no_enabled)
+      enabled -> stringResource(R.string.lua_summary_runtime_on_enabled, enabledScriptsCount, availableScriptsCount)
+      else -> stringResource(R.string.lua_summary_runtime_off)
     }
 
   Surface(
@@ -186,7 +188,7 @@ fun LuaRuntimeStatusCard(
         verticalArrangement = Arrangement.spacedBy(2.dp),
       ) {
         Text(
-          text = "Script runtime",
+          text = stringResource(R.string.lua_script_runtime),
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.SemiBold,
         )
@@ -299,9 +301,9 @@ fun LuaScriptToggleCard(
     }
   val statusText =
     when {
-      active -> "Enabled"
-      selected -> "Saved, but script runtime is off"
-      else -> "Disabled"
+      active -> stringResource(R.string.lua_enabled)
+      selected -> stringResource(R.string.lua_saved_runtime_off)
+      else -> stringResource(R.string.lua_disabled)
     }
 
   Surface(
@@ -388,7 +390,7 @@ fun LuaSelectionFootnote(
   modifier: Modifier = Modifier,
 ) {
   Text(
-    text = "Newly enabled scripts can load during playback. Scripts you turn off may need the video to be reopened before they fully stop running.",
+    text = stringResource(R.string.lua_newly_enabled_hint),
     style = MaterialTheme.typography.bodySmall,
     color = MaterialTheme.colorScheme.onSurfaceVariant,
     modifier = modifier

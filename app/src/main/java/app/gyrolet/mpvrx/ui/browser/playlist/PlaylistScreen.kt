@@ -246,7 +246,7 @@ object PlaylistScreen : Screen {
             ExtendedFloatingActionButton(
               onClick = { showPlaylistActionSheet = true },
               icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-              text = { Text("Create Playlist") },
+              text = { Text(stringResource(app.gyrolet.mpvrx.R.string.playlist_create)) },
               modifier = Modifier.padding(bottom = navigationBarHeight)
             )
           }
@@ -324,12 +324,12 @@ object PlaylistScreen : Screen {
           var playlistName by remember { mutableStateOf(selectedPlaylist.playlist.name) }
           androidx.compose.material3.AlertDialog(
             onDismissRequest = { showRenameDialog = false },
-            title = { Text("Rename Playlist") },
+            title = { Text(stringResource(app.gyrolet.mpvrx.R.string.playlist_rename_title)) },
             text = {
               androidx.compose.material3.OutlinedTextField(
                 value = playlistName,
                 onValueChange = { playlistName = it },
-                label = { Text("Playlist Name") },
+                label = { Text(stringResource(app.gyrolet.mpvrx.R.string.common_playlist_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
               )
@@ -347,14 +347,14 @@ object PlaylistScreen : Screen {
                 },
                 enabled = playlistName.isNotBlank(),
               ) {
-                Text("Rename")
+                Text(stringResource(app.gyrolet.mpvrx.R.string.rename))
               }
             },
             dismissButton = {
               androidx.compose.material3.TextButton(
                 onClick = { showRenameDialog = false },
               ) {
-                Text("Cancel")
+                Text(stringResource(app.gyrolet.mpvrx.R.string.common_cancel))
               }
             },
           )

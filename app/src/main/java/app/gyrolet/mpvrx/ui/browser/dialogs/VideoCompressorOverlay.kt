@@ -93,6 +93,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -107,6 +108,7 @@ import app.gyrolet.mpvrx.utils.clipboard.SafeClipboard
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import app.gyrolet.mpvrx.R
 import java.io.File
 import java.util.Locale
 
@@ -255,9 +257,9 @@ fun VideoCompressorOverlay(
 
           CompressorScreenState.ERROR -> {
             CompressorIssueSurface(
-              title = "Compression failed",
-              message = state.error ?: "Unknown error",
-              actionLabel = "Try again",
+              title = context.getString(R.string.compressor_failed),
+              message = state.error ?: context.getString(R.string.generic_error),
+              actionLabel = context.getString(R.string.compressor_retry),
               onClose = ::closeOverlay,
               onAction = {
                 viewModel.resetSession()
@@ -298,7 +300,7 @@ fun VideoCompressorOverlay(
                 type = "text/plain"
                 putExtra(Intent.EXTRA_TEXT, infoText)
               }
-            context.startActivity(Intent.createChooser(sendIntent, "Share device info"))
+            context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.compressor_share_device_info)))
           }
         }
       },
@@ -324,9 +326,9 @@ private fun shareCompressedVideo(
         clipData = ClipData.newRawUri(title, contentUri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
       }
-    context.startActivity(Intent.createChooser(intent, "Share compressed video"))
+    context.startActivity(Intent.createChooser(intent, context.getString(R.string.compressor_share_title)))
   }.onFailure {
-    Toast.makeText(context, "Cannot share video: ${it.message}", Toast.LENGTH_SHORT).show()
+    Toast.makeText(context, context.getString(R.string.compressor_cannot_share, it.message), Toast.LENGTH_SHORT).show()
   }
 }
 
@@ -348,7 +350,11 @@ private fun CompressorConfigSurface(
 ) {
   val pagerState = rememberPagerState(pageCount = { 3 })
   val scope = rememberCoroutineScope()
-  val tabs = listOf("Presets", "Video", "Audio")
+  val tabs = listOf(
+    stringResource(R.string.compressor_presets),
+    stringResource(R.string.compressor_video_tab),
+    stringResource(R.string.compressor_audio_tab),
+  )
   val originalMb = state.originalSize / (1024f * 1024f)
   val actualEstimate = maxOf(state.targetSizeMb, state.minimumSizeMb)
   val isLarger = originalMb > 0f && actualEstimate > (originalMb + 0.01f)
@@ -363,7 +369,7 @@ private fun CompressorConfigSurface(
         verticalArrangement = Arrangement.spacedBy(12.dp),
       ) {
         androidx.compose.material3.CircularProgressIndicator()
-        Text("Loading video info")
+        Text(stringResource(R.string.compressor_loading))
       }
     }
     return
@@ -375,19 +381,19 @@ private fun CompressorConfigSurface(
         modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars),
         title = {
           Text(
-            text = "Compressor",
+            text = stringResource(R.string.compressor_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
           )
         },
         navigationIcon = {
           IconButton(onClick = onClose) {
-            Icon(Icons.Default.Close, contentDescription = "Close")
+            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.common_close))
           }
         },
         actions = {
           IconButton(onClick = onShowInfo) {
-            Icon(Icons.Filled.Info, contentDescription = "Info")
+            Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.compressor_info))
           }
         },
       )
@@ -530,10 +536,10 @@ private fun CompressorDestinationCard(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
       ) {
-        Text("Save to", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.compressor_save_to), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         if (state.isBatch) {
           Text(
-            "${state.queueSize} videos selected",
+            stringResource(R.string.compressor_videos_selected, state.queueSize),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
           )
@@ -547,17 +553,17 @@ private fun CompressorDestinationCard(
         FilterChip(
           selected = state.saveMode == VideoCompressorSaveMode.CURRENT_FOLDER,
           onClick = { onSetSaveMode(VideoCompressorSaveMode.CURRENT_FOLDER) },
-          label = { Text("Current folder") },
+          label = { Text(stringResource(R.string.compressor_current_folder)) },
         )
         FilterChip(
           selected = state.saveMode == VideoCompressorSaveMode.MOVIES_COMPRESSOR,
           onClick = { onSetSaveMode(VideoCompressorSaveMode.MOVIES_COMPRESSOR) },
-          label = { Text("Movies/Compressor") },
+          label = { Text(stringResource(R.string.compressor_default_folder)) },
         )
       }
 
       Text(
-        text = state.destinationDisplayPath.ifBlank { "Destination will be resolved when compression starts." },
+        text = state.destinationDisplayPath.ifBlank { stringResource(R.string.compressor_destination_placeholder) },
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
@@ -597,7 +603,7 @@ private fun CompressorBottomBar(
             .height(56.dp),
         shape = AppShapeScale.largeIncreased,
       ) {
-        Text(if (isBatch) "Start Batch Compression" else "Start Compression")
+        Text(if (isBatch) stringResource(R.string.compressor_start_batch) else stringResource(R.string.compressor_start))
       }
     }
   }
@@ -617,7 +623,7 @@ private fun CompressorInfoCard(state: VideoCompressorUiState) {
     ) {
       Column(modifier = Modifier.weight(1f)) {
         Text(
-          text = if (state.isBatch) "Source preview" else "Original",
+          text = if (state.isBatch) stringResource(R.string.compressor_source_preview) else stringResource(R.string.compressor_original),
           style = MaterialTheme.typography.labelMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -656,7 +662,7 @@ private fun CompressorInfoCard(state: VideoCompressorUiState) {
         horizontalAlignment = Alignment.End,
       ) {
         Text(
-          text = "Estimated",
+          text = stringResource(R.string.compressor_estimated),
           style = MaterialTheme.typography.labelMedium,
           color = MaterialTheme.colorScheme.primary,
         )
@@ -722,13 +728,13 @@ private fun CompressorPresetsTab(
         .padding(horizontal = 20.dp, vertical = 20.dp),
     verticalArrangement = Arrangement.spacedBy(20.dp),
   ) {
-    Text("Change Video Quality", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    Text(stringResource(R.string.compressor_change_quality), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
 
     val presets =
       listOf(
-        Triple(VideoCompressionPreset.HIGH, "High", "Optimized bitrate only"),
-        Triple(VideoCompressionPreset.MEDIUM, "Medium", "1080p - 30fps"),
-        Triple(VideoCompressionPreset.LOW, "Low", "720p - 30fps"),
+        Triple(VideoCompressionPreset.HIGH, stringResource(R.string.compressor_preset_high), stringResource(R.string.compressor_preset_high_desc)),
+        Triple(VideoCompressionPreset.MEDIUM, stringResource(R.string.compressor_preset_medium), stringResource(R.string.compressor_preset_medium_desc)),
+        Triple(VideoCompressionPreset.LOW, stringResource(R.string.compressor_preset_low), stringResource(R.string.compressor_preset_low_desc)),
       )
 
     presets.forEach { (preset, title, subtitle) ->
@@ -783,7 +789,7 @@ private fun CompressorPresetsTab(
       ).filter { it.first < (state.originalSize.toFloat() / (1024f * 1024f)) }
 
     if (sizePresets.isNotEmpty()) {
-      Text("Target Size Presets", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+      Text(stringResource(R.string.compressor_target_size), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
       FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -833,9 +839,9 @@ private fun CompressorVideoTab(
         .padding(horizontal = 20.dp, vertical = 20.dp),
     verticalArrangement = Arrangement.spacedBy(18.dp),
   ) {
-    Text("Advanced Options", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    Text(stringResource(R.string.compressor_advanced), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
 
-    Text("Target Size", style = MaterialTheme.typography.labelLarge)
+    Text(stringResource(R.string.compressor_target_size_label), style = MaterialTheme.typography.labelLarge)
     Text(
       text = String.format(Locale.US, "%.1f MB", sliderValue),
       style = MaterialTheme.typography.labelMedium,
@@ -850,7 +856,7 @@ private fun CompressorVideoTab(
       valueRange = 0.1f..maxOf(10f, state.targetSizeMb, (state.originalSize.toFloat() / (1024f * 1024f))),
     )
 
-    Text("Encoding", style = MaterialTheme.typography.labelLarge)
+    Text(stringResource(R.string.compressor_encoding), style = MaterialTheme.typography.labelLarge)
     Row(
       modifier = Modifier.horizontalScroll(rememberScrollState()),
       horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -876,7 +882,7 @@ private fun CompressorVideoTab(
       )
     }
 
-    Text("Resolution", style = MaterialTheme.typography.labelLarge)
+    Text(stringResource(R.string.compressor_resolution), style = MaterialTheme.typography.labelLarge)
     val originalShortSide = minOf(state.originalWidth, state.originalHeight)
     val currentShortSide =
       if (state.originalHeight > state.originalWidth && state.targetResolutionHeight > 0 && state.originalHeight > 0) {
@@ -892,7 +898,7 @@ private fun CompressorVideoTab(
     ) {
       val options =
         buildList {
-          add(originalShortSide to "Original")
+          add(originalShortSide to stringResource(R.string.compressor_original))
           listOf(2160, 1440, 1080, 720, 540, 480, (originalShortSide * 3) / 4, originalShortSide / 2, originalShortSide / 4)
             .filter { it > 0 && it < originalShortSide }
             .distinct()
@@ -900,14 +906,14 @@ private fun CompressorVideoTab(
         }
       options.forEach { (value, label) ->
         FilterChip(
-          selected = currentShortSide == value || (label == "Original" && state.targetResolutionHeight == state.originalHeight),
+          selected = currentShortSide == value || (label == stringResource(R.string.compressor_original) && state.targetResolutionHeight == state.originalHeight),
           onClick = { onSetResolution(value) },
           label = { Text(label) },
         )
       }
     }
 
-    Text("Framerate", style = MaterialTheme.typography.labelLarge)
+    Text(stringResource(R.string.compressor_framerate), style = MaterialTheme.typography.labelLarge)
     Row(
       modifier = Modifier.horizontalScroll(rememberScrollState()),
       horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -951,20 +957,20 @@ private fun CompressorAudioTab(
         .padding(horizontal = 20.dp, vertical = 20.dp),
     verticalArrangement = Arrangement.spacedBy(18.dp),
   ) {
-    Text("Audio Options", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    Text(stringResource(R.string.compressor_audio), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
 
     Row(
       modifier = Modifier.fillMaxWidth(),
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-      Text("Remove audio", style = MaterialTheme.typography.bodyLarge)
+      Text(stringResource(R.string.compressor_remove_audio), style = MaterialTheme.typography.bodyLarge)
       Switch(checked = state.removeAudio, onCheckedChange = { onToggleRemoveAudio() })
     }
 
     AnimatedVisibility(visible = !state.removeAudio) {
       Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        Text("Audio Bitrate", style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.compressor_audio_bitrate), style = MaterialTheme.typography.labelLarge)
         Row(
           modifier = Modifier.horizontalScroll(rememberScrollState()),
           horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1056,11 +1062,11 @@ private fun CompressorProgressSurface(
           modifier = Modifier.padding(20.dp),
           verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-          Text("COMPRESSING VIDEO", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          Text(stringResource(R.string.compressor_compressing), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
           Text(
             text =
               if (state.isBatch) {
-                "File ${state.currentQueueIndex + 1} of ${state.queueSize} - ${state.originalName ?: state.sourceVideo?.displayName.orEmpty()}"
+                stringResource(R.string.compressor_file_of, state.currentQueueIndex + 1, state.queueSize, state.originalName ?: state.sourceVideo?.displayName.orEmpty())
               } else {
                 state.originalName ?: state.sourceVideo?.displayName.orEmpty()
               },
@@ -1091,7 +1097,7 @@ private fun CompressorProgressSurface(
           }
           if (state.progressAvailable) {
             Text(
-              text = "Overall ${(state.progress * 100f).toInt()}% - Current ${(state.currentItemProgress * 100f).toInt()}%",
+              text = stringResource(R.string.compressor_progress_format, (state.progress * 100f).toInt(), (state.currentItemProgress * 100f).toInt()),
               style = MaterialTheme.typography.labelMedium,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
               modifier =
@@ -1116,7 +1122,7 @@ private fun CompressorProgressSurface(
           ),
         shape = AppShapeScale.largeIncreased,
       ) {
-        Text("Cancel")
+        Text(stringResource(R.string.generic_cancel))
       }
     }
   }
@@ -1140,10 +1146,10 @@ private fun CompressorResultSurface(
     topBar = {
       CenterAlignedTopAppBar(
         modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars),
-        title = { Text("Compressor", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.compressor_title), fontWeight = FontWeight.Bold) },
         navigationIcon = {
           IconButton(onClick = onClose) {
-            Icon(Icons.Default.Close, contentDescription = "Close")
+            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.common_close))
           }
         },
       )
@@ -1176,24 +1182,24 @@ private fun CompressorResultSurface(
           )
         }
         Text(
-          if (state.isBatch) "Batch Compression Complete!" else "Compression Complete!",
+          if (state.isBatch) stringResource(R.string.compressor_batch_complete) else stringResource(R.string.compressor_complete),
           style = MaterialTheme.typography.headlineMedium,
           fontWeight = FontWeight.Bold,
         )
         if (state.isBatch) {
           Text(
-            "${state.completedCount} videos saved",
+            stringResource(R.string.compressor_videos_saved, state.completedCount),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         } else {
           Text(
-            "${state.formattedOriginalSize} -> ${state.formattedCompressedSize}",
+            stringResource(R.string.compressor_size_reduction, state.formattedOriginalSize, state.formattedCompressedSize),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
           if (reduction > 0) {
-            Text("-$reduction%", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.compressor_reduction, reduction), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
           }
         }
 
@@ -1205,9 +1211,9 @@ private fun CompressorResultSurface(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
           ) {
-            Text("Saved to", fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.compressor_saved_to), fontWeight = FontWeight.SemiBold)
             Text(
-              state.destinationDisplayPath.ifBlank { "Unknown destination" },
+              state.destinationDisplayPath.ifBlank { stringResource(R.string.compressor_unknown_destination) },
               style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1223,7 +1229,7 @@ private fun CompressorResultSurface(
               modifier = Modifier.padding(16.dp),
               verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-              Text("Warnings", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onErrorContainer)
+              Text(stringResource(R.string.compressor_warnings), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onErrorContainer)
               state.warnings.forEach {
                 Text(it, color = MaterialTheme.colorScheme.onErrorContainer)
               }
@@ -1243,20 +1249,20 @@ private fun CompressorResultSurface(
             ) {
               Icon(Icons.Default.Share, contentDescription = null)
               Spacer(modifier = Modifier.width(8.dp))
-              Text("Share")
+              Text(stringResource(R.string.compressor_share))
             }
             FilledTonalButton(
               onClick = onSave,
               modifier = Modifier.weight(1f),
               shape = AppShapeScale.largeIncreased,
             ) {
-              Text("Save copy")
+              Text(stringResource(R.string.compressor_save_copy))
             }
           }
         }
 
         TextButton(onClick = onClose) {
-          Text("Back to list")
+          Text(stringResource(R.string.compressor_back_to_list))
         }
       }
     }
@@ -1276,10 +1282,10 @@ private fun CompressorIssueSurface(
     topBar = {
       CenterAlignedTopAppBar(
         modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars),
-        title = { Text("Compressor", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.compressor_title), fontWeight = FontWeight.Bold) },
         navigationIcon = {
           IconButton(onClick = onClose) {
-            Icon(Icons.Default.Close, contentDescription = "Close")
+            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.common_close))
           }
         },
       )
@@ -1323,7 +1329,7 @@ private fun CompressorIssueSurface(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
           ) {
             OutlinedButton(onClick = onClose, modifier = Modifier.weight(1f)) {
-              Text("Close")
+              Text(stringResource(R.string.common_close))
             }
             Button(onClick = onAction, modifier = Modifier.weight(1f)) {
               Text(actionLabel)
@@ -1349,8 +1355,8 @@ private fun CompressorInfoDialog(
     onDismissRequest = onDismiss,
     title = {
       Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("Device and App Info", style = MaterialTheme.typography.titleLarge)
-        Text("Compressor v${state.appInfoVersion}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.compressor_device_info), style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.compressor_version, state.appInfoVersion), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
       }
     },
     text = {
@@ -1358,15 +1364,15 @@ private fun CompressorInfoDialog(
         modifier = Modifier.verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(14.dp),
       ) {
-        Text("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
-        Text("Android: ${Build.VERSION.RELEASE}")
+        Text(stringResource(R.string.compressor_device, Build.MANUFACTURER, Build.MODEL))
+        Text(stringResource(R.string.compressor_android, Build.VERSION.RELEASE))
         HorizontalDivider()
         Row(
           modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-          Text("Show bitrate")
+          Text(stringResource(R.string.compressor_show_bitrate))
           Switch(checked = state.showBitrate, onCheckedChange = { onToggleShowBitrate() })
         }
         if (state.showBitrate) {
@@ -1375,7 +1381,7 @@ private fun CompressorInfoDialog(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
           ) {
-            Text("Use Mbps")
+            Text(stringResource(R.string.compressor_use_mbps))
             Switch(checked = state.useMbps, onCheckedChange = { onToggleBitrateUnit() })
           }
         }
@@ -1384,11 +1390,11 @@ private fun CompressorInfoDialog(
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-          Text("Preserve metadata")
+          Text(stringResource(R.string.compressor_preserve_metadata))
           Switch(checked = state.preserveMetadata, onCheckedChange = { onTogglePreserveMetadata() })
         }
         HorizontalDivider()
-        Text("Supported Codecs", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Text(stringResource(R.string.compressor_supported_codecs), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         state.supportedCodecs.forEach {
           Text("- ${it.substringAfter("/")}", style = MaterialTheme.typography.bodySmall)
         }
@@ -1396,13 +1402,13 @@ private fun CompressorInfoDialog(
     },
     confirmButton = {
       Row {
-        TextButton(onClick = onShare) { Text("Share") }
-        TextButton(onClick = onCopy) { Text("Copy") }
+        TextButton(onClick = onShare) { Text(stringResource(R.string.compressor_share)) }
+        TextButton(onClick = onCopy) { Text(stringResource(R.string.common_copy)) }
       }
     },
     dismissButton = {
       TextButton(onClick = onDismiss) {
-        Text("Close")
+        Text(stringResource(R.string.common_close))
       }
     },
   )

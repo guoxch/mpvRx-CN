@@ -780,7 +780,7 @@ object FolderListScreen : Screen {
               coroutineScope.launch {
                 val ok = viewModel.renameFolder(folder, newName)
                 if (!ok) {
-                  android.widget.Toast.makeText(context, "Rename failed", android.widget.Toast.LENGTH_SHORT).show()
+                  android.widget.Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.folder_rename_failed), android.widget.Toast.LENGTH_SHORT).show()
                 }
                 selectionManager.clear()
                 viewModel.refresh()
@@ -812,12 +812,12 @@ object FolderListScreen : Screen {
               runCatching {
                 val (deleted, failed) = deleteFolders(foldersToDelete)
                 if (deleted > 0) {
-                  android.widget.Toast.makeText(context, "Deleted successfully", android.widget.Toast.LENGTH_SHORT).show()
+                  android.widget.Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.folder_deleted_success), android.widget.Toast.LENGTH_SHORT).show()
                 } else if (failed > 0) {
-                  android.widget.Toast.makeText(context, "Failed to delete", android.widget.Toast.LENGTH_SHORT).show()
+                  android.widget.Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.folder_delete_failed), android.widget.Toast.LENGTH_SHORT).show()
                 }
               }.onFailure {
-                android.widget.Toast.makeText(context, "Failed to delete: ${it.message}", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.folder_delete_failed_detail, it.message), android.widget.Toast.LENGTH_SHORT).show()
               }
               selectionManager.clear()
               viewModel.refresh()
@@ -882,14 +882,14 @@ private fun FolderListContent(
         if (showLoading) {
           LoadingState(
             icon = Icons.Filled.Folder,
-            title = "Scanning for videos...",
-            message = scanStatus ?: "Please wait while we search your device",
+            title = stringResource(app.gyrolet.mpvrx.R.string.folder_scanning_title),
+            message = scanStatus ?: stringResource(app.gyrolet.mpvrx.R.string.folder_scanning_message),
           )
         } else if (showEmpty) {
           EmptyState(
             icon = Icons.Filled.Folder,
-            title = "No video folders found",
-            message = "Add some video files to your device to see them here",
+            title = stringResource(app.gyrolet.mpvrx.R.string.folder_no_folders_title),
+            message = stringResource(app.gyrolet.mpvrx.R.string.folder_no_folders_message),
           )
         }
       }

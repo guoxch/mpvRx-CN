@@ -1,5 +1,6 @@
 package app.gyrolet.mpvrx.ui.player.controls
 
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -96,6 +97,7 @@ fun GestureHandler(
   interactionSource: MutableInteractionSource,
   modifier: Modifier = Modifier,
 ) {
+  val context = androidx.compose.ui.platform.LocalContext.current
   val playerPreferences = koinInject<PlayerPreferences>()
   val audioPreferences = koinInject<AudioPreferences>()
   val gesturePreferences = koinInject<GesturePreferences>()
@@ -534,7 +536,7 @@ fun GestureHandler(
                   haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                   originalSubtitlePosition = MPVLib.getPropertyInt("sub-pos") ?: subtitlesPreferences.subPos.get()
                   lastSubtitlePosition = originalSubtitlePosition
-                  viewModel.playerUpdate.update { PlayerUpdates.ShowText("Drag up/down to move subtitles") }
+                  viewModel.playerUpdate.update { PlayerUpdates.ShowText(context.getString(R.string.gesture_drag_subtitles_hint)) }
                 } else if (paused == false && multipleSpeedGesture > 0f) {
                   longPressTriggered = true
                   isLongPressing = true

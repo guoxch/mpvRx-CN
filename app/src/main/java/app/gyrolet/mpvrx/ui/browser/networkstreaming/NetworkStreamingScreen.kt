@@ -142,7 +142,7 @@ object NetworkStreamingScreen : Screen {
           ExtendedFloatingActionButton(
             onClick = { showAddSheet = true },
             icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-            text = { Text("Add Connection") },
+            text = { Text(stringResource(app.gyrolet.mpvrx.R.string.common_add_connection)) },
             modifier = Modifier.padding(bottom = navigationBarHeight)
           )
         }
@@ -173,7 +173,7 @@ object NetworkStreamingScreen : Screen {
           item {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-              text = "Local Network",
+              text = stringResource(app.gyrolet.mpvrx.R.string.common_local_network),
               style = MaterialTheme.typography.titleLarge,
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.primary,
@@ -204,14 +204,14 @@ object NetworkStreamingScreen : Screen {
                   )
                   Spacer(modifier = Modifier.height(16.dp))
                   Text(
-                    text = "No network connections",
+                    text = stringResource(app.gyrolet.mpvrx.R.string.common_no_network_connections),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface, // a
                   )
                   Spacer(modifier = Modifier.height(8.dp))
                   Text(
-                    text = "Add SMB, FTP, or WebDAV connections to browse network files",
+                    text = stringResource(app.gyrolet.mpvrx.R.string.common_add_network_connection_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -357,7 +357,7 @@ private fun StreamLinkSection(
               IconButton(onClick = { pasteFromClipboard() }) {
                 Icon(
                   imageVector = Icons.Filled.ContentPaste,
-                  contentDescription = "Paste stream URL",
+                  contentDescription = stringResource(app.gyrolet.mpvrx.R.string.network_paste_url),
                   modifier = Modifier.size(18.dp),
                 )
               }
@@ -365,7 +365,7 @@ private fun StreamLinkSection(
                 IconButton(onClick = { linkUrl = "" }) {
                   Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Clear stream URL",
+                    contentDescription = stringResource(app.gyrolet.mpvrx.R.string.network_clear_url),
                     modifier = Modifier.size(18.dp),
                   )
                 }
@@ -395,7 +395,7 @@ private fun StreamLinkSection(
             containerColor = MaterialTheme.colorScheme.primary,
           ),
           modifier = Modifier.semantics {
-            contentDescription = "Play stream"
+            contentDescription = context.getString(app.gyrolet.mpvrx.R.string.network_play_stream)
           },
         ) {
           Icon(

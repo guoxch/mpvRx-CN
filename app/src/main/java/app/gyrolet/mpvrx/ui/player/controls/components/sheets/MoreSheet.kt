@@ -182,9 +182,9 @@ fun MoreSheet(
               Text(
                 text =
                   if (selectedLuaScripts.isEmpty()) {
-                    "Scripts"
+                    stringResource(R.string.player_more_scripts)
                   } else {
-                    "Scripts (${selectedLuaScripts.size})"
+                    stringResource(R.string.player_more_scripts) + " (${selectedLuaScripts.size})"
                   },
                 color =
                   if (enableLuaScripts && selectedLuaScripts.isNotEmpty()) {
@@ -210,7 +210,7 @@ fun MoreSheet(
             label = {
               Text(
                 if (page == 7) {
-                  "Console"
+                  stringResource(R.string.player_more_console)
                 } else {
                   stringResource(
                     if (page == 0) {
@@ -274,7 +274,7 @@ fun MoreSheet(
         
         if (isHighRes) {
             Text(
-                text = "Not available for 4K/8K video",
+                text = stringResource(R.string.player_anime4k_not_available_4k),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(bottom = 4.dp)
@@ -491,7 +491,7 @@ fun SectionHeaderWithInfo(
     IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
       Icon(
         imageVector = Icons.Outlined.Info,
-        contentDescription = "Info",
+        contentDescription = stringResource(R.string.player_more_info),
         tint = MaterialTheme.colorScheme.primary,
         modifier = Modifier.size(16.dp)
       )

@@ -2,6 +2,7 @@ package app.gyrolet.mpvrx.ui.player.controls.components
 
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.R
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -35,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -80,7 +82,7 @@ fun SlideToUnlock(
       contentAlignment = Alignment.Center,
     ) {
       Text(
-        text = "Slide to Unlock",
+        text = stringResource(R.string.player_slide_to_unlock),
         color = Color.White.copy(alpha = 0.7f),
         fontSize = 16.sp,
         fontWeight = FontWeight.Medium,
@@ -148,7 +150,7 @@ fun SlideToUnlock(
       ) { showUnlock ->
         Icon(
           imageVector = if (showUnlock) Icons.Filled.LockOpen else Icons.Filled.Lock,
-          contentDescription = "Slide to unlock",
+          contentDescription = stringResource(R.string.player_slide_to_unlock_content_description),
           tint = Color.White,
           modifier = Modifier.size(28.dp),
         )

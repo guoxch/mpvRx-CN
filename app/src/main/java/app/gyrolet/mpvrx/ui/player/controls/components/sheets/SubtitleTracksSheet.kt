@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -79,16 +80,17 @@ fun SubtitlesSheet(
   realtimeSubsEnabled: Boolean = true,
   modifier: Modifier = Modifier,
 ) {
+  val context = LocalContext.current
   val items = remember(tracks) {
     val list = mutableListOf<SubtitleItem>()
     val internal = tracks.filter { it.external != true }
     val external = tracks.filter { it.external == true }
 
     if (internal.isNotEmpty() || external.isNotEmpty()) {
-      list.add(SubtitleItem.Header(if (internal.isNotEmpty()) "Embedded Subtitles" else "Local Subtitles"))
+      list.add(SubtitleItem.Header(if (internal.isNotEmpty()) context.getString(R.string.subtitle_embedded) else context.getString(R.string.subtitle_local)))
       list.addAll(internal.map { SubtitleItem.Track(it) })
       if (internal.isNotEmpty() && external.isNotEmpty()) {
-        list.add(SubtitleItem.Header("External Subtitles"))
+        list.add(SubtitleItem.Header(context.getString(R.string.subtitle_external)))
       }
       list.addAll(external.map { SubtitleItem.Track(it) })
     }
@@ -150,13 +152,13 @@ fun SubtitlesSheet(
         showLanguagePicker = null
         langSearch = ""
       },
-      title = { Text("Translate to...") },
+      title = { Text(stringResource(R.string.subtitle_translate_to)) },
       text = {
         Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small)) {
           OutlinedTextField(
             value = langSearch,
             onValueChange = { langSearch = it },
-            placeholder = { Text("Search language…") },
+            placeholder = { Text(stringResource(R.string.subtitle_search_language)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
@@ -176,7 +178,7 @@ fun SubtitlesSheet(
               )
             }
             if (languagesToShow.isEmpty()) {
-              item { Text("No languages found", color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(MaterialTheme.spacing.medium)) }
+              item { Text(stringResource(R.string.subtitle_no_languages), color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(MaterialTheme.spacing.medium)) }
             }
           }
         }
@@ -186,7 +188,7 @@ fun SubtitlesSheet(
           showLanguagePicker = null
           langSearch = ""
         }) {
-          Text("Cancel")
+          Text(stringResource(android.R.string.cancel))
         }
       }
     )
@@ -203,7 +205,7 @@ fun SubtitlesSheet(
           }
           if (isOnlineProvider && aiEnabled && realtimeSubsEnabled) {
             IconButton(onClick = onGenerateSubtitle) {
-              Icon(Icons.Default.Subtitles, "Generate subtitles")
+              Icon(Icons.Default.Subtitles, stringResource(R.string.cd_subtitle_generate))
             }
           }
           IconButton(onClick = onOpenSubtitleSettings) {
@@ -225,7 +227,8 @@ fun SubtitlesSheet(
             modifier = Modifier.fillMaxWidth(),
           ) {
             Text(
-              "${translationStatus.ifBlank { "Translating" }} ${translatingTrackName}... ${(translationProgress * 100).toInt()}%",
+              "${translationStatus.ifBlank { context.getString(R.string.subtitle_translating) }} ${translatingTrackName}... ${(translationProgress * 100).toInt()}%",
+              // Using context.getString because this is not in a @Composable lambda directly
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.primary,
               modifier = Modifier.weight(1f),
@@ -242,7 +245,7 @@ fun SubtitlesSheet(
             ) {
               Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "Cancel translation",
+                contentDescription = stringResource(R.string.cd_subtitle_cancel_translation),
                 modifier = Modifier.size(20.dp),
               )
             }
@@ -260,7 +263,8 @@ fun SubtitlesSheet(
           verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall)
         ) {
           Text(
-            "${subtitleGenerationStatus.ifBlank { "Generating subtitles" }}... ${(subtitleGenerationProgress * 100).toInt()}%",
+            "${subtitleGenerationStatus.ifBlank { context.getString(R.string.subtitle_generating) }}... ${(subtitleGenerationProgress * 100).toInt()}%",
+            // Using context.getString because this is not in a @Composable lambda directly
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.primary
           )
@@ -360,7 +364,7 @@ fun SubtitleTrackRow(
     
     if (isExternal) {
       if (translationEnabled) {
-        IconButton(onClick = onTranslate) { Icon(Icons.Default.Translate, contentDescription = "Translate") }
+        IconButton(onClick = onTranslate) { Icon(Icons.Default.Translate, contentDescription = stringResource(R.string.cd_subtitle_translate)) }
       }
       IconButton(onClick = onRemove) { Icon(Icons.Default.Delete, contentDescription = null) }
     }

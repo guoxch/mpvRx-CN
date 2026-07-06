@@ -9,7 +9,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import app.gyrolet.mpvrx.R
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.preferences.YtdlPreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
@@ -67,7 +69,7 @@ fun YtdlpPanel(
           .padding(top = MaterialTheme.spacing.small, bottom = MaterialTheme.spacing.extraSmall),
       ) {
         Text(
-          text = "yt-dlp Manager",
+          text = stringResource(R.string.player_ytdlp_manager_title),
           style = MaterialTheme.typography.titleLarge,
           fontWeight = FontWeight.Bold
         )
@@ -107,7 +109,7 @@ fun YtdlpPanel(
                      else MaterialTheme.colorScheme.onErrorContainer,
             )
             Text(
-              text = if (hasYtdlp) "yt-dlp core is installed & active" else "yt-dlp core not installed",
+              text = if (hasYtdlp) stringResource(R.string.player_ytdlp_core_installed) else stringResource(R.string.player_ytdlp_core_not_installed),
               style = MaterialTheme.typography.bodyMedium,
               fontWeight = FontWeight.Bold,
               color = if (hasYtdlp) MaterialTheme.colorScheme.onPrimaryContainer
@@ -132,7 +134,7 @@ fun YtdlpPanel(
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
           ) {
             Text(
-              text = "Quick Quality Selection",
+              text = stringResource(R.string.player_ytdlp_quick_quality),
               style = MaterialTheme.typography.bodyMedium,
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -143,7 +145,7 @@ fun YtdlpPanel(
               horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
               modifier = Modifier.fillMaxWidth()
             ) {
-              val quickQualities = listOf(-1 to "Any", 1080 to "1080p", 720 to "720p", 480 to "480p")
+              val quickQualities = listOf(-1 to stringResource(R.string.player_ytdlp_quality_any), 1080 to "1080p", 720 to "720p", 480 to "480p")
               FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -195,7 +197,7 @@ fun YtdlpPanel(
             verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
           ) {
             Text(
-              text = "Codec Preset",
+              text = stringResource(R.string.player_ytdlp_codec_preset),
               style = MaterialTheme.typography.bodyMedium,
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -245,7 +247,7 @@ fun YtdlpPanel(
             verticalArrangement = Arrangement.spacedBy(10.dp),
           ) {
             Text(
-              text = "Quick Subtitle Config",
+              text = stringResource(R.string.player_ytdlp_quick_subtitle_config),
               style = MaterialTheme.typography.bodyMedium,
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -259,8 +261,8 @@ fun YtdlpPanel(
               horizontalArrangement = Arrangement.SpaceBetween
             ) {
               Column(modifier = Modifier.weight(1f)) {
-                Text("Download Subtitles", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                Text("Fetch subs from stream sources", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.player_ytdlp_download_subtitles), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                Text(stringResource(R.string.player_ytdlp_fetch_subs), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
               }
               Switch(
                 checked = writeSubs,
@@ -277,8 +279,8 @@ fun YtdlpPanel(
               horizontalArrangement = Arrangement.SpaceBetween
             ) {
               Column(modifier = Modifier.weight(1f)) {
-                Text("Auto-Generated Captions", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                Text("Include auto-captions/transcripts", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.player_ytdlp_auto_captions), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                Text(stringResource(R.string.player_ytdlp_include_auto_captions), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
               }
               Switch(
                 checked = writeAutoSubs,
@@ -307,7 +309,7 @@ fun YtdlpPanel(
           ) {
             Icon(Icons.Default.CloudDownload, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Install Core")
+            Text(stringResource(R.string.player_ytdlp_install_core))
           }
 
           OutlinedButton(
@@ -325,7 +327,7 @@ fun YtdlpPanel(
           ) {
             Icon(Icons.Default.Update, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Update Core")
+            Text(stringResource(R.string.player_ytdlp_update_core))
           }
       }
     }

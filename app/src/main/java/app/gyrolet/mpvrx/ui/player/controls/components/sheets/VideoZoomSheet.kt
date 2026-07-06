@@ -132,7 +132,7 @@ private fun ZoomVideoSheet(
         },
         modifier = Modifier.size(36.dp),
       ) {
-        Icon(Icons.Default.Remove, contentDescription = "Decrease zoom", modifier = Modifier.size(18.dp))
+        Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.player_zoom_decrease), modifier = Modifier.size(18.dp))
       }
 
       SliderItem(
@@ -152,7 +152,7 @@ private fun ZoomVideoSheet(
         },
         modifier = Modifier.size(36.dp),
       ) {
-        Icon(Icons.Default.Add, contentDescription = "Increase zoom", modifier = Modifier.size(18.dp))
+        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.player_zoom_increase), modifier = Modifier.size(18.dp))
       }
     }
 
@@ -203,7 +203,7 @@ private fun ZoomVideoSheet(
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-          text = "Pan & Zoom",
+          text = stringResource(R.string.player_pan_zoom),
           style = MaterialTheme.typography.bodyMedium,
           color = if (panAndZoomEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         )

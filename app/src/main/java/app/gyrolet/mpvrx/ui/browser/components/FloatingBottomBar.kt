@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalConfiguration
 import android.content.res.Configuration
@@ -141,12 +142,12 @@ fun BrowserBottomBar(
           horizontalArrangement = Arrangement.spacedBy(layoutParams.spacing),
           verticalAlignment = Alignment.CenterVertically
         ) {
-          BrowserBottomBarButton(showCopy, onCopyClick, Icons.Filled.ContentCopy, "Copy", layoutParams.buttonSize, layoutParams.iconSize)
-          BrowserBottomBarButton(showMove, onMoveClick, Icons.Filled.DriveFileMove, "Move", layoutParams.buttonSize, layoutParams.iconSize)
-          BrowserBottomBarButton(showDownscale, onDownscaleClick, Icons.Default.FitScreen, "Compressor", layoutParams.buttonSize, layoutParams.iconSize)
-          BrowserBottomBarButton(showRename, onRenameClick, Icons.Filled.DriveFileRenameOutline, "Rename", layoutParams.buttonSize, layoutParams.iconSize)
-          BrowserBottomBarButton(showAddToPlaylist, onAddToPlaylistClick, Icons.Filled.PlaylistAdd, "Add to Playlist", layoutParams.buttonSize, layoutParams.iconSize)
-          BrowserBottomBarButton(showDelete, onDeleteClick, Icons.Filled.Delete, "Delete", layoutParams.buttonSize, layoutParams.iconSize, tint = MaterialTheme.colorScheme.error)
+          BrowserBottomBarButton(showCopy, onCopyClick, Icons.Filled.ContentCopy, stringResource(app.gyrolet.mpvrx.R.string.common_copy), layoutParams.buttonSize, layoutParams.iconSize)
+          BrowserBottomBarButton(showMove, onMoveClick, Icons.Filled.DriveFileMove, stringResource(app.gyrolet.mpvrx.R.string.common_move), layoutParams.buttonSize, layoutParams.iconSize)
+          BrowserBottomBarButton(showDownscale, onDownscaleClick, Icons.Default.FitScreen, stringResource(app.gyrolet.mpvrx.R.string.common_compressor), layoutParams.buttonSize, layoutParams.iconSize)
+          BrowserBottomBarButton(showRename, onRenameClick, Icons.Filled.DriveFileRenameOutline, stringResource(app.gyrolet.mpvrx.R.string.rename), layoutParams.buttonSize, layoutParams.iconSize)
+          BrowserBottomBarButton(showAddToPlaylist, onAddToPlaylistClick, Icons.Filled.PlaylistAdd, stringResource(app.gyrolet.mpvrx.R.string.common_add_to_playlist), layoutParams.buttonSize, layoutParams.iconSize)
+          BrowserBottomBarButton(showDelete, onDeleteClick, Icons.Filled.Delete, stringResource(app.gyrolet.mpvrx.R.string.delete), layoutParams.buttonSize, layoutParams.iconSize, tint = MaterialTheme.colorScheme.error)
         }
       }
     }

@@ -220,7 +220,7 @@ object DecoderPreferencesScreen : Screen {
                   }
                 },
                 enabled = isVulkanSupported,
-                title = { Text(stringResource(R.string.pref_decoder_vulkan_title) + " (Experimental)") },
+                title = { Text(stringResource(R.string.pref_decoder_vulkan_title) + stringResource(R.string.pref_decoder_vulkan_experimental_suffix)) },
                 summary = {
                   Text(
                     stringResource(
@@ -318,14 +318,14 @@ object DecoderPreferencesScreen : Screen {
                   verticalAlignment = Alignment.CenterVertically
                 ) {
                   Text(
-                    text = "Anime4K Shaders Options",
+                    text = stringResource(R.string.pref_anime4k_shaders_options),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
                   )
                   Icon(
                     Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (anime4kExpanded) "Collapse" else "Expand",
+                    contentDescription = if (anime4kExpanded) stringResource(R.string.sort_collapse) else stringResource(R.string.sort_expand),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.rotate(rotationState)
                   )

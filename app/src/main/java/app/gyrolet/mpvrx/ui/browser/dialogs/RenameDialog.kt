@@ -15,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -33,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -58,6 +60,7 @@ fun RenameDialog(
   val isError = remember { mutableStateOf(false) }
   val errorMessage = remember { mutableStateOf("") }
   val focusRequester = remember { FocusRequester() }
+  val context = androidx.compose.ui.platform.LocalContext.current
   val scope = rememberCoroutineScope()
   val aiService = koinInject<AiService>()
   val aiPreferences = koinInject<AiPreferences>()
@@ -71,12 +74,12 @@ fun RenameDialog(
     when {
       baseName.value.isBlank() -> {
         isError.value = true
-        errorMessage.value = "Name cannot be empty"
+        errorMessage.value = context.getString(R.string.dialog_name_cannot_be_empty)
       }
 
       baseName.value.contains("/") || baseName.value.contains("\\") -> {
         isError.value = true
-        errorMessage.value = "Name cannot contain / or \\"
+        errorMessage.value = context.getString(R.string.dialog_name_cannot_contain_slash)
       }
 
       else -> {
@@ -90,7 +93,7 @@ fun RenameDialog(
     onDismissRequest = onDismiss,
     title = {
       Text(
-        text = "Rename $itemType",
+        text = stringResource(R.string.dialog_rename_title, itemType),
         style = MaterialTheme.typography.headlineMedium,
         fontWeight = FontWeight.Bold,
       )
@@ -110,7 +113,7 @@ fun RenameDialog(
             Modifier
               .fillMaxWidth()
               .focusRequester(focusRequester),
-          label = { Text("New name", fontWeight = FontWeight.Medium) },
+          label = { Text(stringResource(R.string.dialog_new_name), fontWeight = FontWeight.Medium) },
           singleLine = false,
           maxLines = 5,
           isError = isError.value,
@@ -147,7 +150,7 @@ fun RenameDialog(
                   }
                   .onFailure { _ ->
                     isError.value = true
-                    errorMessage.value = "AI rename failed. Check API key and model."
+                    errorMessage.value = context.getString(R.string.dialog_ai_rename_failed)
                   }
                 isAiLoading = false
               }
@@ -162,7 +165,7 @@ fun RenameDialog(
                 strokeWidth = 2.dp,
               )
               Spacer(modifier = Modifier.width(8.dp))
-              Text("AI is thinking...")
+              Text(stringResource(R.string.dialog_ai_thinking))
             } else {
               Icon(
                 imageVector = Icons.Default.AutoAwesome,
@@ -170,7 +173,7 @@ fun RenameDialog(
                 modifier = Modifier.size(18.dp),
               )
               Spacer(modifier = Modifier.width(8.dp))
-              Text("AI Rename", fontWeight = FontWeight.Medium)
+              Text(stringResource(R.string.dialog_ai_rename), fontWeight = FontWeight.Medium)
             }
           }
         }
@@ -187,7 +190,7 @@ fun RenameDialog(
         shape = MaterialTheme.shapes.extraLarge,
       ) {
         Text(
-          text = "Rename",
+          text = stringResource(R.string.dialog_rename),
           fontWeight = FontWeight.Bold,
         )
       }
@@ -197,7 +200,7 @@ fun RenameDialog(
         onClick = onDismiss,
         shape = MaterialTheme.shapes.extraLarge,
       ) {
-        Text("Cancel", fontWeight = FontWeight.Medium)
+        Text(stringResource(R.string.generic_cancel), fontWeight = FontWeight.Medium)
       }
     },
     containerColor = MaterialTheme.colorScheme.surface,

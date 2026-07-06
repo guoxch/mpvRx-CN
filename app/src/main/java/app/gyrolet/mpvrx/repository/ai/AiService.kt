@@ -23,6 +23,7 @@ class AiService(
   private val openRouterClient: AiClient,
   private val togetherClient: AiClient,
   private val deepSeekClient: AiClient,
+  private val siliconFlowClient: AiClient,
   private val localAiClient: LocalAiClient,
   private val modelDownloadManager: ModelDownloadManager,
   private val json: Json,
@@ -39,6 +40,7 @@ class AiService(
     AiProvider.OPENROUTER to openRouterClient,
     AiProvider.TOGETHER to togetherClient,
     AiProvider.DEEPSEEK to deepSeekClient,
+    AiProvider.SILICONFLOW to siliconFlowClient,
     AiProvider.LOCAL to localAiClient,
   )
 
@@ -303,6 +305,7 @@ class AiService(
     AiProvider.OPENROUTER -> preferences.openrouterApiKey.get()
     AiProvider.TOGETHER -> preferences.togetherApiKey.get()
     AiProvider.DEEPSEEK -> preferences.deepseekApiKey.get()
+    AiProvider.SILICONFLOW -> preferences.siliconflowApiKey.get()
     AiProvider.LOCAL -> ""
   }
 

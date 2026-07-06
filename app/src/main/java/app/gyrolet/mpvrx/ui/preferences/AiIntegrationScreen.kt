@@ -122,6 +122,7 @@ object AiIntegrationScreen : Screen {
     val openrouterKey by preferences.openrouterApiKey.collectAsState()
     val togetherKey by preferences.togetherApiKey.collectAsState()
     val deepseekKey by preferences.deepseekApiKey.collectAsState()
+    val siliconflowKey by preferences.siliconflowApiKey.collectAsState()
     val selectedModel by preferences.selectedModel.collectAsState()
     val localModelId by preferences.localModelId.collectAsState()
     val localModelDownloaded by preferences.localModelDownloaded.collectAsState()
@@ -458,6 +459,11 @@ object AiIntegrationScreen : Screen {
                   context.getString(R.string.pref_deepseek_api_key_hint),
                   context.getString(R.string.pref_deepseek_api_key_placeholder),
                   deepseekKey, preferences.deepseekApiKey::set)
+                AiProvider.SILICONFLOW -> ApiKeyInfo(
+                  context.getString(R.string.pref_siliconflow_api_key_title),
+                  context.getString(R.string.pref_siliconflow_api_key_hint),
+                  context.getString(R.string.pref_siliconflow_api_key_placeholder),
+                  siliconflowKey, preferences.siliconflowApiKey::set)
                 else -> null
               }
 
@@ -834,9 +840,12 @@ object AiIntegrationScreen : Screen {
 
               item {
                 PreferenceCard {
-                  val sttProviders = listOf(AiProvider.GROQ, AiProvider.OPENAI, AiProvider.OPENROUTER)
+                  val sttProviders = listOf(AiProvider.GROQ, AiProvider.OPENAI, AiProvider.OPENROUTER, AiProvider.SILICONFLOW)
                   val sttProvider by preferences.sttProvider.collectAsState()
                   val sttModel by preferences.sttModel.collectAsState()
+                  val sttLanguage by preferences.sttLanguage.collectAsState()
+                  var showSttKeyDialog by remember { mutableStateOf(false) }
+                  var pendingSttProvider by remember { mutableStateOf<AiProvider?>(null) }
 
                   SwitchPreference(
                     value = realtimeSubsEnabled,
@@ -870,9 +879,14 @@ object AiIntegrationScreen : Screen {
 
                   ListPreference(
                     value = sttProvider,
-                    onValueChange = {
-                      preferences.sttProvider.set(it)
+                    onValueChange = { selected ->
+                      preferences.sttProvider.set(selected)
                       preferences.sttModel.set("")
+                      // If STT provider differs from main AI provider and has no API key configured, show dialog
+                      if (selected != provider && getSttApiKey(preferences, selected).isBlank()) {
+                        pendingSttProvider = selected
+                        showSttKeyDialog = true
+                      }
                     },
                     values = sttProviders,
                     valueToText = { androidx.compose.ui.text.AnnotatedString(it.displayName) },
@@ -885,17 +899,41 @@ object AiIntegrationScreen : Screen {
                     },
                   )
 
+                  if (showSttKeyDialog && pendingSttProvider != null) {
+                    SttApiKeySetupDialog(
+                      provider = pendingSttProvider!!,
+                      preferences = preferences,
+                      aiService = aiService,
+                      onVerified = {
+                        showSttKeyDialog = false
+                        pendingSttProvider = null
+                        Toast.makeText(context, "${pendingSttProvider?.displayName} API key verified", Toast.LENGTH_SHORT).show()
+                      },
+                      onDismiss = {
+                        showSttKeyDialog = false
+                        pendingSttProvider = null
+                      },
+                    )
+                  }
+
                   PreferenceDivider()
 
                   SttModelSelector(
                     sttProvider = sttProvider,
                     sttModel = sttModel,
                     onSelectModel = { preferences.sttModel.set(it) },
+                    onMissingApiKey = {
+                      if (it != provider) {
+                        pendingSttProvider = it
+                        showSttKeyDialog = true
+                      } else {
+                        Toast.makeText(context, "Configure ${it.displayName} API key in the section above first", Toast.LENGTH_SHORT).show()
+                      }
+                    },
                   )
 
                   PreferenceDivider()
 
-                  val sttLanguage by preferences.sttLanguage.collectAsState()
                   ListPreference(
                     value = sttLanguage,
                     onValueChange = { preferences.sttLanguage.set(it) },
@@ -1286,8 +1324,10 @@ private fun SttModelSelector(
   sttProvider: AiProvider,
   sttModel: String,
   onSelectModel: (String) -> Unit,
+  onMissingApiKey: (AiProvider) -> Unit = {},
 ) {
   val aiService = koinInject<AiService>()
+  val preferences = koinInject<AiPreferences>()
   val context = LocalContext.current
   var showDialog by remember { mutableStateOf(false) }
   var sttModels by remember { mutableStateOf<List<AiModelInfo>>(emptyList()) }
@@ -1299,6 +1339,12 @@ private fun SttModelSelector(
 
     Surface(
     onClick = {
+      // Check if API key is configured for this STT provider
+      if (getSttApiKey(preferences, sttProvider).isBlank()) {
+        onMissingApiKey(sttProvider)
+        return@Surface
+      }
+
       val cached = cachedModels.value
       if (cached != null) {
         sttModels = cached
@@ -1310,7 +1356,10 @@ private fun SttModelSelector(
             .onSuccess { allModels ->
               val sttOnly = allModels.filter { model ->
                 model.id.contains("whisper", ignoreCase = true) ||
-                  model.id.contains("flash", ignoreCase = true)
+                  model.id.contains("flash", ignoreCase = true) ||
+                  model.id.contains("SenseVoice", ignoreCase = true) ||
+                  model.id.contains("Speech", ignoreCase = true) ||
+                  model.id.contains("ASR", ignoreCase = true)
               }.ifEmpty {
                 allModels.take(5)
               }
@@ -1523,5 +1572,140 @@ private fun AutoTranslateLanguageConfig(
       Text(if (adding) context.getString(R.string.pref_done) else context.getString(R.string.pref_add_language))
     }
   }
+}
+
+private fun getSttApiKey(preferences: AiPreferences, provider: AiProvider): String = when (provider) {
+  AiProvider.GROQ -> preferences.groqApiKey.get()
+  AiProvider.OPENAI -> preferences.openaiApiKey.get()
+  AiProvider.OPENROUTER -> preferences.openrouterApiKey.get()
+  AiProvider.SILICONFLOW -> preferences.siliconflowApiKey.get()
+  else -> ""
+}
+
+private fun setSttApiKey(preferences: AiPreferences, provider: AiProvider, key: String) = when (provider) {
+  AiProvider.GROQ -> preferences.groqApiKey.set(key)
+  AiProvider.OPENAI -> preferences.openaiApiKey.set(key)
+  AiProvider.OPENROUTER -> preferences.openrouterApiKey.set(key)
+  AiProvider.SILICONFLOW -> preferences.siliconflowApiKey.set(key)
+  else -> {}
+}
+
+@Composable
+private fun SttApiKeySetupDialog(
+  provider: AiProvider,
+  preferences: AiPreferences,
+  aiService: AiService,
+  onVerified: () -> Unit,
+  onDismiss: () -> Unit,
+) {
+  val context = LocalContext.current
+  val scope = rememberCoroutineScope()
+  var apiKey by remember { mutableStateOf("") }
+  var isVerifying by remember { mutableStateOf(false) }
+  var verifyResult by remember { mutableStateOf<String?>(null) }
+  var showKey by remember { mutableStateOf(false) }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = {
+      Text("Configure ${provider.displayName} API Key")
+    },
+    text = {
+      Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+          "This STT provider is different from your main AI provider. " +
+            "Please enter your ${provider.displayName} API key to enable speech-to-text.",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.outline,
+        )
+
+        TextField(
+          value = apiKey,
+          onValueChange = { apiKey = it; verifyResult = null },
+          modifier = Modifier.fillMaxWidth(),
+          placeholder = { Text("sk-...") },
+          singleLine = true,
+          visualTransformation = if (showKey) VisualTransformation.None else PasswordVisualTransformation(),
+          enabled = !isVerifying,
+        )
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          Button(
+            onClick = { showKey = !showKey },
+            colors = ButtonDefaults.buttonColors(
+              containerColor = MaterialTheme.colorScheme.secondaryContainer,
+              contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            ),
+            shape = MaterialTheme.shapes.extraLarge,
+          ) {
+            Text(if (showKey) "Hide" else "Show")
+          }
+
+          Button(
+            onClick = {
+              scope.launch {
+                isVerifying = true
+                verifyResult = null
+                setSttApiKey(preferences, provider, apiKey.trim())
+                aiService.fetchModelsForProvider(provider)
+                  .onSuccess { verifyResult = "Verified successfully" }
+                  .onFailure { e -> verifyResult = "Verification failed: ${e.message}" }
+                isVerifying = false
+              }
+            },
+            enabled = apiKey.isNotBlank() && !isVerifying,
+            shape = MaterialTheme.shapes.extraLarge,
+          ) {
+            if (isVerifying) {
+              CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+              Spacer(Modifier.width(6.dp))
+            }
+            Text("Verify")
+          }
+        }
+
+        if (verifyResult != null) {
+          val isSuccess = verifyResult!!.contains("successfully")
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+              imageVector = if (isSuccess) Icons.Default.Check else Icons.Default.Warning,
+              contentDescription = null,
+              tint = if (isSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+              modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+              text = verifyResult!!,
+              style = MaterialTheme.typography.bodySmall,
+              color = if (isSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            )
+          }
+        }
+      }
+    },
+    confirmButton = {
+      TextButton(
+        onClick = {
+          if (verifyResult?.contains("successfully") == true) {
+            onVerified()
+          }
+        },
+        enabled = verifyResult?.contains("successfully") == true,
+      ) {
+        Text("Done")
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = {
+        // Clear the key if verification didn't succeed
+        if (verifyResult?.contains("successfully") != true && apiKey.isNotBlank()) {
+          setSttApiKey(preferences, provider, "")
+        }
+        onDismiss()
+      }) {
+        Text("Cancel")
+      }
+    },
+  )
 }
 }

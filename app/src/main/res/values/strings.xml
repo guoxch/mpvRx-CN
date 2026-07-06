@@ -906,6 +906,9 @@
   <string name="pref_deepseek_api_key_title">DeepSeek API Key</string>
   <string name="pref_deepseek_api_key_hint">Get your key from platform.deepseek.com/api-keys</string>
   <string name="pref_deepseek_api_key_placeholder">sk-…</string>
+  <string name="pref_siliconflow_api_key_title">SiliconFlow API Key</string>
+  <string name="pref_siliconflow_api_key_hint">Get your key from cloud.siliconflow.cn</string>
+  <string name="pref_siliconflow_api_key_placeholder">sk-…</string>
 
   <!-- AI Integration - Missing strings for AiIntegrationScreen    -->
   <string name="pref_model_label">Model</string>

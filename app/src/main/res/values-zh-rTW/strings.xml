@@ -908,6 +908,9 @@
   <string name="pref_deepseek_api_key_title">DeepSeek API 金鑰</string>
   <string name="pref_deepseek_api_key_hint">從 platform.deepseek.com/api-keys 取得金鑰</string>
   <string name="pref_deepseek_api_key_placeholder">sk-…</string>
+  <string name="pref_siliconflow_api_key_title">SiliconFlow API 金鑰</string>
+  <string name="pref_siliconflow_api_key_hint">從 cloud.siliconflow.cn 取得金鑰</string>
+  <string name="pref_siliconflow_api_key_placeholder">sk-…</string>
 
   <!-- AI Integration - Missing strings for AiIntegrationScreen    -->
   <string name="pref_model_label">模型</string>

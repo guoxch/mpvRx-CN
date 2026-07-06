@@ -101,9 +101,17 @@ class SubtitleGenerationService(
           )
 
           val transcript = transcribe(audioChunk, language).getOrNull()
-          if (transcript == null || transcript.segments.isEmpty()) continue
+          if (transcript == null) continue
 
-          val newSegments = transcript.segments.filter { segment ->
+          val rawSegments = if (transcript.segments.isEmpty() && transcript.text.isNotBlank()) {
+            // Model returned text without timestamp segments (e.g. SenseVoiceSmall).
+            // Split the text into heuristic segments so subtitles update periodically.
+            chunkHeuristicSegments(transcript.text, chunkEndMs - chunkStartMs)
+          } else {
+            transcript.segments
+          }
+
+          val newSegments = rawSegments.filter { segment ->
             segment.endMs > previousEndMs
           }.map { segment ->
             SpeechSegment(
@@ -245,7 +253,13 @@ class SubtitleGenerationService(
         if (key.isBlank()) Result.failure(Exception("OpenRouter API key not configured."))
         else transcribeOpenAiCompatible("https://openrouter.ai/api/v1/audio/transcriptions", key, "openai/whisper-1", audioFile, language)
       }
-      else -> Result.failure(Exception("Only online providers (Groq, OpenAI, OpenRouter) are supported."))
+      AiProvider.SILICONFLOW -> {
+        val key = preferences.siliconflowApiKey.get()
+        val model = preferences.sttModel.get().ifBlank { "FunAudioLLM/SenseVoiceSmall" }
+        if (key.isBlank()) Result.failure(Exception("SiliconFlow API key not configured."))
+        else transcribeOpenAiCompatible("https://api.siliconflow.cn/v1/audio/transcriptions", key, model, audioFile, language)
+      }
+      else -> Result.failure(Exception("Only online providers (Groq, OpenAI, OpenRouter, SiliconFlow) are supported."))
     }
   }
 
@@ -296,6 +310,26 @@ class SubtitleGenerationService(
             text = text,
           )
         },
+      )
+    }
+  }
+
+  /**
+   * Split transcribed text into heuristic subtitle segments when the model
+   * does not provide per-word / per-phrase timestamps (e.g. SenseVoiceSmall).
+   * Each segment ≈ 9 words with equal duration slices.
+   */
+  private fun chunkHeuristicSegments(text: String, durationMs: Long): List<SpeechSegment> {
+    val words = text.split(Regex("\\s+")).filter { it.isNotBlank() }
+    if (words.isEmpty()) return emptyList()
+    val chunkSize = 9
+    val totalChunks = (words.size + chunkSize - 1) / chunkSize
+    val segmentDuration = if (totalChunks > 0) durationMs / totalChunks else durationMs
+    return words.chunked(chunkSize).mapIndexed { index, chunk ->
+      SpeechSegment(
+        startMs = index * segmentDuration,
+        endMs = ((index + 1) * segmentDuration).coerceAtMost(durationMs),
+        text = chunk.joinToString(" "),
       )
     }
   }

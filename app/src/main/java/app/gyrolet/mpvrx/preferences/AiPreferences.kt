@@ -11,6 +11,7 @@ enum class AiProvider(val displayName: String) {
   OPENROUTER("OpenRouter"),
   TOGETHER("Together"),
   DEEPSEEK("DeepSeek"),
+  SILICONFLOW("SiliconFlow"),
   LOCAL("Offline Model"),
 }
 
@@ -28,6 +29,7 @@ class AiPreferences(
   val openrouterApiKey = preferenceStore.getString("ai_openrouter_api_key", "")
   val togetherApiKey = preferenceStore.getString("ai_together_api_key", "")
   val deepseekApiKey = preferenceStore.getString("ai_deepseek_api_key", "")
+  val siliconflowApiKey = preferenceStore.getString("ai_siliconflow_api_key", "")
 
   val selectedModel = preferenceStore.getString("ai_selected_model", "")
 

@@ -115,10 +115,18 @@ class RealtimeSubtitleService(
               )
 
               val transcript = transcribe(audioChunk, language)
-              if (transcript == null || transcript.segments.isEmpty()) continue
+              if (transcript == null) continue
+
+              val rawSegments = if (transcript.segments.isEmpty() && transcript.text.isNotBlank()) {
+                // Model returned text without timestamp segments (e.g. SenseVoiceSmall).
+                // Split the text into heuristic segments so subtitles update periodically.
+                chunkHeuristicSegments(transcript.text, chunkEndMs - chunkStartMs)
+              } else {
+                transcript.segments
+              }
 
               val newSegments =
-                transcript.segments.filter { segment ->
+                rawSegments.filter { segment ->
                   segment.endMs > previousEndMs
                 }.map { segment ->
                   SpeechSegment(
@@ -275,12 +283,35 @@ class RealtimeSubtitleService(
         )
       }
 
+      AiProvider.SILICONFLOW -> {
+        val key = preferences.siliconflowApiKey.get()
+        if (key.isBlank()) return null
+        transcribeOpenAiCompatible(
+          baseUrl = "https://api.siliconflow.cn/v1/audio/transcriptions",
+          apiKey = key,
+          model = sttModel.ifBlank { "FunAudioLLM/SenseVoiceSmall" },
+          audioFile = audioFile,
+          language = language,
+        )
+      }
+
       else -> {
         val groqKey = preferences.groqApiKey.get()
         if (groqKey.isNotBlank()) {
           groqSpeechClient.transcribe(groqKey, audioFile, language).getOrNull()
         } else {
-          null
+          val siliconflowKey = preferences.siliconflowApiKey.get()
+          if (siliconflowKey.isNotBlank()) {
+            transcribeOpenAiCompatible(
+              baseUrl = "https://api.siliconflow.cn/v1/audio/transcriptions",
+              apiKey = siliconflowKey,
+              model = sttModel.ifBlank { "FunAudioLLM/SenseVoiceSmall" },
+              audioFile = audioFile,
+              language = language,
+            )
+          } else {
+            null
+          }
         }
       }
     }
@@ -375,6 +406,26 @@ class RealtimeSubtitleService(
     val seconds = (ms % 60_000) / 1000
     val millis = ms % 1000
     return "%02d:%02d:%02d,%03d".format(hours, minutes, seconds, millis)
+  }
+}
+
+/**
+ * Split transcribed text into heuristic subtitle segments when the model
+ * does not provide per-word / per-phrase timestamps (e.g. SenseVoiceSmall).
+ * Each segment ≈ 9 words with equal duration slices.
+ */
+private fun chunkHeuristicSegments(text: String, durationMs: Long): List<SpeechSegment> {
+  val words = text.split(Regex("\\s+")).filter { it.isNotBlank() }
+  if (words.isEmpty()) return emptyList()
+  val chunkSize = 9
+  val totalChunks = (words.size + chunkSize - 1) / chunkSize
+  val segmentDuration = if (totalChunks > 0) durationMs / totalChunks else durationMs
+  return words.chunked(chunkSize).mapIndexed { index, chunk ->
+    SpeechSegment(
+      startMs = index * segmentDuration,
+      endMs = ((index + 1) * segmentDuration).coerceAtMost(durationMs),
+      text = chunk.joinToString(" "),
+    )
   }
 }
 

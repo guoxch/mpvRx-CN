@@ -4973,28 +4973,31 @@ class PlayerActivity :
           !file.name.startsWith(".")
       }?.toList().orEmpty()
 
-    if (!isVideoListLaunchSource(launchSource)) {
-      return naturalSortFiles(directVideoFiles)
+    // For video-list launch sources, use the library-based sort which queries
+    // MediaStore metadata (more accurate for size/duration sorting).
+    if (isVideoListLaunchSource(launchSource)) {
+      val currentFilePath = normalizePlaylistFilePath(currentFile.absolutePath)
+      val fileByPath = directVideoFiles.associateBy { normalizePlaylistFilePath(it.absolutePath) }
+      val sortedFromLibrary =
+        app.gyrolet.mpvrx.repository.MediaFileRepository
+          .getVideosInFolder(context, normalizePlaylistFilePath(parentFolder.absolutePath))
+          .let { videos ->
+            app.gyrolet.mpvrx.utils.sort.SortUtils.sortVideos(
+              videos,
+              browserPreferences.videoSortType.get(),
+              browserPreferences.videoSortOrder.get(),
+            )
+          }.mapNotNull { video -> fileByPath[normalizePlaylistFilePath(video.path)] }
+
+      if (sortedFromLibrary.any { normalizePlaylistFilePath(it.absolutePath) == currentFilePath }) {
+        return sortedFromLibrary
+      }
+      // Fall through to sortSiblingFilesForVideoList if current file not found
     }
 
-    val currentFilePath = normalizePlaylistFilePath(currentFile.absolutePath)
-    val fileByPath = directVideoFiles.associateBy { normalizePlaylistFilePath(it.absolutePath) }
-    val sortedFromLibrary =
-      app.gyrolet.mpvrx.repository.MediaFileRepository
-        .getVideosInFolder(context, normalizePlaylistFilePath(parentFolder.absolutePath))
-        .let { videos ->
-          app.gyrolet.mpvrx.utils.sort.SortUtils.sortVideos(
-            videos,
-            browserPreferences.videoSortType.get(),
-            browserPreferences.videoSortOrder.get(),
-          )
-        }.mapNotNull { video -> fileByPath[normalizePlaylistFilePath(video.path)] }
-
-    return if (sortedFromLibrary.any { normalizePlaylistFilePath(it.absolutePath) == currentFilePath }) {
-      sortedFromLibrary
-    } else {
-      sortSiblingFilesForVideoList(directVideoFiles)
-    }
+    // For all other sources (playlist, search, or fallback), use the user's
+    // sort preferences instead of alphabetical sorting.
+    return sortSiblingFilesForVideoList(directVideoFiles)
   }
 
   private suspend fun loadPlaylistById(

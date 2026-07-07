@@ -1780,4 +1780,140 @@
   <string name="mpv_help_copied">Copied: %1$s</string>
   <!-- Content Descriptions -->
   <string name="cd_mpv_help_clear">Clear</string>
+
+  <!-- Player Button Labels -->
+  <string name="btn_label_back">Back Arrow</string>
+  <string name="btn_label_title">Video Title</string>
+  <string name="btn_label_bookmarks">Chapters / Bookmarks</string>
+  <string name="btn_label_speed">Playback Speed</string>
+  <string name="btn_label_decoder">Decoder</string>
+  <string name="btn_label_hdr">HDR Screen Output</string>
+  <string name="btn_label_rotation">Screen Rotation</string>
+  <string name="btn_label_frame_nav">Frame Navigation</string>
+  <string name="btn_label_zoom">Video Zoom</string>
+  <string name="btn_label_pip">Picture-in-Picture</string>
+  <string name="btn_label_aspect">Aspect Ratio</string>
+  <string name="btn_label_lock">Lock Controls</string>
+  <string name="btn_label_audio">Audio Track</string>
+  <string name="btn_label_subtitles">Subtitles</string>
+  <string name="btn_label_more">More options</string>
+  <string name="btn_label_chapter">Current Chapter</string>
+  <string name="btn_label_repeat_mode">Repeat Mode</string>
+  <string name="btn_label_shuffle">Shuffle</string>
+  <string name="btn_label_mirror">Horizontal Flip</string>
+  <string name="btn_label_vertical_flip">Vertical Flip</string>
+  <string name="btn_label_ab_loop">A-B Loop</string>
+  <string name="btn_label_custom_skip">Custom Skip</string>
+  <string name="btn_label_bg_playback">Background Playback</string>
+  <string name="btn_label_ambient">Ambience Mode</string>
+  <string name="btn_label_time_network">Time + Network</string>
+  <string name="btn_label_delete">Delete Video</string>
+  <string name="btn_label_none">None</string>
+  <!-- AI Integration Screen -->
+  <string name="ai_stt_key_verified">%1$s API key verified</string>
+  <string name="ai_stt_key_configure_first">Configure %1$s API key in the section above first</string>
+  <string name="ai_stt_configure_key">Configure %1$s API Key</string>
+  <string name="ai_stt_provider_different">This STT provider is different from your main AI provider. Please enter your %1$s API key to enable speech-to-text.</string>
+  <string name="ai_verified_successfully">Verified successfully</string>
+  <string name="ai_verification_failed">Verification failed: %1$s</string>
+  <string name="ai_action_verify">Verify</string>
+  <string name="action_hide">Hide</string>
+  <string name="action_show">Show</string>
+  <string name="action_done">Done</string>
+  <string name="action_cancel">Cancel</string>
+
+  <!-- Player Preferences Screen -->
+  <string name="pref_screenshot_intro_placeholder">e.g. intro, opening, op</string>
+  <string name="pref_screenshot_outro_placeholder">e.g. outro, ending, ed</string>
+  <string name="pref_section_screenshots">Screenshots</string>
+  <string name="pref_screenshot_image_format">Image format</string>
+  <string name="pref_screenshot_include_subtitles">Include subtitles in screenshots</string>
+  <string name="pref_screenshot_filename_template">Filename template</string>
+  <string name="pref_screenshot_quality">JPEG/WebP quality</string>
+  <string name="pref_screenshot_png_compression">PNG compression</string>
+  <string name="pref_screenshot_webp_lossless">WebP lossless</string>
+  <string name="pref_screenshot_webp_lossless_summary">Uses mpv native lossless output; Android fallback uses lossless on Android 11+.</string>
+  <string name="pref_screenshot_template_label">Template</string>
+  <string name="pref_screenshot_template_help">Use placeholders to customize the screenshot filename:\n• %f — Video title or filename\n• %p — Playback position (seconds)\n• %t — Timestamp\n• %d — Date</string>
+  <string name="pref_time_network_clock">Time + Network clock</string>
+  <string name="action_save">Save</string>
+  <string name="action_cancel">Cancel</string>
+
+  <!-- Ambient Sheet Labels -->
+  <string name="ambient_preset_fast">Fast</string>
+  <string name="ambient_preset_balanced">Balanced</string>
+  <string name="ambient_preset_hq">HQ</string>
+  <string name="ambient_section_glow">Glow</string>
+  <string name="ambient_section_color">Color</string>
+  <string name="ambient_section_compositing">Compositing</string>
+  <string name="ambient_section_visual_style">Visual Style</string>
+  <string name="ambient_section_frame_extend">Frame Extend</string>
+  <string name="ambient_slider_blur_samples">Blur Samples</string>
+  <string name="ambient_slider_spread">Spread</string>
+  <string name="ambient_slider_glow_intensity">Glow Intensity</string>
+  <string name="ambient_slider_fade_curve">Fade Curve</string>
+  <string name="ambient_slider_saturation">Saturation</string>
+  <string name="ambient_slider_warmth">Warmth</string>
+  <string name="ambient_slider_opacity">Opacity</string>
+  <string name="ambient_slider_vignette">Vignette</string>
+  <string name="ambient_slider_strength">Strength</string>
+  <string name="ambient_slider_detail_protect">Detail Protect</string>
+  <string name="ambient_slider_glow_mix">Glow Mix</string>
+  <string name="ambient_slider_bezel">Bezel</string>
+  <string name="ambient_slider_dither">Dither</string>
+
+  <!-- Player ViewModel Overlay Text -->
+  <string name="player_subtitle_position">Subtitle Position: %1$d</string>
+  <string name="player_hflip_on">H-Flip On</string>
+  <string name="player_hflip_off">H-Flip Off</string>
+  <string name="player_vflip_on">V-Flip On</string>
+  <string name="player_vflip_off">V-Flip Off</string>
+  <string name="player_hdr_linear_needs_gpu_next">Linear HDR needs GPU Next + Vulkan</string>
+  <string name="player_hdr_needs_gpu_next">HDR Screen output needs GPU Next</string>
+  <string name="player_hdr_screen_output">HDR Screen Output: %1$s</string>
+  <string name="player_hdr_toys_unavailable">HDR Toys shaders unavailable</string>
+  <string name="player_ambient_on">Ambience Mode: ON</string>
+  <string name="player_ambient_off">Ambience Mode: OFF</string>
+  <string name="player_ambient_style">Ambient Style: %1$s</string>
+  <string name="player_ambient_battery_saver_on">Ambient: Battery Saver ON</string>
+  <string name="player_ambient_battery_saver_off">Ambient: Battery Saver OFF</string>
+  <string name="player_snapshot_save_failed">Failed to save snapshot: %1$s</string>
+  <!-- Update Dialog -->
+  <string name="update_ready_to_install">Ready to Install</string>
+  <string name="update_available_title">Update Available</string>
+  <string name="update_current_version">Current Version</string>
+  <string name="update_latest_version">Latest Version</string>
+  <string name="update_release_date">Release Date</string>
+  <string name="update_size">Size</string>
+  <!-- Video Settings -->
+  <string name="video_filter_presets">Filter Presets</string>
+  <!-- Units -->
+  <string name="unit_seconds_short">s</string>
+  <!-- Compressor -->
+  <string name="compressor_fps_original">Original - %1$d</string>
+  <string name="compressor_fps_60">60fps</string>
+  <string name="compressor_fps_30">30fps</string>
+  <string name="compressor_fps_24">24fps</string>
+  <!-- Player Gesture -->
+  <string name="player_next_dialog">Next Dialog</string>
+  <string name="player_prev_dialog">Prev Dialog</string>
+  <string name="player_script_load_failed">Failed to load script: %1$s</string>
+  <!-- Common -->
+  <string name="error_unknown">Unknown error</string>
+  <string name="pref_ytdlp_manager_summary">Install and update yt-dlp for streaming support</string>
+  <!-- Preference Sections -->
+  <string name="pref_section_media_library">Media Library</string>
+  <string name="pref_section_hidden_folders">Hidden Folders</string>
+  <!-- Content Descriptions (additional) -->
+  <string name="cd_thumbnail">Thumbnail</string>
+  <string name="cd_play">Play</string>
+  <string name="cd_folder">Folder</string>
+  <string name="cd_pinned_folder">Pinned folder</string>
+  <string name="cd_search">Search</string>
+  <string name="cd_settings">Settings</string>
+  <string name="cd_pin_folders">Pin folders</string>
+  <string name="cd_add_to_playlist">Add to Playlist</string>
+  <string name="cd_copy_path">Copy path</string>
+  <string name="cd_separator">Separator</string>
+  <string name="cd_clear">Clear</string>
 </resources>

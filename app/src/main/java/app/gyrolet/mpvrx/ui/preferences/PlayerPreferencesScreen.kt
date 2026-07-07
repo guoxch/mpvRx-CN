@@ -413,7 +413,7 @@ object PlayerPreferencesScreen : Screen {
                           value = value,
                           onValueChange = onValueChange,
                           modifier = Modifier.fillMaxWidth(),
-                          placeholder = { Text("e.g. intro, opening, op") },
+                          placeholder = { Text(stringResource(R.string.pref_screenshot_intro_placeholder)) },
                           singleLine = true,
                         )
                       }
@@ -458,7 +458,7 @@ object PlayerPreferencesScreen : Screen {
                           value = value,
                           onValueChange = onValueChange,
                           modifier = Modifier.fillMaxWidth(),
-                          placeholder = { Text("e.g. outro, ending, ed") },
+                          placeholder = { Text(stringResource(R.string.pref_screenshot_outro_placeholder)) },
                           singleLine = true,
                         )
                       }
@@ -579,7 +579,7 @@ object PlayerPreferencesScreen : Screen {
           }
 
           // ── Screenshots ─────────────────────────────────────────────────
-          item { PreferenceSectionHeader(title = "Screenshots") }
+          item { PreferenceSectionHeader(title = stringResource(R.string.pref_section_screenshots)) }
           item {
             PreferenceCard {
               val screenshotFormat by preferences.screenshotFormat.collectAsState()
@@ -588,7 +588,7 @@ object PlayerPreferencesScreen : Screen {
                 onValueChange = preferences.screenshotFormat::set,
                 values = ScreenshotFormat.entries,
                 valueToText = { AnnotatedString(it.title) },
-                title = { Text("Image format") },
+                title = { Text(stringResource(R.string.pref_screenshot_image_format)) },
                 summary = { Text("${screenshotFormat.title} .${screenshotFormat.extension}", color = MaterialTheme.colorScheme.outline) },
               )
 
@@ -598,14 +598,14 @@ object PlayerPreferencesScreen : Screen {
               SwitchPreference(
                 value = includeSubtitles,
                 onValueChange = preferences.includeSubtitlesInSnapshot::set,
-                title = { Text("Include subtitles in screenshots") },
+                title = { Text(stringResource(R.string.pref_screenshot_include_subtitles)) },
               )
 
               PreferenceDivider()
 
               val screenshotTemplate by preferences.screenshotTemplate.collectAsState()
               Preference(
-                title = { Text("Filename template") },
+                title = { Text(stringResource(R.string.pref_screenshot_filename_template)) },
                 summary = { Text(screenshotTemplate, color = MaterialTheme.colorScheme.outline) },
                 onClick = {
                   templateDraft = screenshotTemplate
@@ -619,7 +619,7 @@ object PlayerPreferencesScreen : Screen {
               SliderPreference(
                 value = screenshotQuality.toFloat(),
                 onValueChange = { preferences.screenshotQuality.set(it.roundToInt().coerceIn(1, 100)) },
-                title = { Text("JPEG/WebP quality") },
+                title = { Text(stringResource(R.string.pref_screenshot_quality)) },
                 valueRange = 1f..100f,
                 summary = { Text("$screenshotQuality", color = MaterialTheme.colorScheme.outline) },
                 onSliderValueChange = { preferences.screenshotQuality.set(it.roundToInt().coerceIn(1, 100)) },
@@ -632,7 +632,7 @@ object PlayerPreferencesScreen : Screen {
               SliderPreference(
                 value = pngCompression.toFloat(),
                 onValueChange = { preferences.screenshotPngCompression.set(it.roundToInt().coerceIn(0, 9)) },
-                title = { Text("PNG compression") },
+                title = { Text(stringResource(R.string.pref_screenshot_png_compression)) },
                 valueRange = 0f..9f,
                 summary = { Text("$pngCompression", color = MaterialTheme.colorScheme.outline) },
                 onSliderValueChange = { preferences.screenshotPngCompression.set(it.roundToInt().coerceIn(0, 9)) },
@@ -646,8 +646,8 @@ object PlayerPreferencesScreen : Screen {
                 SwitchPreference(
                   value = webpLossless,
                   onValueChange = preferences.screenshotWebpLossless::set,
-                  title = { Text("WebP lossless") },
-                  summary = { Text("Uses mpv native lossless output; Android fallback uses lossless on Android 11+.", color = MaterialTheme.colorScheme.outline) },
+                  title = { Text(stringResource(R.string.pref_screenshot_webp_lossless)) },
+                  summary = { Text(stringResource(R.string.pref_screenshot_webp_lossless_summary), color = MaterialTheme.colorScheme.outline) },
                 )
               }
             }
@@ -782,22 +782,17 @@ object PlayerPreferencesScreen : Screen {
     if (showTemplateDialog) {
       AlertDialog(
         onDismissRequest = { showTemplateDialog = false },
-        title = { Text("Filename template") },
+        title = { Text(stringResource(R.string.pref_screenshot_filename_template)) },
         text = {
           Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
               value = templateDraft,
               onValueChange = { templateDraft = it },
-              label = { Text("Template") },
+              label = { Text(stringResource(R.string.pref_screenshot_template_label)) },
               modifier = Modifier.fillMaxWidth()
             )
             Text(
-              text = "Use placeholders to customize the screenshot filename:\n" +
-                  "• %f — Video title or filename\n" +
-                  "• %p — Playback position (seconds)\n" +
-                  "• %Y, %m, %d — Year, Month, Day\n" +
-                  "• %H, %M, %S — Hour, Minute, Second\n" +
-                  "• %wH, %wM, %wS, %wT — Wall-clock time (hour, min, sec, ms)",
+              text = stringResource(R.string.pref_screenshot_template_help),
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -810,12 +805,12 @@ object PlayerPreferencesScreen : Screen {
               showTemplateDialog = false
             },
           ) {
-            Text("Save")
+            Text(stringResource(R.string.action_save))
           }
         },
         dismissButton = {
           TextButton(onClick = { showTemplateDialog = false }) {
-            Text("Cancel")
+            Text(stringResource(R.string.action_cancel))
           }
         },
       )

@@ -6,6 +6,7 @@
   <string name="generic_cancel">取消</string>
   <string name="generic_ok">确定</string>
   <string name="generic_error">错误</string>
+  <string name="generic_searching">搜索中…</string>
   <string name="player_delete_video_title">删除视频</string>
   <string name="player_delete_video_message">确定要删除此视频文件吗？此操作无法撤销。</string>
   <string name="player_delete_success">已删除</string>
@@ -543,6 +544,35 @@
   <string name="info">信息</string>
   <string name="delete">删除</string>
   <string name="got_it">知道了</string>
+  <string name="common_copy">复制</string>
+  <string name="common_move">移动</string>
+  <string name="common_compressor">压缩</string>
+  <string name="common_add_to_playlist">添加到播放列表</string>
+  <string name="common_play">播放</string>
+  <string name="common_tree_view">目录树视图</string>
+  <string name="common_local_network">局域网</string>
+  <string name="common_add_connection">添加连接</string>
+  <string name="common_no_network_connections">暂无网络连接</string>
+  <string name="common_add_network_connection_hint">添加 SMB、FTP 或 WebDAV 连接以浏览网络文件</string>
+  <string name="common_error_loading_directory">加载目录出错</string>
+  <string name="common_empty_folder">空文件夹</string>
+  <string name="common_folder_empty_files">此文件夹不包含任何文件或目录</string>
+  <string name="common_folder_empty_videos">此文件夹不包含任何视频或子文件夹</string>
+  <string name="common_no_files_match_query">没有与\"%1$s\"匹配的文件或文件夹</string>
+  <string name="common_search_hint_all_volumes">在所有存储卷中搜索…</string>
+  <string name="common_search_hint_folder">在 %1$s 中搜索…</string>
+  <string name="common_folder">文件夹</string>
+  <string name="common_play_first_or_recent">播放最近播放或第一个视频</string>
+  <string name="common_all">全部</string>
+  <string name="common_saved">已保存</string>
+  <string name="common_stream_url">串流 URL</string>
+  <string name="common_drag_to_reorder">拖动以重新排序</string>
+  <string name="common_done_reordering">完成重新排序</string>
+  <string name="common_error_loading_files">加载文件出错</string>
+  <string name="folder_scanning_title">正在扫描视频…</string>
+  <string name="folder_scanning_message">正在搜索您的设备，请稍候</string>
+  <string name="folder_no_folders_title">未找到视频文件夹</string>
+  <string name="folder_no_folders_message">在设备中添加一些视频文件即可在此处显示</string>
   <string name="general">常规</string>
   <string name="not_set_video_default">未设置（将使用视频默认值）</string>
   <string name="enter_language_codes">输入用逗号分隔的语言代码（例如：eng,jpn,spa）</string>
@@ -951,6 +981,14 @@
   <string name="pref_models_count">%1$d 个模型</string>
   <string name="pref_models_count_plural">%1$d 个模型</string>
   <string name="pref_free_tag">免费</string>
+  <string name="pref_ai_rename_disabled">AI 重命名已禁用。请在设置 → AI 集成中启用。</string>
+  <string name="pref_ai_rename_suggest">AI 将为选定的 %1$d 个文件建议新名称。您可以在确认前查看并编辑每个名称。</string>
+  <string name="pref_ai_bulk_rename_title">AI 驱动的批量重命名</string>
+  <string name="pref_ai_bulk_rename_confirm">确认</string>
+  <string name="pref_ai_bulk_rename_reject">拒绝</string>
+  <string name="pref_ai_bulk_rename_apply">应用重命名</string>
+  <string name="pref_ai_bulk_rename_generating">正在生成名称…</string>
+  <string name="pref_ai_bulk_rename_retry">重试</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- Folders Preferences                                        -->
@@ -1005,6 +1043,7 @@
   <string name="generic_verify">验证</string>
   <string name="generic_fetch">获取</string>
   <string name="generic_got_it">知道了</string>
+  <string name="generic_edit">编辑</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- Advanced - Cache Sizes & Counts                            -->
@@ -1066,6 +1105,7 @@
   <string name="dialog_adding_videos_multiple">正在将 %1$d 个视频添加到播放列表</string>
   <string name="dialog_create_new_playlist">创建新播放列表</string>
   <string name="dialog_existing_playlists">现有播放列表</string>
+  <string name="dialog_done">完成</string>
   <string name="dialog_create">创建</string>
   <string name="toast_video_added_to_playlist">视频已添加到\"%1$s\"</string>
   <string name="toast_videos_added_to_playlist">%1$d 个视频已添加到\"%2$s\"</string>
@@ -1073,6 +1113,7 @@
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- Browser Dialogs - Delete Confirmation                      -->
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="dialog_delete">删除</string>
   <string name="dialog_delete_title">删除 %1$d 个%2$s？</string>
   <string name="dialog_delete_warning_single">此操作无法撤销。所选项目将被永久删除。</string>
   <string name="dialog_delete_warning_multiple">此操作无法撤销。所选项目将被永久删除。</string>
@@ -1086,7 +1127,9 @@
   <string name="dialog_ai_thinking">AI 正在思考…</string>
   <string name="dialog_name_cannot_be_empty">名称不能为空</string>
   <string name="dialog_name_cannot_contain_slash">名称不能包含 / 或 \\</string>
+  <string name="dialog_rename">重命名</string>
   <string name="dialog_ai_rename_failed">AI 重命名失败。请检查 API 密钥和模型。</string>
+  <string name="dialog_ai_rename_failed_all">所有 %1$d 个项目的 AI 重命名均失败。请检查您的模型/API 密钥。</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- Browser Dialogs - File Picker / Folder Picker              -->
@@ -1234,6 +1277,49 @@
   <string name="folder_deleted_success">删除成功</string>
   <string name="folder_delete_failed">删除失败</string>
   <string name="folder_delete_failed_detail">删除失败：%1$s</string>
+  <string name="video_no_videos_title">此文件夹中没有视频</string>
+  <string name="video_no_videos_message">您添加到此文件夹的视频将显示在此处</string>
+  <string name="video_private_space_title">已移至私密空间</string>
+  <string name="video_private_space_moving">正在移至私密空间…</string>
+  <string name="video_private_space_message">已成功将 %1$d 个视频移至私密空间。\n\n如需访问私密空间，请长按主屏幕顶部的应用名称。</string>
+  <string name="media_library_title">媒体库</string>
+  <string name="media_library_no_results_title">未找到视频</string>
+  <string name="media_library_no_results_message">请尝试其他搜索词</string>
+  <string name="recents_disabled_title">最近播放已禁用</string>
+  <string name="recents_disabled_message">在高级设置中启用以记录您的播放历史</string>
+  <string name="recents_empty_title">没有最近播放的视频</string>
+  <string name="recents_empty_message">您播放过的视频将显示在此处</string>
+  <string name="recents_file_not_found">最近文件已不存在</string>
+  <string name="recents_delete_files_checkbox">同时删除原始文件</string>
+  <string name="recents_item">项目</string>
+  <string name="recents_items">项目</string>
+  <string name="recents_delete_title_delete">删除 %1$d 个%2$s？</string>
+  <string name="recents_delete_title_remove">从历史记录中移除 %1$d 个%2$s？</string>
+  <string name="recents_delete_subtitle_delete">这将从您的设备存储中永久删除原始视频文件。\n\n此操作无法撤销。</string>
+  <string name="recents_delete_subtitle_remove">这将从您的最近播放列表中移除选定的%1$s。原始视频文件不会被删除。</string>
+  <string name="playlist_no_results_title">未找到视频</string>
+  <string name="playlist_no_results_message">请尝试其他搜索词</string>
+  <string name="playlist_refreshed">播放列表刷新成功</string>
+  <string name="playlist_failed_refresh">刷新失败：%1$s</string>
+  <string name="playlist_no_videos_title">播放列表中没有视频</string>
+  <string name="playlist_no_videos_message">添加视频即可开始</string>
+  <string name="playlist_remove_title">从播放列表中移除 %1$d 个%2$s？</string>
+  <string name="playlist_remove_message">选定的%1$s将从此播放列表中移除。原始%2$s不会被删除。</string>
+  <string name="playlist_remove_from_playlist">从播放列表中移除</string>
+  <string name="playlist_copy">复制</string>
+  <string name="playlist_search_videos">搜索视频</string>
+  <string name="playlist_reorder">重新排序播放列表</string>
+  <string name="playlist_video_single">视频</string>
+  <string name="playlist_video_plural">视频</string>
+  <string name="playlist_file_single">文件</string>
+  <string name="playlist_file_plural">文件</string>
+  <string name="network_folders">文件夹</string>
+  <string name="network_videos">视频</string>
+  <string name="network_empty_folder_title">空文件夹</string>
+  <string name="network_empty_folder_message">此文件夹不包含任何文件或目录</string>
+  <string name="network_paste_url">粘贴串流 URL</string>
+  <string name="network_clear_url">清除串流 URL</string>
+  <string name="network_play_stream">播放串流</string>
 
   <!-- Permission -->
   <string name="perm_storage_required">需要存储权限</string>
@@ -1335,6 +1421,15 @@
   <string name="ytdlp_quality_section">质量与格式</string>
   <string name="ytdlp_network_section">高级网络</string>
   <string name="ytdlp_advanced_config">高级配置</string>
+  <string name="dialog_create_first_playlist">在上方创建您的第一个播放列表</string>
+  <string name="dialog_playlist_item_info">%1$d 个视频 • %2$s</string>
+  <string name="dialog_ai_bulk_rename">AI 批量重命名</string>
+  <string name="dialog_ai_generating_previews">正在生成预览…</string>
+  <string name="dialog_ai_review_confirm">查看并确认</string>
+  <string name="dialog_ai_processing_files">正在处理 %1$d 个文件…</string>
+  <string name="dialog_ai_files_selected_to_rename">已选择 %1$d / %2$d 个文件进行重命名</string>
+  <string name="dialog_ai_generate_previews">生成预览</string>
+  <string name="dialog_ai_rename_files">重命名 %1$d 个文件</string>
   <!-- yt-dlp 面板 -->
   <string name="player_ytdlp_manager_title">yt-dlp 管理器</string>
   <string name="player_ytdlp_core_installed">yt-dlp 核心已安装并激活</string>
@@ -1384,4 +1479,383 @@
   <string name="player_more_info">信息</string>
   <string name="player_more_scripts">脚本</string>
   <string name="player_more_console">控制台</string>
+
+  <!-- 关于页面 -->
+  <string name="about_github">GitHub</string>
+  <string name="about_buy_coffee">请我喝杯咖啡</string>
+  <string name="about_donate_desc">如果您喜欢 MpvRx，请考虑支持它的开发。一点一滴都是帮助！</string>
+  <string name="about_upi_id_label">UPI ID</string>
+  <string name="about_upi_copied">UPI ID 已复制！</string>
+  <string name="about_no_upi_app">未找到 UPI 应用</string>
+  <string name="about_send_love">献爱心</string>
+  <string name="about_auto_check">自动检查更新</string>
+  <string name="about_check_on_startup">启动时检查</string>
+  <string name="about_check_now">立即检查更新</string>
+
+  <!-- 配置编辑器 -->
+  <string name="editor_title_mpv_conf">编辑 mpv.conf</string>
+  <string name="editor_title_input_conf">编辑 input.conf</string>
+  <string name="editor_create_failed">创建文件失败</string>
+  <string name="editor_file_saved">%s 已保存</string>
+  <string name="editor_save_failed">保存失败：%s</string>
+
+  <!-- 控件布局编辑器 -->
+  <string name="controls_title_top_right">编辑右上角</string>
+  <string name="controls_title_bottom_right">编辑右下角</string>
+  <string name="controls_title_bottom_left">编辑左下角</string>
+  <string name="controls_title_portrait_bottom">编辑竖屏底部</string>
+  <string name="controls_reset_title">恢复默认？</string>
+  <string name="controls_reset_message">这会将此区域的控件重置为默认配置。</string>
+  <string name="controls_reorder_hint">长按可重新排序项目。点击 \'-\' 图标可移除它们。</string>
+  <string name="controls_empty_zone">放置区为空</string>
+  <string name="controls_empty_hint">点击下方\"可用调色板\"中的按钮</string>
+  <string name="controls_all_used">所有可用按钮均已使用。</string>
+  <string name="controls_icons_legend">图标说明</string>
+  <string name="controls_icons_legend_subtitle">每个图标的作用是什么？</string>
+
+  <!-- 自定义按钮 -->
+  <string name="custom_buttons_title">自定义按钮</string>
+  <string name="custom_buttons_subtitle">拖动以重新排序 • 点击任意槽位展开并编辑</string>
+  <string name="custom_buttons_import_export">导入 / 导出</string>
+  <string name="custom_buttons_import_export_desc">将所有自定义按钮及其脚本代码备份或分享为 XML 文件</string>
+  <string name="custom_buttons_import">导入</string>
+  <string name="custom_buttons_export">导出</string>
+  <string name="custom_buttons_imported">已导入 %d 个按钮</string>
+  <string name="custom_buttons_export_success">按钮导出成功</string>
+  <string name="custom_buttons_export_failed">导出失败：%s</string>
+  <string name="custom_buttons_import_failed">读取文件失败：%s</string>
+  <string name="custom_buttons_title_field">按钮标题 *</string>
+  <string name="custom_buttons_tap_action">点击操作 *</string>
+  <string name="custom_buttons_long_press">长按操作</string>
+  <string name="custom_buttons_on_startup">启动时</string>
+  <string name="custom_buttons_enabled">按钮已启用</string>
+  <string name="custom_buttons_active_desc">按钮在播放器中处于活动状态</string>
+  <string name="custom_buttons_hidden_desc">按钮已保存但已隐藏</string>
+  <string name="custom_buttons_add">添加按钮</string>
+  <string name="custom_buttons_code_hint">点击以编写代码…</string>
+  <string name="custom_buttons_select_import_title">选择要导入的按钮</string>
+  <string name="custom_buttons_select_import_desc">选择要导入的按钮</string>
+  <string name="custom_buttons_section_button">按钮</string>
+  <string name="custom_buttons_section_settings">设置</string>
+  <string name="custom_buttons_empty_slot">空槽位</string>
+  <string name="custom_buttons_will_overwrite">将覆盖现有按钮</string>
+
+  <!-- Lua 脚本编辑器 -->
+  <string name="lua_editor_name_placeholder">脚本名称</string>
+  <string name="lua_editor_name_empty">请输入文件名</string>
+  <string name="lua_editor_create_failed">创建文件失败</string>
+  <string name="lua_editor_output_stream_failed">打开输出流失败</string>
+  <string name="lua_editor_save_success">%s 保存成功</string>
+  <string name="lua_editor_save_failed">保存失败：%s</string>
+  <string name="lua_editor_share_before_save">分享前请先保存脚本</string>
+  <string name="lua_editor_deleted">%s 已删除</string>
+  <string name="lua_editor_delete_failed">删除失败：%s</string>
+  <string name="lua_editor_delete_title">删除脚本？</string>
+  <string name="lua_editor_delete_message">确定要删除\"%s\"吗？此操作无法撤销。</string>
+  <string name="lua_editor_label_lua">Lua</string>
+  <string name="lua_editor_label_js">JS</string>
+  <string name="lua_editor_share_failed">分享失败：%s</string>
+  <string name="lua_editor_share_title">分享 %s</string>
+
+  <!-- Lua 脚本 -->
+  <string name="lua_script_disabled_toast">%s 已禁用。如果脚本仍然活动，请重新打开视频。</string>
+  <string name="lua_no_storage_configured">未配置存储位置</string>
+  <string name="lua_script_not_found">未找到脚本文件</string>
+  <string name="lua_share_error">分享脚本出错：%s</string>
+  <string name="lua_share_title">分享脚本</string>
+
+  <!-- 内容描述 -->
+  <string name="cd_device_info">设备信息</string>
+  <string name="cd_copy_upi">复制 UPI ID</string>
+  <string name="cd_help">帮助</string>
+  <string name="cd_save">保存</string>
+  <string name="cd_reset_default">恢复默认</string>
+  <string name="cd_drag_reorder">拖动以重新排序</string>
+  <string name="cd_drag_disabled">拖动已禁用</string>
+  <string name="cd_done">完成</string>
+  <string name="cd_create_new_script">创建新脚本</string>
+  <string name="cd_share">分享</string>
+  <string name="cd_delete">删除</string>
+  <string name="cd_import">导入</string>
+
+  <!-- 权限说明 -->
+  <string name="permission_title">需要存储访问权限</string>
+  <string name="permission_allow_access">允许访问</string>
+  <string name="permission_why_link">为什么会出现这个？</string>
+  <string name="permission_explanation_title">为什么需要此权限</string>
+  <string name="permission_description_photos">MpvRx 需要\"照片和视频\"权限才能访问和播放您设备上存储的视频文件。</string>
+  <string name="permission_description_storage">MpvRx 需要\"存储\"权限才能访问和播放您设备上存储的媒体文件。</string>
+  <string name="permission_description_all_files">由于 Android 11 及更高版本的安全策略变更，MpvRx 需要\"所有文件访问\"权限才能发现您设备上的媒体和字幕。</string>
+  <string name="permission_explanation_playstore">MpvRx 需要访问您的视频文件以提供作为媒体播放器的核心功能。</string>
+  <string name="permission_explanation_android13">在 Android 13 及以上版本中，此权限允许应用从您设备的存储中读取视频文件，包括下载、电影和 DCIM 文件夹。</string>
+  <string name="permission_explanation_older">此权限允许应用从您设备的存储中读取媒体文件以播放视频和音频。</string>
+  <string name="permission_explanation_usage">此权限仅用于：</string>
+  <string name="permission_explanation_usage_list">• 发现和显示您的视频文件\n• 播放媒体内容\n• 加载字幕文件</string>
+  <string name="permission_explanation_standard_1">MpvRx 一直需要存储访问权限，因为应用需要它来查找您设备上的所有媒体和字幕文件，包括系统不支持的文件。</string>
+  <string name="permission_explanation_standard_2">然而，由于安全策略的变更，针对 Android 11 及以上版本构建的应用现在需要额外权限才能继续访问这些文件。</string>
+  <string name="permission_explanation_standard_3">请知悉，此权限仅用于自动发现您设备上的媒体/字幕文件，不会允许我们以任何方式访问其他应用存储的私有数据文件。</string>
+  <string name="permission_explanation_oss">MpvRx 是一个开源项目。您可以查看源代码并通过访问我们的 GitHub 仓库来验证权限的使用方式：</string>
+  <string name="permission_explanation_privacy">请放心，您的隐私是我们最高优先级的，我们不会将您的文件用于其他目的，也不会将其传输或存储到我们的服务器上。它们始终安全地保存在您的设备上。</string>
+
+  <!-- 在线字幕搜索 -->
+  <string name="online_subtitle_search_empty_query">搜索查询为空</string>
+  <string name="online_subtitle_ai_format_failed">AI 格式化失败：%1$s</string>
+  <string name="online_subtitle_verified_matches">已验证匹配 (%1$d) + 其他</string>
+  <string name="online_subtitle_online_results">在线结果 (%1$d)</string>
+  <string name="online_subtitle_found_results">找到 %1$d 个</string>
+  <string name="online_subtitle_format_with_ai">用 AI 格式化</string>
+  <string name="cd_online_subtitle_verified_sync">已验证同步</string>
+  <string name="cd_online_subtitle_sync">同步</string>
+  <string name="cd_online_subtitle_download">下载</string>
+  <string name="cd_online_subtitle_ep_short">第 %1$d 集</string>
+  <string name="cd_online_subtitle_episode">第 %1$d 集</string>
+
+  <!-- 字幕轨道 -->
+  <string name="subtitle_translate_to">翻译为…</string>
+  <string name="subtitle_search_language">搜索语言…</string>
+  <string name="subtitle_no_languages">未找到语言</string>
+  <string name="subtitle_translating">翻译中</string>
+  <string name="subtitle_generating">正在生成字幕</string>
+  <string name="subtitle_embedded">内嵌字幕</string>
+  <string name="subtitle_local">本地字幕</string>
+  <string name="subtitle_external">外挂字幕</string>
+  <string name="cd_subtitle_cancel_translation">取消翻译</string>
+  <string name="cd_subtitle_generate">生成字幕</string>
+  <string name="cd_subtitle_translate">翻译</string>
+
+  <!-- 播放列表操作 -->
+  <string name="playlist_options">播放列表选项</string>
+  <string name="playlist_create_empty_title">创建空播放列表</string>
+  <string name="playlist_create_empty_desc">创建一个新的空白播放列表</string>
+  <string name="playlist_add_m3u_url">从 URL 添加 M3U 播放列表</string>
+  <string name="playlist_add_m3u_url_desc">从网络 URL 导入播放列表</string>
+  <string name="playlist_create_dialog_title">创建播放列表</string>
+  <string name="playlist_created_success">播放列表创建成功</string>
+  <string name="playlist_create_failed">创建播放列表失败：%1$s</string>
+  <string name="playlist_create_action">创建</string>
+  <string name="playlist_user_agent_optional">自定义 User-Agent（可选）</string>
+  <string name="playlist_or_divider">或</string>
+  <string name="playlist_choose_local_file">选择本地 M3U 文件</string>
+  <string name="playlist_add_from_url_action">从 URL 添加</string>
+
+  <!-- 播放链接 -->
+  <string name="play_link_title">播放链接</string>
+  <string name="play_link_enter_url">输入 URL</string>
+  <string name="play_link_url_placeholder">https://example.com/video.mp4</string>
+  <string name="play_link_unsupported_protocol">不支持的 URL 协议</string>
+  <string name="cd_play_link_valid">有效 URL</string>
+  <string name="cd_play_link_invalid">无效 URL</string>
+
+  <!-- 网络连接卡片 -->
+  <string name="network_connection_path">路径：%1$s</string>
+  <string name="network_connection_user">用户：%1$s</string>
+  <string name="network_connection_error">错误：%1$s</string>
+  <string name="network_auto_connect">应用启动时自动连接</string>
+  <string name="network_disconnect">断开连接</string>
+  <string name="network_connect">连接</string>
+  <string name="cd_edit">编辑</string>
+  <string name="cd_network_connecting">连接中</string>
+
+  <!-- yt-dlp 设置 -->
+  <string name="ytdlp_core_active_summary">子进程已激活，准备好串流</string>
+  <string name="ytdlp_core_missing_summary">引擎缺失。请在下方运行安装。</string>
+  <string name="ytdlp_manage_env">管理 yt-dlp 环境</string>
+  <string name="ytdlp_manage_env_desc">下载最新的包装器模块，并在本地沙盒文件夹中编译适配 Python 的原生二进制文件。</string>
+  <string name="ytdlp_quality_any">任意</string>
+  <string name="ytdlp_fps_any">任意 FPS</string>
+  <string name="ytdlp_fps_30">30 FPS</string>
+  <string name="ytdlp_fps_60">60 FPS</string>
+  <string name="ytdlp_fps_120">120 FPS</string>
+  <string name="ytdlp_format_default">（默认）</string>
+  <string name="ytdlp_dl_subs_summary">从支持的 URL 中自动提取并加载实体字幕轨道。</string>
+  <string name="ytdlp_auto_subs_summary">当常规字幕缺失时，获取自动字幕轨道（例如 YouTube 语音转文字）。</string>
+  <string name="ytdlp_sub_langs_placeholder">all 或 en.*,ja</string>
+  <string name="ytdlp_sub_langs_override">仅针对 yt-dlp 下载覆盖应用字幕语言。</string>
+  <string name="ytdlp_advanced_config_summary">自定义 HTTP 代理、代理服务器、提取器参数、SponsorBlock 和原始选项</string>
+  <string name="ytdlp_format_sort_placeholder">res,fps,hdr:12,vcodec:vp9.2</string>
+  <string name="ytdlp_format_sort_summary">作为 format-sort 传递给 yt-dlp 以进行高级排序。</string>
+  <string name="ytdlp_merge_format_placeholder">mp4, mkv, webm</string>
+  <string name="ytdlp_user_agent_placeholder">Mozilla/5.0 …</string>
+  <string name="ytdlp_user_agent_summary">留空以使用默认浏览器 User-Agent。有助于绕过反机器人爬虫。</string>
+  <string name="ytdlp_referer_placeholder">https://www.youtube.com/</string>
+  <string name="ytdlp_cookies_placeholder">/storage/emulated/0/Download/cookies.txt</string>
+  <string name="ytdlp_proxy_placeholder">socks5://127.0.0.1:1080</string>
+  <string name="ytdlp_extractor_args_placeholder">youtube:player_client=android,web</string>
+  <string name="ytdlp_geo_bypass_summary">要求 yt-dlp 使用其提取器级别的区域绕过逻辑。</string>
+  <string name="ytdlp_live_from_start_summary">当提取器支持时，从头开始播放直播流。</string>
+  <string name="ytdlp_sponsorblock_mark_placeholder">sponsor,selfpromo</string>
+  <string name="ytdlp_sponsorblock_remove_placeholder">sponsor</string>
+  <string name="ytdlp_raw_options_placeholder">extractor-args=\"youtube:player_client=android,web\"\ngeo-bypass=</string>
+  <string name="ytdlp_raw_options_summary">上述未涵盖的任何选项。用换行符或逗号分隔选项；包含逗号的值请加引号。</string>
+  <string name="ytdlp_dl_subs_title">下载媒体字幕</string>
+  <string name="ytdlp_auto_subs_title">包含自动生成的字幕</string>
+
+  <!-- 字幕来源偏好设置 -->
+  <string name="pref_subtitle_sources_free">免费来源</string>
+  <string name="pref_subtitle_sources_paid">付费来源</string>
+  <string name="pref_subtitle_source_restricted">受限（需要付费 API 密钥）</string>
+  <string name="pref_subtitle_sources_error">加载来源出错</string>
+  <string name="pref_wyzie_api_key_label">API 密钥：%1$s</string>
+  <string name="unknown">未知</string>
+  <string name="cd_refresh">刷新</string>
+  <string name="cd_restricted">受限</string>
+
+  <!-- 播放控件内容描述 -->
+  <string name="cd_playback_speed">播放速度</string>
+  <string name="cd_previous_frame">上一帧</string>
+  <string name="cd_take_screenshot">截图</string>
+  <string name="cd_next_frame">下一帧</string>
+  <string name="cd_video_zoom">视频缩放</string>
+  <string name="cd_vertical_flip">垂直翻转</string>
+  <string name="cd_clear_loop">清除循环</string>
+  <string name="cd_ambience_mode">氛围模式</string>
+  <string name="cd_time_and_network">时间和网络</string>
+
+  <!-- 手势操作 -->
+  <string name="gesture_drag_subtitles_hint">上下拖动以移动字幕</string>
+
+  <!-- mpv 帮助 -->
+  <string name="mpv_help_documentation">mpv 文档</string>
+  <string name="mpv_help_search_placeholder">搜索命令、选项、属性…</string>
+  <string name="mpv_help_all">全部</string>
+  <string name="mpv_help_no_results">未找到结果</string>
+  <string name="mpv_help_no_android">无 Android</string>
+  <string name="mpv_help_copied">已复制：%1$s</string>
+  <string name="cd_mpv_help_clear">清除</string>
+
+  <!-- Player Button Labels -->
+  <string name="btn_label_back">返回箭头</string>
+  <string name="btn_label_title">视频标题</string>
+  <string name="btn_label_bookmarks">章节 / 书签</string>
+  <string name="btn_label_speed">播放速度</string>
+  <string name="btn_label_decoder">解码器</string>
+  <string name="btn_label_hdr">HDR 屏幕输出</string>
+  <string name="btn_label_rotation">屏幕旋转</string>
+  <string name="btn_label_frame_nav">逐帧导航</string>
+  <string name="btn_label_zoom">视频缩放</string>
+  <string name="btn_label_pip">画中画</string>
+  <string name="btn_label_aspect">宽高比</string>
+  <string name="btn_label_lock">锁定控制</string>
+  <string name="btn_label_audio">音轨</string>
+  <string name="btn_label_subtitles">字幕</string>
+  <string name="btn_label_more">更多选项</string>
+  <string name="btn_label_chapter">当前章节</string>
+  <string name="btn_label_repeat_mode">循环模式</string>
+  <string name="btn_label_shuffle">随机播放</string>
+  <string name="btn_label_mirror">水平翻转</string>
+  <string name="btn_label_vertical_flip">垂直翻转</string>
+  <string name="btn_label_ab_loop">A-B 循环</string>
+  <string name="btn_label_custom_skip">自定义跳转</string>
+  <string name="btn_label_bg_playback">后台播放</string>
+  <string name="btn_label_ambient">环境光模式</string>
+  <string name="btn_label_time_network">时间 + 网络</string>
+  <string name="btn_label_delete">删除视频</string>
+  <string name="btn_label_none">无</string>
+  <!-- AI Integration Screen -->
+  <string name="ai_stt_key_verified">%1$s API 密钥已验证</string>
+  <string name="ai_stt_key_configure_first">请先在上方配置 %1$s API 密钥</string>
+  <string name="ai_stt_configure_key">配置 %1$s API 密钥</string>
+  <string name="ai_stt_provider_different">此 STT 提供商与您的主 AI 提供商不同。请输入您的 %1$s API 密钥以启用语音转文字。</string>
+  <string name="ai_verified_successfully">验证成功</string>
+  <string name="ai_verification_failed">验证失败：%1$s</string>
+  <string name="ai_action_verify">验证</string>
+  <string name="action_hide">隐藏</string>
+  <string name="action_show">显示</string>
+  <string name="action_done">完成</string>
+  <string name="action_cancel">取消</string>
+
+  <!-- Player Preferences Screen -->
+  <string name="pref_screenshot_intro_placeholder">例如 intro, opening, op</string>
+  <string name="pref_screenshot_outro_placeholder">例如 outro, ending, ed</string>
+  <string name="pref_section_screenshots">截图</string>
+  <string name="pref_screenshot_image_format">图片格式</string>
+  <string name="pref_screenshot_include_subtitles">截图中包含字幕</string>
+  <string name="pref_screenshot_filename_template">文件名模板</string>
+  <string name="pref_screenshot_quality">JPEG/WebP 质量</string>
+  <string name="pref_screenshot_png_compression">PNG 压缩</string>
+  <string name="pref_screenshot_webp_lossless">WebP 无损</string>
+  <string name="pref_screenshot_webp_lossless_summary">使用 mpv 原生无损输出；Android 11+ 回退使用无损。</string>
+  <string name="pref_screenshot_template_label">模板</string>
+  <string name="pref_screenshot_template_help">使用占位符自定义截图文件名：\n• %f — 视频标题或文件名\n• %p — 播放位置（秒）\n• %t — 时间戳\n• %d — 日期</string>
+  <string name="pref_time_network_clock">时间 + 网络时钟</string>
+  <string name="action_save">保存</string>
+  <string name="action_cancel">取消</string>
+
+  <!-- Ambient Sheet Labels -->
+  <string name="ambient_preset_fast">快速</string>
+  <string name="ambient_preset_balanced">均衡</string>
+  <string name="ambient_preset_hq">高质量</string>
+  <string name="ambient_section_glow">辉光</string>
+  <string name="ambient_section_color">色彩</string>
+  <string name="ambient_section_compositing">合成</string>
+  <string name="ambient_section_visual_style">视觉样式</string>
+  <string name="ambient_section_frame_extend">帧延展</string>
+  <string name="ambient_slider_blur_samples">模糊采样</string>
+  <string name="ambient_slider_spread">扩散</string>
+  <string name="ambient_slider_glow_intensity">辉光强度</string>
+  <string name="ambient_slider_fade_curve">淡出曲线</string>
+  <string name="ambient_slider_saturation">饱和度</string>
+  <string name="ambient_slider_warmth">色温</string>
+  <string name="ambient_slider_opacity">不透明度</string>
+  <string name="ambient_slider_vignette">暗角</string>
+  <string name="ambient_slider_strength">强度</string>
+  <string name="ambient_slider_detail_protect">细节保护</string>
+  <string name="ambient_slider_glow_mix">辉光混合</string>
+  <string name="ambient_slider_bezel">边框</string>
+  <string name="ambient_slider_dither">抖动</string>
+
+  <!-- Player ViewModel Overlay Text -->
+  <string name="player_subtitle_position">字幕位置：%1$d</string>
+  <string name="player_hflip_on">水平翻转开</string>
+  <string name="player_hflip_off">水平翻转关</string>
+  <string name="player_vflip_on">垂直翻转开</string>
+  <string name="player_vflip_off">垂直翻转关</string>
+  <string name="player_hdr_linear_needs_gpu_next">线性 HDR 需要 GPU Next + Vulkan</string>
+  <string name="player_hdr_needs_gpu_next">HDR 屏幕输出需要 GPU Next</string>
+  <string name="player_hdr_screen_output">HDR 屏幕输出：%1$s</string>
+  <string name="player_hdr_toys_unavailable">HDR Toys 着色器不可用</string>
+  <string name="player_ambient_on">环境光模式：开</string>
+  <string name="player_ambient_off">环境光模式：关</string>
+  <string name="player_ambient_style">环境光样式：%1$s</string>
+  <string name="player_ambient_battery_saver_on">环境光：省电模式开</string>
+  <string name="player_ambient_battery_saver_off">环境光：省电模式关</string>
+  <string name="player_snapshot_save_failed">保存截图失败：%1$s</string>
+  <!-- Update Dialog -->
+  <string name="update_ready_to_install">准备安装</string>
+  <string name="update_available_title">有可用更新</string>
+  <string name="update_current_version">当前版本</string>
+  <string name="update_latest_version">最新版本</string>
+  <string name="update_release_date">发布日期</string>
+  <string name="update_size">大小</string>
+  <!-- Video Settings -->
+  <string name="video_filter_presets">滤镜预设</string>
+  <!-- Units -->
+  <string name="unit_seconds_short">秒</string>
+  <!-- Compressor -->
+  <string name="compressor_fps_original">原始 - %1$d</string>
+  <string name="compressor_fps_60">60fps</string>
+  <string name="compressor_fps_30">30fps</string>
+  <string name="compressor_fps_24">24fps</string>
+  <!-- Player Gesture -->
+  <string name="player_next_dialog">下一句对话</string>
+  <string name="player_prev_dialog">上一句对话</string>
+  <string name="player_script_load_failed">加载脚本失败：%1$s</string>
+  <!-- Common -->
+  <string name="error_unknown">未知错误</string>
+  <string name="pref_ytdlp_manager_summary">安装和更新 yt-dlp 以支持流媒体</string>
+  <!-- Preference Sections -->
+  <string name="pref_section_media_library">媒体库</string>
+  <string name="pref_section_hidden_folders">隐藏文件夹</string>
+  <!-- Content Descriptions (additional) -->
+  <string name="cd_thumbnail">缩略图</string>
+  <string name="cd_play">播放</string>
+  <string name="cd_folder">文件夹</string>
+  <string name="cd_pinned_folder">已固定的文件夹</string>
+  <string name="cd_search">搜索</string>
+  <string name="cd_settings">设置</string>
+  <string name="cd_pin_folders">固定文件夹</string>
+  <string name="cd_add_to_playlist">添加到播放列表</string>
+  <string name="cd_copy_path">复制路径</string>
+  <string name="cd_separator">分隔符</string>
+  <string name="cd_clear">清除</string>
 </resources>

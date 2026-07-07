@@ -496,7 +496,7 @@ object AdvancedPreferencesScreen : Screen {
                 title = { Text("yt-dlp Manager") },
                 summary = {
                   Text(
-                    "Install and update yt-dlp for streaming support",
+                    stringResource(R.string.pref_ytdlp_manager_summary),
                     color = MaterialTheme.colorScheme.outline
                   )
                 },
@@ -735,7 +735,7 @@ object AdvancedPreferencesScreen : Screen {
                       }.onFailure { error ->
                         withContext(Dispatchers.Main) {
                           isClearThumbsConfirmShown = false
-                          Toast.makeText(context, context.getString(R.string.pref_failed_to_clear, error.message ?: "Unknown error"), Toast.LENGTH_LONG).show()
+                          Toast.makeText(context, context.getString(R.string.pref_failed_to_clear, error.message ?: context.getString(R.string.error_unknown)), Toast.LENGTH_LONG).show()
                         }
                       }
                     }

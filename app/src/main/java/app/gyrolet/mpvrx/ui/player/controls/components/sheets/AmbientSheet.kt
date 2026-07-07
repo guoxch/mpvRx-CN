@@ -33,9 +33,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.presentation.components.PlayerSheet
 import app.gyrolet.mpvrx.presentation.components.SliderItem
 import app.gyrolet.mpvrx.ui.icons.Icon as AppSymbolIcon
@@ -182,17 +184,17 @@ fun AmbientSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 ExpressivePresetButton(
-                    label = "Fast",
+                    label = stringResource(R.string.ambient_preset_fast),
                     selected = isFast,
                     onClick = { viewModel.applyAmbientProfileFast() },
                 )
                 ExpressivePresetButton(
-                    label = "Balanced",
+                    label = stringResource(R.string.ambient_preset_balanced),
                     selected = isBalanced,
                     onClick = { viewModel.applyAmbientProfileBalanced() },
                 )
                 ExpressivePresetButton(
-                    label = "HQ",
+                    label = stringResource(R.string.ambient_preset_hq),
                     selected = isHQ,
                     onClick = { viewModel.applyAmbientProfileHighQuality() },
                 )
@@ -206,7 +208,7 @@ fun AmbientSheet(
             // ── Section: Glow ────────────────────────────────────────────────
             var glowExpanded by remember { mutableStateOf(true) }
             SectionHeader(
-                title = "Glow",
+                title = stringResource(R.string.ambient_section_glow),
                 isExpanded = glowExpanded,
                 onClick = { glowExpanded = !glowExpanded },
             )
@@ -219,7 +221,7 @@ fun AmbientSheet(
                     verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
                 ) {
                     SliderItem(
-                        label = "Blur Samples",
+                        label = stringResource(R.string.ambient_slider_blur_samples),
                         valueText = "$blurSamples",
                         value = blurSamples,
                         onChange = { viewModel.updateAmbientParams(blurSamples = it) },
@@ -236,7 +238,7 @@ fun AmbientSheet(
                     )
 
                     SliderItem(
-                        label = "Spread",
+                        label = stringResource(R.string.ambient_slider_spread),
                         valueText = "%.2f".format(maxRadius),
                         value = maxRadius,
                         onChange = { viewModel.updateAmbientParams(maxRadius = it) },
@@ -254,7 +256,7 @@ fun AmbientSheet(
                     )
 
                     SliderItem(
-                        label = "Glow Intensity",
+                        label = stringResource(R.string.ambient_slider_glow_intensity),
                         valueText = "%.1f".format(glowIntensity),
                         value = glowIntensity,
                         onChange = { viewModel.updateAmbientParams(glowIntensity = it) },
@@ -272,7 +274,7 @@ fun AmbientSheet(
                     )
 
                     SliderItem(
-                        label = "Fade Curve",
+                        label = stringResource(R.string.ambient_slider_fade_curve),
                         valueText = "%.1f".format(fadeCurve),
                         value = fadeCurve,
                         onChange = { viewModel.updateAmbientParams(fadeCurve = it) },
@@ -299,7 +301,7 @@ fun AmbientSheet(
             // ── Section: Color ───────────────────────────────────────────────
             var colorExpanded by remember { mutableStateOf(true) }
             SectionHeader(
-                title = "Color",
+                title = stringResource(R.string.ambient_section_color),
                 isExpanded = colorExpanded,
                 onClick = { colorExpanded = !colorExpanded },
             )
@@ -312,7 +314,7 @@ fun AmbientSheet(
                     verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
                 ) {
                     SliderItem(
-                        label = "Saturation",
+                        label = stringResource(R.string.ambient_slider_saturation),
                         valueText = "%.1f".format(satBoost),
                         value = satBoost,
                         onChange = { viewModel.updateAmbientParams(satBoost = it) },
@@ -330,7 +332,7 @@ fun AmbientSheet(
                     )
 
                     SliderItem(
-                        label = "Warmth",
+                        label = stringResource(R.string.ambient_slider_warmth),
                         valueText = if (warmth == 0f) "0" else "%.2f".format(warmth),
                         value = warmth,
                         onChange = { viewModel.updateAmbientParams(warmth = it) },
@@ -357,7 +359,7 @@ fun AmbientSheet(
             // ── Section: Compositing ─────────────────────────────────────────
             var compositingExpanded by remember { mutableStateOf(true) }
             SectionHeader(
-                title = "Compositing",
+                title = stringResource(R.string.ambient_section_compositing),
                 isExpanded = compositingExpanded,
                 onClick = { compositingExpanded = !compositingExpanded },
             )
@@ -370,7 +372,7 @@ fun AmbientSheet(
                     verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
                 ) {
                     SliderItem(
-                        label = "Opacity",
+                        label = stringResource(R.string.ambient_slider_opacity),
                         valueText = "%.2f".format(opacity),
                         value = opacity,
                         onChange = { viewModel.updateAmbientParams(opacity = it) },
@@ -388,7 +390,7 @@ fun AmbientSheet(
                     )
 
                     SliderItem(
-                        label = "Vignette",
+                        label = stringResource(R.string.ambient_slider_vignette),
                         valueText = "%.1f".format(vignetteStrength),
                         value = vignetteStrength,
                         onChange = { viewModel.updateAmbientParams(vignetteStrength = it) },
@@ -413,7 +415,7 @@ fun AmbientSheet(
             )
 
             // ── Section: Visual Style ────────────────────────────────────────
-            SectionHeader(title = "Visual Style")
+            SectionHeader(title = stringResource(R.string.ambient_section_visual_style))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -441,7 +443,7 @@ fun AmbientSheet(
 
                 var frameExtendExpanded by remember { mutableStateOf(true) }
                 SectionHeader(
-                    title = "Frame Extend",
+                    title = stringResource(R.string.ambient_section_frame_extend),
                     isExpanded = frameExtendExpanded,
                     onClick = { frameExtendExpanded = !frameExtendExpanded },
                 )
@@ -454,7 +456,7 @@ fun AmbientSheet(
                         verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
                     ) {
                         SliderItem(
-                            label = "Strength",
+                            label = stringResource(R.string.ambient_slider_strength),
                             valueText = "%.2f".format(frameExtendStrength),
                             value = frameExtendStrength,
                             onChange = { viewModel.updateFrameExtendParams(extendStrength = it) },
@@ -472,7 +474,7 @@ fun AmbientSheet(
                         )
 
                         SliderItem(
-                            label = "Detail Protect",
+                            label = stringResource(R.string.ambient_slider_detail_protect),
                             valueText = "%.2f".format(frameExtendDetailProtection),
                             value = frameExtendDetailProtection,
                             onChange = { viewModel.updateFrameExtendParams(detailProtection = it) },
@@ -490,7 +492,7 @@ fun AmbientSheet(
                         )
 
                         SliderItem(
-                            label = "Glow Mix",
+                            label = stringResource(R.string.ambient_slider_glow_mix),
                             valueText = "%.2f".format(frameExtendGlowMix),
                             value = frameExtendGlowMix,
                             onChange = { viewModel.updateFrameExtendParams(glowMix = it) },
@@ -508,7 +510,7 @@ fun AmbientSheet(
                         )
 
                         SliderItem(
-                            label = "Bezel",
+                            label = stringResource(R.string.ambient_slider_bezel),
                             valueText = "%.3f".format(bezelDepth),
                             value = bezelDepth,
                             onChange = { viewModel.updateAmbientParams(bezelDepth = it) },
@@ -526,7 +528,7 @@ fun AmbientSheet(
                         )
 
                         SliderItem(
-                            label = "Dither",
+                            label = stringResource(R.string.ambient_slider_dither),
                             valueText = "%.3f".format(ditherNoise),
                             value = ditherNoise,
                             onChange = { viewModel.updateFrameExtendParams(ditherNoise = it) },

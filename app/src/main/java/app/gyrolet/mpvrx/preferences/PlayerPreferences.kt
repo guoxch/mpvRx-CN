@@ -18,17 +18,17 @@ enum class IntroSegmentProvider(
 ) {
   INTRO_DB("IntroDB", "introdb"),
   THE_INTRO_DB("TIDB", "theintrodb"),
-  ANI_SKIP("AniSkip (Anime)", "aniskip"),
+  ANI_SKIP("AniSkip（动漫）", "aniskip"),
   ANIME_SKIP("Anime Skip", "animeskip"),
-  HYBRID("Hybrid (Fastest)", "hybrid"),
+  HYBRID("混合（最快）", "hybrid"),
 }
 
 enum class PlayerClockFormat(
   val displayName: String,
 ) {
-  SYSTEM("System"),
-  TWELVE_HOUR("12 hour"),
-  TWENTY_FOUR_HOUR("24 hour"),
+  SYSTEM("跟随系统"),
+  TWELVE_HOUR("12 小时制"),
+  TWENTY_FOUR_HOUR("24 小时制"),
 }
 
 class PlayerPreferences(

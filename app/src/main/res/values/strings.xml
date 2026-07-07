@@ -1834,10 +1834,9 @@
   <string name="pref_screenshot_webp_lossless">WebP lossless</string>
   <string name="pref_screenshot_webp_lossless_summary">Uses mpv native lossless output; Android fallback uses lossless on Android 11+.</string>
   <string name="pref_screenshot_template_label">Template</string>
-  <string name="pref_screenshot_template_help">Use placeholders to customize the screenshot filename:\n• %f — Video title or filename\n• %p — Playback position (seconds)\n• %t — Timestamp\n• %d — Date</string>
+  <string name="pref_screenshot_template_help" formatted="false">Use placeholders to customize the screenshot filename:\n• %f — Video title or filename\n• %p — Playback position (seconds)\n• %t — Timestamp\n• %d — Date</string>
   <string name="pref_time_network_clock">Time + Network clock</string>
   <string name="action_save">Save</string>
-  <string name="action_cancel">Cancel</string>
 
   <!-- Ambient Sheet Labels -->
   <string name="ambient_preset_fast">Fast</string>

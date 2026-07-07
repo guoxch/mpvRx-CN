@@ -1776,10 +1776,9 @@
   <string name="pref_screenshot_webp_lossless">WebP 无损</string>
   <string name="pref_screenshot_webp_lossless_summary">使用 mpv 原生无损输出；Android 11+ 回退使用无损。</string>
   <string name="pref_screenshot_template_label">模板</string>
-  <string name="pref_screenshot_template_help">使用占位符自定义截图文件名：\n• %f — 视频标题或文件名\n• %p — 播放位置（秒）\n• %t — 时间戳\n• %d — 日期</string>
+  <string name="pref_screenshot_template_help" formatted="false">使用占位符自定义截图文件名：\n• %f — 视频标题或文件名\n• %p — 播放位置（秒）\n• %t — 时间戳\n• %d — 日期</string>
   <string name="pref_time_network_clock">时间 + 网络时钟</string>
   <string name="action_save">保存</string>
-  <string name="action_cancel">取消</string>
 
   <!-- Ambient Sheet Labels -->
   <string name="ambient_preset_fast">快速</string>

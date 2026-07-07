@@ -865,20 +865,20 @@ private fun CompressorVideoTab(
         FilterChip(
           selected = state.videoCodec == androidx.media3.common.MimeTypes.VIDEO_AV1,
           onClick = { onSetVideoCodec(androidx.media3.common.MimeTypes.VIDEO_AV1) },
-          label = { Text("AV1") },
+          label = { Text(stringResource(R.string.codec_av1)) },
         )
       }
       if (state.supportedCodecs.contains(androidx.media3.common.MimeTypes.VIDEO_H265)) {
         FilterChip(
           selected = state.videoCodec == androidx.media3.common.MimeTypes.VIDEO_H265,
           onClick = { onSetVideoCodec(androidx.media3.common.MimeTypes.VIDEO_H265) },
-          label = { Text("H.265") },
+          label = { Text(stringResource(R.string.codec_h265)) },
         )
       }
       FilterChip(
         selected = state.videoCodec == androidx.media3.common.MimeTypes.VIDEO_H264,
         onClick = { onSetVideoCodec(androidx.media3.common.MimeTypes.VIDEO_H264) },
-        label = { Text("H.264") },
+        label = { Text(stringResource(R.string.codec_h264)) },
       )
     }
 

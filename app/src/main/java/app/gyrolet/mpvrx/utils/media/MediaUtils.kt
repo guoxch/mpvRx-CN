@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.ui.player.PlayerActivity
 import app.gyrolet.mpvrx.ui.player.PlayerLookupHints
@@ -257,7 +258,7 @@ object MediaUtils {
         Intent(Intent.ACTION_SEND_MULTIPLE).apply {
           type = "video/*"
           putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
-          putExtra(Intent.EXTRA_SUBJECT, "Sharing ${uris.size} videos")
+          putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.share_videos, uris.size))
           val clip = android.content.ClipData.newRawUri(videos.first().displayName, uris.first())
           uris.drop(1).forEach { u -> clip.addItem(android.content.ClipData.Item(u)) }
           clipData = clip
@@ -268,7 +269,7 @@ object MediaUtils {
     context.startActivity(
       Intent.createChooser(
         intent,
-        if (uris.size == 1) "Share video" else "Share ${uris.size} videos",
+        if (uris.size == 1) context.getString(R.string.share_video) else context.getString(R.string.share_videos, uris.size),
       ),
     )
   }

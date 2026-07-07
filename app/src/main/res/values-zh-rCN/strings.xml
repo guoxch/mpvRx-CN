@@ -51,8 +51,8 @@
   <string name="sort_portrait">竖屏</string>
   <string name="sort_done">完成</string>
   <!-- Sort order labels -->
-  <string name="sort_order_asc_alpha">A-Z</string>
-  <string name="sort_order_desc_alpha">Z-A</string>
+  <string name="sort_order_asc_alpha">A 到 Z</string>
+  <string name="sort_order_desc_alpha">Z 到 A</string>
   <string name="sort_order_oldest">最旧</string>
   <string name="sort_order_newest">最新</string>
   <string name="sort_order_smallest">最小</string>
@@ -640,7 +640,7 @@
   <string name="mpv_profile_fast">快速</string>
   <string name="mpv_profile_default">默认</string>
   <string name="mpv_profile_high_quality">高质量</string>
-  <string name="mpv_profile_gpu_hq">GPU HQ</string>
+  <string name="mpv_profile_gpu_hq">GPU 高质量</string>
   <string name="mpv_profile_low_latency">低延迟</string>
   <string name="mpv_profile_sw_fast">软件快速</string>
 
@@ -1324,7 +1324,7 @@
   <string name="compressor_info">信息</string>
   <string name="compressor_save_to">保存到</string>
   <string name="compressor_current_folder">当前文件夹</string>
-  <string name="compressor_default_folder">Movies/Compressor</string>
+  <string name="compressor_default_folder">影片/压缩器</string>
   <string name="compressor_estimated">预计</string>
   <string name="compressor_change_quality">更改视频质量</string>
   <string name="compressor_target_size">目标大小预设</string>
@@ -1377,8 +1377,8 @@
   <string name="compressor_preset_medium">中等质量</string>
   <string name="compressor_preset_low">低质量</string>
   <string name="compressor_preset_high_desc">仅优化比特率</string>
-  <string name="compressor_preset_medium_desc">1080p - 30fps</string>
-  <string name="compressor_preset_low_desc">720p - 30fps</string>
+  <string name="compressor_preset_medium_desc">1080p - 30 帧/秒</string>
+  <string name="compressor_preset_low_desc">720p - 30 帧/秒</string>
 
   <!-- Network -->
   <string name="network_add_connection">添加连接</string>
@@ -2089,4 +2089,20 @@
   <string name="status_provider_format">%1$s：%2$s</string>
   <string name="status_failed_series_details">加载剧集详情失败：%1$s</string>
   <string name="status_failed_episodes">加载集数失败：%1$s</string>
+  <!-- Clipboard -->
+  <string name="copied_to_clipboard">已复制到剪贴板</string>
+  <string name="copied_truncated_text">已复制截断文本（%1$d KB / %2$d KB）</string>
+  <!-- Share -->
+  <string name="share_video">分享视频</string>
+  <string name="share_videos">分享 %1$d 个视频</string>
+  <!-- Storage -->
+  <string name="internal_storage">内部存储</string>
+  <string name="network_streams">网络流</string>
+  <!-- Labels -->
+  <string name="label_drm">DRM</string>
+  <string name="label_ua">UA</string>
+  <!-- Codec names -->
+  <string name="codec_av1">AV1</string>
+  <string name="codec_h265">H.265</string>
+  <string name="codec_h264">H.264</string>
 </resources>

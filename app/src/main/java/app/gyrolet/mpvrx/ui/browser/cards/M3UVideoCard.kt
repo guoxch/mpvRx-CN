@@ -251,14 +251,14 @@ fun M3UVideoCard(
           }
           if (hasDrm) {
             M3UMetadataChip(
-              text = "DRM",
+              text = stringResource(R.string.label_drm),
               containerColor = MaterialTheme.colorScheme.errorContainer,
               contentColor = MaterialTheme.colorScheme.onErrorContainer,
             )
           }
           if (hasCustomUserAgent) {
             M3UMetadataChip(
-              text = "UA",
+              text = stringResource(R.string.label_ua),
               containerColor = MaterialTheme.colorScheme.tertiaryContainer,
               contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
             )

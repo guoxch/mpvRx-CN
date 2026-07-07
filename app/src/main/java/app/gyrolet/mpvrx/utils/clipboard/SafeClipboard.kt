@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.TransactionTooLargeException
 import android.widget.Toast
+import app.gyrolet.mpvrx.R
 import java.nio.charset.StandardCharsets
 
 object SafeClipboard {
@@ -37,7 +38,7 @@ object SafeClipboard {
     val first = truncateUtf8(text.toString(), MAX_CLIPBOARD_BYTES)
     return try {
       clipboard.setPrimaryClip(ClipData.newPlainText(label, first.text))
-      if (showToast) showToast(context, first.toastMessage())
+      if (showToast) showToast(context, first.toastMessage(context))
       CopyResult(first.copiedBytes, first.originalBytes, first.truncated)
     } catch (error: TransactionTooLargeException) {
       retrySmallClipboard(context, clipboard, label, text.toString(), showToast)
@@ -105,15 +106,19 @@ object SafeClipboard {
   ): CopyResult {
     val small = truncateUtf8(text, RETRY_BYTES)
     clipboard.setPrimaryClip(ClipData.newPlainText(label, small.text))
-    if (showToast) showToast(context, small.toastMessage())
+    if (showToast) showToast(context, small.toastMessage(context))
     return CopyResult(small.copiedBytes, small.originalBytes, truncated = true)
   }
 
-  private fun TruncatedText.toastMessage(): String =
+  private fun TruncatedText.toastMessage(context: Context): String =
     if (truncated) {
-      "Copied truncated text (${copiedBytes / 1024} KB of ${originalBytes / 1024} KB)"
+      context.getString(
+        R.string.copied_truncated_text,
+        copiedBytes / 1024,
+        originalBytes / 1024,
+      )
     } else {
-      "Copied to clipboard"
+      context.getString(R.string.copied_to_clipboard)
     }
 
   private fun showToast(context: Context, message: String) {

@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.browser.FileSystemItem
 import app.gyrolet.mpvrx.domain.browser.PathComponent
 import app.gyrolet.mpvrx.domain.media.model.Video
@@ -447,7 +448,7 @@ object MediaFileRepository : KoinComponent {
           
           roots.add(
             FileSystemItem.Folder(
-              name = "Internal Storage",
+              name = context.getString(R.string.internal_storage),
               path = primaryPath,
               lastModified = primaryStorage.lastModified(),
               videoCount = folderData?.videoCount ?: 0,

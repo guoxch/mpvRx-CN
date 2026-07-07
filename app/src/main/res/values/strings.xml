@@ -2147,4 +2147,20 @@
   <string name="status_provider_format">%1$s: %2$s</string>
   <string name="status_failed_series_details">Failed to load series details: %1$s</string>
   <string name="status_failed_episodes">Failed to load episodes: %1$s</string>
+  <!-- Clipboard -->
+  <string name="copied_to_clipboard">Copied to clipboard</string>
+  <string name="copied_truncated_text">Copied truncated text (%1$d KB of %2$d KB)</string>
+  <!-- Share -->
+  <string name="share_video">Share video</string>
+  <string name="share_videos">Share %1$d videos</string>
+  <!-- Storage -->
+  <string name="internal_storage">Internal Storage</string>
+  <string name="network_streams">Network Streams</string>
+  <!-- Labels -->
+  <string name="label_drm">DRM</string>
+  <string name="label_ua">UA</string>
+  <!-- Codec names -->
+  <string name="codec_av1">AV1</string>
+  <string name="codec_h265">H.265</string>
+  <string name="codec_h264">H.264</string>
 </resources>

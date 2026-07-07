@@ -119,8 +119,9 @@ import kotlin.math.roundToInt
 
 @Serializable
 data class VideoListScreen(
-  private val bucketId: String,
-  private val folderName: String,
+  val bucketId: String,
+  val folderName: String,
+  @kotlinx.serialization.Transient val onBack: (() -> Unit)? = null,
 ) : Screen {
   @OptIn(ExperimentalMaterial3ExpressiveApi::class)
   @Composable
@@ -284,7 +285,11 @@ data class VideoListScreen(
             if (selectionManager.isInSelectionMode) {
               selectionManager.clear()
             } else {
-              backstack.popSafely()
+              if (onBack != null) {
+                onBack()
+              } else {
+                backstack.popSafely()
+              }
             }
           },
           onCancelSelection = { selectionManager.clear() },

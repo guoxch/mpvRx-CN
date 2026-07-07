@@ -326,32 +326,39 @@ class PlayerActivity :
 
   // ==================== Delete Video Dialog ====================
   internal var showDeleteDialog by mutableStateOf(false)
+  private var isDeletingVideo = false
 
   fun showDeleteConfirmDialog() {
     showDeleteDialog = true
   }
 
   fun deleteCurrentVideo() {
-    val currentUri = if (playlist.isNotEmpty() && playlistIndex >= 0 && playlistIndex < playlist.size) {
-      playlist[playlistIndex]
-    } else {
-      null
-    }
-
-    if (currentUri == null) {
-      Toast.makeText(this, getString(R.string.generic_error), Toast.LENGTH_SHORT).show()
+    // Prevent concurrent deletions — rapid clicks on the confirm button
+    // must not launch overlapping playlist mutations.
+    if (isDeletingVideo) {
       showDeleteDialog = false
       return
     }
-
-    // Reject network/content URIs that can't be deleted
-    if (currentUri.scheme != "file" && currentUri.scheme != "content") {
-      Toast.makeText(this, getString(R.string.player_delete_unsupported_uri), Toast.LENGTH_SHORT).show()
-      showDeleteDialog = false
-      return
-    }
+    isDeletingVideo = true
 
     try {
+      val currentUri = if (playlist.isNotEmpty() && playlistIndex >= 0 && playlistIndex < playlist.size) {
+        playlist[playlistIndex]
+      } else {
+        null
+      }
+
+      if (currentUri == null) {
+        Toast.makeText(this, getString(R.string.generic_error), Toast.LENGTH_SHORT).show()
+        return
+      }
+
+      // Reject network/content URIs that can't be deleted
+      if (currentUri.scheme != "file" && currentUri.scheme != "content") {
+        Toast.makeText(this, getString(R.string.player_delete_unsupported_uri), Toast.LENGTH_SHORT).show()
+        return
+      }
+
       var deleted = false
       val fileName = getFileNameFromUri(currentUri)
 
@@ -362,7 +369,6 @@ class PlayerActivity :
           deleted = file.delete()
         } else {
           Toast.makeText(this, getString(R.string.player_delete_file_not_found), Toast.LENGTH_SHORT).show()
-          showDeleteDialog = false
           return
         }
       } else {
@@ -372,28 +378,26 @@ class PlayerActivity :
         } catch (e: SecurityException) {
           Log.e(TAG, "No permission to delete content URI: ${e.message}", e)
           Toast.makeText(this, getString(R.string.player_delete_no_permission), Toast.LENGTH_SHORT).show()
-          showDeleteDialog = false
           return
         }
       }
 
       if (deleted) {
         Toast.makeText(this, "$fileName ${getString(R.string.player_delete_success)}", Toast.LENGTH_SHORT).show()
-        // Give the file system / content provider a moment to settle,
-        // then remove from playlist and play the next video.
-        lifecycleScope.launch(Dispatchers.Main) {
-          delay(150)
-          deleteCurrentVideoAndPlayNext()
-        }
+        // Synchronously remove from playlist and play the next video.
+        // No delay — the content URI/file deletion is synchronous on Android,
+        // so the next URI is safe to access immediately.
+        deleteCurrentVideoAndPlayNext()
       } else {
         Toast.makeText(this, getString(R.string.player_delete_failed), Toast.LENGTH_SHORT).show()
       }
     } catch (e: Exception) {
       Log.e(TAG, "Error deleting video: ${e.message}", e)
       Toast.makeText(this, "${getString(R.string.player_delete_error)} ${e.message}", Toast.LENGTH_SHORT).show()
+    } finally {
+      showDeleteDialog = false
+      isDeletingVideo = false
     }
-
-    showDeleteDialog = false
   }
 
   // ==================== Background Playback ====================

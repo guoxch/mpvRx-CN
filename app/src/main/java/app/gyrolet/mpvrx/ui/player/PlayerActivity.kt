@@ -703,10 +703,10 @@ class PlayerActivity :
             loadScriptAtRuntime(scriptName)
           }
           if (advancedPreferences.selectedLuaScripts.get().isEmpty()) {
-            viewModel.showToast("Scripts enabled")
+            viewModel.showToast(getString(R.string.scripts_enabled))
           }
         } else {
-          viewModel.showToast("Scripts disabled. Reopen the video if a script stays active.")
+          viewModel.showToast(getString(R.string.scripts_disabled))
         }
       }
     }
@@ -2068,7 +2068,7 @@ class PlayerActivity :
             withContext(Dispatchers.Main) {
               if (!canIssueMpvCommands()) return@withContext
               MPVLib.command("load-script", targetFile.absolutePath)
-              viewModel.showToast("Loaded script: $scriptName")
+              viewModel.showToast(getString(R.string.player_script_loaded, scriptName))
             }
           }
         }
@@ -2450,7 +2450,7 @@ class PlayerActivity :
     // For HTTP/HTTPS URLs, extract from path (will be updated async via HTTP headers)
     if (HttpUtils.isNetworkStream(uri)) {
       // Get the last path segment and decode URL encoding
-      val path = uri.path ?: return uri.host ?: "Network Stream"
+      val path = uri.path ?: return uri.host ?: getString(R.string.network_stream)
       val lastSegment = path.substringAfterLast("/")
 
       if (lastSegment.isNotBlank()) {
@@ -2459,7 +2459,7 @@ class PlayerActivity :
           java.net.URLDecoder.decode(lastSegment, "UTF-8")
             .substringBefore("?") // Remove query parameters
             .substringBefore("#") // Remove fragments (only for network streams)
-            .takeIf { it.isNotBlank() } ?: uri.host ?: "Network Stream"
+            .takeIf { it.isNotBlank() } ?: uri.host ?: getString(R.string.network_stream)
         } catch (e: Exception) {
           lastSegment
             .substringBefore("?")
@@ -2468,11 +2468,11 @@ class PlayerActivity :
       }
 
       // If no filename in path, use hostname
-      return uri.host ?: "Network Stream"
+      return uri.host ?: getString(R.string.network_stream)
     }
 
     // For file:// and content:// URIs - preserve # characters as they're part of the filename
-    val lastSegment = uri.lastPathSegment?.substringAfterLast("/") ?: uri.path ?: "Unknown Video"
+    val lastSegment = uri.lastPathSegment?.substringAfterLast("/") ?: uri.path ?: getString(R.string.unknown_video)
     
     // For local files, only decode URL encoding but preserve # characters
     return try {
@@ -2938,7 +2938,7 @@ class PlayerActivity :
       fileName = getFileName(intent)
       // Ensure fileName is not blank - use a fallback if necessary
       if (fileName.isBlank()) {
-        fileName = intent.data?.lastPathSegment ?: "Unknown Video"
+        fileName = intent.data?.lastPathSegment ?: getString(R.string.unknown_video)
       }
       mediaIdentifier = getMediaIdentifier(intent, fileName)
     } else if (mediaIdentifier.isBlank()) {
@@ -3121,7 +3121,7 @@ class PlayerActivity :
         if (betterFilename != null && betterFilename.isNotBlank() &&
           betterFilename != fileName &&
           betterFilename != uri.host &&
-          betterFilename != "Network Stream" &&
+          betterFilename != getString(R.string.network_stream) &&
           !HttpUtils.isLikelyJunkTitle(betterFilename)
         ) {
 
@@ -3719,7 +3719,7 @@ class PlayerActivity :
     // Extract the new fileName before loading the file
     fileName = getFileName(intent)
     if (fileName.isBlank()) {
-      fileName = intent.data?.lastPathSegment ?: "Unknown Video"
+      fileName = intent.data?.lastPathSegment ?: getString(R.string.unknown_video)
     }
     mediaIdentifier = getMediaIdentifier(intent, fileName)
 
@@ -4652,7 +4652,7 @@ class PlayerActivity :
 
   private fun syncBackgroundPlaybackService(updateThumbnail: Boolean) {
     val service = mediaPlaybackService ?: return
-    val title = getPreferredCurrentTitle().ifBlank { fileName.ifBlank { "Unknown Video" } }
+    val title = getPreferredCurrentTitle().ifBlank { fileName.ifBlank { getString(R.string.unknown_video) } }
     val artist = runCatching { MPVLib.getPropertyString("metadata/artist") }.getOrNull() ?: ""
     val thumbnailKey = buildBackgroundThumbnailKey()
     val cachedThumbnail =
@@ -4731,7 +4731,7 @@ class PlayerActivity :
         ?.takeIf { !HttpUtils.isLikelyJunkTitle(it) }
         ?.let { return it }
     }
-    return fileName.ifBlank { "Unknown Video" }
+    return fileName.ifBlank { getString(R.string.unknown_video) }
   }
 
   /**

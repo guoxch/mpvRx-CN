@@ -1,5 +1,6 @@
 package app.gyrolet.mpvrx.ui.browser
 
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -144,19 +145,19 @@ object MainScreen : Screen {
           NavigationBarItem(
             icon = {
               when (tab) {
-                MainTab.HOME -> Icon(Icons.Filled.Home, contentDescription = "Home")
-                MainTab.RECENTS -> Icon(Icons.Filled.History, contentDescription = "Recents")
-                MainTab.PLAYLISTS -> Icon(Icons.Filled.PlaylistPlay, contentDescription = "Playlists")
-                MainTab.NETWORK -> Icon(Icons.Filled.BringYourOwnIp, contentDescription = "Network")
+                MainTab.HOME -> Icon(Icons.Filled.Home, contentDescription = stringResource(R.string.nav_tab_home))
+                MainTab.RECENTS -> Icon(Icons.Filled.History, contentDescription = stringResource(R.string.nav_tab_recents))
+                MainTab.PLAYLISTS -> Icon(Icons.Filled.PlaylistPlay, contentDescription = stringResource(R.string.nav_tab_playlists))
+                MainTab.NETWORK -> Icon(Icons.Filled.BringYourOwnIp, contentDescription = stringResource(R.string.nav_tab_network))
               }
             },
             label = {
               Text(
                 when (tab) {
-                  MainTab.HOME -> "Home"
-                  MainTab.RECENTS -> "Recents"
-                  MainTab.PLAYLISTS -> "Playlists"
-                  MainTab.NETWORK -> "Network"
+                  MainTab.HOME -> stringResource(R.string.nav_tab_home)
+                  MainTab.RECENTS -> stringResource(R.string.nav_tab_recents)
+                  MainTab.PLAYLISTS -> stringResource(R.string.nav_tab_playlists)
+                  MainTab.NETWORK -> stringResource(R.string.nav_tab_network)
                 }
               )
             },

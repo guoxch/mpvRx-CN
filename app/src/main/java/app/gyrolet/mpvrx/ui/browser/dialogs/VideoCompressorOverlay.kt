@@ -777,15 +777,15 @@ private fun CompressorPresetsTab(
 
     val sizePresets =
       listOf(
-        10f to "Discord / GitHub",
-        25f to "Email",
-        50f to "Stories",
-        100f to "Messenger / Bluesky",
-        500f to "Nitro / Reels",
-        512f to "Twitter / X",
-        2048f to "WhatsApp / Telegram",
-        4096f to "TG Premium / Feed",
-        8192f to "X Premium",
+        10f to R.string.preset_discord_github,
+        25f to R.string.preset_email,
+        50f to R.string.preset_stories,
+        100f to R.string.preset_messenger_bluesky,
+        500f to R.string.preset_nitro_reels,
+        512f to R.string.preset_twitter_x,
+        2048f to R.string.preset_whatsapp_telegram,
+        4096f to R.string.preset_tg_premium_feed,
+        8192f to R.string.preset_x_premium,
       ).filter { it.first < (state.originalSize.toFloat() / (1024f * 1024f)) }
 
     if (sizePresets.isNotEmpty()) {
@@ -794,7 +794,7 @@ private fun CompressorPresetsTab(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
       ) {
-        sizePresets.forEach { (size, label) ->
+        sizePresets.forEach { (size, labelRes) ->
           FilterChip(
             selected = state.targetSizeMb == size,
             onClick = { onSetTargetSize(size) },
@@ -807,7 +807,7 @@ private fun CompressorPresetsTab(
                     append("${size.toInt()} MB")
                   }
                   append(" - ")
-                  append(label)
+                  append(stringResource(labelRes))
                 },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

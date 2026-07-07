@@ -597,6 +597,142 @@
   <string name="notification_permission_denied">后台播放控件需要通知权限。</string>
   <string name="notification_permission_disabled">MpvRx 的通知已禁用。请启用以显示播放控件。</string>
   <string name="pref_advanced_notification_style">通知样式</string>
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Filter Presets                                             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="filter_preset_none_name">无</string>
+  <string name="filter_preset_none_desc">默认设置，无任何调整</string>
+  <string name="filter_preset_vivid_name">鲜艳</string>
+  <string name="filter_preset_vivid_desc">增强色彩，细节清晰</string>
+  <string name="filter_preset_warm_tone_name">暖色调</string>
+  <string name="filter_preset_warm_tone_desc">暖色，带金色调</string>
+  <string name="filter_preset_cool_tone_name">冷色调</string>
+  <string name="filter_preset_cool_tone_desc">冷色，带蓝色调</string>
+  <string name="filter_preset_soft_pastel_name">柔和粉彩</string>
+  <string name="filter_preset_soft_pastel_desc">柔和、淡雅的色彩</string>
+  <string name="filter_preset_cinematic_name">电影感</string>
+  <string name="filter_preset_cinematic_desc">具有深度感的胶片色彩分级</string>
+  <string name="filter_preset_dramatic_name">戏剧</string>
+  <string name="filter_preset_dramatic_desc">高对比度戏剧效果</string>
+  <string name="filter_preset_night_mode_name">夜间模式</string>
+  <string name="filter_preset_night_mode_desc">降低亮度，适合暗光环境</string>
+  <string name="filter_preset_nostalgic_name">怀旧</string>
+  <string name="filter_preset_nostalgic_desc">复古胶片效果，柔和对焦</string>
+  <string name="filter_preset_ghibli_style_name">宫崎骏风格</string>
+  <string name="filter_preset_ghibli_style_desc">柔和梦幻的动漫色彩</string>
+  <string name="filter_preset_neon_pop_name">霓虹流行</string>
+  <string name="filter_preset_neon_pop_desc">鲜艳的霓虹色彩</string>
+  <string name="filter_preset_deep_black_name">深邃黑</string>
+  <string name="filter_preset_deep_black_desc">增强黑色，适合 OLED 屏幕</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Decoder                                                    -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="decoder_auto_copy">自动</string>
+  <string name="decoder_auto">自动</string>
+  <string name="decoder_sw">软件</string>
+  <string name="decoder_hw">硬件</string>
+  <string name="decoder_hw_plus">硬件+</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- MPV Profile                                                -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="mpv_profile_fast">快速</string>
+  <string name="mpv_profile_default">默认</string>
+  <string name="mpv_profile_high_quality">高质量</string>
+  <string name="mpv_profile_gpu_hq">GPU HQ</string>
+  <string name="mpv_profile_low_latency">低延迟</string>
+  <string name="mpv_profile_sw_fast">软件快速</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- HDR Screen Mode                                            -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="hdr_mode_off_title">关闭</string>
+  <string name="hdr_mode_off_short">关闭</string>
+  <string name="hdr_mode_off_desc">标准 SDR 输出</string>
+  <string name="hdr_mode_bt2100_pq_title">BT.2100 PQ</string>
+  <string name="hdr_mode_bt2100_pq_short">PQ</string>
+  <string name="hdr_mode_bt2100_pq_desc">HDR10 风格的 PQ，使用 Astra 色调映射和 Bottosson 色域映射</string>
+  <string name="hdr_mode_bt2100_hlg_title">BT.2100 HLG</string>
+  <string name="hdr_mode_bt2100_hlg_short">HLG</string>
+  <string name="hdr_mode_bt2100_hlg_desc">通过 hdr-toys Astra 和 Bottosson 着色器链的 HLG HDR</string>
+  <string name="hdr_mode_bt2020_title">BT.2020</string>
+  <string name="hdr_mode_bt2020_short">BT.2020</string>
+  <string name="hdr_mode_bt2020_desc">使用 hdr-toys 色域映射的 BT.2020 / BT.1886 转换</string>
+  <string name="hdr_mode_linear_title">线性 HDR</string>
+  <string name="hdr_mode_linear_short">线性</string>
+  <string name="hdr_mode_linear_desc">高质量 mpv HDR 输出，不使用 hdr-toys 着色器</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Animation Styles                                           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="anim_controls_default">默认</string>
+  <string name="anim_controls_elastic">弹性弹跳</string>
+  <string name="anim_controls_cinematic">电影缩放</string>
+  <string name="anim_controls_slide_up">向上滑动</string>
+  <string name="anim_controls_minimal">极简淡入</string>
+  <string name="anim_controls_none">无</string>
+  <string name="anim_video_open_default">默认</string>
+  <string name="anim_video_open_fade_dark">从黑色淡入</string>
+  <string name="anim_video_open_zoom_burst">缩放弹出</string>
+  <string name="anim_video_open_slide_up">向上滑动</string>
+  <string name="anim_video_open_cinema_bars">影院宽屏</string>
+  <string name="anim_video_open_none">无</string>
+  <string name="anim_nav_default">默认</string>
+  <string name="anim_nav_elastic">弹性滑动</string>
+  <string name="anim_nav_depth">景深缩放</string>
+  <string name="anim_nav_flip_fade">翻转淡变</string>
+  <string name="anim_nav_minimal">极简淡入</string>
+  <string name="anim_nav_none">无</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Ambient Mode                                               -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="ambient_mode_glow">辉光</string>
+  <string name="ambient_mode_frame_extend">画面延伸</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Compressor Presets                                         -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="preset_discord_github">Discord / GitHub</string>
+  <string name="preset_email">邮件</string>
+  <string name="preset_stories">故事</string>
+  <string name="preset_messenger_bluesky">Messenger / Bluesky</string>
+  <string name="preset_nitro_reels">Nitro / Reels</string>
+  <string name="preset_twitter_x">Twitter / X</string>
+  <string name="preset_whatsapp_telegram">WhatsApp / Telegram</string>
+  <string name="preset_tg_premium_feed">TG Premium / Feed</string>
+  <string name="preset_x_premium">X Premium</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Device Info                                                -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="device_info_manufacturer">制造商</string>
+  <string name="device_info_device">设备</string>
+  <string name="device_info_android">Android</string>
+  <string name="device_info_cpu_abi">CPU ABI</string>
+  <string name="device_info_cpu_cores">CPU 核心</string>
+  <string name="device_info_ram">RAM</string>
+  <string name="device_info_opengl_es">OpenGL ES</string>
+  <string name="device_info_vulkan">Vulkan</string>
+  <string name="device_info_gpu_renderer">GPU 渲染器</string>
+  <string name="device_info_board">主板</string>
+  <string name="device_info_kernel">内核</string>
+  <string name="device_info_unknown">未知</string>
+  <string name="device_info_not_supported">不支持</string>
+  <string name="device_info_vulkan_11_level_1">Vulkan 1.1+（Level 1）</string>
+  <string name="device_info_vulkan_10_level_0">Vulkan 1.0（Level 0）</string>
+  <string name="device_info_vulkan_compute">Vulkan（计算）</string>
+  <string name="device_info_vulkan_version">Vulkan %1$d.%2$d（Level 1）</string>
+  <string name="device_info_cores_format">%d 核</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Notification Style                                         -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="notification_style_no_notification">无通知</string>
+  <string name="notification_style_media">媒体控制</string>
+  <string name="notification_style_progress">带章节的进度</string>
+
   <!-- Media Info Activity -->
   <string name="media_info_title">媒体信息</string>
   <string name="media_info_analyzing">正在分析媒体文件…</string>
@@ -1306,6 +1442,7 @@
   <string name="playlist_remove_title">从播放列表中移除 %1$d 个%2$s？</string>
   <string name="playlist_remove_message">选定的%1$s将从此播放列表中移除。原始%2$s不会被删除。</string>
   <string name="playlist_remove_from_playlist">从播放列表中移除</string>
+  <string name="playlist_saved">已保存</string>
   <string name="playlist_copy">复制</string>
   <string name="playlist_search_videos">搜索视频</string>
   <string name="playlist_reorder">重新排序播放列表</string>
@@ -1359,6 +1496,11 @@
   <string name="about_app_name">MpvRx</string>
   <string name="about_version">v%1$s %2$s</string>
   <string name="about_author">作者：Ritesh Pandit</string>
+  <string name="about_oss_description">MpvRx 使用的核心开源依赖库。</string>
+  <string name="toast_skip_markers_disabled">在线跳过标记已禁用</string>
+  <string name="toast_matching_title">%1$s：正在匹配标题</string>
+  <string name="toast_select_season_episode">请选择 Wyzie 的季和集。</string>
+  <string name="toast_select_show_season_episode">请选择节目、季和集。</string>
   <string name="about_device_info">设备信息</string>
   <string name="about_support">支持</string>
   <string name="about_updates">更新</string>
@@ -1472,6 +1614,8 @@
   <string name="player_zoom_increase">放大</string>
   <string name="player_pan_zoom">平移与缩放</string>
   <!-- 滑动解锁 -->
+  <string name="player_now_playing">正在播放</string>
+  <string name="player_playing">播放中</string>
   <string name="player_slide_to_unlock">滑动解锁</string>
   <string name="player_slide_to_unlock_content_description">滑动解锁</string>
   <!-- 更多面板 -->
@@ -1839,6 +1983,14 @@
   <string name="player_next_dialog">下一句对话</string>
   <string name="player_prev_dialog">上一句对话</string>
   <string name="player_script_load_failed">加载脚本失败：%1$s</string>
+  <string name="player_script_loaded">已加载脚本：%1$s</string>
+  <string name="scripts_enabled">脚本已启用</string>
+  <string name="scripts_disabled">脚本已禁用。如果脚本仍在活动，请重新打开视频。</string>
+  <string name="unknown_video">未知视频</string>
+  <string name="network_stream">网络流</string>
+  <string name="pref_advanced_notification_style_summary">选择媒体控制、带章节的进度条或不显示播放通知</string>
+  <string name="loading_state_title">正在扫描视频…</string>
+  <string name="loading_state_message">正在搜索设备，请稍候</string>
   <!-- Common -->
   <string name="error_unknown">未知错误</string>
   <string name="pref_ytdlp_manager_summary">安装和更新 yt-dlp 以支持流媒体</string>
@@ -1857,4 +2009,84 @@
   <string name="cd_copy_path">复制路径</string>
   <string name="cd_separator">分隔符</string>
   <string name="cd_clear">清除</string>
+
+  <!-- Phase 1 P0 additions -->
+  <string name="player_switch_grid">切换到网格视图</string>
+  <string name="player_switch_list">切换到列表视图</string>
+  <string name="player_ambience">环境光模式</string>
+  <string name="player_button_video_title">视频标题</string>
+  <string name="update_ignore">忽略</string>
+  <string name="update_install">安装</string>
+  <string name="update_download">下载</string>
+  <string name="update_downloading">正在下载…</string>
+  <string name="pref_dual_pane_title">双栏视图</string>
+  <string name="pref_dual_pane_summary">在平板电脑的文件夹视图中启用双栏布局</string>
+  <string name="pref_base_storage_folder">基础存储文件夹</string>
+  <string name="pref_storage_summary">媒体库文件夹、隐藏路径、字体和字幕目录。</string>
+
+  <!-- Stats overlay labels -->
+  <string name="stats_playback_decoder">--- 播放与解码 ---</string>
+  <string name="stats_file">文件</string>
+  <string name="stats_decoder_vo">解码器与视频输出</string>
+  <string name="stats_audio">音频</string>
+  <string name="stats_power_thermals">--- 功耗与温度 ---</string>
+  <string name="stats_battery">电池</string>
+  <string name="battery_status_charging">充电中</string>
+  <string name="battery_status_discharging">放电中</string>
+  <string name="battery_status_not_charging">未充电</string>
+  <string name="battery_status_full">已满</string>
+  <string name="stats_temp">温度</string>
+  <string name="stats_thermal">散热状态</string>
+  <string name="stats_session">--- 会话 ---</string>
+  <string name="stats_active">活跃时长</string>
+  <string name="stats_app_cpu">应用 CPU</string>
+  <string name="stats_frame_pressure">帧压力</string>
+  <string name="stats_normal">正常</string>
+  <string name="stats_light_throttling">轻微限频</string>
+  <string name="stats_moderate_throttling">中度限频</string>
+  <string name="stats_severe_throttling">严重限频</string>
+  <string name="stats_critical_throttling">极限限频</string>
+  <string name="stats_emergency">紧急！</string>
+  <string name="stats_shutdown">过热即将关机！</string>
+  <string name="stats_unknown">未知</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- PlayerViewModel Toast/Status messages                     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="toast_audio_load_failed">加载音频文件失败：无效的 URI</string>
+  <string name="toast_audio_track_added">音频轨道已添加</string>
+  <string name="toast_audio_load_error">加载音频失败：%1$s</string>
+  <string name="toast_subtitle_invalid_format">无效的字幕文件格式</string>
+  <string name="toast_subtitle_added">已添加 %1$s</string>
+  <string name="toast_subtitle_load_failed">加载字幕失败</string>
+  <string name="toast_translation_complete">翻译完成：%1$s</string>
+  <string name="toast_translation_failed">翻译失败：%1$s</string>
+  <string name="toast_translation_cancelled">翻译已取消</string>
+  <string name="toast_video_path_not_found">找不到当前视频路径</string>
+  <string name="toast_video_duration_unknown">视频时长未知</string>
+  <string name="toast_subtitles_generated">字幕已生成：%1$s</string>
+  <string name="toast_subtitle_generation_failed">字幕生成失败：%1$s</string>
+  <string name="toast_subtitle_generation_error">字幕生成错误：%1$s</string>
+  <string name="toast_realtime_subtitles_complete">实时字幕已完成</string>
+  <string name="toast_realtime_subtitles_error">实时字幕错误：%1$s</string>
+  <string name="toast_realtime_subtitles_stopped">实时字幕已停止</string>
+  <string name="toast_subtitle_deleted">字幕已删除</string>
+  <string name="toast_download_failed">下载失败：%1$s</string>
+  <string name="toast_delete_video_failed">删除视频失败</string>
+  <string name="toast_segment_skipped">%1$s</string>
+  <string name="toast_segment_skipped_auto">%1$s（自动）</string>
+  <string name="toast_error_format">错误：%1$s</string>
+  <string name="status_preparing_translation">正在准备翻译</string>
+  <string name="status_preparing_audio">正在准备音频</string>
+  <string name="status_chunk_progress">块 %1$d/%2$d</string>
+  <string name="status_translating">正在翻译</string>
+  <string name="status_resuming">正在恢复</string>
+  <string name="status_search_failed">搜索失败：%1$s</string>
+  <string name="status_markers_loaded">已加载 %1$d 个标记</string>
+  <string name="status_no_markers_cached">未缓存标记</string>
+  <string name="status_cached_match_failed">缓存的标题匹配失败</string>
+  <string name="status_cached">（已缓存）</string>
+  <string name="status_provider_format">%1$s：%2$s</string>
+  <string name="status_failed_series_details">加载剧集详情失败：%1$s</string>
+  <string name="status_failed_episodes">加载集数失败：%1$s</string>
 </resources>

@@ -290,7 +290,7 @@ fun RenderPlayerButton(
               ),
         ) {
           Text(
-            text = decoder.title,
+            text = stringResource(decoder.titleRes),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodyMedium,
@@ -978,14 +978,14 @@ internal fun readBatterySnapshot(context: Context): BatterySnapshot {
     ?: BatteryManager.BATTERY_STATUS_UNKNOWN
   val statusText =
     when (status) {
-      BatteryManager.BATTERY_STATUS_CHARGING -> "Charging"
-      BatteryManager.BATTERY_STATUS_DISCHARGING -> "Discharging"
-      BatteryManager.BATTERY_STATUS_FULL -> "Full"
-      BatteryManager.BATTERY_STATUS_NOT_CHARGING -> "Not charging"
+      BatteryManager.BATTERY_STATUS_CHARGING -> context.getString(R.string.battery_status_charging)
+      BatteryManager.BATTERY_STATUS_DISCHARGING -> context.getString(R.string.battery_status_discharging)
+      BatteryManager.BATTERY_STATUS_FULL -> context.getString(R.string.battery_status_full)
+      BatteryManager.BATTERY_STATUS_NOT_CHARGING -> context.getString(R.string.battery_status_not_charging)
       else ->
         when {
-          (currentMicroAmps ?: 0L) > 0L -> "Charging"
-          (currentMicroAmps ?: 0L) < 0L -> "Discharging"
+          (currentMicroAmps ?: 0L) > 0L -> context.getString(R.string.battery_status_charging)
+          (currentMicroAmps ?: 0L) < 0L -> context.getString(R.string.battery_status_discharging)
           else -> "Unknown"
         }
     }

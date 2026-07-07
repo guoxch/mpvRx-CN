@@ -3,6 +3,7 @@ package app.gyrolet.mpvrx.ui.player.controls.components.panels
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.R
+import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -206,12 +207,12 @@ private fun HdrModeOption(
         verticalArrangement = Arrangement.spacedBy(2.dp),
       ) {
         Text(
-          text = mode.title,
+          text = stringResource(mode.titleRes),
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.SemiBold,
         )
         Text(
-          text = mode.description,
+          text = stringResource(mode.descriptionRes),
           style = MaterialTheme.typography.bodySmall,
           color = contentColor.copy(alpha = 0.72f),
         )

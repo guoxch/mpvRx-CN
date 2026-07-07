@@ -253,7 +253,7 @@ object PreferencesScreen : Screen {
         items = listOf(
           SettingsDestination(
             title = stringResource(R.string.pref_folders_title),
-            summary = "Media library folders, hidden paths, fonts, and subtitle directories.",
+            summary = stringResource(R.string.pref_storage_summary),
             icon = Icons.Outlined.Folder,
             screen = FoldersPreferencesScreen,
           ),
@@ -265,7 +265,7 @@ object PreferencesScreen : Screen {
         items = listOf(
           SettingsDestination(
             title = stringResource(R.string.pref_section_ai_title),
-            summary = "Provider, model, API keys, rename tools, translation, and offline models.",
+            summary = stringResource(R.string.pref_section_ai_summary),
             icon = Icons.Default.AutoAwesome,
             screen = AiIntegrationScreen,
           ),

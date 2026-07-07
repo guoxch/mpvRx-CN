@@ -1,5 +1,7 @@
 package app.gyrolet.mpvrx.ui.player
 
+import androidx.annotation.StringRes
+import app.gyrolet.mpvrx.R
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.cos
@@ -18,10 +20,10 @@ data class AmbientSharedShaderConfig(
 )
 
 enum class AmbientVisualMode(
-  val label: String,
+  @StringRes val labelRes: Int,
 ) {
-  GLOW("Glow"),
-  FRAME_EXTEND("Frame Extend"),
+  GLOW(R.string.ambient_mode_glow),
+  FRAME_EXTEND(R.string.ambient_mode_frame_extend),
 }
 
 sealed interface AmbientShaderSpec {

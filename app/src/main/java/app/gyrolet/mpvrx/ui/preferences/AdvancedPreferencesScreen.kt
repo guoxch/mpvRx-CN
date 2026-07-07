@@ -493,7 +493,7 @@ object AdvancedPreferencesScreen : Screen {
               PreferenceDivider()
 
               Preference(
-                title = { Text("yt-dlp Manager") },
+                title = { Text(stringResource(R.string.player_ytdlp_manager_title)) },
                 summary = {
                   Text(
                     stringResource(R.string.pref_ytdlp_manager_summary),
@@ -803,11 +803,11 @@ object AdvancedPreferencesScreen : Screen {
                 value = selectedNotificationStyle,
                 onValueChange = preferences.notificationStyle::set,
                 values = supportedNotificationStyles,
-                valueToText = { AnnotatedString(it.displayName) },
+                valueToText = { AnnotatedString(stringResource(it.displayNameRes)) },
                 title = { Text(text = stringResource(R.string.pref_advanced_notification_style)) },
                 summary = {
                   Text(
-                    text = selectedNotificationStyle.displayName,
+                    text = stringResource(selectedNotificationStyle.displayNameRes),
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },

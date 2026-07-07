@@ -514,7 +514,7 @@ internal fun StorageRootPickerCard(
       )
       Column(modifier = Modifier.weight(1f)) {
         Text(
-          text = "Base Storage Folder",
+          text = stringResource(R.string.pref_base_storage_folder),
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.Bold,
         )

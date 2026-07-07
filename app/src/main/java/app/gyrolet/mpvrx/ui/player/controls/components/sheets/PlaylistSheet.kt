@@ -207,7 +207,7 @@ fun PlaylistSheet(
           ) {
             if (currentItem != null) {
               Text(
-                text = "Now Playing",
+                text = stringResource(R.string.player_now_playing),
                 style = MaterialTheme.typography.titleSmall.copy(
                   fontWeight = FontWeight.Bold,
                   color = accentColor,
@@ -233,7 +233,7 @@ fun PlaylistSheet(
             ) {
               Icon(
                 imageVector = if (isListMode) Icons.Default.GridView else Icons.Default.ViewList,
-                contentDescription = if (isListMode) "Switch to Grid View" else "Switch to List View",
+                contentDescription = if (isListMode) stringResource(R.string.player_switch_grid) else stringResource(R.string.player_switch_list),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
@@ -451,7 +451,7 @@ fun PlaylistTrackListItem(
             shape = RoundedCornerShape(16.dp),
           ) {
             Text(
-              text = "Playing",
+              text = stringResource(R.string.player_playing),
               modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
               style = MaterialTheme.typography.labelSmall.copy(
                 fontWeight = FontWeight.SemiBold,
@@ -650,7 +650,7 @@ fun PlaylistTrackGridItem(
               shape = RoundedCornerShape(4.dp),
             ) {
               Text(
-                text = "Playing",
+                text = stringResource(R.string.player_playing),
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 style = MaterialTheme.typography.labelSmall.copy(
                   fontSize = 10.sp,

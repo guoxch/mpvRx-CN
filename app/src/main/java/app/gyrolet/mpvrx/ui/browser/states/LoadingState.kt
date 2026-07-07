@@ -30,12 +30,14 @@ import app.gyrolet.mpvrx.ui.icons.AppIcon
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.theme.AppShapeScale
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 
 @Composable
 fun LoadingState(
   icon: AppIcon = Icons.Filled.FolderOpen,
-  title: String = "Scanning for videos...",
-  message: String = "Please wait while we search your device",
+  title: String = stringResource(R.string.loading_state_title),
+  message: String = stringResource(R.string.loading_state_message),
   modifier: Modifier = Modifier,
 ) {
   // Animated alpha for subtle pulsing effect (same as EmptyState)

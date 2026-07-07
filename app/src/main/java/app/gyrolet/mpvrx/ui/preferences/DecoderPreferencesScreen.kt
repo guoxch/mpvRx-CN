@@ -114,9 +114,10 @@ object DecoderPreferencesScreen : Screen {
                 onValueChange = { preferences.profile.set(it.value) },
                 values = MPVProfile.entries,
                 title = { Text(stringResource(R.string.pref_decoder_profile_title)) },
+                valueToText = { AnnotatedString(stringResource(it.displayNameRes)) },
                 summary = {
                   Text(
-                    currentProfile.displayName,
+                    stringResource(currentProfile.displayNameRes),
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },

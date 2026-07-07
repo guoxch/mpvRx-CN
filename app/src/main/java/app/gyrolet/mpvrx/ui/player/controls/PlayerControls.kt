@@ -1737,13 +1737,13 @@ private fun CustomStatsPageSixOverlay(
         cpuPercent = 0f,
         gpuEstimatePercent = 0f,
         batteryPercentText = "--%",
-        batteryRateText = "Unknown",
+        batteryRateText = context.getString(R.string.stats_unknown),
         batteryWattsText = "-- W",
         batteryTempText = "--°C",
         hdrActive = "--",
         sessionPlayTimeText = "00:00:00",
-        decoderEfficiencyText = "Unknown",
-        thermalStateText = "Normal",
+        decoderEfficiencyText = context.getString(R.string.stats_unknown),
+        thermalStateText = context.getString(R.string.stats_normal),
         peakTempText = "--°C",
         tempRiseText = "+0.0°C",
       ),
@@ -1815,14 +1815,14 @@ private fun CustomStatsPageSixOverlay(
         0
       }
       val thermalStateText = when (thermalStatus) {
-        0 -> "Normal"
-        1 -> "Light Throttling"
-        2 -> "Moderate Throttling"
-        3 -> "Severe Throttling"
-        4 -> "Critical Throttling"
-        5 -> "Emergency!"
-        6 -> "Overheating Shutdown!"
-        else -> "Normal"
+        0 -> context.getString(R.string.stats_normal)
+        1 -> context.getString(R.string.stats_light_throttling)
+        2 -> context.getString(R.string.stats_moderate_throttling)
+        3 -> context.getString(R.string.stats_severe_throttling)
+        4 -> context.getString(R.string.stats_critical_throttling)
+        5 -> context.getString(R.string.stats_emergency)
+        6 -> context.getString(R.string.stats_shutdown)
+        else -> context.getString(R.string.stats_normal)
       }
 
       val currentHwdec = runCatching { MPVLib.getPropertyString("hwdec-current") ?: "no" }.getOrDefault("no")
@@ -1855,13 +1855,13 @@ private fun CustomStatsPageSixOverlay(
 
           val sourceLabel = if (isHdrSource) "HDR Source" else "SDR Source"
           val outputLabel = if (isHdrOutputEnabled) {
-            "HDR - ${hdrScreenMode.shortTitle} Mode Output"
+            "HDR - ${context.getString(hdrScreenMode.shortTitleRes)} Mode Output"
           } else {
             "SDR Output"
           }
 
           "$sourceLabel | $outputLabel"
-        }.getOrDefault("Unknown"),
+        }.getOrDefault(context.getString(R.string.stats_unknown)),
         sessionPlayTimeText = sessionPlayTimeText,
         decoderEfficiencyText = decoderEfficiencyText,
         thermalStateText  = thermalStateText,
@@ -1900,20 +1900,20 @@ private fun CustomStatsPageSixOverlay(
     val labelStyle = baseStyle.copy(fontWeight = FontWeight.Bold)
     val valueStyle = baseStyle
 
-    OutlinedText("--- PLAYBACK & DECODER ---", style = headerStyle)
-    OutlinedLabeled("File", stats.fileName, labelStyle, valueStyle)
-    OutlinedLabeled("Decoder & VO", "${stats.renderContext} | ${stats.video} | Eff: ${stats.decoderEfficiencyText}", labelStyle, valueStyle)
-    OutlinedLabeled("Audio", "${stats.audio} | HDR: ${stats.hdrActive}", labelStyle, valueStyle)
+    OutlinedText(stringResource(R.string.stats_playback_decoder), style = headerStyle)
+    OutlinedLabeled(stringResource(R.string.stats_file), stats.fileName, labelStyle, valueStyle)
+    OutlinedLabeled(stringResource(R.string.stats_decoder_vo), "${stats.renderContext} | ${stats.video} | Eff: ${stats.decoderEfficiencyText}", labelStyle, valueStyle)
+    OutlinedLabeled(stringResource(R.string.stats_audio), "${stats.audio} | HDR: ${stats.hdrActive}", labelStyle, valueStyle)
 
     Spacer(modifier = Modifier.height(2.dp))
-    OutlinedText("--- POWER & THERMALS ---", style = headerStyle)
-    OutlinedLabeled("Battery", "${stats.batteryPercentText} | ${stats.batteryWattsText} | Rate: ${stats.batteryRateText}", labelStyle, valueStyle)
-    OutlinedLabeled("Temp", "${stats.batteryTempText} (Peak: ${stats.peakTempText} | Rise: ${stats.tempRiseText})", labelStyle, valueStyle)
-    OutlinedLabeled("Thermal", stats.thermalStateText, labelStyle, valueStyle)
+    OutlinedText(stringResource(R.string.stats_power_thermals), style = headerStyle)
+    OutlinedLabeled(stringResource(R.string.stats_battery), "${stats.batteryPercentText} | ${stats.batteryWattsText} | Rate: ${stats.batteryRateText}", labelStyle, valueStyle)
+    OutlinedLabeled(stringResource(R.string.stats_temp), "${stats.batteryTempText} (Peak: ${stats.peakTempText} | Rise: ${stats.tempRiseText})", labelStyle, valueStyle)
+    OutlinedLabeled(stringResource(R.string.stats_thermal), stats.thermalStateText, labelStyle, valueStyle)
 
     Spacer(modifier = Modifier.height(2.dp))
-    OutlinedText("--- SESSION ---", style = headerStyle)
-    OutlinedLabeled("Active", stats.sessionPlayTimeText, labelStyle, valueStyle)
+    OutlinedText(stringResource(R.string.stats_session), style = headerStyle)
+    OutlinedLabeled(stringResource(R.string.stats_active), stats.sessionPlayTimeText, labelStyle, valueStyle)
 
     LinearProgressIndicator(
       progress = { stats.cpuPercent / 100f },
@@ -1922,7 +1922,7 @@ private fun CustomStatsPageSixOverlay(
         .height(3.dp)
         .padding(vertical = 0.5.dp)
     )
-    OutlinedLabeled("App CPU", "${stats.cpuPercent.toInt()}%", labelStyle, valueStyle)
+    OutlinedLabeled(stringResource(R.string.stats_app_cpu), "${stats.cpuPercent.toInt()}%", labelStyle, valueStyle)
     LinearProgressIndicator(
       progress = { stats.gpuEstimatePercent / 100f },
       modifier = Modifier
@@ -1930,7 +1930,7 @@ private fun CustomStatsPageSixOverlay(
         .height(3.dp)
         .padding(vertical = 0.5.dp)
     )
-    OutlinedLabeled("Frame Pressure", "${stats.gpuEstimatePercent.toInt()}%", labelStyle, valueStyle)
+    OutlinedLabeled(stringResource(R.string.stats_frame_pressure), "${stats.gpuEstimatePercent.toInt()}%", labelStyle, valueStyle)
   }
 }
 

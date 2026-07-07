@@ -26,6 +26,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -424,6 +425,7 @@ fun UpdateDialog(
     onAction: () -> Unit,
     onIgnore: () -> Unit
 ) {
+    val context = LocalContext.current
     val downloadSize = release.assets.find { it.name.endsWith(".apk") }?.size ?: 0L
     val formattedDate = formatDate(release.publishedAt)
 
@@ -470,7 +472,7 @@ fun UpdateDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Downloading...", style = MaterialTheme.typography.bodySmall)
+                        Text(text = stringResource(R.string.update_downloading), style = MaterialTheme.typography.bodySmall)
                         Text(text = "${progress.toInt()}%", style = MaterialTheme.typography.bodySmall)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -486,20 +488,20 @@ fun UpdateDialog(
         confirmButton = {
             if (!isDownloading) {
                 Button(onClick = onAction) {
-                    Text(if (actionLabel == "Install") "Install" else "Download")
+                    Text(if (actionLabel == context.getString(R.string.update_install)) stringResource(R.string.update_install) else stringResource(R.string.update_download))
                 }
             }
         },
         dismissButton = {
             if (!isDownloading) {
                 Row {
-                    if (actionLabel != "Install") {
+                    if (actionLabel != context.getString(R.string.update_install)) {
                         TextButton(onClick = onIgnore) {
-                            Text("Ignore")
+                            Text(stringResource(R.string.update_ignore))
                         }
                     }
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.generic_cancel))
                     }
                 }
             }

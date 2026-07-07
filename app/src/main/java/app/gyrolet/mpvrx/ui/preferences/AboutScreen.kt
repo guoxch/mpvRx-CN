@@ -533,7 +533,7 @@ private fun collectSystemStats(context: Context): List<Pair<String, String>> {
   val configInfo = am.deviceConfigurationInfo
   val glesVersion = if (configInfo.reqGlEsVersion != android.content.pm.ConfigurationInfo.GL_ES_VERSION_UNDEFINED) {
     configInfo.glEsVersion
-  } else "Unknown"
+  } else context.getString(R.string.device_info_unknown)
 
   // Vulkan
   val vulkanStr = when {
@@ -547,12 +547,12 @@ private fun collectSystemStats(context: Context): List<Pair<String, String>> {
         val ver = vulkanVersionFeature.version
         val major = (ver shr 22) and 0x3FF
         val minor = (ver shr 12) and 0x3FF
-        "Vulkan $major.$minor (Level 1)"
-      } else "Vulkan 1.1+ (Level 1)"
+        context.getString(R.string.device_info_vulkan_version, major, minor)
+      } else context.getString(R.string.device_info_vulkan_11_level_1)
     }
-    pm.hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_LEVEL, 0) -> "Vulkan 1.0 (Level 0)"
-    pm.hasSystemFeature("android.hardware.vulkan.compute") -> "Vulkan (compute)"
-    else -> "Not supported"
+    pm.hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_LEVEL, 0) -> context.getString(R.string.device_info_vulkan_10_level_0)
+    pm.hasSystemFeature("android.hardware.vulkan.compute") -> context.getString(R.string.device_info_vulkan_compute)
+    else -> context.getString(R.string.device_info_not_supported)
   }
 
   // CPU ABIs
@@ -562,17 +562,17 @@ private fun collectSystemStats(context: Context): List<Pair<String, String>> {
   val cores = Runtime.getRuntime().availableProcessors()
 
   return listOf(
-    "Manufacturer"  to Build.MANUFACTURER.replaceFirstChar { it.uppercase() },
-    "Device"        to "${Build.MODEL} (${Build.DEVICE})",
-    "Android"       to "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
-    "CPU ABI"       to abis,
-    "CPU Cores"     to "$cores cores",
-    "RAM"           to ramStr,
-    "OpenGL ES"     to glesVersion,
-    "Vulkan"        to vulkanStr,
-    "GPU Renderer"  to (Build.HARDWARE.ifBlank { "Unknown" }),
-    "Board"         to Build.BOARD,
-    "Kernel"        to System.getProperty("os.version", "Unknown"),
+    context.getString(R.string.device_info_manufacturer)  to Build.MANUFACTURER.replaceFirstChar { it.uppercase() },
+    context.getString(R.string.device_info_device)        to "${Build.MODEL} (${Build.DEVICE})",
+    context.getString(R.string.device_info_android)       to "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+    context.getString(R.string.device_info_cpu_abi)       to abis,
+    context.getString(R.string.device_info_cpu_cores)     to context.getString(R.string.device_info_cores_format, cores),
+    context.getString(R.string.device_info_ram)           to ramStr,
+    context.getString(R.string.device_info_opengl_es)     to glesVersion,
+    context.getString(R.string.device_info_vulkan)        to vulkanStr,
+    context.getString(R.string.device_info_gpu_renderer)  to (Build.HARDWARE.ifBlank { context.getString(R.string.device_info_unknown) }),
+    context.getString(R.string.device_info_board)         to Build.BOARD,
+    context.getString(R.string.device_info_kernel)        to System.getProperty("os.version", context.getString(R.string.device_info_unknown)),
   )
 }
 
@@ -616,7 +616,7 @@ object LibrariesScreen : Screen {
         verticalArrangement = Arrangement.spacedBy(12.dp),
       ) {
         Text(
-          text = "Core open source dependencies used by MpvRx.",
+          text = stringResource(R.string.about_oss_description),
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

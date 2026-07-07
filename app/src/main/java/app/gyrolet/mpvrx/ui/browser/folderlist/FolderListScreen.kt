@@ -1,5 +1,6 @@
 package app.gyrolet.mpvrx.ui.browser.folderlist
 
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -550,7 +551,7 @@ object FolderListScreen : Screen {
                   }
 
                 ),
-                tooltip = { PlainTooltip { Text("Toggle menu") } },
+                tooltip = { PlainTooltip { Text(stringResource(R.string.common_toggle_menu)) } },
                 state = rememberTooltipState(),
               ) {
                 ToggleFloatingActionButton(
@@ -581,7 +582,7 @@ object FolderListScreen : Screen {
                 filePicker.launch(arrayOf("video/*"))
               },
               icon = { Icon(Icons.Filled.FileOpen, contentDescription = null) },
-              text = { Text(text = "Open File") },
+              text = { Text(text = stringResource(R.string.common_open_file)) },
             )
 
             FloatingActionButtonMenuItem(
@@ -596,7 +597,7 @@ object FolderListScreen : Screen {
                 }
               },
               icon = { Icon(Icons.Filled.History, contentDescription = null) },
-              text = { Text(text = "Recently Played") },
+              text = { Text(text = stringResource(R.string.common_recently_played)) },
             )
 
             FloatingActionButtonMenuItem(
@@ -605,7 +606,7 @@ object FolderListScreen : Screen {
                 showLinkDialog.value = true
               },
               icon = { Icon(Icons.Filled.Link, contentDescription = null) },
-              text = { Text(text = "Open Link") },
+              text = { Text(text = stringResource(R.string.common_open_link)) },
             )
           }
         },
@@ -628,8 +629,8 @@ object FolderListScreen : Screen {
                     // No results
                     EmptyState(
                       icon = Icons.Filled.Search,
-                      title = "No results found",
-                      message = "No folders or videos match your search query",
+                      title = stringResource(R.string.search_no_results_title),
+                      message = stringResource(R.string.search_no_results_message),
                       modifier = Modifier.fillMaxSize(),
                     )
                   } else {

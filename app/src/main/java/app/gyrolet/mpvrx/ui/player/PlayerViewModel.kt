@@ -350,7 +350,7 @@ class PlayerViewModel(
     } else {
       IntroDbStatus(
         state = IntroDbStatusState.DISABLED,
-        message = "Online skip markers are disabled",
+        message = host.context.getString(R.string.toast_skip_markers_disabled),
       )
     },
   )
@@ -1409,16 +1409,16 @@ class PlayerViewModel(
         val path =
           uri.resolveUri(host.context)
             ?: return@launch withContext(Dispatchers.Main) {
-              showToast("Failed to load audio file: Invalid URI")
+              showToast(host.context.getString(R.string.toast_audio_load_failed))
             }
 
         withContext(Dispatchers.Main) {
           MPVLib.command("audio-add", path, "cached")
-          showToast("Audio track added")
+          showToast(host.context.getString(R.string.toast_audio_track_added))
         }
       }.onFailure { e ->
         withContext(Dispatchers.Main) {
-          showToast("Failed to load audio: ${e.message}")
+          showToast(host.context.getString(R.string.toast_audio_load_error, e.message))
         }
         android.util.Log.e("PlayerViewModel", "Error adding audio", e)
       }
@@ -1439,7 +1439,7 @@ class PlayerViewModel(
 
           if (!isValidSubtitleFile(fileName)) {
             return@withLock withContext(Dispatchers.Main) {
-              showToast("Invalid subtitle file format")
+              showToast(host.context.getString(R.string.toast_subtitle_invalid_format))
             }
           }
 
@@ -1490,13 +1490,13 @@ class PlayerViewModel(
           val displayName = fileName.take(30).let { if (fileName.length > 30) "$it..." else it }
           if (!silent) {
             withContext(Dispatchers.Main) {
-              showToast("$displayName added")
+              showToast(host.context.getString(R.string.toast_subtitle_added, displayName))
             }
           }
         }.onFailure {
           if (!silent) {
             withContext(Dispatchers.Main) {
-              showToast("Failed to load subtitle")
+              showToast(host.context.getString(R.string.toast_subtitle_load_failed))
             }
           }
         }
@@ -1523,7 +1523,7 @@ class PlayerViewModel(
       _translatingTrackId.value = track.id
       _translatingTrackName.value = getFileNameFromUri(uri)?.let { it.substringBeforeLast(".") }?.lowercase() ?: "subtitle"
       _translationProgress.value = 0f
-      _translationStatus.value = "Preparing translation"
+      _translationStatus.value = host.context.getString(R.string.status_preparing_translation)
 
       try {
         val content = host.context.contentResolver.openInputStream(uri)?.use {
@@ -1536,7 +1536,7 @@ class PlayerViewModel(
         val result = aiService.translateSubtitle(content, targetLanguage, extension) { progress ->
           _translationProgress.value = progress.progress
           _translationStatus.value = buildString {
-            append(if (progress.isResuming) "Resuming" else "Translating")
+            append(host.context.getString(if (progress.isResuming) R.string.status_resuming else R.string.status_translating))
             append(" ${progress.completedChunks}/${progress.totalChunks}")
           }
         }
@@ -1551,16 +1551,16 @@ class PlayerViewModel(
 
           withContext(Dispatchers.Main) {
             addSubtitle(savedUri, select = true)
-            showToast("Translation complete: $newFileName")
+            showToast(host.context.getString(R.string.toast_translation_complete, newFileName))
           }
         }.onFailure { error ->
           withContext(Dispatchers.Main) {
-            showToast("Translation failed: ${error.message}")
+            showToast(host.context.getString(R.string.toast_translation_failed, error.message))
           }
         }
       } catch (e: Exception) {
         withContext(Dispatchers.Main) {
-          showToast("Error: ${e.message}")
+          showToast(host.context.getString(R.string.toast_error_format, e.message))
         }
       } finally {
         _isTranslatingSub.value = false
@@ -1586,13 +1586,13 @@ class PlayerViewModel(
       cacheDir.listFiles()?.forEach { it.delete() }
       cacheDir.delete()
     }
-    showToast("Translation cancelled")
+    showToast(host.context.getString(R.string.toast_translation_cancelled))
   }
 
   fun generateSubtitles(language: String, outputFormat: String = "srt") {
     val videoUri = currentVideoUriForSubtitleGeneration()
     if (videoUri == null) {
-      showToast("Could not find current video path")
+      showToast(host.context.getString(R.string.toast_video_path_not_found))
       return
     }
 
@@ -1602,7 +1602,7 @@ class PlayerViewModel(
     viewModelScope.launch(Dispatchers.IO) {
       _isGeneratingSubtitles.value = true
       _subtitleGenerationProgress.value = 0f
-      _subtitleGenerationStatus.value = "Preparing audio"
+      _subtitleGenerationStatus.value = host.context.getString(R.string.status_preparing_audio)
 
       try {
         val result = subtitleGenerationService.generateSubtitles(
@@ -1622,16 +1622,16 @@ class PlayerViewModel(
             ?: throw Exception("Could not save generated subtitles")
           withContext(Dispatchers.Main) {
             addSubtitle(savedUri, select = true)
-            showToast("Generated subtitles: $newFileName")
+            showToast(host.context.getString(R.string.toast_subtitles_generated, newFileName))
           }
         }.onFailure { error ->
           withContext(Dispatchers.Main) {
-            showToast("Subtitle generation failed: ${error.message}")
+            showToast(host.context.getString(R.string.toast_subtitle_generation_failed, error.message))
           }
         }
       } catch (e: Exception) {
         withContext(Dispatchers.Main) {
-          showToast("Subtitle generation error: ${e.message}")
+          showToast(host.context.getString(R.string.toast_subtitle_generation_error, e.message))
         }
       } finally {
         _isGeneratingSubtitles.value = false
@@ -1649,12 +1649,12 @@ class PlayerViewModel(
   fun startRealtimeSubtitles(language: String) {
     val videoUri = currentVideoUriForSubtitleGeneration()
     if (videoUri == null) {
-      showToast("Could not find current video path")
+      showToast(host.context.getString(R.string.toast_video_path_not_found))
       return
     }
     val videoDurationMs = (_preciseDuration.value * 1000f).toLong()
     if (videoDurationMs <= 0) {
-      showToast("Video duration unknown")
+      showToast(host.context.getString(R.string.toast_video_duration_unknown))
       return
     }
 
@@ -1671,7 +1671,7 @@ class PlayerViewModel(
       scope = viewModelScope,
       onProgress = { progress ->
         _realtimeSubsProgress.value = progress.chunkIndex.toFloat() / progress.totalChunks.coerceAtLeast(1)
-        _translationStatus.value = "Chunk ${progress.chunkIndex + 1}/${progress.totalChunks}"
+        _translationStatus.value = host.context.getString(R.string.status_chunk_progress, progress.chunkIndex + 1, progress.totalChunks)
       },
       onNewContent = { srtContent ->
         realtimeSrtFile?.writeText(srtContent)
@@ -1691,14 +1691,14 @@ class PlayerViewModel(
         _realtimeSubsProgress.value = 0f
         _translationStatus.value = ""
         realtimeSrtFile = null
-        showToast("Real-time subtitles complete")
+        showToast(host.context.getString(R.string.toast_realtime_subtitles_complete))
       },
       onError = { error ->
         _isRealtimeSubsActive.value = false
         _realtimeSubsLanguage.value = ""
         _realtimeSubsProgress.value = 0f
         _translationStatus.value = ""
-        showToast("Real-time subtitles error: $error")
+        showToast(host.context.getString(R.string.toast_realtime_subtitles_error, error))
       },
     )
   }
@@ -1714,7 +1714,7 @@ class PlayerViewModel(
     realtimeSrtFile = null
     realtimeSrtFileAdded = false
     if (showToastMessage && wasActive) {
-      showToast("Real-time subtitles stopped")
+      showToast(host.context.getString(R.string.toast_realtime_subtitles_stopped))
     }
   }
 
@@ -1861,7 +1861,7 @@ class PlayerViewModel(
         } else {
           IntroDbStatus(
             state = IntroDbStatusState.DISABLED,
-            message = "Online skip markers are disabled",
+            message = host.context.getString(R.string.toast_skip_markers_disabled),
           )
         }
       lookupIntroSegments(mediaTitle)
@@ -1910,14 +1910,14 @@ class PlayerViewModel(
 
     skippedSegmentTypes += activeSegment.type
     MPVLib.setPropertyDouble("time-pos", activeSegment.endSeconds)
-    showToast("${activeSegment.label} (auto)")
+    showToast(host.context.getString(R.string.toast_segment_skipped_auto, activeSegment.label))
   }
 
   fun skipActiveSegment() {
     val segment = _currentSkippableSegment.value ?: return
     skippedSegmentTypes += segment.type
     MPVLib.setPropertyDouble("time-pos", segment.endSeconds)
-    showToast("${segment.label}")
+    showToast(host.context.getString(R.string.toast_segment_skipped, segment.label))
   }
 
   private fun mergeSkipSegments() {
@@ -1986,7 +1986,7 @@ class PlayerViewModel(
     _introDbStatus.value =
       IntroDbStatus(
         state = IntroDbStatusState.LOOKING_UP,
-        message = "${provider.displayName}: matching title",
+        message = host.context.getString(R.string.toast_matching_title, provider.displayName),
       )
 
     introLookupJob?.cancel()
@@ -2200,7 +2200,7 @@ class PlayerViewModel(
         _introDbStatus.value =
           IntroDbStatus(
             state = IntroDbStatusState.LOADED,
-            message = cacheStatusMessage(provider, entry.message, "loaded ${entry.segments.size} marker${if (entry.segments.size == 1) "" else "s"}"),
+            message = cacheStatusMessage(provider, entry.message, host.context.getString(R.string.status_markers_loaded, entry.segments.size)),
             imdbId = entry.imdbId,
             segmentCount = entry.segments.size,
           )
@@ -2211,7 +2211,7 @@ class PlayerViewModel(
         _introDbStatus.value =
           IntroDbStatus(
             state = IntroDbStatusState.NO_SEGMENTS,
-            message = cacheStatusMessage(provider, entry.message, "no markers cached"),
+            message = cacheStatusMessage(provider, entry.message, host.context.getString(R.string.status_no_markers_cached)),
             imdbId = entry.imdbId,
           )
       }
@@ -2221,7 +2221,7 @@ class PlayerViewModel(
         _introDbStatus.value =
           IntroDbStatus(
             state = IntroDbStatusState.UNRESOLVED,
-            message = cacheStatusMessage(provider, entry.message, "cached title match failed"),
+            message = cacheStatusMessage(provider, entry.message, host.context.getString(R.string.status_cached_match_failed)),
           )
       }
     }
@@ -2279,8 +2279,9 @@ class PlayerViewModel(
     message: String,
     fallback: String,
   ): String {
-    val sourceMessage = message.ifBlank { "${provider.displayName}: $fallback" }
-    return if (sourceMessage.contains("(cached)")) sourceMessage else "$sourceMessage (cached)"
+    val sourceMessage = message.ifBlank { host.context.getString(R.string.status_provider_format, provider.displayName, fallback) }
+    val cachedTag = host.context.getString(R.string.status_cached)
+    return if (sourceMessage.contains(cachedTag)) sourceMessage else "$sourceMessage $cachedTag"
   }
 
   private fun refreshChapterDerivedSegments(chapters: List<dev.vivvvek.seeker.Segment>) {
@@ -2411,7 +2412,7 @@ class PlayerViewModel(
           _externalSubtitles.remove(originalUriString)
           mpvPathToUriMap.remove(mpvPath)
           withContext(Dispatchers.Main) {
-            showToast("Subtitle deleted")
+            showToast(host.context.getString(R.string.toast_subtitle_deleted))
           }
         }
       }
@@ -2487,7 +2488,7 @@ class PlayerViewModel(
           }
         }
         .onFailure {
-          showProviderStatusToast("Failed to load series details: ${it.message}")
+          showProviderStatusToast(host.context.getString(R.string.status_failed_series_details, it.message))
         }
       _isFetchingTvDetails.value = false
     }
@@ -2521,7 +2522,7 @@ class PlayerViewModel(
           }
         }
         .onFailure {
-          showProviderStatusToast("Failed to load episodes: ${it.message}")
+          showProviderStatusToast(host.context.getString(R.string.status_failed_episodes, it.message))
         }
       _isFetchingEpisodes.value = false
     }
@@ -2615,7 +2616,7 @@ class PlayerViewModel(
                   _onlineSubtitleSearchResults.value = results
              }
              .onFailure {
-                 showProviderStatusToast("Search failed: ${it.message}")
+                 showProviderStatusToast(host.context.getString(R.string.status_search_failed, it.message))
              }
           _isSearchingSub.value = false
       }
@@ -2635,7 +2636,7 @@ class PlayerViewModel(
       if (selectedSeason == null || selectedEpisode == null) {
         return WyzieSearchPlan(
           request = null,
-          missingSelectionMessage = "Select season and episode for Wyzie.",
+          missingSelectionMessage = host.context.getString(R.string.toast_select_season_episode),
         )
       }
       return WyzieSearchPlan(
@@ -2656,7 +2657,7 @@ class PlayerViewModel(
     if (detectedSeason != null || detectedEpisode != null) {
       return WyzieSearchPlan(
         request = null,
-        missingSelectionMessage = "Select the show, season, and episode for Wyzie.",
+        missingSelectionMessage = host.context.getString(R.string.toast_select_show_season_episode),
       )
     }
 
@@ -2682,7 +2683,7 @@ class PlayerViewModel(
                   addSubtitle(uri)
               }
               .onFailure {
-                  showToast("Download failed: ${it.message}")
+                  showToast(host.context.getString(R.string.toast_download_failed, it.message))
               }
           _isDownloadingSub.value = false
       }
@@ -4153,7 +4154,7 @@ class PlayerViewModel(
     decoderPreferences.hdrScreenMode.set(mode)
     decoderPreferences.hdrScreenOutput.set(mode != HdrScreenMode.OFF)
     applyHdrScreenOutput(mode)
-    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_hdr_screen_output, mode.shortTitle))
+    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_hdr_screen_output, host.context.getString(mode.shortTitleRes)))
   }
 
   private fun isHdrScreenOutputAvailable(mode: HdrScreenMode = _hdrScreenMode.value): Boolean {
@@ -4304,7 +4305,7 @@ class PlayerViewModel(
     playerPreferences.ambientVisualMode.set(mode)
 
     if (_isAmbientEnabled.value) {
-      playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_ambient_style, mode.label))
+      playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_ambient_style, host.context.getString(mode.labelRes)))
       scheduleAmbientUpdate(75)
     }
   }
@@ -4703,7 +4704,7 @@ class PlayerViewModel(
         if (deleted > 0) {
           activity.deleteCurrentVideoAndPlayNext()
         } else {
-          showToast("Failed to delete video")
+          showToast(host.context.getString(R.string.toast_delete_video_failed))
         }
       }
     }

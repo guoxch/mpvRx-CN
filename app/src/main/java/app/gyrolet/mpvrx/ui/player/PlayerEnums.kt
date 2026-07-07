@@ -47,14 +47,14 @@ enum class CustomKeyCodes(
 }
 
 enum class Decoder(
-  val title: String,
+  @StringRes val titleRes: Int,
   val value: String,
 ) {
-  AutoCopy("Auto", "auto-copy"),
-  Auto("Auto", "auto"),
-  SW("SW", "no"),
-  HW("HW", "mediacodec-copy"),
-  HWPlus("HW+", "mediacodec"),
+  AutoCopy(R.string.decoder_auto_copy, "auto-copy"),
+  Auto(R.string.decoder_auto, "auto"),
+  SW(R.string.decoder_sw, "no"),
+  HW(R.string.decoder_hw, "mediacodec-copy"),
+  HWPlus(R.string.decoder_hw_plus, "mediacodec"),
   ;
 
   companion object {
@@ -71,18 +71,18 @@ enum class Debanding(
 }
 
 enum class MPVProfile(
-  val displayName: String,
+  @StringRes val displayNameRes: Int,
   val value: String,
 ) {
-  Fast("Fast", "fast"),
-  Default("Default", "default"),
-  HighQuality("High Quality", "high-quality"),
-  GpuHQ("GPU HQ", "gpu-hq"),
-  LowLatency("Low Latency", "low-latency"),
-  SwFast("SW Fast", "sw-fast"),
+  Fast(R.string.mpv_profile_fast, "fast"),
+  Default(R.string.mpv_profile_default, "default"),
+  HighQuality(R.string.mpv_profile_high_quality, "high-quality"),
+  GpuHQ(R.string.mpv_profile_gpu_hq, "gpu-hq"),
+  LowLatency(R.string.mpv_profile_low_latency, "low-latency"),
+  SwFast(R.string.mpv_profile_sw_fast, "sw-fast"),
   ;
 
-  override fun toString(): String = displayName
+  override fun toString(): String = "MPVProfile(${name})"
 
   companion object {
     fun fromValue(value: String): MPVProfile = entries.firstOrNull { it.value == value } ?: Fast
@@ -165,8 +165,8 @@ sealed class PlayerUpdates {
  * Sharpness uses MPV's 'sharpen' property which ranges from -5 (blur) to 5 (sharp).
  */
 enum class FilterPreset(
-  val displayName: String,
-  val description: String,
+  @StringRes val displayNameRes: Int,
+  @StringRes val descriptionRes: Int,
   val brightness: Int,
   val saturation: Int,
   val contrast: Int,
@@ -175,8 +175,8 @@ enum class FilterPreset(
   val sharpness: Int,
 ) {
   NONE(
-    displayName = "None",
-    description = "Default settings with no adjustments",
+    displayNameRes = R.string.filter_preset_none_name,
+    descriptionRes = R.string.filter_preset_none_desc,
     brightness = 0,
     saturation = 0,
     contrast = 0,
@@ -185,8 +185,8 @@ enum class FilterPreset(
     sharpness = 0,
   ),
   VIVID(
-    displayName = "Vivid",
-    description = "Enhanced colors with crisp details",
+    displayNameRes = R.string.filter_preset_vivid_name,
+    descriptionRes = R.string.filter_preset_vivid_desc,
     brightness = 5,
     saturation = 25,
     contrast = 15,
@@ -195,8 +195,8 @@ enum class FilterPreset(
     sharpness = 0,
   ),
   WARM_TONE(
-    displayName = "Warm Tone",
-    description = "Warmer colors with golden tint",
+    displayNameRes = R.string.filter_preset_warm_tone_name,
+    descriptionRes = R.string.filter_preset_warm_tone_desc,
     brightness = 5,
     saturation = 10,
     contrast = 5,
@@ -205,8 +205,8 @@ enum class FilterPreset(
     sharpness = 0,
   ),
   COOL_TONE(
-    displayName = "Cool Tone",
-    description = "Cooler colors with blue tint",
+    displayNameRes = R.string.filter_preset_cool_tone_name,
+    descriptionRes = R.string.filter_preset_cool_tone_desc,
     brightness = 0,
     saturation = 5,
     contrast = 10,
@@ -215,8 +215,8 @@ enum class FilterPreset(
     sharpness = 0,
   ),
   SOFT_PASTEL(
-    displayName = "Soft Pastel",
-    description = "Soft, muted colors with gentle look",
+    displayNameRes = R.string.filter_preset_soft_pastel_name,
+    descriptionRes = R.string.filter_preset_soft_pastel_desc,
     brightness = 10,
     saturation = -15,
     contrast = -10,
@@ -225,8 +225,8 @@ enum class FilterPreset(
     sharpness = 0,
   ),
   CINEMATIC(
-    displayName = "Cinematic",
-    description = "Film-like color grading with depth",
+    displayNameRes = R.string.filter_preset_cinematic_name,
+    descriptionRes = R.string.filter_preset_cinematic_desc,
     brightness = -5,
     saturation = -10,
     contrast = 20,
@@ -235,8 +235,8 @@ enum class FilterPreset(
     sharpness = 0,
   ),
   DRAMATIC(
-    displayName = "Dramatic",
-    description = "High contrast dramatic look",
+    displayNameRes = R.string.filter_preset_dramatic_name,
+    descriptionRes = R.string.filter_preset_dramatic_desc,
     brightness = -10,
     saturation = 15,
     contrast = 30,
@@ -245,8 +245,8 @@ enum class FilterPreset(
     sharpness = 0,
   ),
   NIGHT_MODE(
-    displayName = "Night Mode",
-    description = "Reduced brightness for dark environments",
+    displayNameRes = R.string.filter_preset_night_mode_name,
+    descriptionRes = R.string.filter_preset_night_mode_desc,
     brightness = -20,
     saturation = -5,
     contrast = 5,
@@ -255,8 +255,8 @@ enum class FilterPreset(
     sharpness = 0,
   ),
   NOSTALGIC(
-    displayName = "Nostalgic",
-    description = "Vintage film look with soft focus",
+    displayNameRes = R.string.filter_preset_nostalgic_name,
+    descriptionRes = R.string.filter_preset_nostalgic_desc,
     brightness = 5,
     saturation = -20,
     contrast = 10,
@@ -265,8 +265,8 @@ enum class FilterPreset(
     sharpness = 0,
   ),
   GHIBLI_STYLE(
-    displayName = "Ghibli Style",
-    description = "Soft, dreamy anime colors",
+    displayNameRes = R.string.filter_preset_ghibli_style_name,
+    descriptionRes = R.string.filter_preset_ghibli_style_desc,
     brightness = 8,
     saturation = 15,
     contrast = -5,
@@ -275,8 +275,8 @@ enum class FilterPreset(
     sharpness = 0,
   ),
   NEON_POP(
-    displayName = "Neon Pop",
-    description = "Vibrant neon-like colors with edge",
+    displayNameRes = R.string.filter_preset_neon_pop_name,
+    descriptionRes = R.string.filter_preset_neon_pop_desc,
     brightness = 5,
     saturation = 40,
     contrast = 20,
@@ -285,8 +285,8 @@ enum class FilterPreset(
     sharpness = 0,
   ),
   DEEP_BLACK(
-    displayName = "Deep Black",
-    description = "Enhanced blacks for OLED displays",
+    displayNameRes = R.string.filter_preset_deep_black_name,
+    descriptionRes = R.string.filter_preset_deep_black_desc,
     brightness = -15,
     saturation = 5,
     contrast = 25,
@@ -375,15 +375,15 @@ enum class DebandSettings(
 }
 
 /** Controls whether the playback service shows a notification, and which style it uses. */
-enum class NotificationStyle(val displayName: String) {
+enum class NotificationStyle(@StringRes val displayNameRes: Int) {
   /** Do not show any playback notification. */
-  None("No Notification"),
+  None(R.string.notification_style_no_notification),
 
   /** Classic MediaStyle with transport controls rendered by the system. */
-  Media("Media Controls"),
+  Media(R.string.notification_style_media),
 
   /** Progress-centric style with chapter segment indicators (Android 16+ only). */
-  Progress("Progress with Chapters"),
+  Progress(R.string.notification_style_progress),
 
   ;
 

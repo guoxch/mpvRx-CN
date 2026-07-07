@@ -255,36 +255,36 @@ object SearchablePreferences {
                 screen = PlayerPreferencesScreen,
             ))
             add(SearchablePreference(
-                title = "Use online skip markers",
-                summary = "Fetch intro, recap, outro, credits, and preview markers from an online provider.",
+                titleRes = R.string.pref_online_skip_markers_title,
+                summaryRes = R.string.pref_online_skip_markers_summary,
                 keywords = listOf("online", "skip markers", "intro", "outro", "credits", "preview", "recap", "opening", "ending"),
                 category = "Player",
                 screen = PlayerPreferencesScreen,
             ))
             add(SearchablePreference(
-                title = "Online marker provider",
-                summary = "Choose IntroDB, TIDB, AniSkip, or Anime Skip for online intro/outro markers.",
+                titleRes = R.string.pref_marker_provider_title,
+                summaryRes = R.string.pref_marker_provider_summary,
                 keywords = listOf("provider", "source", "introdb", "tidb", "theintrodb", "aniskip", "anime", "animeskip", "online markers", "skip provider"),
                 category = "Player",
                 screen = PlayerPreferencesScreen,
             ))
             add(SearchablePreference(
-                title = "Detect intro/outro from chapter titles",
-                summary = "Create skip markers from chapter names such as opening, ending, credits, or preview.",
+                titleRes = R.string.pref_chapter_detect_title,
+                summaryRes = R.string.pref_chapter_detect_summary,
                 keywords = listOf("chapter titles", "chapters", "intro", "outro", "opening", "ending", "credits", "preview", "markers"),
                 category = "Player",
                 screen = PlayerPreferencesScreen,
             ))
             add(SearchablePreference(
-                title = "Auto-skip intro",
-                summary = "Skip opening markers automatically during playback.",
+                titleRes = R.string.pref_auto_skip_intro_title,
+                summaryRes = R.string.pref_auto_skip_intro_summary,
                 keywords = listOf("auto skip", "intro", "opening", "automatic", "skip op"),
                 category = "Player",
                 screen = PlayerPreferencesScreen,
             ))
             add(SearchablePreference(
-                title = "Auto-skip outro",
-                summary = "Skip ending markers automatically during playback.",
+                titleRes = R.string.pref_auto_skip_outro_title,
+                summaryRes = R.string.pref_auto_skip_outro_summary,
                 keywords = listOf("auto skip", "outro", "ending", "credits", "automatic", "skip ed"),
                 category = "Player",
                 screen = PlayerPreferencesScreen,
@@ -463,15 +463,15 @@ object SearchablePreferences {
                 screen = FoldersPreferencesScreen,
             ))
             add(SearchablePreference(
-                title = "Subtitle Save Folder",
-                summary = "Where downloaded subtitles are saved",
+                titleRes = R.string.search_subtitle_save_folder_title,
+                summaryRes = R.string.search_subtitle_save_folder_summary,
                 keywords = listOf("subtitle", "save", "download", "folder", "directory", "location"),
                 category = "Storage",
                 screen = FoldersPreferencesScreen,
             ))
             add(SearchablePreference(
-                title = "Fonts Folder",
-                summary = "Fonts used for subtitle rendering",
+                titleRes = R.string.search_fonts_folder_title,
+                summaryRes = R.string.search_fonts_folder_summary,
                 keywords = listOf("fonts", "subtitle", "folder", "directory", "custom"),
                 category = "Storage",
                 screen = FoldersPreferencesScreen,
@@ -589,7 +589,7 @@ object SearchablePreferences {
                 screen = FoldersPreferencesScreen,
             ))
             add(SearchablePreference(
-                title = "Subtitle Sources",
+                titleRes = R.string.pref_subtitle_sources_title,
                 keywords = listOf("subtitle", "sources", "provider", "wyzie", "search"),
                 category = "Subtitles",
                 screen = SubtitlesPreferencesScreen,
@@ -601,19 +601,20 @@ object SearchablePreferences {
                 screen = SubtitlesPreferencesScreen,
             ))
             add(SearchablePreference(
-                title = "Hearing-impaired friendly",
+                titleRes = R.string.pref_hearing_impaired_title,
+                summaryRes = R.string.pref_hearing_impaired_summary,
                 keywords = listOf("hearing", "impaired", "sdh", "subtitle", "accessibility"),
                 category = "Subtitles",
                 screen = SubtitlesPreferencesScreen,
             ))
             add(SearchablePreference(
-                title = "Preferred Formats",
+                titleRes = R.string.pref_preferred_formats_title,
                 keywords = listOf("format", "srt", "ass", "ssa", "subtitle"),
                 category = "Subtitles",
                 screen = SubtitlesPreferencesScreen,
             ))
             add(SearchablePreference(
-                title = "Preferred Encodings",
+                titleRes = R.string.pref_preferred_encodings_title,
                 keywords = listOf("encoding", "utf-8", "cp1252", "subtitle"),
                 category = "Subtitles",
                 screen = SubtitlesPreferencesScreen,
@@ -703,8 +704,8 @@ object SearchablePreferences {
                 screen = AdvancedPreferencesScreen,
             ))
             add(SearchablePreference(
-                title = "Base Storage Folder",
-                summary = "Root folder — auto-creates Subtitles/ and Fonts/ subdirs",
+                titleRes = R.string.pref_base_storage_folder,
+                summaryRes = R.string.search_base_storage_summary,
                 keywords = listOf("base", "storage", "root", "folder", "subtitles", "fonts", "directory"),
                 category = "Storage",
                 screen = AdvancedPreferencesScreen,
@@ -776,7 +777,7 @@ object SearchablePreferences {
             ))
             add(SearchablePreference(
                 titleRes = R.string.pref_advanced_notification_style,
-                summary = "Choose media controls, progress with chapters, or no playback notification.",
+                summaryRes = R.string.pref_advanced_notification_style_summary,
                 keywords = listOf("notification", "media controls", "progress", "chapters", "no notification", "hide notification", "background playback"),
                 category = "Advanced",
                 screen = AdvancedPreferencesScreen,
@@ -799,28 +800,28 @@ object SearchablePreferences {
             // AI / Intelligence
             add(SearchablePreference(
                 titleRes = R.string.pref_section_ai_title,
-                summary = "AI-powered rename, subtitle formatting, speech-to-text, subtitle translation, offline models",
+                summaryRes = R.string.search_ai_integration_summary,
                 keywords = listOf("ai", "opencode", "groq", "openai", "anthropic", "together", "openrouter", "machine learning", "intelligence"),
                 category = "AI",
                 screen = AiIntegrationScreen,
             ))
             add(SearchablePreference(
                 titleRes = R.string.pref_ai_provider_title,
-                summary = "Choose OpenCode, Groq, OpenAI, Anthropic, OpenRouter, Together, or offline local models",
+                summaryRes = R.string.search_ai_provider_summary,
                 keywords = listOf("provider", "opencode", "groq", "openai", "anthropic", "together", "openrouter", "local", "offline", "api"),
                 category = "AI",
                 screen = AiIntegrationScreen,
             ))
             add(SearchablePreference(
                 titleRes = R.string.pref_api_config_section,
-                summary = "Enter and verify your AI provider API key",
+                summaryRes = R.string.search_api_key_config_summary,
                 keywords = listOf("api key", "key", "authentication", "token", "verify", "opencode", "groq", "openai"),
                 category = "AI",
                 screen = AiIntegrationScreen,
             ))
             add(SearchablePreference(
                 titleRes = R.string.pref_model_section,
-                summary = "Fetch and select which AI model to use",
+                summaryRes = R.string.search_ai_model_selection_summary,
                 keywords = listOf("model", "llm", "opencode", "gpt", "claude", "mixtral", "deepseek", "selection"),
                 category = "AI",
                 screen = AiIntegrationScreen,
@@ -833,43 +834,43 @@ object SearchablePreferences {
                 screen = AiIntegrationScreen,
             ))
             add(SearchablePreference(
-                title = "AI-Powered Rename",
-                summary = "Use AI to generate clean filenames for bulk rename operations",
+                titleRes = R.string.pref_ai_rename_title,
+                summaryRes = R.string.pref_ai_rename_summary,
                 keywords = listOf("rename", "bulk", "filename", "clean", "ai", "organize"),
                 category = "AI",
                 screen = AiIntegrationScreen,
             ))
             add(SearchablePreference(
-                title = "AI Search",
-                summary = "Auto-format video titles for Wyzie/SubHub subtitle search",
+                titleRes = R.string.pref_ai_search_title,
+                summaryRes = R.string.pref_ai_search_summary,
                 keywords = listOf("subtitle", "search", "format", "wyzie", "subhub", "title", "ai"),
                 category = "AI",
                 screen = AiIntegrationScreen,
             ))
             add(SearchablePreference(
-                title = "Speech-to-Text",
-                summary = "Configure STT provider, real-time model, audio language, and output format",
+                titleRes = R.string.pref_stt_section,
+                summaryRes = R.string.search_stt_summary,
                 keywords = listOf("speech", "stt", "transcription", "whisper", "audio", "language", "voice", "speech to text"),
                 category = "AI",
                 screen = AiIntegrationScreen,
             ))
             add(SearchablePreference(
-                title = "Subtitle Translation",
-                summary = "Translate external subtitles using AI with auto-translate target languages",
+                titleRes = R.string.pref_translation_section,
+                summaryRes = R.string.search_translation_summary,
                 keywords = listOf("translation", "translate", "subtitle", "language", "auto", "target"),
                 category = "AI",
                 screen = AiIntegrationScreen,
             ))
             add(SearchablePreference(
-                title = "Custom AI Prompts",
-                summary = "Override default instructions for rename, translation, and formatting tasks",
+                titleRes = R.string.pref_custom_prompt_section,
+                summaryRes = R.string.search_custom_ai_prompts_summary,
                 keywords = listOf("prompt", "custom", "instructions", "override", "rename", "translate", "format"),
                 category = "AI",
                 screen = AiIntegrationScreen,
             ))
             add(SearchablePreference(
-                title = "Offline AI Models",
-                summary = "Download and manage local LLMs for fully offline AI features",
+                titleRes = R.string.pref_offline_models_section,
+                summaryRes = R.string.search_offline_ai_models_summary,
                 keywords = listOf("offline", "local", "model", "download", "llm", "huggingface", "gguf", "quantized"),
                 category = "AI",
                 screen = AiIntegrationScreen,

@@ -617,6 +617,7 @@
   <string name="playlist_remove_title">Remove %1$d %2$s from playlist?</string>
   <string name="playlist_remove_message">The selected %1$s will be removed from this playlist. The original %2$s will not be deleted.</string>
   <string name="playlist_remove_from_playlist">Remove from Playlist</string>
+  <string name="playlist_saved">Saved</string>
   <string name="playlist_copy">Copy</string>
   <string name="playlist_search_videos">Search videos</string>
   <string name="playlist_reorder">Reorder playlist</string>
@@ -656,6 +657,142 @@
   <string name="notification_permission_denied">Notification permission is required for background playback controls.</string>
   <string name="notification_permission_disabled">Notifications are disabled for MpvRx. Enable them to show playback controls.</string>
   <string name="pref_advanced_notification_style">Notification style</string>
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Filter Presets                                             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="filter_preset_none_name">None</string>
+  <string name="filter_preset_none_desc">Default settings with no adjustments</string>
+  <string name="filter_preset_vivid_name">Vivid</string>
+  <string name="filter_preset_vivid_desc">Enhanced colors with crisp details</string>
+  <string name="filter_preset_warm_tone_name">Warm Tone</string>
+  <string name="filter_preset_warm_tone_desc">Warmer colors with golden tint</string>
+  <string name="filter_preset_cool_tone_name">Cool Tone</string>
+  <string name="filter_preset_cool_tone_desc">Cooler colors with blue tint</string>
+  <string name="filter_preset_soft_pastel_name">Soft Pastel</string>
+  <string name="filter_preset_soft_pastel_desc">Soft, muted colors with gentle look</string>
+  <string name="filter_preset_cinematic_name">Cinematic</string>
+  <string name="filter_preset_cinematic_desc">Film-like color grading with depth</string>
+  <string name="filter_preset_dramatic_name">Dramatic</string>
+  <string name="filter_preset_dramatic_desc">High contrast dramatic look</string>
+  <string name="filter_preset_night_mode_name">Night Mode</string>
+  <string name="filter_preset_night_mode_desc">Reduced brightness for dark environments</string>
+  <string name="filter_preset_nostalgic_name">Nostalgic</string>
+  <string name="filter_preset_nostalgic_desc">Vintage film look with soft focus</string>
+  <string name="filter_preset_ghibli_style_name">Ghibli Style</string>
+  <string name="filter_preset_ghibli_style_desc">Soft, dreamy anime colors</string>
+  <string name="filter_preset_neon_pop_name">Neon Pop</string>
+  <string name="filter_preset_neon_pop_desc">Vibrant neon-like colors with edge</string>
+  <string name="filter_preset_deep_black_name">Deep Black</string>
+  <string name="filter_preset_deep_black_desc">Enhanced blacks for OLED displays</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Decoder                                                    -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="decoder_auto_copy">Auto</string>
+  <string name="decoder_auto">Auto</string>
+  <string name="decoder_sw">SW</string>
+  <string name="decoder_hw">HW</string>
+  <string name="decoder_hw_plus">HW+</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- MPV Profile                                                -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="mpv_profile_fast">Fast</string>
+  <string name="mpv_profile_default">Default</string>
+  <string name="mpv_profile_high_quality">High Quality</string>
+  <string name="mpv_profile_gpu_hq">GPU HQ</string>
+  <string name="mpv_profile_low_latency">Low Latency</string>
+  <string name="mpv_profile_sw_fast">SW Fast</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- HDR Screen Mode                                            -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="hdr_mode_off_title">Off</string>
+  <string name="hdr_mode_off_short">Off</string>
+  <string name="hdr_mode_off_desc">Normal SDR output</string>
+  <string name="hdr_mode_bt2100_pq_title">BT.2100 PQ</string>
+  <string name="hdr_mode_bt2100_pq_short">PQ</string>
+  <string name="hdr_mode_bt2100_pq_desc">HDR10-style PQ with Astra tone mapping and Bottosson gamut mapping</string>
+  <string name="hdr_mode_bt2100_hlg_title">BT.2100 HLG</string>
+  <string name="hdr_mode_bt2100_hlg_short">HLG</string>
+  <string name="hdr_mode_bt2100_hlg_desc">HLG HDR through the hdr-toys Astra and Bottosson shader chain</string>
+  <string name="hdr_mode_bt2020_title">BT.2020</string>
+  <string name="hdr_mode_bt2020_short">BT.2020</string>
+  <string name="hdr_mode_bt2020_desc">BT.2020 / BT.1886 conversion using hdr-toys gamut mapping</string>
+  <string name="hdr_mode_linear_title">Linear HDR</string>
+  <string name="hdr_mode_linear_short">Linear</string>
+  <string name="hdr_mode_linear_desc">High-quality mpv HDR output without hdr-toys shaders</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Animation Styles                                           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="anim_controls_default">Default</string>
+  <string name="anim_controls_elastic">Elastic Bounce</string>
+  <string name="anim_controls_cinematic">Cinematic Scale</string>
+  <string name="anim_controls_slide_up">Slide Up</string>
+  <string name="anim_controls_minimal">Minimal Fade</string>
+  <string name="anim_controls_none">None</string>
+  <string name="anim_video_open_default">Default</string>
+  <string name="anim_video_open_fade_dark">Fade from Black</string>
+  <string name="anim_video_open_zoom_burst">Zoom Burst</string>
+  <string name="anim_video_open_slide_up">Slide Up</string>
+  <string name="anim_video_open_cinema_bars">Cinema Bars</string>
+  <string name="anim_video_open_none">None</string>
+  <string name="anim_nav_default">Default</string>
+  <string name="anim_nav_elastic">Elastic Slide</string>
+  <string name="anim_nav_depth">Depth Zoom</string>
+  <string name="anim_nav_flip_fade">Flip Fade</string>
+  <string name="anim_nav_minimal">Minimal Fade</string>
+  <string name="anim_nav_none">None</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Ambient Mode                                               -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="ambient_mode_glow">Glow</string>
+  <string name="ambient_mode_frame_extend">Frame Extend</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Compressor Presets                                         -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="preset_discord_github">Discord / GitHub</string>
+  <string name="preset_email">Email</string>
+  <string name="preset_stories">Stories</string>
+  <string name="preset_messenger_bluesky">Messenger / Bluesky</string>
+  <string name="preset_nitro_reels">Nitro / Reels</string>
+  <string name="preset_twitter_x">Twitter / X</string>
+  <string name="preset_whatsapp_telegram">WhatsApp / Telegram</string>
+  <string name="preset_tg_premium_feed">TG Premium / Feed</string>
+  <string name="preset_x_premium">X Premium</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Device Info                                                -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="device_info_manufacturer">Manufacturer</string>
+  <string name="device_info_device">Device</string>
+  <string name="device_info_android">Android</string>
+  <string name="device_info_cpu_abi">CPU ABI</string>
+  <string name="device_info_cpu_cores">CPU Cores</string>
+  <string name="device_info_ram">RAM</string>
+  <string name="device_info_opengl_es">OpenGL ES</string>
+  <string name="device_info_vulkan">Vulkan</string>
+  <string name="device_info_gpu_renderer">GPU Renderer</string>
+  <string name="device_info_board">Board</string>
+  <string name="device_info_kernel">Kernel</string>
+  <string name="device_info_unknown">Unknown</string>
+  <string name="device_info_not_supported">Not supported</string>
+  <string name="device_info_vulkan_11_level_1">Vulkan 1.1+ (Level 1)</string>
+  <string name="device_info_vulkan_10_level_0">Vulkan 1.0 (Level 0)</string>
+  <string name="device_info_vulkan_compute">Vulkan (compute)</string>
+  <string name="device_info_vulkan_version">Vulkan %1$d.%2$d (Level 1)</string>
+  <string name="device_info_cores_format">%d cores</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Notification Style                                         -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="notification_style_no_notification">No Notification</string>
+  <string name="notification_style_media">Media Controls</string>
+  <string name="notification_style_progress">Progress with Chapters</string>
+
   <!-- Media Info Activity -->
   <string name="media_info_title">Media Info</string>
   <string name="media_info_analyzing">Analyzing media file…</string>
@@ -1369,6 +1506,11 @@
   <string name="about_app_name">MpvRx</string>
   <string name="about_version">v%1$s %2$s</string>
   <string name="about_author">By Ritesh Pandit</string>
+  <string name="about_oss_description">Core open source dependencies used by MpvRx.</string>
+  <string name="toast_skip_markers_disabled">Online skip markers are disabled</string>
+  <string name="toast_matching_title">%1$s: matching title</string>
+  <string name="toast_select_season_episode">Select season and episode for Wyzie.</string>
+  <string name="toast_select_show_season_episode">Select the show, season, and episode for Wyzie.</string>
   <string name="about_device_info">Device Info</string>
   <string name="about_support">Support</string>
   <string name="about_updates">Updates</string>
@@ -1483,6 +1625,8 @@
   <string name="player_zoom_increase">Increase zoom</string>
   <string name="player_pan_zoom">Pan &amp; Zoom</string>
   <!-- Slide To Unlock -->
+  <string name="player_now_playing">Now Playing</string>
+  <string name="player_playing">Playing</string>
   <string name="player_slide_to_unlock">Slide to Unlock</string>
   <string name="player_slide_to_unlock_content_description">Slide to unlock</string>
   <!-- More Sheet -->
@@ -1897,6 +2041,14 @@
   <string name="player_next_dialog">Next Dialog</string>
   <string name="player_prev_dialog">Prev Dialog</string>
   <string name="player_script_load_failed">Failed to load script: %1$s</string>
+  <string name="player_script_loaded">Loaded script: %1$s</string>
+  <string name="scripts_enabled">Scripts enabled</string>
+  <string name="scripts_disabled">Scripts disabled. Reopen the video if a script stays active.</string>
+  <string name="unknown_video">Unknown Video</string>
+  <string name="network_stream">Network Stream</string>
+  <string name="pref_advanced_notification_style_summary">Choose media controls, progress with chapters, or no playback notification.</string>
+  <string name="loading_state_title">Scanning for videos…</string>
+  <string name="loading_state_message">Please wait while we search your device</string>
   <!-- Common -->
   <string name="error_unknown">Unknown error</string>
   <string name="pref_ytdlp_manager_summary">Install and update yt-dlp for streaming support</string>
@@ -1915,4 +2067,84 @@
   <string name="cd_copy_path">Copy path</string>
   <string name="cd_separator">Separator</string>
   <string name="cd_clear">Clear</string>
+
+  <!-- Phase 1 P0 additions -->
+  <string name="player_switch_grid">Switch to Grid View</string>
+  <string name="player_switch_list">Switch to List View</string>
+  <string name="player_ambience">Ambience Mode</string>
+  <string name="player_button_video_title">Video Title</string>
+  <string name="update_ignore">Ignore</string>
+  <string name="update_install">Install</string>
+  <string name="update_download">Download</string>
+  <string name="update_downloading">Downloading…</string>
+  <string name="pref_dual_pane_title">Dual Pane View</string>
+  <string name="pref_dual_pane_summary">Enable dual pane layout on tablets in folder view</string>
+  <string name="pref_base_storage_folder">Base Storage Folder</string>
+  <string name="pref_storage_summary">Media library folders, hidden paths, fonts, and subtitle directories.</string>
+
+  <!-- Stats overlay labels -->
+  <string name="stats_playback_decoder">--- PLAYBACK &amp; DECODER ---</string>
+  <string name="stats_file">File</string>
+  <string name="stats_decoder_vo">Decoder &amp; VO</string>
+  <string name="stats_audio">Audio</string>
+  <string name="stats_power_thermals">--- POWER &amp; THERMALS ---</string>
+  <string name="stats_battery">Battery</string>
+  <string name="battery_status_charging">Charging</string>
+  <string name="battery_status_discharging">Discharging</string>
+  <string name="battery_status_not_charging">Not charging</string>
+  <string name="battery_status_full">Full</string>
+  <string name="stats_temp">Temp</string>
+  <string name="stats_thermal">Thermal</string>
+  <string name="stats_session">--- SESSION ---</string>
+  <string name="stats_active">Active</string>
+  <string name="stats_app_cpu">App CPU</string>
+  <string name="stats_frame_pressure">Frame Pressure</string>
+  <string name="stats_normal">Normal</string>
+  <string name="stats_light_throttling">Light Throttling</string>
+  <string name="stats_moderate_throttling">Moderate Throttling</string>
+  <string name="stats_severe_throttling">Severe Throttling</string>
+  <string name="stats_critical_throttling">Critical Throttling</string>
+  <string name="stats_emergency">Emergency!</string>
+  <string name="stats_shutdown">Overheating Shutdown!</string>
+  <string name="stats_unknown">Unknown</string>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- PlayerViewModel Toast/Status messages                     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <string name="toast_audio_load_failed">Failed to load audio file: Invalid URI</string>
+  <string name="toast_audio_track_added">Audio track added</string>
+  <string name="toast_audio_load_error">Failed to load audio: %1$s</string>
+  <string name="toast_subtitle_invalid_format">Invalid subtitle file format</string>
+  <string name="toast_subtitle_added">%1$s added</string>
+  <string name="toast_subtitle_load_failed">Failed to load subtitle</string>
+  <string name="toast_translation_complete">Translation complete: %1$s</string>
+  <string name="toast_translation_failed">Translation failed: %1$s</string>
+  <string name="toast_translation_cancelled">Translation cancelled</string>
+  <string name="toast_video_path_not_found">Could not find current video path</string>
+  <string name="toast_video_duration_unknown">Video duration unknown</string>
+  <string name="toast_subtitles_generated">Generated subtitles: %1$s</string>
+  <string name="toast_subtitle_generation_failed">Subtitle generation failed: %1$s</string>
+  <string name="toast_subtitle_generation_error">Subtitle generation error: %1$s</string>
+  <string name="toast_realtime_subtitles_complete">Real-time subtitles complete</string>
+  <string name="toast_realtime_subtitles_error">Real-time subtitles error: %1$s</string>
+  <string name="toast_realtime_subtitles_stopped">Real-time subtitles stopped</string>
+  <string name="toast_subtitle_deleted">Subtitle deleted</string>
+  <string name="toast_download_failed">Download failed: %1$s</string>
+  <string name="toast_delete_video_failed">Failed to delete video</string>
+  <string name="toast_segment_skipped">%1$s</string>
+  <string name="toast_segment_skipped_auto">%1$s (auto)</string>
+  <string name="toast_error_format">Error: %1$s</string>
+  <string name="status_preparing_translation">Preparing translation</string>
+  <string name="status_preparing_audio">Preparing audio</string>
+  <string name="status_chunk_progress">Chunk %1$d/%2$d</string>
+  <string name="status_translating">Translating</string>
+  <string name="status_resuming">Resuming</string>
+  <string name="status_search_failed">Search failed: %1$s</string>
+  <string name="status_markers_loaded">loaded %1$d markers</string>
+  <string name="status_no_markers_cached">no markers cached</string>
+  <string name="status_cached_match_failed">cached title match failed</string>
+  <string name="status_cached">(cached)</string>
+  <string name="status_provider_format">%1$s: %2$s</string>
+  <string name="status_failed_series_details">Failed to load series details: %1$s</string>
+  <string name="status_failed_episodes">Failed to load episodes: %1$s</string>
 </resources>

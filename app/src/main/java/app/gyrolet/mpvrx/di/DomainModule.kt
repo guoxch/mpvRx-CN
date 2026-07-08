@@ -132,4 +132,5 @@ val domainModule = module {
             get<Json>()
         )
     }
+    single { app.gyrolet.mpvrx.domain.syncplay.SyncplayManager() }
 }

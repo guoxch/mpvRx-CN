@@ -49,6 +49,7 @@ sealed class SubtitleItem {
   data class Track(val node: TrackNode) : SubtitleItem()
   data class Header(val title: String) : SubtitleItem()
   object Divider : SubtitleItem()
+  object Off : SubtitleItem()
 }
 
 @Composable
@@ -78,11 +79,14 @@ fun SubtitlesSheet(
   autoTranslateLanguages: String = "",
   aiEnabled: Boolean = true,
   realtimeSubsEnabled: Boolean = true,
+  subtitlesOff: Boolean = false,
+  onDisableSubtitles: () -> Unit = {},
   modifier: Modifier = Modifier,
 ) {
   val context = LocalContext.current
-  val items = remember(tracks) {
+  val items = remember(tracks, subtitlesOff) {
     val list = mutableListOf<SubtitleItem>()
+    list.add(SubtitleItem.Off)
     val internal = tracks.filter { it.external != true }
     val external = tracks.filter { it.external == true }
 
@@ -313,6 +317,23 @@ fun SubtitlesSheet(
                   style = MaterialTheme.typography.labelLarge,
                   color = MaterialTheme.colorScheme.primary,
                   fontWeight = FontWeight.Bold,
+                )
+              }
+            }
+            is SubtitleItem.Off -> {
+              Row(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .clickable(onClick = onDisableSubtitles)
+                  .padding(horizontal = MaterialTheme.spacing.medium, vertical = MaterialTheme.spacing.extraSmall),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.smaller),
+              ) {
+                Checkbox(checked = subtitlesOff, onCheckedChange = { onDisableSubtitles() })
+                Text(
+                  stringResource(R.string.player_sheets_off),
+                  fontWeight = if (subtitlesOff) FontWeight.Bold else FontWeight.Normal,
+                  modifier = Modifier.weight(1f),
                 )
               }
             }

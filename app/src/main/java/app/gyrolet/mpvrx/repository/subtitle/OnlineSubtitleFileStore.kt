@@ -34,17 +34,17 @@ class OnlineSubtitleFileStore(
       val selectedEpisodeMessage = selectedEpisode?.let { " for episode $it" }.orEmpty()
       throw IllegalStateException("Downloaded subtitle archive did not contain a supported subtitle file$selectedEpisodeMessage")
     }
-    val payload = extracted?.bytes ?: bytes
-    if (SubtitleArchiveExtractor.looksLikeHtml(payload)) {
-      throw IllegalStateException("Downloaded file is HTML, not a subtitle")
-    }
-
     val extension =
       extracted?.extension
         ?: subtitle.format?.lowercase()?.takeIf { it in STANDARD_SUBTITLE_EXTENSIONS }
         ?: SubtitleArchiveExtractor.extensionFromName(subtitle.fileName)?.takeIf { it in STANDARD_SUBTITLE_EXTENSIONS }
         ?: SubtitleArchiveExtractor.extensionFromName(subtitle.url)?.takeIf { it in STANDARD_SUBTITLE_EXTENSIONS }
         ?: "srt"
+
+    val payload = extracted?.bytes ?: bytes
+    if (SubtitleArchiveExtractor.looksLikeHtml(payload)) {
+      throw IllegalStateException("Downloaded file is HTML, not a subtitle")
+    }
 
     val saveFolderUri = preferences.subtitleSaveFolder.get()
     val folderName = ChecksumUtils.getCRC32(mediaTitle)

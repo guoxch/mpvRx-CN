@@ -351,8 +351,11 @@ object FolderListScreen : Screen {
       )
     }
 
-    LaunchedEffect(isDualPaneActive, selectedFolderBucketId) {
+    DisposableEffect(isDualPaneActive, selectedFolderBucketId) {
       navBarState.isDualPaneFolderSelected = isDualPaneActive && selectedFolderBucketId != null
+      onDispose {
+        navBarState.isDualPaneFolderSelected = false
+      }
     }
 
     // Lifecycle observer for refresh
@@ -764,6 +767,7 @@ object FolderListScreen : Screen {
               VideoListScreen(
                 bucketId = selectedFolderBucketId!!,
                 folderName = selectedFolderName.orEmpty(),
+                isDualPane = true,
                 onBack = {
                   selectedFolderBucketId = null
                   selectedFolderName = null
@@ -878,6 +882,7 @@ object FolderListScreen : Screen {
         sortOrder = folderSortOrder,
         onSortTypeChange = { browserPreferences.folderSortType.set(it) },
         onSortOrderChange = { browserPreferences.folderSortOrder.set(it) },
+        isDualPane = isDualPaneActive && selectedFolderBucketId != null,
       )
 
       if (pendingDeleteFolders.isNotEmpty()) {
@@ -1036,6 +1041,11 @@ private fun GridContent(
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val folderGridColumnsPref = if (isLandscape) folderGridColumnsLandscape else folderGridColumnsPortrait
 
+    val isTablet = configuration.smallestScreenWidthDp >= 600
+    val dualPaneForTablet by browserPreferences.dualPaneForTablet.collectAsState()
+    val isDualPaneActive = isTablet && dualPaneForTablet
+    val isDualPane = isDualPaneActive && selectedFolderBucketId != null
+
     val computedColumns = if (manualGridColumnsEnabled) {
       folderGridColumnsPref.coerceAtLeast(1)
     } else {
@@ -1089,6 +1099,7 @@ private fun GridContent(
             } else {
               null
             },
+          isDualPane = isDualPane,
         )
       }
     }

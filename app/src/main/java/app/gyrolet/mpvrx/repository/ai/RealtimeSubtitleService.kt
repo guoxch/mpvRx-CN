@@ -154,7 +154,7 @@ class RealtimeSubtitleService(
           withContext(Dispatchers.Main) { onComplete() }
         } catch (e: Exception) {
           withContext(Dispatchers.Main) {
-            onError(e.message ?: "Unknown error")
+            onError(e.message ?: "未知错误")
           }
         }
       }

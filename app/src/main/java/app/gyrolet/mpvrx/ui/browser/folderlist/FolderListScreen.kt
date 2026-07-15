@@ -500,7 +500,7 @@ object FolderListScreen : Screen {
               onCopyClick = {
                 val selectedPaths = selectionManager.getSelectedItems().map { it.path }.distinct()
                 if (selectedPaths.isNotEmpty()) {
-                  SafeClipboard.copyPlainText(context, "Selected folder paths", selectedPaths.joinToString("\n"))
+                  SafeClipboard.copyPlainText(context, context.getString(R.string.clipboard_label_selected_paths), selectedPaths.joinToString("\n"))
                 }
               },
               onPlayClick = {
@@ -1217,7 +1217,7 @@ private fun ListContent(
             if (folder.path in pinnedFolderPaths) {
               {
                 Text(
-                  "Pinned",
+                  stringResource(R.string.label_pinned),
                   style = MaterialTheme.typography.labelSmall,
                   modifier =
                     Modifier

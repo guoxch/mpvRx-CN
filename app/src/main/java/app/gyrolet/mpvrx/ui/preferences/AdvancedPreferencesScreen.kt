@@ -94,8 +94,8 @@ object AdvancedPreferencesScreen : Screen {
     var exportStats by remember { mutableStateOf<SettingsManager.ExportStats?>(null) }
     val playbackHistoryClearedMessage = stringResource(R.string.pref_advanced_cleared_playback_history)
     val fontsCacheClearedMessage = stringResource(R.string.pref_advanced_cleared_fonts_cache)
-    val exportFailedMessage = stringResource(R.string.pref_export_failed, "Unknown error")
-    val importFailedMessage = stringResource(R.string.pref_import_failed, "Unknown error")
+    val exportFailedMessage = stringResource(R.string.pref_export_failed, stringResource(R.string.error_unknown))
+    val importFailedMessage = stringResource(R.string.pref_import_failed, stringResource(R.string.error_unknown))
 
     // Export settings launcher
     val exportLauncher =
@@ -112,7 +112,7 @@ object AdvancedPreferencesScreen : Screen {
               onFailure = { error ->
                 Toast.makeText(
                   context,
-                  context.getString(R.string.pref_export_failed, error.message ?: "Unknown error"),
+                  context.getString(R.string.pref_export_failed, error.message ?: context.getString(R.string.error_unknown)),
                   Toast.LENGTH_LONG,
                 ).show()
               },
@@ -136,7 +136,7 @@ object AdvancedPreferencesScreen : Screen {
               onFailure = { error ->
                 Toast.makeText(
                   context,
-                  context.getString(R.string.pref_import_failed, error.message ?: "Unknown error"),
+                  context.getString(R.string.pref_import_failed, error.message ?: context.getString(R.string.error_unknown)),
                   Toast.LENGTH_LONG,
                 ).show()
               },

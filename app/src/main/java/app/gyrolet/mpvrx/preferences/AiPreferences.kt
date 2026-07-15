@@ -13,7 +13,7 @@ enum class AiProvider(val displayName: String) {
   TOGETHER("Together"),
   DEEPSEEK("DeepSeek"),
   SILICONFLOW("SiliconFlow"),
-  LOCAL("Offline Model"),
+  LOCAL("离线模型"),
 }
 
 class AiPreferences(

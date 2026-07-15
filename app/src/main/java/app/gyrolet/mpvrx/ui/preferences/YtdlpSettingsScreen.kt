@@ -90,15 +90,17 @@ object YtdlpSettingsScreen : Screen {
             }
         }
 
+        val installedStr = stringResource(R.string.ytdlp_installed)
+        val notConfiguredStr = stringResource(R.string.ytdlp_not_configured)
         val ytdlpInfo = remember(hasYtdlp) {
             if (hasYtdlp) {
                 val size = try {
                     val f = File(ytdlDir, "yt-dlp")
                     if (f.exists()) " (${f.length() / 1024 / 1024} MB)" else ""
                 } catch (_: Exception) { "" }
-                "Installed$size"
+                "$installedStr$size"
             } else {
-                "Not Configured"
+                notConfiguredStr
             }
         }
 
@@ -390,7 +392,7 @@ object YtdlpSettingsScreen : Screen {
                         )
 
                         OptionDropdown(
-                            title = "Audio Quality",
+                            title = stringResource(R.string.ytdl_audio_quality_title),
                             value = audioQuality,
                             values = YtdlAudioQuality.entries,
                             valueLabel = { it.title },
@@ -401,7 +403,7 @@ object YtdlpSettingsScreen : Screen {
                         )
 
                         Text(
-                            text = "Bitrate caps apply when yt-dlp reports audio bitrate metadata.",
+                            text = stringResource(R.string.ytdl_bitrate_caps_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

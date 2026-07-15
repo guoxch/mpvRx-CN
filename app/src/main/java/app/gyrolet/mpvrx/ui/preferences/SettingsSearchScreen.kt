@@ -213,14 +213,14 @@ object SettingsSearchScreen : Screen {
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Search history",
+                                        text = stringResource(R.string.settings_search_history),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     IconButton(onClick = { clearSearchHistory() }) {
                                         Icon(
                                             imageVector = Icons.Default.Delete,
-                                            contentDescription = "Clear history",
+                                            contentDescription = stringResource(R.string.cd_clear_history),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
@@ -266,7 +266,7 @@ object SettingsSearchScreen : Screen {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Search suggestions",
+                                    text = stringResource(R.string.settings_search_suggestions),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )

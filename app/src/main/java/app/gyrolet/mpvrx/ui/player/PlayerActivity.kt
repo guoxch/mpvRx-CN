@@ -646,7 +646,7 @@ class PlayerActivity :
     // Extract fileName early so it's available when video loads
     fileName = getFileName(intent)
     if (fileName.isBlank()) {
-      fileName = intent.data?.lastPathSegment ?: "Unknown Video"
+      fileName = intent.data?.lastPathSegment ?: getString(R.string.unknown_video)
     }
     mediaIdentifier = getMediaIdentifier(intent, fileName)
 

@@ -83,6 +83,7 @@ import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.presentation.Screen
 import app.gyrolet.mpvrx.presentation.components.pullrefresh.PullRefreshBox
 import app.gyrolet.mpvrx.BuildConfig
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.browser.cards.VideoCard
 import app.gyrolet.mpvrx.ui.browser.cards.VideoCardUiConfig
 import app.gyrolet.mpvrx.ui.browser.components.BrowserBottomBar
@@ -315,7 +316,7 @@ data class VideoListScreen(
           onCopyClick = {
             val selectedPaths = selectionManager.getSelectedItems().map { it.path }.distinct()
             if (selectedPaths.isNotEmpty()) {
-              SafeClipboard.copyPlainText(context, "Selected paths", selectedPaths.joinToString("\n"))
+              SafeClipboard.copyPlainText(context, context.getString(R.string.clipboard_label_selected_paths), selectedPaths.joinToString("\n"))
             }
           },
           onPlayClick = { selectionManager.playSelected() },

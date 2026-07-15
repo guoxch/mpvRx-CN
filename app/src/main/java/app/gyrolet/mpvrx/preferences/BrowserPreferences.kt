@@ -166,7 +166,7 @@ enum class TreeFlattenDepth(
   Three(3, "3 levels"),
   Four(4, "4 levels"),
   Five(5, "5 levels"),
-  Unlimited(-1, "Unlimited"),
+  Unlimited(-1, "无限制"),
 }
 
 enum class MinimumAudioDuration(

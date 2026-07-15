@@ -1,6 +1,7 @@
 package app.gyrolet.mpvrx.ui.browser.folderlist
 
 import android.app.Application
+import app.gyrolet.mpvrx.R
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -330,7 +331,7 @@ class FolderListViewModel(
         
         if (!hasExistingData) {
           _isLoading.value = true
-          _scanStatus.value = "Scanning storage..."
+          _scanStatus.value = getApplication<android.app.Application>().getString(R.string.scan_status_scanning)
         }
 
         // Capture current state for comparison
@@ -343,7 +344,7 @@ class FolderListViewModel(
             onProgress = { count ->
               // Only show progress if we don't have existing data (silent refresh)
               if (!hasExistingData) {
-                _scanStatus.value = "Found $count folders..."
+                _scanStatus.value = getApplication<android.app.Application>().getString(R.string.scan_status_found_folders, count)
               }
             },
             forceFileSystemCheck = forceFileSystemCheck,
@@ -404,7 +405,7 @@ class FolderListViewModel(
 
         // PHASE 2: Background Enrichment (only if duration chip is enabled)
         _isEnriching.value = true
-        _scanStatus.value = "Processing metadata..."
+        _scanStatus.value = getApplication<android.app.Application>().getString(R.string.scan_status_processing_meta)
         
         val enrichedFolders = MetadataRetrieval.enrichFoldersIfNeeded(
             context = getApplication(),
@@ -412,7 +413,7 @@ class FolderListViewModel(
             browserPreferences = browserPreferences,
             metadataCache = metadataCache,
             onProgress = { processed, total ->
-               _scanStatus.value = "Processing metadata $processed/$total"
+               _scanStatus.value = getApplication<android.app.Application>().getString(R.string.scan_status_processing_meta_progress, processed, total)
             }
           )
 

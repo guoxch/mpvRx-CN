@@ -72,10 +72,10 @@ class NetworkBrowserViewModel(
             )
           }
           .onFailure { e ->
-            _error.value = e.message ?: "Unknown error"
+            _error.value = e.message ?: "未知错误"
           }
       } catch (e: Exception) {
-        _error.value = e.message ?: "Unknown error"
+        _error.value = e.message ?: "未知错误"
       } finally {
         _isLoading.value = false
       }
@@ -100,7 +100,7 @@ class NetworkBrowserViewModel(
         }
       } catch (e: Exception) {
         Log.e(TAG, "Error opening network media", e)
-        _error.value = e.message ?: "Unknown error"
+        _error.value = e.message ?: "未知错误"
       }
     }
   }
@@ -116,7 +116,7 @@ class NetworkBrowserViewModel(
         playVideoInternal(connection, file)
       } catch (e: Exception) {
         Log.e(TAG, "Error playing video", e)
-        _error.value = e.message ?: "Unknown error"
+        _error.value = e.message ?: "未知错误"
       }
     }
   }

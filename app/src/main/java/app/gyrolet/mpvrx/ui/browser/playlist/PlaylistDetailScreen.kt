@@ -56,6 +56,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.database.entities.PlaylistEntity
 import app.gyrolet.mpvrx.database.entities.PlaylistItemEntity
 import app.gyrolet.mpvrx.domain.media.model.Video
@@ -328,7 +329,7 @@ data class PlaylistDetailScreen(val playlistId: Int) : Screen {
             onCopyClick = {
               val selectedPaths = selectionManager.getSelectedItems().map { it.video.path }.distinct()
               if (selectedPaths.isNotEmpty()) {
-                SafeClipboard.copyPlainText(context, "Selected paths", selectedPaths.joinToString("\n"))
+                SafeClipboard.copyPlainText(context, context.getString(R.string.clipboard_label_selected_paths), selectedPaths.joinToString("\n"))
               }
             },
             onPlayClick = null, // Don't show play icon in selection mode for playlist

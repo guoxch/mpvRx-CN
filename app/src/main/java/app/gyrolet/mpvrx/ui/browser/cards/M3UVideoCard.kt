@@ -278,7 +278,7 @@ fun M3UVideoCard(
         IconButton(onClick = onFavoriteClick) {
           Icon(
             imageVector = Icons.Outlined.Bookmarks,
-            contentDescription = if (isFavorite) "Unsave stream" else "Save stream",
+            contentDescription = if (isFavorite) stringResource(R.string.cd_unsave_stream) else stringResource(R.string.cd_save_stream),
             tint = if (isFavorite) {
               MaterialTheme.colorScheme.primary
             } else {

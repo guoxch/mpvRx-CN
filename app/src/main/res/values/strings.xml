@@ -2169,4 +2169,38 @@
   <string name="codec_av1">AV1</string>
   <string name="codec_h265">H.265</string>
   <string name="codec_h264">H.264</string>
+
+  <!-- Phase 2 CN Localization - UI Text -->
+  <string name="settings_search_history">Search history</string>
+  <string name="settings_search_suggestions">Search suggestions</string>
+  <string name="cd_clear_history">Clear history</string>
+  <string name="sleep_timer_quick_presets">Quick Presets</string>
+  <string name="label_pinned">Pinned</string>
+  <string name="cd_save_stream">Save stream</string>
+  <string name="cd_unsave_stream">Unsave stream</string>
+  <string name="ytdl_bitrate_caps_hint">Bitrate caps apply when yt-dlp reports audio bitrate metadata.</string>
+
+  <!-- Phase 2 CN Localization - Toast / Status -->
+  <string name="scan_status_scanning">Scanning storage…</string>
+  <string name="scan_status_found_folders">Found %d folders…</string>
+  <string name="scan_status_processing_meta">Processing metadata…</string>
+  <string name="scan_status_processing_meta_progress">Processing metadata %1$d/%2$d</string>
+  <string name="media_info_default_filename">Media File</string>
+  <string name="player_controls_portrait_playback_buttons">Portrait playback buttons</string>
+
+  <!-- Phase 2 CN Localization - Network Error Messages -->
+  <string name="network_error_auth_failed">Authentication failed. Check username and password.</string>
+  <string name="network_error_share_not_exist">Share does not exist</string>
+  <string name="network_error_timeout">Connection timeout. Server not responding.</string>
+  <string name="proxy_error_stream_not_found">Stream not found</string>
+  <string name="proxy_error_size_unavailable">File size unavailable</string>
+  <string name="proxy_error_open_stream_failed">Failed to open stream</string>
+  <string name="proxy_error_range_invalid">Requested range not satisfiable</string>
+  <string name="clipboard_label_selected_paths">Selected paths</string>
+
+  <!-- Phase 2 CN Localization - Enum Display Names -->
+  <string name="enum_chapter_position_center">Center of screen</string>
+  <string name="enum_chapter_position_below_seekbar">Between seekbar and controls</string>
+  <string name="enum_ai_provider_offline">Offline Model</string>
+  <string name="enum_unlimited">Unlimited</string>
 </resources>

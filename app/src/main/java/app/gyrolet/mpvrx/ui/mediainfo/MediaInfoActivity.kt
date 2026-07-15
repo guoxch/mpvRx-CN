@@ -125,7 +125,8 @@ class MediaInfoActivity : ComponentActivity() {
     var error by remember { mutableStateOf<String?>(null) }
     var textContent by remember { mutableStateOf<String?>(null) }
     var fullMediaInfoText by remember { mutableStateOf<String?>(null) }
-    var fileName by remember { mutableStateOf("Media File") }
+    val defaultFileName = stringResource(R.string.media_info_default_filename)
+    var fileName by remember { mutableStateOf(defaultFileName) }
     var fileUri by remember { mutableStateOf<Uri?>(null) }
     var mediaInfo by remember { mutableStateOf<MediaInfoOps.MediaInfoData?>(null) }
 

@@ -251,7 +251,7 @@ object PlayerControlsPreferencesScreen : Screen {
                 onValueChange = { appearancePrefs.portraitPlaybackControlsPosition.set(it) },
                 values = PortraitPlaybackControlsPosition.entries,
                 valueToText = { AnnotatedString(it.displayName) },
-                title = { Text("Portrait playback buttons") },
+                title = { Text(stringResource(R.string.player_controls_portrait_playback_buttons)) },
                 summary = { Text(portraitPlaybackControlsPosition.displayName) },
               )
 

@@ -414,7 +414,7 @@ fun TimePickerDialog(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                "Quick Presets",
+                stringResource(R.string.sleep_timer_quick_presets),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 8.dp)

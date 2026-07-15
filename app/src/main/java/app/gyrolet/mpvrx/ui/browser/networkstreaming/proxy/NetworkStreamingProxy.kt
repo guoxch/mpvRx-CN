@@ -129,12 +129,12 @@ class NetworkStreamingProxy private constructor() : NanoHTTPD("127.0.0.1", 0) {
     // Extract stream ID from URI (format: /streamId)
     val streamId = uri.removePrefix("/").split("/").firstOrNull()
     if (streamId.isNullOrEmpty()) {
-      return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Stream not found")
+      return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "找不到流")
     }
 
     val streamInfo = activeStreams[streamId]
     if (streamInfo == null) {
-      return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Stream not found")
+      return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "找不到流")
     }
 
     // Handle range requests for seeking
@@ -179,7 +179,7 @@ class NetworkStreamingProxy private constructor() : NanoHTTPD("127.0.0.1", 0) {
       val response = newFixedLengthResponse(
         Response.Status.RANGE_NOT_SATISFIABLE,
         MIME_PLAINTEXT,
-        "File size unavailable",
+        "文件大小不可用",
       )
       response.addHeader("Content-Range", "bytes */*")
       return response
@@ -219,7 +219,7 @@ class NetworkStreamingProxy private constructor() : NanoHTTPD("127.0.0.1", 0) {
       return newFixedLengthResponse(
         Response.Status.INTERNAL_ERROR,
         MIME_PLAINTEXT,
-        "Failed to open stream",
+        "打开流失败",
       )
     }
 
@@ -242,7 +242,7 @@ class NetworkStreamingProxy private constructor() : NanoHTTPD("127.0.0.1", 0) {
     newFixedLengthResponse(
       Response.Status.RANGE_NOT_SATISFIABLE,
       MIME_PLAINTEXT,
-      "Requested range not satisfiable",
+      "请求的范围不满足",
     ).apply {
       addHeader("Content-Range", "bytes */$fileSize")
       addHeader("Accept-Ranges", "bytes")
@@ -263,7 +263,7 @@ class NetworkStreamingProxy private constructor() : NanoHTTPD("127.0.0.1", 0) {
       return newFixedLengthResponse(
         Response.Status.INTERNAL_ERROR,
         MIME_PLAINTEXT,
-        "Failed to open stream",
+        "打开流失败",
       )
     }
 

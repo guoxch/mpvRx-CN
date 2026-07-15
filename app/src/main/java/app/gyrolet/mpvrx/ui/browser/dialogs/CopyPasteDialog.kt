@@ -192,7 +192,7 @@ fun FileOperationProgressDialog(
 @Composable
 fun LoadingDialog(
   isOpen: Boolean,
-  message: String = "Loading...",
+  message: String = stringResource(R.string.dialog_loading),
   onDismissRequest: () -> Unit = {},
 ) {
   if (!isOpen) return

@@ -80,6 +80,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.gyrolet.mpvrx.BuildConfig
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.browser.FileSystemItem
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
@@ -581,7 +582,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                   }
                   .distinct()
               if (selectedPaths.isNotEmpty()) {
-                SafeClipboard.copyPlainText(context, "Selected paths", selectedPaths.joinToString("\n"))
+                SafeClipboard.copyPlainText(context, context.getString(R.string.clipboard_label_selected_paths), selectedPaths.joinToString("\n"))
               }
             },
             onPlayClick = {

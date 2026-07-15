@@ -204,20 +204,20 @@ class SmbClient(private val connection: NetworkConnection) : NetworkClient {
               if (e.message?.contains("STATUS_ACCESS_DENIED", ignoreCase = true) == true ||
                 e.message?.contains("Access is denied", ignoreCase = true) == true
               ) {
-                Result.failure<Unit>(Exception("Authentication failed. Check username and password."))
+                Result.failure<Unit>(Exception("认证失败。请检查用户名和密码。"))
               } else if (e.message?.contains("STATUS_OBJECT_NAME_NOT_FOUND", ignoreCase = true) == true ||
                 e.message?.contains("does not exist", ignoreCase = true) == true
               ) {
-                Result.failure<Unit>(Exception("Share does not exist"))
+                Result.failure<Unit>(Exception("共享不存在"))
               } else {
-                Result.failure<Unit>(Exception("Connection failed: ${e.message}"))
+                Result.failure<Unit>(Exception("连接失败: ${e.message}"))
               }
             }
           }
         } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-          Result.failure(Exception("Connection timeout. Server not responding."))
+          Result.failure(Exception("连接超时。服务器无响应。"))
         } catch (e: Exception) {
-          Result.failure(Exception("Connection failed: ${e.message ?: "Unknown error"}"))
+          Result.failure(Exception("连接失败: ${e.message ?: "未知错误"}"))
         }
 
         connectionResult

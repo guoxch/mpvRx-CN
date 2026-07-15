@@ -130,7 +130,7 @@ object AppearancePreferencesScreen : Screen {
                                             context,
                                             context.resources.getString(
                                                 R.string.pref_thumbnail_cache_clear_failed,
-                                                error.message ?: "Unknown error",
+                                                error.message ?: context.getString(R.string.error_unknown),
                                             ),
                                             Toast.LENGTH_LONG,
                                         ).show()

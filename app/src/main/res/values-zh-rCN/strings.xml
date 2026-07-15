@@ -2105,4 +2105,42 @@
   <string name="codec_av1">AV1</string>
   <string name="codec_h265">H.265</string>
   <string name="codec_h264">H.264</string>
+
+  <!-- Phase 2 CN Localization - UI Text -->
+  <string name="settings_search_history">搜索历史</string>
+  <string name="settings_search_suggestions">搜索建议</string>
+  <string name="cd_clear_history">清除历史</string>
+  <string name="sleep_timer_quick_presets">快速预设</string>
+  <string name="label_pinned">已固定</string>
+  <string name="cd_save_stream">收藏流</string>
+  <string name="cd_unsave_stream">取消收藏</string>
+  <string name="ytdl_bitrate_caps_hint">当 yt-dlp 报告音频比特率元数据时，比特率上限生效。</string>
+
+  <!-- Phase 2 CN Localization - Toast / Status -->
+  <string name="scan_status_scanning">正在扫描存储…</string>
+  <string name="scan_status_found_folders">找到 %d 个文件夹…</string>
+  <string name="scan_status_processing_meta">正在处理元数据…</string>
+  <string name="scan_status_processing_meta_progress">正在处理元数据 %1$d/%2$d</string>
+  <string name="media_info_default_filename">媒体文件</string>
+  <string name="player_controls_portrait_playback_buttons">竖屏播放按钮</string>
+
+  <!-- Phase 2 CN Localization - Network Error Messages -->
+  <string name="network_error_auth_failed">认证失败。请检查用户名和密码。</string>
+  <string name="network_error_share_not_exist">共享不存在</string>
+  <string name="network_error_timeout">连接超时。服务器无响应。</string>
+  <string name="proxy_error_stream_not_found">找不到流</string>
+  <string name="proxy_error_size_unavailable">文件大小不可用</string>
+  <string name="proxy_error_open_stream_failed">打开流失败</string>
+  <string name="proxy_error_range_invalid">请求的范围不满足</string>
+  <string name="clipboard_label_selected_paths">已选路径</string>
+
+  <!-- Phase 2 CN Localization - Enum Display Names -->
+  <string name="enum_chapter_position_center">屏幕中央</string>
+  <string name="enum_chapter_position_below_seekbar">进度条和控件之间</string>
+  <string name="enum_ai_provider_offline">离线模型</string>
+  <string name="enum_unlimited">无限制</string>
+
+  <!-- Missing Chinese translations for existing English keys -->
+  <string name="ytdl_audio_quality_title">yt-dlp 音频质量</string>
+  <string name="ytdl_audio_quality_reload_summary">用于下一个链接或重新加载当前链接时。</string>
 </resources>

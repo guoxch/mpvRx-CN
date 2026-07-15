@@ -440,6 +440,20 @@ class PlayerViewModel(
           ?: persistentListOf()
       }.stateIn(viewModelScope, SharingStarted.Lazily, persistentListOf())
 
+  val isAudioOnly: StateFlow<Boolean> =
+    MPVLib.propNode["track-list"]
+      .map { node ->
+        val tracks = node?.toObject<List<TrackNode>>(json).orEmpty()
+        tracks.any { it.isAudio } && tracks.none { it.isVideo && !it.isAlbumArtwork }
+      }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+  val hasAlbumArt: StateFlow<Boolean> =
+    MPVLib.propNode["track-list"]
+      .map { node ->
+        val tracks = node?.toObject<List<TrackNode>>(json).orEmpty()
+        tracks.any { it.isAlbumArtwork }
+      }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
   val chapters: StateFlow<List<dev.vivvvek.seeker.Segment>> =
     MPVLib.propNode["chapter-list"]
       .map { node ->
@@ -508,7 +522,6 @@ class PlayerViewModel(
   private var seekThumbnailWorkerJob: Job? = null
   private var seekThumbnailRequestId = 0L
   private var lastQueuedSeekThumbnailKey: String? = null
-  private var warmedSeekThumbnailSource: String? = null
 
   // Frame navigation
   private val _currentFrame = MutableStateFlow(0)
@@ -975,8 +988,6 @@ class PlayerViewModel(
   fun onVideoLoadStarted() {
     hideSeekThumbnailPreview()
     seekThumbnailCache.evictAll()
-    warmedSeekThumbnailSource = null
-    runCatching { MPVLib.clearThumbnailCache() }
     _videoOpenAnimationState.update {
       it.copy(
         loadToken = it.loadToken + 1,
@@ -993,7 +1004,6 @@ class PlayerViewModel(
         current
       }
     }
-    warmSeekThumbnailer()
   }
 
   private fun setupCustomButtons() {
@@ -2835,6 +2845,11 @@ class PlayerViewModel(
       return
     }
 
+    if (host.isCurrentMediaKnownAudio() || isAudioOnly.value) {
+      hideSeekThumbnailPreview()
+      return
+    }
+
     val clampedPosition =
       if (durationSeconds > 0f) {
         positionSeconds.coerceIn(0f, durationSeconds)
@@ -2922,6 +2937,8 @@ class PlayerViewModel(
   }
 
   fun hideSeekThumbnailPreview() {
+    seekThumbnailWorkerJob?.cancel()
+    seekThumbnailWorkerJob = null
     seekThumbnailRequestId++
     lastQueuedSeekThumbnailKey = null
     synchronized(seekThumbnailRequestLock) {
@@ -2933,19 +2950,6 @@ class PlayerViewModel(
         bitmap = null,
         isLoading = false,
       )
-    }
-  }
-
-  private fun warmSeekThumbnailer() {
-    if (!playerPreferences.useThumbFastSeekPreview.get()) return
-
-    val source = resolveSeekThumbnailSource() ?: return
-    if (source == warmedSeekThumbnailSource) return
-    warmedSeekThumbnailSource = source
-
-    viewModelScope.launch(seekThumbnailDispatcher) {
-      val currentPosition = runCatching { MPVLib.getPropertyDouble("time-pos") ?: 0.0 }.getOrDefault(0.0)
-      loadSeekThumbnail(source, seekThumbnailBucket(currentPosition.toFloat()), _preciseDuration.value)
     }
   }
 
@@ -3357,6 +3361,10 @@ class PlayerViewModel(
   // ==================== Screen Rotation ====================
 
   fun cycleScreenRotations() {
+    if (isAudioOnly.value) {
+      host.hostRequestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+      return
+    }
     // Temporarily cycle orientation WITHOUT modifying preferences
     // Preferences remain the single source of truth and will be reapplied on next video
     host.hostRequestedOrientation =

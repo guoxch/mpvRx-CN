@@ -123,7 +123,7 @@ object AiIntegrationScreen : Screen {
     val togetherKey by preferences.togetherApiKey.collectAsState()
     val deepseekKey by preferences.deepseekApiKey.collectAsState()
     val siliconflowKey by preferences.siliconflowApiKey.collectAsState()
-    val selectedModel by preferences.selectedModel.collectAsState()
+    val selectedModel by preferences.selectedModelFor(provider).collectAsState()
     val localModelId by preferences.localModelId.collectAsState()
     val localModelDownloaded by preferences.localModelDownloaded.collectAsState()
     val huggingfaceToken by preferences.huggingfaceToken.collectAsState()
@@ -164,13 +164,14 @@ object AiIntegrationScreen : Screen {
     val json = koinInject<Json>()
 
     fun loadModels() {
+      val requestedProvider = provider
       scope.launch {
         isLoadingModels = true
         modelLoadError = null
-        aiService.fetchModels()
+        aiService.fetchModelsForProvider(requestedProvider)
           .onSuccess { fetchedModels ->
-            models = fetchedModels
-            preferences.availableModels.set(json.encodeToString(
+            if (provider == requestedProvider) models = fetchedModels
+            preferences.availableModelsFor(requestedProvider).set(json.encodeToString(
               kotlinx.serialization.builtins.ListSerializer(AiModelInfo.serializer()),
               fetchedModels,
             ))
@@ -183,7 +184,8 @@ object AiIntegrationScreen : Screen {
     }
 
     LaunchedEffect(provider) {
-      val stored = preferences.availableModels.get()
+      models = emptyList()
+      val stored = preferences.availableModelsFor(provider).get()
       if (stored.isNotBlank() && stored != "[]") {
         try {
           models = json.decodeFromString(
@@ -254,7 +256,6 @@ object AiIntegrationScreen : Screen {
                   value = provider,
                   onValueChange = {
                     preferences.provider.set(it)
-                    preferences.selectedModel.set("")
                   },
                   values = providers,
                   valueToText = { androidx.compose.ui.text.AnnotatedString(it.displayName) },
@@ -680,7 +681,7 @@ object AiIntegrationScreen : Screen {
                         ModelSearchDialog(
                           models = models,
                           selectedModelId = selectedModel,
-                          onSelect = { preferences.selectedModel.set(it) },
+                          onSelect = { preferences.selectedModelFor(provider).set(it) },
                           onDismiss = { showModelDialog = false },
                         )
                       }
@@ -1352,17 +1353,8 @@ private fun SttModelSelector(
       } else {
         isLoadingStt = true
         scope.launch {
-          aiService.fetchModelsForProvider(sttProvider)
-            .onSuccess { allModels ->
-              val sttOnly = allModels.filter { model ->
-                model.id.contains("whisper", ignoreCase = true) ||
-                  model.id.contains("flash", ignoreCase = true) ||
-                  model.id.contains("SenseVoice", ignoreCase = true) ||
-                  model.id.contains("Speech", ignoreCase = true) ||
-                  model.id.contains("ASR", ignoreCase = true)
-              }.ifEmpty {
-                allModels.take(5)
-              }
+          aiService.fetchSpeechModelsForProvider(sttProvider)
+            .onSuccess { sttOnly ->
               cachedModels.value = sttOnly
               sttModels = sttOnly
               showDialog = true

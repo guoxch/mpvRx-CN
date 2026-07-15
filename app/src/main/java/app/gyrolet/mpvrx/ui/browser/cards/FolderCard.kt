@@ -71,6 +71,7 @@ fun FolderCard(
   onPinClick: (() -> Unit)? = null,
   thumbnail: ImageBitmap? = null,
   isDualPane: Boolean = false,
+  isActive: Boolean = false,
 ) {
   val appearancePreferences = koinInject<AppearancePreferences>()
   val browserPreferences = koinInject<BrowserPreferences>()
@@ -82,6 +83,7 @@ fun FolderCard(
   val showFolderPath by browserPreferences.showFolderPath.collectAsState()
   val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
   val showFolderThumbnails by browserPreferences.showFolderThumbnails.collectAsState()
+  val includeAudio by browserPreferences.includeAudioBrowser.collectAsState()
   val manualGridColumnsEnabled by browserPreferences.manualGridColumnsEnabled.collectAsState()
   val folderGridColumnsPortrait by browserPreferences.folderGridColumnsPortrait.collectAsState()
   val folderGridColumnsLandscape by browserPreferences.folderGridColumnsLandscape.collectAsState()
@@ -136,6 +138,8 @@ fun FolderCard(
   val selectionContainerColor =
     if (isSelected) {
       MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)
+    } else if (isActive) {
+      MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
     } else {
       Color.Transparent
     }
@@ -177,7 +181,7 @@ fun FolderCard(
     colors = CardDefaults.cardColors(containerColor = Color.Transparent),
   ) {
     Box(modifier = Modifier.fillMaxWidth()) {
-      if (isSelected) {
+      if (isSelected || isActive) {
         Box(
           modifier =
             Modifier
@@ -328,7 +332,13 @@ fun FolderCard(
 
           if (showTotalVideosChip && folder.videoCount > 0) {
             Text(
-              if (folder.videoCount == 1) "1 Video" else "${folder.videoCount} Videos",
+              if (includeAudio) {
+                if (folder.videoCount == 1) "1 Media item" else "${folder.videoCount} Media items"
+              } else if (folder.videoCount == 1) {
+                "1 Video"
+              } else {
+                "${folder.videoCount} Videos"
+              },
               style = MaterialTheme.typography.labelSmall,
               color = MaterialTheme.colorScheme. onSurfaceVariant,
             )
@@ -445,7 +455,13 @@ fun FolderCard(
               // Hide chips at storage root level (when videoCount is 0)
               if (showTotalVideosChip && folder.videoCount > 0) {
                 Text(
-                  if (folder.videoCount == 1) "1 Video" else "${folder.videoCount} Videos",
+                  if (includeAudio) {
+                    if (folder.videoCount == 1) "1 Media item" else "${folder.videoCount} Media items"
+                  } else if (folder.videoCount == 1) {
+                    "1 Video"
+                  } else {
+                    "${folder.videoCount} Videos"
+                  },
                   style = MaterialTheme.typography.labelSmall,
                   modifier =
                     Modifier

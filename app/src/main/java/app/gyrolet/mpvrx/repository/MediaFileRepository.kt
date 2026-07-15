@@ -12,6 +12,7 @@ import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.domain.media.model.VideoFolder
 import app.gyrolet.mpvrx.domain.playbackstate.repository.PlaybackStateRepository
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
+import app.gyrolet.mpvrx.preferences.BrowserPreferences
 import app.gyrolet.mpvrx.preferences.FoldersPreferences
 import app.gyrolet.mpvrx.utils.storage.FolderViewScanner
 import app.gyrolet.mpvrx.utils.storage.TreeViewScanner
@@ -19,6 +20,7 @@ import app.gyrolet.mpvrx.utils.storage.VideoScanUtils
 import app.gyrolet.mpvrx.utils.storage.StorageVolumeUtils
 import app.gyrolet.mpvrx.utils.storage.FileTypeUtils
 import app.gyrolet.mpvrx.utils.storage.MediaScanOptions
+import app.gyrolet.mpvrx.utils.storage.mediaPathKey
 import app.gyrolet.mpvrx.utils.media.MediaInfoOps
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -45,11 +47,14 @@ object MediaFileRepository : KoinComponent {
   private const val TAG = "MediaFileRepository"
   private val foldersPreferences: FoldersPreferences by inject()
   private val appearancePreferences: AppearancePreferences by inject()
+  private val browserPreferences: BrowserPreferences by inject()
   private val playbackStateRepository: PlaybackStateRepository by inject()
 
-  private fun currentScanOptions(): MediaScanOptions =
+  private fun currentScanOptions(includeAudioOverride: Boolean? = null): MediaScanOptions =
     MediaScanOptions(
       includeNoMediaFolders = foldersPreferences.includeNoMediaFolders.get(),
+      includeAudio = includeAudioOverride ?: browserPreferences.includeAudioBrowser.get(),
+      minimumAudioDurationSeconds = browserPreferences.minimumAudioDurationSeconds.get(),
     )
 
   private suspend fun getTreeViewNewBadgeParams(): Triple<Boolean, Int, Set<String>> {
@@ -87,10 +92,15 @@ object MediaFileRepository : KoinComponent {
   suspend fun getAllVideoFolders(
     context: Context,
     forceFileSystemCheck: Boolean = false,
+    includeAudioOverride: Boolean? = null,
   ): List<VideoFolder> =
     withContext(Dispatchers.IO) {
       try {
-        FolderViewScanner.getAllVideoFolders(context, currentScanOptions(), forceFileSystemCheck)
+        FolderViewScanner.getAllVideoFolders(
+          context,
+          currentScanOptions(includeAudioOverride),
+          forceFileSystemCheck,
+        )
       } catch (e: Exception) {
         Log.e(TAG, "Error scanning for video folders", e)
         emptyList()
@@ -129,10 +139,16 @@ object MediaFileRepository : KoinComponent {
     context: Context,
     bucketId: String,
     forceFileSystemCheck: Boolean = false,
+    includeAudioOverride: Boolean? = null,
   ): List<Video> =
     withContext(Dispatchers.IO) {
       try {
-        VideoScanUtils.getVideosInFolder(context, bucketId, currentScanOptions(), forceFileSystemCheck)
+        VideoScanUtils.getVideosInFolder(
+          context,
+          bucketId,
+          currentScanOptions(includeAudioOverride),
+          forceFileSystemCheck,
+        )
       } catch (e: Exception) {
         Log.e(TAG, "Error getting videos for bucket $bucketId", e)
         emptyList()
@@ -145,15 +161,40 @@ object MediaFileRepository : KoinComponent {
    */
   suspend fun getVideosForBuckets(
     context: Context,
-    bucketIds: Set<String>
+    bucketIds: Set<String>,
+    includeAudioOverride: Boolean? = null,
   ): List<Video> =
     withContext(Dispatchers.IO) {
-      val result = mutableListOf<Video>()
+      val result = linkedMapOf<String, Video>()
       for (id in bucketIds) {
-        runCatching { result += getVideosInFolder(context, id) }
+        runCatching {
+          getVideosInFolder(
+            context,
+            id,
+            includeAudioOverride = includeAudioOverride,
+          ).forEach { media ->
+            val key = mediaPathKey(media.path) ?: media.path
+            val existing = result[key]
+            if (existing == null || shouldReplaceMedia(existing, media)) {
+              result[key] = media
+            }
+          }
+        }
       }
-      result
+      result.values.toList()
     }
+
+  private fun shouldReplaceMedia(existing: Video, candidate: Video): Boolean {
+    val extensionIsAudio = FileTypeUtils.isAudioFile(File(candidate.path))
+    val existingClassificationIsCorrect = existing.isAudio == extensionIsAudio
+    val candidateClassificationIsCorrect = candidate.isAudio == extensionIsAudio
+    if (existingClassificationIsCorrect != candidateClassificationIsCorrect) {
+      return candidateClassificationIsCorrect
+    }
+    if ((existing.duration > 0L) != (candidate.duration > 0L)) return candidate.duration > 0L
+    if ((existing.size > 0L) != (candidate.size > 0L)) return candidate.size > 0L
+    return candidate.dateModified > existing.dateModified
+  }
 
   /**
    * Creates Video objects from a list of files
@@ -297,11 +338,14 @@ object MediaFileRepository : KoinComponent {
     )
   }
 
-  suspend fun getAllVideos(context: Context): List<Video> =
+  suspend fun getAllVideos(
+    context: Context,
+    includeAudioOverride: Boolean? = null,
+  ): List<Video> =
     withContext(Dispatchers.IO) {
-      val folders = getAllVideoFolders(context)
+      val folders = getAllVideoFolders(context, includeAudioOverride = includeAudioOverride)
       val bucketIds = folders.map { it.bucketId }.toSet()
-      getVideosForBuckets(context, bucketIds)
+      getVideosForBuckets(context, bucketIds, includeAudioOverride)
     }
 
   // =============================================================================
@@ -378,6 +422,7 @@ object MediaFileRepository : KoinComponent {
             playedMediaTitles = playedMediaTitles,
             showNewLabels = showNewLabels,
             thresholdDays = thresholdDays,
+            maxAutoFlattenLevels = browserPreferences.treeFlattenDepth.get().maxLevels,
           )
         folders.forEach { folderData ->
           items.add(

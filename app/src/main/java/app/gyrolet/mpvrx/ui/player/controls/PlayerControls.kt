@@ -116,6 +116,7 @@ import app.gyrolet.mpvrx.preferences.AiPreferences
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.AudioPreferences
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
+import app.gyrolet.mpvrx.preferences.PortraitPlaybackControlsPosition
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.preferences.preference.deleteAndGet
 import app.gyrolet.mpvrx.preferences.preference.plusAssign
@@ -195,6 +196,8 @@ fun PlayerControls(
   val aiEnabled by aiPreferences.enabled.collectAsState()
   val realtimeSubsEnabled by aiPreferences.realtimeSubsEnabled.collectAsState()
   val hideBackground by appearancePreferences.hidePlayerButtonsBackground.collectAsState()
+  val portraitPlaybackControlsPosition by
+    appearancePreferences.portraitPlaybackControlsPosition.collectAsState()
   val playerPreferences = koinInject<PlayerPreferences>()
   val audioPreferences = koinInject<AudioPreferences>()
   val showSystemStatusBar by playerPreferences.showSystemStatusBar.collectAsState()
@@ -265,6 +268,7 @@ fun PlayerControls(
   val currentSkippableSegment by viewModel.currentSkippableSegment.collectAsState()
   val showSkipChipAuto by viewModel.showSkipChipAuto.collectAsState()
   val playlistMode by playerPreferences.playlistMode.collectAsState()
+  val playlistItems by viewModel.playlistItems.collectAsState()
     val haptic = LocalHapticFeedback.current
 
     val customButtons by viewModel.customButtons.collectAsState()
@@ -722,7 +726,7 @@ fun PlayerControls(
                 app.gyrolet.mpvrx.ui.player.RepeatMode.OFF -> "Repeat: Off"
                 app.gyrolet.mpvrx.ui.player.RepeatMode.ONE -> "Repeat: Current file"
                 app.gyrolet.mpvrx.ui.player.RepeatMode.ALL -> {
-                  if (playlistMode && viewModel.hasPlaylistSupport()) {
+                  if (playlistMode && playlistItems.isNotEmpty()) {
                     "Repeat: All playlist"
                   } else {
                     "Repeat: Current file"
@@ -735,7 +739,7 @@ fun PlayerControls(
             is PlayerUpdates.Shuffle -> {
               val enabled = (currentPlayerUpdate as PlayerUpdates.Shuffle).enabled
               val text = if (enabled) {
-                if (playlistMode && viewModel.hasPlaylistSupport()) {
+                if (playlistMode && playlistItems.isNotEmpty()) {
                   "Shuffle: On"
                 } else {
                   "Shuffle: Not available"
@@ -1065,10 +1069,14 @@ fun PlayerControls(
           exit = fadeOut(playerControlsExitAnimationSpec()),
           modifier =
             Modifier.constrainAs(playerPauseButton) {
-              end.linkTo(parent.absoluteRight)
               start.linkTo(parent.absoluteLeft)
-              top.linkTo(parent.top)
-              bottom.linkTo(parent.bottom)
+              end.linkTo(parent.absoluteRight)
+              if (isPortrait && portraitPlaybackControlsPosition == PortraitPlaybackControlsPosition.BelowSeekbar) {
+                bottom.linkTo(bottomRightControls.top, spacing.small)
+              } else {
+                top.linkTo(parent.top)
+                bottom.linkTo(parent.bottom)
+              }
             },
         ) {
           val showLoadingCircle by playerPreferences.showLoadingCircle.collectAsState()
@@ -1089,7 +1097,7 @@ fun PlayerControls(
                   1.0f to Color.Transparent,
                 )
 
-              if (playlistMode && viewModel.hasPlaylistSupport()) {
+              if (playlistMode && playlistItems.isNotEmpty()) {
                 androidx.compose.foundation.layout.Row(
                   horizontalArrangement = Arrangement.spacedBy(24.dp),
                   verticalAlignment = Alignment.CenterVertically,
@@ -1312,7 +1320,11 @@ fun PlayerControls(
               )
               .constrainAs(seekbar) {
                 if (isPortrait) {
-                  bottom.linkTo(bottomRightControls.top, spacing.medium)
+                  if (portraitPlaybackControlsPosition == PortraitPlaybackControlsPosition.BelowSeekbar) {
+                    bottom.linkTo(playerPauseButton.top, spacing.small)
+                  } else {
+                    bottom.linkTo(bottomRightControls.top, spacing.medium)
+                  }
                 } else {
                   bottom.linkTo(parent.bottom, spacing.medium)
                 }

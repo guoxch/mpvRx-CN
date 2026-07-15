@@ -114,7 +114,7 @@ class SiliconFlowClient(
     instruction: String,
     userInput: String,
     options: AiGenerationOptions,
-  ): Result<String> = withContext(Dispatchers.IO) {
+  ): Result<AiGeneratedContent> = withContext(Dispatchers.IO) {
     runCatching {
       val chatRequest = SiliconFlowChatRequest(
         model = model,
@@ -143,8 +143,9 @@ class SiliconFlowClient(
       }
 
       val parsed = json.decodeFromString<SiliconFlowResponse>(body)
-      parsed.choices?.firstOrNull()?.message?.content
+      val text = parsed.choices?.firstOrNull()?.message?.content
         ?: throw Exception("SiliconFlow returned empty response")
+      AiGeneratedContent(text = text)
     }
   }
 

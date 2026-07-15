@@ -2,6 +2,105 @@
 
 These notes are written in plain English and focus on what changed for real use.
 
+## 1.5.0-preview.4 — Preview Release
+
+### Playback Lifecycle & Background Playback
+- **One background playback switch**: Audio preferences and the player background button now control the same persistent setting for both audio and video.
+- **Reliable screen lock and unlock handling**: Playback now follows the selected background policy across screen-off, lock-screen, unlock, and resume transitions without losing the prior play state.
+- **PiP lifecycle coordination**: Picture-in-picture transitions, PiP dismissal, screen locking while in PiP, and activity teardown now share one lifecycle policy instead of competing playback paths.
+- **Foreground service cleanup**: Disabling background playback immediately pauses playback and stops its foreground service and notification.
+- **Preference migration**: Existing users who enabled the legacy audio-only screen-lock option are migrated to the unified background playback setting.
+
+### Media Library & Audio Browsing
+- **Preference-aware media switch**: The Video/Audio selector appears only when audio browsing is enabled, remembers the selected library type, and resets to Video when audio browsing is disabled.
+- **Complete audio playlists**: Audio launches now populate the active playlist so previous and next controls update and navigate correctly.
+- **Square audio artwork**: Audio thumbnails use a square presentation in both grid and list cards while video thumbnails remain 16:9.
+- **Audio-safe editing**: Video compression actions are hidden for audio selections and guarded from opening with audio files.
+
+### Player Polish
+- **Rounded streaming cache indicator**: Buffered seekbar progress is clipped to the same pill-shaped ends as the normal seek track.
+- **Smoother natural visualizer**: Higher-rate spectrum capture, tuned frequency envelopes, frame-time-aware interpolation, and responsive beat decay make the audio blob react fluidly without harsh jumps.
+
+### AI Providers & Smart Tools
+- **Current provider protocols**: OpenAI, Anthropic, Groq, OpenRouter, Together, and OpenCode Zen requests now follow their current API shapes; OpenCode models are routed through Responses, Messages, Gemini, or Chat Completions as required.
+- **Resilient response parsing**: Text, multipart content, reasoning blocks, citations, provider errors, and both object- and array-based model lists are parsed without relying on one rigid response schema.
+- **Thinking-model rename fixes**: AI rename and subtitle-title output now discard reasoning and code fences, accept structured JSON fields, preserve extensions, and reject empty or unsafe names.
+- **Provider-specific model memory**: Each provider keeps its own selected model and cached model list, preventing stale selections when switching services.
+- **Correct speech endpoints**: Groq and OpenAI use supported transcription models, while OpenRouter speech requests use its current base64 JSON audio format.
+
+## 1.5.0-preview.3 — Preview Release
+
+### Playback Hotfix
+- **Audio and video transitions rebuilt**: Every item is loaded with file-local video-track selection, preventing audio state from producing a black screen on the next video.
+- **Reliable next-item playback**: Runtime navigation now sends an actual mpv `loadfile` replacement and clears the previous EOF pause state.
+- **Preference-safe EOF handling**: Autoplay, Repeat One, Repeat All, Shuffle, playlist mode, and close-at-end now behave consistently, including very short audio files.
+- **Safe seeking**: Audio never enters the native video-thumbnail path, and video thumbnails are generated only on demand while scrubbing—not automatically during file load.
+- **Separated render surfaces**: The blob surface is mounted only for media independently identified as audio, preventing it from covering video during track-list transitions.
+- **True beat response**: With audio-capture permission, real FFT data exclusively drives the blob; brightness and bloom are reduced while bass onsets pulse more clearly.
+
+### 🔊 Audio Blob Visualizer
+- **OpenGL ES 3.0 blob visualizer** — when playing audio without cover art, a reactive 3D blob appears behind the player controls. The blob morphs, pulses, and shifts color based on audio energy with a bloom/glow post-process.
+- **Touch rotation**: Drag the blob to rotate it in 3D.
+- **Pinch zoom fixed**: The blob now properly shrinks/enlarges when pinching — `pinchScaleFromRenderer()` was hardcoded to always return `1f`, resetting zoom on every new gesture.
+- **Smaller default size**: Camera distance increased so the blob fits cleanly within screen bounds instead of nearly filling the height.
+- **Audio Preferences toggle**: New "Audio blob visualizer" switch in Settings > Audio to enable or disable it.
+- **Audio filter setting moved**: Audio filter (compressor/equalizer) options now live in Audio Preferences instead of the player's MoreSheet.
+
+### 🎬 yt-dlp Changes
+- **Audio quality preferences**: Independent bitrate caps for `Auto`, 64, 128, 192, and 256 kbps — composed with existing codec, resolution, FPS, HDR, and container selectors.
+- **Serialized URL loading**: Initial and replacement URL loads now use one cancellable serialized job, preventing overlapping libmpv commands when links are pasted rapidly.
+- **Graceful error recovery**: Recoverable URL load failures return to the player UI with an error message instead of escaping to the process-wide crash handler.
+- **Audio quality removed from MoreSheet**: yt-dlp audio quality selector moved from the player's MoreSheet to yt-dlp settings.
+
+### 📻 Audio Browsing
+- **MediaStore + filesystem discovery** for common audio formats, neutral media counts, audio MIME mapping, and Android 13 `READ_MEDIA_AUDIO` permission handling.
+- **Audio cards** show metadata titles, embedded cover artwork when available (via `audio-display=embedded-first`), and a music-note fallback icon.
+- **Portrait-only playback** — audio files force sensor-portrait orientation and prevent the rotation action from switching back to landscape.
+- **Sibling playlist includes audio** — when "Include audio" is on, the next/previous track list includes audio files from the same folder.
+- **Audio icon placeholder fix**: Exported icon now displays correctly for audio files without cover art.
+- **Audio pitch correction fix**: Pitch correction no longer persists when switching to a new video — resets to default per-file.
+- **Audio autoplay race condition fixed**: Eliminated a race condition that could cause audio files to fail starting playback.
+
+### 🌐 Network & External Playback
+- **WebDAV PROPFIND fix**: Connection checks now use a depth-zero `PROPFIND` request instead of Sardine's `HEAD`-based `exists()` call, making it work with servers like FileBrowser Quantum that reject `HEAD` on DAV collections.
+- **WebDAV trailing slash**: Collection URLs consistently keep a trailing slash during validation and browsing.
+- **External-player discovery**: Added a MIME-only intent filter so external-player pickers can find mpvRx before attaching the final video or audio URI.
+- **More protocol support**: Added `gopher://`, `sctp://`, and `data://` to network stream detection and intent filters.
+- **Stream compatibility improved**: Better handling of edge-case media streams and improved browsing reliability.
+
+### 🌲 Tree View Navigation
+- **Configurable path compression**: New `Off`, 1–5, and `Unlimited` choices for single-child folder flattening. Applied independently per navigation step, preserving predictable physical paths. Tree View refreshes instantly when the depth changes.
+
+### 🎨 Icon Consistency
+- Converted all three `painterResource(R.drawable.ic_material_symbols_check)` usages to `Icons.Default.Check` through the app's `AppIcon` / `Icon` system.
+- `SectionHeader.leadingIcon` and `CompactExpressiveIconButton.imageVector` now accept `AppIcon` instead of raw `ImageVector`, keeping everything on the unified icon pipeline.
+
+### 🔊 Audio Playback Runtime Fixes
+- **`local_media_path` extra**: Internal launches now pass the resolved filesystem path alongside the content URI, giving mpv a reliable fallback when `content://` URIs fail.
+- **Serialized load dispatcher**: Added a dedicated `Dispatchers.Default.limitedParallelism(1)` dispatcher for media loading — prevents race conditions when queuing multiple load commands.
+- **`vid=auto` before playback**: Non-M3U file loads explicitly reset the video track to auto before loading, avoiding "no video track" state from previous audio-only plays.
+- **`audio-display=embedded-first`**: Enabled MPV's embedded cover art rendering for audio files.
+- **Orientation on audio launch**: `setOrientation()` checks `isKnownAudioLaunch()` immediately, before the track-list event settles — fixes the black-screen + landscape glitch on audio start.
+- **Subtitle "Off" option**: Added an explicit "Off" choice in the player subtitle sheet so users can disable subtitles without cycling through all tracks.
+
+### 🗑️ Folder Deletion Behavior
+- **Media-only deletion (default)**: Deleting a folder now only removes audio/video files — other files (images, logs, documents) are left untouched.
+- **"Delete folder + all contents" toggle**: New option in Appearance Settings > File Browser to switch back to full recursive deletion when needed.
+- **Album View cleanup fix**: Fixed an issue where the last video file in a folder was deleted but the empty folder remained.
+
+### 📱 Tablet & Display
+- **Dynamic refresh rate**: The player can now dynamically adjust the display refresh rate to match the video frame rate for smoother playback.
+- **Dual-pane navigation fix**: Resolved a state leak that could cause crashes when navigating in tablet dual-pane mode.
+- **Dual-pane settings button hidden**: The redundant settings button is no longer shown in dual-pane mode on tablets.
+- **Folder card height fix**: Manual grid column counts now align properly with folder card heights in dual-pane layout.
+
+### 🔍 Settings Search
+- **Search history**: Recently searched terms are saved and displayed for quick re-selection.
+- **Search suggestions**: The search field now shows contextual suggestions as you type.
+- **Reflection-based fallback**: Settings search can dynamically discover settings via reflection when static indices are incomplete.
+
+
+
 ## 1.5.0-preview.2 — Preview Release
 
 ### 📦 MpvLib Update

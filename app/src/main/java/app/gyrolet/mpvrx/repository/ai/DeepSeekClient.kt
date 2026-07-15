@@ -121,7 +121,7 @@ class DeepSeekClient(
     instruction: String,
     userInput: String,
     options: AiGenerationOptions,
-  ): Result<String> = withContext(Dispatchers.IO) {
+  ): Result<AiGeneratedContent> = withContext(Dispatchers.IO) {
     runCatching {
       val chatRequest = DeepSeekChatRequest(
         model = model,
@@ -150,8 +150,9 @@ class DeepSeekClient(
       }
 
       val parsed = json.decodeFromString<DeepSeekResponse>(body)
-      parsed.choices?.firstOrNull()?.message?.content
+      val text = parsed.choices?.firstOrNull()?.message?.content
         ?: throw Exception("DeepSeek returned empty response")
+      AiGeneratedContent(text = text)
     }
   }
 

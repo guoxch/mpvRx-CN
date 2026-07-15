@@ -123,6 +123,7 @@ import app.gyrolet.mpvrx.utils.history.RecentlyPlayedOps
 import app.gyrolet.mpvrx.utils.media.MediaUtils
 import app.gyrolet.mpvrx.utils.media.MediaSearchEngine
 import app.gyrolet.mpvrx.utils.permission.PermissionUtils
+import app.gyrolet.mpvrx.utils.storage.FileTypeUtils
 import app.gyrolet.mpvrx.utils.sort.SortUtils
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionStatus
@@ -272,18 +273,42 @@ object FolderListScreen : Screen {
     suspend fun deleteFolders(folders: List<VideoFolder>): Pair<Int, Int> {
       var deleted = 0
       var failed = 0
+      val deleteAll = browserPreferences.deleteFolderAllContents.get()
+      val includeAudio = browserPreferences.includeAudioBrowser.get()
       for (folder in folders) {
         try {
-          val ids = setOf(folder.bucketId)
-          val videos = app.gyrolet.mpvrx.repository.MediaFileRepository.getVideosForBuckets(context, ids)
-          if (videos.isNotEmpty()) {
-            val (d, f) = viewModel.deleteVideos(videos)
-            deleted += d
-            failed += f
-          }
-          val dir = java.io.File(folder.path)
-          if (dir.exists()) {
-            if (dir.deleteRecursively()) {
+          if (deleteAll) {
+            val ids = setOf(folder.bucketId)
+            val videos = app.gyrolet.mpvrx.repository.MediaFileRepository.getVideosForBuckets(context, ids)
+            if (videos.isNotEmpty()) {
+              val (d, f) = viewModel.deleteVideos(videos)
+              deleted += d
+              failed += f
+            }
+            val dir = java.io.File(folder.path)
+            if (dir.exists()) {
+              if (dir.deleteRecursively()) {
+                deleted++
+              } else {
+                failed++
+              }
+            }
+          } else {
+            var deletedAny = false
+            val dir = java.io.File(folder.path)
+            if (dir.exists()) {
+              dir.listFiles()?.forEach { file ->
+                if (file.isFile) {
+                  val ext = file.extension.lowercase()
+                  val isVideo = ext in FileTypeUtils.VIDEO_EXTENSIONS
+                  val isAudio = includeAudio && ext in FileTypeUtils.AUDIO_EXTENSIONS
+                  if (isVideo || isAudio) {
+                    if (file.delete()) deletedAny = true
+                  }
+                }
+              }
+            }
+            if (deletedAny) {
               deleted++
             } else {
               failed++
@@ -1079,6 +1104,8 @@ private fun GridContent(
           .find { it.folder.bucketId == folder.bucketId }
           ?.newVideoCount ?: 0
 
+        val isActive = isDualPaneActive && folder.bucketId == selectedFolderBucketId
+
         FolderCard(
           folder = folder,
           isSelected = selectionManager.isSelected(folder),
@@ -1100,6 +1127,7 @@ private fun GridContent(
               null
             },
           isDualPane = isDualPane,
+          isActive = isActive,
         )
       }
     }
@@ -1137,6 +1165,12 @@ private fun ListContent(
   onTogglePin: (VideoFolder) -> Unit,
   selectedFolderBucketId: String? = null,
 ) {
+  val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+  val isTablet = configuration.smallestScreenWidthDp >= 600
+  val browserPreferences = org.koin.compose.koinInject<app.gyrolet.mpvrx.preferences.BrowserPreferences>()
+  val dualPaneForTablet by browserPreferences.dualPaneForTablet.collectAsState()
+  val isDualPaneActive = isTablet && dualPaneForTablet
+
   Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
       state = listState,
@@ -1156,6 +1190,8 @@ private fun ListContent(
         val newCount = foldersWithNewCount
           .find { it.folder.bucketId == folder.bucketId }
           ?.newVideoCount ?: 0
+
+        val isActive = isDualPaneActive && folder.bucketId == selectedFolderBucketId
 
         FolderCard(
           folder = folder,
@@ -1196,6 +1232,8 @@ private fun ListContent(
             } else {
               null
             },
+          isDualPane = isDualPaneActive && selectedFolderBucketId != null,
+          isActive = isActive,
         )
       }
     }

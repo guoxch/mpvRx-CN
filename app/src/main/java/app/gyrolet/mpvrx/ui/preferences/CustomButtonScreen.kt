@@ -1,5 +1,6 @@
 package app.gyrolet.mpvrx.ui.preferences
 
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.editor.MpvHelpScreen
@@ -42,7 +43,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -87,9 +87,7 @@ import java.io.File
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import app.gyrolet.mpvrx.presentation.Screen
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
 import app.gyrolet.mpvrx.ui.utils.popSafely
 import kotlinx.serialization.Serializable
@@ -670,7 +668,7 @@ fun ButtonSlotCard(
                             }
                             IconButton(onClick = { dismissAndSave() }) {
                                 Icon(
-                                    painter = painterResource(R.drawable.ic_material_symbols_check),
+                                    imageVector = Icons.Default.Check,
                                     contentDescription = context.getString(R.string.cd_done),
                                     tint = MaterialTheme.colorScheme.primary,
                                 )

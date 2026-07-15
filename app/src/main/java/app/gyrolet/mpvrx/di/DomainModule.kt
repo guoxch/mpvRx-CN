@@ -22,6 +22,7 @@ import app.gyrolet.mpvrx.repository.ai.LocalAiClient
 import app.gyrolet.mpvrx.repository.ai.ModelDownloadManager
 import app.gyrolet.mpvrx.repository.ai.OpenAiClient
 import app.gyrolet.mpvrx.repository.ai.OpenRouterClient
+import app.gyrolet.mpvrx.repository.ai.OpenRouterSpeechClient
 import app.gyrolet.mpvrx.repository.ai.RealtimeSubtitleService
 import app.gyrolet.mpvrx.repository.ai.SubtitleGenerationService
 import app.gyrolet.mpvrx.repository.ai.TogetherClient
@@ -110,6 +111,7 @@ val domainModule = module {
     single { DeepSeekClient(get(), get()) }
     single { SiliconFlowClient(get(), get()) }
     single { GroqSpeechClient(get(), get()) }
+    single { OpenRouterSpeechClient(get(), get()) }
     single<app.gyrolet.mpvrx.repository.ai.LlmInference> { app.gyrolet.mpvrx.repository.ai.LlamaCppInference() }
     single<AiClient>(named("opencode")) { OpenCodeClient(get(), get()) }
     single<AiClient>(named("groq")) { GroqClient(get(), get()) }
@@ -121,8 +123,8 @@ val domainModule = module {
     single<AiClient>(named("siliconflow")) { SiliconFlowClient(get(), get()) }
     single { LocalAiClient(get()) }
     single { ModelDownloadManager(get()) }
-    single { SubtitleGenerationService(androidContext(), get(), get(), get(), get()) }
-    single { RealtimeSubtitleService(androidContext(), get(), get(), get(), get()) }
+    single { SubtitleGenerationService(androidContext(), get(), get(), get(), get(), get()) }
+    single { RealtimeSubtitleService(androidContext(), get(), get(), get(), get(), get()) }
     single {
         AiService(
             androidContext(),

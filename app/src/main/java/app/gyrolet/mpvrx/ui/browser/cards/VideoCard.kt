@@ -123,6 +123,8 @@ fun VideoCard(
   val showDurationField = resolvedUiConfig.showDurationField
   val displayName = if (resolvedUiConfig.showExtensionField) {
     video.displayName
+  } else if (video.isAudio && video.title.isNotBlank()) {
+    video.title
   } else {
     video.displayName.substringBeforeLast('.')
   }
@@ -181,7 +183,7 @@ fun VideoCard(
         ) {
         val thumbnailRepository = koinInject<ThumbnailRepository>()
         val thumbWidthDp = 160.dp
-        val aspect = 16f / 9f
+        val aspect = if (video.isAudio) 1f else 16f / 9f
         val thumbWidthPx = with(LocalDensity.current) { thumbWidthDp.roundToPx() }
         val thumbHeightPx = (thumbWidthPx / aspect).roundToInt()
 
@@ -240,7 +242,7 @@ fun VideoCard(
               )
             } ?: run {
               Icon(
-                Icons.Filled.PlayArrow,
+                if (video.isAudio) Icons.Default.Audiotrack else Icons.Filled.PlayArrow,
                 contentDescription = stringResource(R.string.cd_play),
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.secondary,
@@ -248,7 +250,7 @@ fun VideoCard(
             }
           } else {
             Icon(
-              Icons.Filled.PlayArrow,
+              if (video.isAudio) Icons.Default.Audiotrack else Icons.Filled.PlayArrow,
               contentDescription = stringResource(R.string.cd_play),
               modifier = Modifier.size(48.dp),
               tint = MaterialTheme.colorScheme.secondary,
@@ -366,12 +368,13 @@ fun VideoCard(
             }
           },
         )
-        Spacer(modifier = Modifier.height(4.dp))
-        FlowRow(
-          horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
-          verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)
-        ) {
-            if (showSubtitleIndicator) {
+        if (gridColumns == 1) {
+          Spacer(modifier = Modifier.height(4.dp))
+          FlowRow(
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)
+          ) {
+            if (showSubtitleIndicator && !video.isAudio) {
               if (video.hasEmbeddedSubtitles && video.subtitleCodec.isNotBlank()) {
                 video.subtitleCodec.split(" ").forEach { codec ->
                   Text(
@@ -391,7 +394,7 @@ fun VideoCard(
             val fpsOnly = video.resolution.substringAfter("@", "")
             val hasFps = fpsOnly.isNotEmpty()
             
-            if (showResolutionChip) {
+            if (showResolutionChip && !video.isAudio) {
               if (video.resolution != "--") {
                  val displayResolution = if (showFramerateInResolution) {
                    video.resolution
@@ -426,8 +429,9 @@ fun VideoCard(
             }
             
             if (showDateChip && video.dateModified > 0) {
+              val dateText = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault()).format(java.util.Date(video.dateModified * 1000))
               Text(
-                formatDate(video.dateModified),
+                text = dateText,
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier
                   .background(
@@ -440,6 +444,7 @@ fun VideoCard(
             }
           }
         }
+        }
       } else {
         Row(
           modifier =
@@ -449,9 +454,9 @@ fun VideoCard(
           verticalAlignment = Alignment.CenterVertically,
         ) {
         val thumbnailRepository = koinInject<ThumbnailRepository>()
-        // Rectangular thumbnail (16:9) with fixed width; height derives from aspect ratio
+        // Audio artwork is square; video thumbnails retain their 16:9 presentation.
         val thumbWidthDp = 128.dp
-        val aspect = 16f / 9f
+        val aspect = if (video.isAudio) 1f else 16f / 9f
         val thumbWidthPx = with(LocalDensity.current) { thumbWidthDp.roundToPx() }
         val thumbHeightPx = (thumbWidthPx / aspect).roundToInt()
 
@@ -513,7 +518,7 @@ fun VideoCard(
               )
             } ?: run {
               Icon(
-                Icons.Filled.PlayArrow,
+                if (video.isAudio) Icons.Default.Audiotrack else Icons.Filled.PlayArrow,
                 contentDescription = stringResource(R.string.cd_play),
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.secondary,
@@ -521,7 +526,7 @@ fun VideoCard(
             }
           } else {
             Icon(
-              Icons.Filled.PlayArrow,
+              if (video.isAudio) Icons.Default.Audiotrack else Icons.Filled.PlayArrow,
               contentDescription = stringResource(R.string.cd_play),
               modifier = Modifier.size(48.dp),
               tint = MaterialTheme.colorScheme.secondary,
@@ -645,7 +650,7 @@ fun VideoCard(
             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
             verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)
           ) {
-            if (showSubtitleIndicator) {
+            if (showSubtitleIndicator && !video.isAudio) {
               if (video.hasEmbeddedSubtitles && video.subtitleCodec.isNotBlank()) {
                 video.subtitleCodec.split(" ").forEach { codec ->
                   Text(
@@ -666,7 +671,7 @@ fun VideoCard(
             val fpsOnly = video.resolution.substringAfter("@", "")
             val hasFps = fpsOnly.isNotEmpty()
 
-            if (showResolutionChip) {
+            if (showResolutionChip && !video.isAudio) {
               if (video.resolution != "--") {
                 val displayResolution = if (showFramerateInResolution) {
                   video.resolution
@@ -704,8 +709,9 @@ fun VideoCard(
             }
             
             if (showDateChip && video.dateModified > 0) {
+              val dateText = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault()).format(java.util.Date(video.dateModified * 1000))
               Text(
-                formatDate(video.dateModified),
+                text = dateText,
                 style = MaterialTheme.typography.labelSmall,
                 modifier =
                   Modifier
@@ -719,17 +725,11 @@ fun VideoCard(
             }
           }
         }
-        }
       }
     }
   }
 }
-
-private fun formatDate(timestampSeconds: Long): String {
-  val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
-  return sdf.format(java.util.Date(timestampSeconds * 1000))
 }
-
 
 
 

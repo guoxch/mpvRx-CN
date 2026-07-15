@@ -7,6 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,10 +20,14 @@ import androidx.compose.material3.Icon
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
@@ -54,6 +59,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.gyrolet.mpvrx.BuildConfig
 import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
+import app.gyrolet.mpvrx.preferences.MediaLibraryType
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight
@@ -86,7 +92,6 @@ import java.io.File
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
-
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MediaLibraryContent() {
@@ -108,7 +113,10 @@ fun MediaLibraryContent() {
 
   val videoSortType by browserPreferences.videoSortType.collectAsState()
   val videoSortOrder by browserPreferences.videoSortOrder.collectAsState()
+  val includeAudioBrowser by browserPreferences.includeAudioBrowser.collectAsState()
+  val savedMediaType by browserPreferences.mediaLibraryType.collectAsState()
   val playlistMode by playerPreferences.playlistMode.collectAsState()
+  val mediaType = if (includeAudioBrowser) savedMediaType else MediaLibraryType.Video
   val sortedVideosWithInfo = remember(videosWithPlaybackInfo, videoSortType, videoSortOrder) {
     val infoById = videosWithPlaybackInfo.associateBy { it.video.path }
     val sortedVideos = SortUtils.sortVideos(videosWithPlaybackInfo.map { it.video }, videoSortType, videoSortOrder)
@@ -116,19 +124,24 @@ fun MediaLibraryContent() {
       infoById[video.path] ?: VideoWithPlaybackInfo(video)
     }
   }
+  val mediaTypeVideosWithInfo = remember(sortedVideosWithInfo, mediaType) {
+    sortedVideosWithInfo.filter { item ->
+      item.video.isAudio == (mediaType == MediaLibraryType.Audio)
+    }
+  }
 
   var searchQuery by rememberSaveable { mutableStateOf("") }
   var isSearching by rememberSaveable { mutableStateOf(false) }
   val keyboardController = LocalSoftwareKeyboardController.current
   val focusRequester = remember { FocusRequester() }
-  val filteredVideosWithInfo = remember(sortedVideosWithInfo, isSearching, searchQuery) {
+  val filteredVideosWithInfo = remember(mediaTypeVideosWithInfo, isSearching, searchQuery) {
     if (isSearching && searchQuery.isNotBlank()) {
-      sortedVideosWithInfo.filter { item ->
+      mediaTypeVideosWithInfo.filter { item ->
         item.video.displayName.contains(searchQuery, ignoreCase = true) ||
           item.video.path.contains(searchQuery, ignoreCase = true)
       }
     } else {
-      sortedVideosWithInfo
+      mediaTypeVideosWithInfo
     }
   }
 
@@ -206,22 +219,28 @@ fun MediaLibraryContent() {
     }
   }
 
-  LaunchedEffect(selectionManager.isInSelectionMode) {
+  LaunchedEffect(includeAudioBrowser, savedMediaType) {
+    if (!includeAudioBrowser && savedMediaType != MediaLibraryType.Video) {
+      browserPreferences.mediaLibraryType.set(MediaLibraryType.Video)
+    }
+  }
+
+  LaunchedEffect(selectionManager.isInSelectionMode, mediaType) {
     showFloatingBottomBar = selectionManager.isInSelectionMode
     NavigationBarState.updateSelectionState(
       inSelectionMode = selectionManager.isInSelectionMode,
-      onlyVideos = true,
+      onlyVideos = mediaType == MediaLibraryType.Video,
     )
   }
 
   fun playFromMediaLibrary(video: Video) {
-    if (!playlistMode || sortedVideosWithInfo.size <= 1) {
+    if (!playlistMode || mediaTypeVideosWithInfo.size <= 1) {
       MediaUtils.playFile(video, context, "media_library")
       return
     }
 
     lastPlayRequestIndex.intValue =
-      sortedVideosWithInfo.indexOfFirst { it.video.path == video.path }
+      mediaTypeVideosWithInfo.indexOfFirst { it.video.path == video.path }
 
     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, video.uri).apply {
       setClass(context, PlayerActivity::class.java)
@@ -229,6 +248,7 @@ fun MediaLibraryContent() {
       putExtra("playlist_id", ALL_VIDEOS_PLAYLIST_ID)
       putExtra("playlist_index", lastPlayRequestIndex.intValue.coerceAtLeast(0))
       putExtra("launch_source", "media_library")
+      putExtra("media_library_audio", mediaType == MediaLibraryType.Audio)
       putExtra("title", video.displayName)
     }
     context.startActivity(intent)
@@ -267,7 +287,9 @@ fun MediaLibraryContent() {
               onSearch = { },
               expanded = false,
               onExpandedChange = { },
-              placeholder = { Text(stringResource(app.gyrolet.mpvrx.R.string.search_hint_videos)) },
+              placeholder = {
+                Text(stringResource(app.gyrolet.mpvrx.R.string.search_hint_videos))
+              },
               leadingIcon = {
                 Icon(
                   imageVector = Icons.Filled.Search,
@@ -382,42 +404,75 @@ fun MediaLibraryContent() {
     val videosWereDeletedOrMoved = false
 
     Box(modifier = Modifier.fillMaxSize()) {
-      if (isSearching && filteredVideosWithInfo.isEmpty() && searchQuery.isNotBlank()) {
-        Box(
-          modifier = Modifier
-            .fillMaxSize()
-            .padding(padding),
-          contentAlignment = Alignment.Center,
-        ) {
-          EmptyState(
-            icon = Icons.Filled.Search,
-            title = stringResource(app.gyrolet.mpvrx.R.string.media_library_no_results_title),
-            message = stringResource(app.gyrolet.mpvrx.R.string.media_library_no_results_message),
-          )
-        }
-      } else {
-        VideoListContent(
-          folderId = "media_library",
-          videosWithInfo = filteredVideosWithInfo,
-          isLoading = isLoading && videos.isEmpty(),
-          isRefreshing = isRefreshing,
-          recentlyPlayedFilePath = recentlyPlayedFilePath,
-          videosWereDeletedOrMoved = videosWereDeletedOrMoved,
-          autoScrollToLastPlayed = autoScrollToLastPlayed,
-          onRefresh = { viewModel.refresh() },
-          selectionManager = selectionManager,
-          onVideoClick = { video ->
-            if (selectionManager.isInSelectionMode) {
-              selectionManager.toggle(video)
-            } else {
-              playFromMediaLibrary(video)
+      Column(
+        modifier = Modifier
+          .fillMaxSize()
+          .padding(padding),
+      ) {
+        if (includeAudioBrowser) {
+          SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 16.dp, vertical = 8.dp),
+          ) {
+            MediaLibraryType.entries.forEachIndexed { index, type ->
+              SegmentedButton(
+                selected = mediaType == type,
+                onClick = {
+                  if (mediaType != type) {
+                    selectionManager.clear()
+                    browserPreferences.mediaLibraryType.set(type)
+                  }
+                },
+                shape = SegmentedButtonDefaults.itemShape(index, MediaLibraryType.entries.size),
+                colors = SegmentedButtonDefaults.colors(
+                  activeContentColor = MaterialTheme.colorScheme.primary,
+                  activeBorderColor = MaterialTheme.colorScheme.primary,
+                ),
+              ) {
+                Text(type.name)
+              }
             }
-          },
-          onVideoLongClick = { video -> selectionManager.handleLongClick(video) },
-          isFabVisible = isFabVisible,
-          modifier = Modifier.padding(padding),
-          showFloatingBottomBar = showFloatingBottomBar,
-        )
+          }
+        }
+
+        Box(modifier = Modifier.weight(1f)) {
+          if (isSearching && filteredVideosWithInfo.isEmpty() && searchQuery.isNotBlank()) {
+            Box(
+              modifier = Modifier.fillMaxSize(),
+              contentAlignment = Alignment.Center,
+            ) {
+              EmptyState(
+                icon = Icons.Filled.Search,
+                title = stringResource(app.gyrolet.mpvrx.R.string.media_library_no_results_title),
+                message = stringResource(app.gyrolet.mpvrx.R.string.media_library_no_results_message),
+              )
+            }
+          } else {
+            VideoListContent(
+              folderId = "media_library_${mediaType.name.lowercase()}",
+              videosWithInfo = filteredVideosWithInfo,
+              isLoading = isLoading && videos.isEmpty(),
+              isRefreshing = isRefreshing,
+              recentlyPlayedFilePath = recentlyPlayedFilePath,
+              videosWereDeletedOrMoved = videosWereDeletedOrMoved,
+              autoScrollToLastPlayed = autoScrollToLastPlayed,
+              onRefresh = { viewModel.refresh() },
+              selectionManager = selectionManager,
+              onVideoClick = { video ->
+                if (selectionManager.isInSelectionMode) {
+                  selectionManager.toggle(video)
+                } else {
+                  playFromMediaLibrary(video)
+                }
+              },
+              onVideoLongClick = { video -> selectionManager.handleLongClick(video) },
+              isFabVisible = isFabVisible,
+              modifier = Modifier.fillMaxSize(),
+              showFloatingBottomBar = showFloatingBottomBar,
+            )
+          }
+        }
       }
 
       AnimatedVisibility(
@@ -456,7 +511,7 @@ fun MediaLibraryContent() {
           onAddToPlaylistClick = { addToPlaylistDialogOpen.value = true },
           showCopy = true,
           showMove = true,
-          showDownscale = selectionManager.selectedCount == 1,
+          showDownscale = selectionManager.getSelectedItems().singleOrNull()?.isAudio == false,
           showRename = selectionManager.selectedCount > 0,
           modifier = Modifier.padding(bottom = if (NavigationBarState.shouldHideNavigationBar) 0.dp else navigationBarHeight)
         )
@@ -483,7 +538,7 @@ fun MediaLibraryContent() {
         },
         itemCount = selectionManager.selectedCount,
         isOpen = deleteDialogOpen.value,
-        itemType = "video"
+        itemType = if (mediaType == MediaLibraryType.Audio) "audio file" else "video"
       )
     }
 
@@ -498,7 +553,7 @@ fun MediaLibraryContent() {
           },
           currentName = video.displayName,
           isOpen = renameDialogOpen.value,
-          itemType = "video"
+          itemType = if (mediaType == MediaLibraryType.Audio) "audio file" else "video"
         )
       }
     }
@@ -564,7 +619,7 @@ fun MediaLibraryContent() {
 
     if (compressorDialogOpen.value) {
       val selectedVideos = selectionManager.getSelectedItems()
-      if (selectedVideos.isNotEmpty()) {
+      if (selectedVideos.isNotEmpty() && selectedVideos.none { it.isAudio }) {
         VideoCompressorOverlay(
           isOpen = true,
           videos = selectedVideos,

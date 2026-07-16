@@ -755,6 +755,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                           intent.putParcelableArrayListExtra("playlist", ArrayList(allVideos.map { it.uri }))
                           intent.putExtra("playlist_index", startIndex)
                           intent.putExtra("launch_source", "playlist")
+                          intent.putExtra("is_audio", video.isAudio)
                           context.startActivity(intent)
                         }
                       } else {
@@ -1131,6 +1132,7 @@ private fun playVideosAsPlaylist(
     intent.putParcelableArrayListExtra("playlist", ArrayList(videos.map { it.uri }))
     intent.putExtra("playlist_index", 0)
     intent.putExtra("launch_source", "playlist")
+    intent.putExtra("is_audio", videos.first().isAudio)
     context.startActivity(intent)
   }
 }

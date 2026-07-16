@@ -1894,6 +1894,7 @@
   <string name="btn_label_ambient">环境光模式</string>
   <string name="btn_label_time_network">时间 + 网络</string>
   <string name="btn_label_delete">删除视频</string>
+  <string name="btn_label_cast">投屏</string>
   <string name="btn_label_none">无</string>
   <!-- AI Integration Screen -->
   <string name="ai_stt_key_verified">%1$s API 密钥已验证</string>

@@ -1958,6 +1958,7 @@
   <string name="btn_label_ambient">Ambience Mode</string>
   <string name="btn_label_time_network">Time + Network</string>
   <string name="btn_label_delete">Delete Video</string>
+  <string name="btn_label_cast">Cast</string>
   <string name="btn_label_none">None</string>
   <!-- AI Integration Screen -->
   <string name="ai_stt_key_verified">%1$s API key verified</string>

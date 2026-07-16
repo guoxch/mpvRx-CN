@@ -1,6 +1,7 @@
 package app.gyrolet.mpvrx.ui.player
 
 import android.Manifest
+import android.animation.ValueAnimator
 import android.app.KeyguardManager
 import android.content.BroadcastReceiver
 import android.content.ComponentName
@@ -29,6 +30,7 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.PathInterpolator
 import android.widget.Toast
 import androidx.activity.BackEventCompat
 import androidx.activity.OnBackPressedCallback
@@ -71,6 +73,8 @@ import app.gyrolet.mpvrx.preferences.VideoSortType
 import app.gyrolet.mpvrx.ui.browser.playlist.ALL_VIDEOS_PLAYLIST_ID
 import app.gyrolet.mpvrx.ui.browser.playlist.buildAllVideosPlaylistEntity
 import app.gyrolet.mpvrx.ui.browser.playlist.isAllVideosPlaylist
+import app.gyrolet.mpvrx.ui.cast.CastMediaSnapshot
+import app.gyrolet.mpvrx.ui.cast.CastPlaybackController
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.player.controls.PlayerControls
 import app.gyrolet.mpvrx.ui.player.visualizer.BlobOverlay
@@ -314,6 +318,7 @@ class PlayerActivity :
    * Helper for managing Picture-in-Picture mode.
    */
   private lateinit var pipHelper: MPVPipHelper
+  private lateinit var castPlaybackController: CastPlaybackController
 
   private var isReady = false // Single flag: true when video loaded and ready
   private var isUserFinishing = false
@@ -321,6 +326,7 @@ class PlayerActivity :
   private var wasInPipMode = false
   private var handledPipDismissal = false
   private var pendingBackgroundTransition = false
+  private var pendingBackNavigationBackgroundTransition = false
   private var noisyReceiverRegistered = false
   private var lastVid = -1 // Track video track for background playback optimization
   private var isInBackgroundPlayback = false // Track if we are currently in background playback mode
@@ -438,21 +444,32 @@ class PlayerActivity :
 
   private val notificationPermissionLauncher =
     registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+      val wasEnablingFromPlayerControls = pendingBackgroundTransition
       if (granted) {
         pendingBackgroundPlaybackStart = false
         val started = startBackgroundPlaybackInternal(bindToActivity = false)
         if (pendingBackgroundTransition && started) {
           pendingBackgroundTransition = false
           isBackgroundPlaybackSessionActive = true
-          if (wasPlayingBeforePause && viewModel.paused == true) viewModel.unpause()
-          movePlayerToBackground()
+          viewModel.showToast("Background playback on")
+        } else if (pendingBackNavigationBackgroundTransition && started) {
+          pendingBackNavigationBackgroundTransition = false
+          finishIntoBackgroundPlayback()
         } else if (!started) {
+          if (wasEnablingFromPlayerControls) {
+            audioPreferences.backgroundPlayback.set(false)
+          }
           pendingBackgroundTransition = false
+          pendingBackNavigationBackgroundTransition = false
           isBackgroundPlaybackSessionActive = false
         }
       } else {
+        if (wasEnablingFromPlayerControls) {
+          audioPreferences.backgroundPlayback.set(false)
+        }
         pendingBackgroundPlaybackStart = false
         pendingBackgroundTransition = false
+        pendingBackNavigationBackgroundTransition = false
         isBackgroundPlaybackSessionActive = false
         Toast.makeText(
           this,
@@ -616,6 +633,12 @@ class PlayerActivity :
       intent.getParcelableArrayListExtra("playlist") ?: emptyList()
     }
 
+    if (playlist.isNotEmpty()) {
+      playlistIndex = playlistIndex.coerceIn(0, playlist.lastIndex)
+      playlistWindowOffset = 0
+      playlistTotalCount = playlist.size
+      viewModel.refreshPlaylistItems()
+    }
 
     // If playlist is empty but playlist_id is provided, load asynchronously from database
     // Load all items - LazyColumn handles pagination/virtualization efficiently
@@ -686,6 +709,7 @@ class PlayerActivity :
         }
       }
     }
+    setupCastPlayback()
 
     // Only set orientation immediately if NOT in Video mode
     // For Video mode, wait for video-params/aspect to become available
@@ -776,8 +800,10 @@ class PlayerActivity :
         }
 
         override fun handleOnBackPressed() {
+          // Do not let the predictive-back transform compete with Android's
+          // full-screen-to-PiP surface morph.
+          resetPredictiveBackProgress(animate = false)
           handleBackPress()
-          resetPredictiveBackProgress()
         }
       }
 
@@ -791,8 +817,12 @@ class PlayerActivity :
         viewModel.sheetShown,
         viewModel.panelShown,
         playerPreferences.autoPiPOnNavigation.changes(),
-      ) { sheetShown, panelShown, autoPipOnNavigation ->
-        sheetShown != Sheets.None || panelShown != Panels.None || autoPipOnNavigation
+        audioPreferences.backgroundPlayback.changes(),
+      ) { sheetShown, panelShown, autoPipOnNavigation, backgroundPlaybackEnabled ->
+        sheetShown != Sheets.None ||
+          panelShown != Panels.None ||
+          autoPipOnNavigation ||
+          backgroundPlaybackEnabled
       }
         .distinctUntilChanged()
         .collect { callback.isEnabled = it }
@@ -802,7 +832,8 @@ class PlayerActivity :
   private fun shouldInterceptBackPress(): Boolean =
     viewModel.sheetShown.value != Sheets.None ||
       viewModel.panelShown.value != Panels.None ||
-      playerPreferences.autoPiPOnNavigation.get()
+      playerPreferences.autoPiPOnNavigation.get() ||
+      isBackgroundPlaybackEnabled()
 
   private fun applyPredictiveBackProgress(backEvent: BackEventCompat) {
     val root = binding.root
@@ -825,7 +856,17 @@ class PlayerActivity :
     binding.controls.alpha = 1f - (0.2f * progress)
   }
 
-  private fun resetPredictiveBackProgress() {
+  private fun resetPredictiveBackProgress(animate: Boolean = true) {
+    binding.root.animate().cancel()
+    binding.controls.animate().cancel()
+    if (!animate || !ValueAnimator.areAnimatorsEnabled()) {
+      binding.root.scaleX = 1f
+      binding.root.scaleY = 1f
+      binding.root.translationX = 0f
+      binding.controls.alpha = 1f
+      return
+    }
+
     binding.root.animate()
       .scaleX(1f)
       .scaleY(1f)
@@ -852,9 +893,30 @@ class PlayerActivity :
       return
     }
 
+    // Background playback takes precedence on Back: return to the browser while
+    // handing the live MPV session to the foreground service.
+    if (
+      PlayerLifecyclePolicy.shouldStartBackgroundPlaybackOnBack(
+        backgroundPlaybackEnabled = isBackgroundPlaybackEnabled(),
+        mediaReady = isReady,
+      )
+    ) {
+      when (startBackgroundPlayback()) {
+        BackgroundPlaybackStartResult.Started -> finishIntoBackgroundPlayback()
+        BackgroundPlaybackStartResult.PendingPermission -> {
+          pendingBackNavigationBackgroundTransition = true
+        }
+        BackgroundPlaybackStartResult.Blocked -> {
+          isUserFinishing = true
+          finish()
+        }
+      }
+      return
+    }
+
     // Check if auto PIP is enabled - enter PIP mode instead of finishing
     if (playerPreferences.autoPiPOnNavigation.get() && isReady) {
-      pipHelper.enterPipMode()
+      enterPipModeSmoothly()
       return
     }
 
@@ -890,6 +952,52 @@ class PlayerActivity :
    */
   private fun setupPipHelper() {
     pipHelper = MPVPipHelper(activity = this, mpvView = player)
+  }
+
+  private fun setupCastPlayback() {
+    castPlaybackController =
+      CastPlaybackController(
+        activity = this,
+        currentMedia = ::currentCastMediaSnapshot,
+        pauseLocal = viewModel::pause,
+        restoreLocal = { positionMs, play ->
+          if (!isFinishing && !isDestroyed) {
+            viewModel.seekTo((positionMs / 1000L).toInt().coerceAtLeast(0))
+            if (play) viewModel.unpause() else viewModel.pause()
+          }
+        },
+        notifyUser = viewModel::showToast,
+      )
+    castPlaybackController.start()
+  }
+
+  private fun currentCastMediaSnapshot(): CastMediaSnapshot? {
+    if (!isReady || fileName.isBlank()) return null
+    val source =
+      sequenceOf(
+        currentPlayableUri,
+        runCatching { MPVLib.getPropertyString("path") }.getOrNull(),
+        intent?.dataString,
+      ).filterNotNull()
+        .filter { it.isNotBlank() }
+        .map { sourceText ->
+          val parsed = Uri.parse(sourceText)
+          if (parsed.scheme.isNullOrBlank()) Uri.fromFile(File(sourceText)) else parsed
+        }.firstOrNull { uri ->
+          when (uri.scheme?.lowercase()) {
+            "content", "file" -> true
+            "http", "https" -> uri.host !in setOf("127.0.0.1", "localhost", "0.0.0.0")
+            else -> false
+          }
+        } ?: return null
+    return CastMediaSnapshot(
+      source = source,
+      title = getPreferredCurrentTitle().ifBlank { fileName },
+      mimeType = intent?.type ?: runCatching { contentResolver.getType(source) }.getOrNull(),
+      durationMs = ((MPVLib.getPropertyDouble("duration") ?: 0.0) * 1000.0).toLong(),
+      positionMs = ((MPVLib.getPropertyDouble("time-pos") ?: 0.0) * 1000.0).toLong(),
+      isPlaying = MPVLib.getPropertyBoolean("pause") == false,
+    )
   }
 
   private fun setupAudio() {
@@ -968,7 +1076,7 @@ class PlayerActivity :
     super.onUserLeaveHint()
     // Enter PIP mode when user presses home button if auto PIP is enabled
     if (playerPreferences.autoPiPOnNavigation.get() && isReady && !isFinishing) {
-      pipHelper.enterPipMode()
+      enterPipModeSmoothly()
     }
   }
 
@@ -993,6 +1101,7 @@ class PlayerActivity :
       )
 
     runCatching {
+      if (::castPlaybackController.isInitialized) castPlaybackController.release()
       cancelSystemBarsAutoHide()
       saveVideoPlaybackState(fileName, immediate = true)
       if (!keepBackgroundPlaybackAlive) {
@@ -1118,6 +1227,7 @@ class PlayerActivity :
       val shouldPause =
         PlayerLifecyclePolicy.shouldPauseOnPause(
           backgroundPlaybackEnabled = isBackgroundPlaybackEnabled(),
+          backgroundPlaybackSessionActive = isBackgroundPlaybackSessionActive,
           isUserFinishing = isUserFinishing,
           isInPictureInPictureMode = isInPip,
           isScreenOffOrLocked = isDeviceScreenOffOrLocked(),
@@ -1155,7 +1265,9 @@ class PlayerActivity :
         endBackgroundPlayback()
       }
       
-      reportJellyfinStop()
+      if (!isBackgroundPlaybackSessionActive) {
+        reportJellyfinStop()
+      }
       setReturnIntent()
     }.onFailure { e ->
       Log.e(TAG, "Error during finish", e)
@@ -1482,6 +1594,12 @@ class PlayerActivity :
       Log.d(TAG, "MPV config and assets prepared successfully")
     }.onFailure { e ->
       Log.e(TAG, "Error copying MPV config and assets", e)
+    }
+
+    player.onSurfaceReady = {
+      if (!isDeviceScreenOffOrLocked() && (isInBackgroundPlayback || lastVid > 0)) {
+        enableVideoAfterBackground()
+      }
     }
 
     // NOW initialize MPV - it will find and load the scripts we just copied
@@ -2811,8 +2929,20 @@ class PlayerActivity :
     property: String,
     value: String,
   ) {
-    when (property.substringBeforeLast("/")) {
-      "user-data/mpvrx" -> viewModel.handleLuaInvocation(property, value)
+    when (property) {
+      "sub-text" -> {
+        if (isSecondarySubtitleActive()) {
+          val primaryPosition = subtitlesPreferences.subPos.get()
+          val width = player.width.takeIf { it > 0 }?.toFloat()
+          val height = player.height.takeIf { it > 0 }?.toFloat()
+          applySubtitlePositions(primaryPosition, width, height)
+        }
+      }
+      else -> {
+        when (property.substringBeforeLast("/")) {
+          "user-data/mpvrx" -> viewModel.handleLuaInvocation(property, value)
+        }
+      }
     }
   }
 
@@ -2869,6 +2999,14 @@ class PlayerActivity :
           } catch (e: Exception) {
             android.util.Log.e(TAG, "Failed to set frame rate", e)
           }
+        }
+      }
+      "sub-scale" -> {
+        if (isSecondarySubtitleActive()) {
+          val primaryPosition = subtitlesPreferences.subPos.get()
+          val width = player.width.takeIf { it > 0 }?.toFloat()
+          val height = player.height.takeIf { it > 0 }?.toFloat()
+          applySubtitlePositions(primaryPosition, width, height)
         }
       }
     }
@@ -3306,6 +3444,8 @@ class PlayerActivity :
     applySubtitleLayout(
       primaryPosition = subtitlesPreferences.subPos.get(),
       forceAssOverride = subtitlesPreferences.overrideAssSubs.get(),
+      screenWidth = player.width.takeIf { it > 0 }?.toFloat(),
+      screenHeight = player.height.takeIf { it > 0 }?.toFloat(),
     )
 
     Log.d(TAG, "Applied subtitle preferences")
@@ -3499,6 +3639,8 @@ class PlayerActivity :
     applySubtitleLayout(
       primaryPosition = subtitlesPreferences.subPos.get(),
       forceAssOverride = subtitlesPreferences.overrideAssSubs.get(),
+      screenWidth = player.width.takeIf { it > 0 }?.toFloat(),
+      screenHeight = player.height.takeIf { it > 0 }?.toFloat(),
     )
 
     if (state.aid > 0) {
@@ -3731,12 +3873,16 @@ class PlayerActivity :
       playlistId = newPlaylistId
       playlistIndex = intent.getIntExtra("playlist_index", 0)
       playlistWindowOffset = 0
-      playlistTotalCount = -1
+      playlistTotalCount = playlistFromIntent.size.takeIf { it > 0 } ?: -1
       playlist = playlistFromIntent
       playlistItems = emptyList()
       playlistEntity = null
       isM3uPlaylist = false
       loadNetworkPlaylistMetadata(intent)
+      if (playlist.isNotEmpty()) {
+        playlistIndex = playlistIndex.coerceIn(0, playlist.lastIndex)
+        viewModel.refreshPlaylistItems()
+      }
     }
 
     // If playlist is empty but playlist_id is provided, load from database
@@ -3862,13 +4008,26 @@ class PlayerActivity :
       handledPipDismissal = false
     }
 
-    binding.controls.alpha = if (isInPictureInPictureMode) 0f else 1f
+    binding.controls.animate().cancel()
+    if (isInPictureInPictureMode) {
+      binding.controls.alpha = 0f
+    }
 
     runCatching {
       if (isInPictureInPictureMode) {
         enterPipUIMode()
       } else {
         exitPipUIMode()
+        if (ValueAnimator.areAnimatorsEnabled()) {
+          binding.controls.alpha = 0f
+          binding.controls.animate()
+            .alpha(1f)
+            .setDuration(180L)
+            .setInterpolator(PathInterpolator(0.25f, 1f, 0.5f, 1f))
+            .start()
+        } else {
+          binding.controls.alpha = 1f
+        }
       }
     }.onFailure { e ->
       Log.e(TAG, "Error handling PiP mode change", e)
@@ -3912,8 +4071,17 @@ class PlayerActivity :
       Log.e(TAG, "Error entering PiP mode with hidden overlay", e)
     }
 
-    binding.controls.alpha = 0f
+    enterPipModeSmoothly()
+  }
 
+  private fun enterPipModeSmoothly() {
+    binding.root.animate().cancel()
+    binding.controls.animate().cancel()
+    binding.root.scaleX = 1f
+    binding.root.scaleY = 1f
+    binding.root.translationX = 0f
+    binding.controls.alpha = 0f
+    pipHelper.updatePictureInPictureParams()
     pipHelper.enterPipMode()
   }
 
@@ -4355,6 +4523,7 @@ class PlayerActivity :
     Log.d(TAG, "Ending background playback service")
     isBackgroundPlaybackSessionActive = false
     pendingBackgroundTransition = false
+    pendingBackNavigationBackgroundTransition = false
     
     if (serviceBound) {
       try {
@@ -4398,11 +4567,10 @@ class PlayerActivity :
     }
 
     Log.d(TAG, "Background playback enabled from player controls")
-    wasPlayingBeforePause = viewModel.paused == false
     when (startBackgroundPlayback()) {
       BackgroundPlaybackStartResult.Started -> {
         isBackgroundPlaybackSessionActive = true
-        movePlayerToBackground()
+        viewModel.showToast("Background playback on")
       }
       BackgroundPlaybackStartResult.PendingPermission -> pendingBackgroundTransition = true
       BackgroundPlaybackStartResult.Blocked -> {
@@ -4413,15 +4581,12 @@ class PlayerActivity :
     }
   }
 
-  private fun movePlayerToBackground() {
-    // Restore system UI before going to background
-    restoreSystemUI()
-
-    // Keep this activity and MPV instance alive in the task. Finishing here detaches
-    // the observer that owns repeat/playlist EOF handling and forces streams to
-    // reload when the user opens the player again from the notification.
+  private fun finishIntoBackgroundPlayback() {
+    isBackgroundPlaybackSessionActive = true
+    pendingBackNavigationBackgroundTransition = false
     disableVideoForBackground()
-    moveTaskToBack(true)
+    isUserFinishing = true
+    finish()
   }
 
   // ==================== PlayerHost ====================
@@ -5209,6 +5374,7 @@ class PlayerActivity :
         playlist = siblingFiles.map { it.toUri() }
         playlistIndex = newIndex
         if (viewModel.shuffleEnabled.value) onShuffleToggled(true)
+        viewModel.refreshPlaylistItems()
         Log.d(TAG, "Auto-playlist generated: ${playlist.size} items")
       }
       true
@@ -5343,6 +5509,11 @@ class PlayerActivity :
    * Restores video decoding when returning from background playback.
    */
   private fun enableVideoAfterBackground() {
+    if ((isInBackgroundPlayback || lastVid > 0) && !player.isSurfaceReady) {
+      Log.d(TAG, "Deferring video restoration until the playback surface is ready")
+      return
+    }
+
     isInBackgroundPlayback = false
     if (lastVid > 0) {
       Log.d(TAG, "Restoring video after background playback (vid: $lastVid)")

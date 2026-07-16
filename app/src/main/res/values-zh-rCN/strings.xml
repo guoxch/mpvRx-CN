@@ -2144,4 +2144,13 @@
   <!-- Missing Chinese translations for existing English keys -->
   <string name="ytdl_audio_quality_title">yt-dlp 音频质量</string>
   <string name="ytdl_audio_quality_reload_summary">用于下一个链接或重新加载当前链接时。</string>
+
+  <!-- Cast -->
+  <string name="cast_button_description">投屏</string>
+  <string name="cast_error_connect_failed">无法连接到投屏设备</string>
+  <string name="cast_error_media_not_ready">媒体尚未准备好投屏</string>
+  <string name="cast_error_source_unreachable">此媒体源无法被投屏设备访问</string>
+  <string name="cast_error_receiver_not_ready">投屏接收器未就绪</string>
+  <string name="cast_error_play_failed">无法在投屏设备上播放此媒体</string>
+  <string name="background_playback_on">后台播放已开启</string>
 </resources>

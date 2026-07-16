@@ -451,7 +451,7 @@ class PlayerActivity :
         if (pendingBackgroundTransition && started) {
           pendingBackgroundTransition = false
           isBackgroundPlaybackSessionActive = true
-          viewModel.showToast("Background playback on")
+          viewModel.showToast(getString(R.string.background_playback_on))
         } else if (pendingBackNavigationBackgroundTransition && started) {
           pendingBackNavigationBackgroundTransition = false
           finishIntoBackgroundPlayback()
@@ -4562,7 +4562,7 @@ class PlayerActivity :
 
     if (fileName.isBlank() || !isReady) {
       Log.w(TAG, "Cannot start background playback: media not ready")
-      viewModel.showToast("Background playback on")
+      viewModel.showToast(getString(R.string.background_playback_on))
       return
     }
 
@@ -4570,7 +4570,7 @@ class PlayerActivity :
     when (startBackgroundPlayback()) {
       BackgroundPlaybackStartResult.Started -> {
         isBackgroundPlaybackSessionActive = true
-        viewModel.showToast("Background playback on")
+        viewModel.showToast(getString(R.string.background_playback_on))
       }
       BackgroundPlaybackStartResult.PendingPermission -> pendingBackgroundTransition = true
       BackgroundPlaybackStartResult.Blocked -> {

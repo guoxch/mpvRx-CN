@@ -2204,4 +2204,13 @@
   <string name="enum_chapter_position_below_seekbar">Between seekbar and controls</string>
   <string name="enum_ai_provider_offline">Offline Model</string>
   <string name="enum_unlimited">Unlimited</string>
+
+  <!-- Cast -->
+  <string name="cast_button_description">Cast</string>
+  <string name="cast_error_connect_failed">Could not connect to Cast device</string>
+  <string name="cast_error_media_not_ready">Media is not ready to cast</string>
+  <string name="cast_error_source_unreachable">This media source cannot be reached by the Cast device</string>
+  <string name="cast_error_receiver_not_ready">Cast receiver is not ready</string>
+  <string name="cast_error_play_failed">Unable to play this media on the Cast device</string>
+  <string name="background_playback_on">Background playback on</string>
 </resources>

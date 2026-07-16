@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.webkit.MimeTypeMap
 import androidx.appcompat.app.AppCompatActivity
+import app.gyrolet.mpvrx.R
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaLoadRequestData
 import com.google.android.gms.cast.MediaMetadata
@@ -74,7 +75,7 @@ class CastPlaybackController(
 
       override fun onSessionStartFailed(session: CastSession, error: Int) {
         CastMediaServer.stop()
-        notifyUser("Could not connect to Cast device")
+        notifyUser(activity.getString(R.string.cast_error_connect_failed))
       }
 
       override fun onSessionResumeFailed(session: CastSession, error: Int) {
@@ -103,14 +104,14 @@ class CastPlaybackController(
   private fun loadCurrentMedia(session: CastSession) {
     val snapshot = currentMedia()
     if (snapshot == null) {
-      notifyUser("Media is not ready to cast")
+      notifyUser(activity.getString(R.string.cast_error_media_not_ready))
       castContext.sessionManager.endCurrentSession(true)
       return
     }
 
     val contentUrl = resolveContentUrl(snapshot)
     if (contentUrl == null) {
-      notifyUser("This media source cannot be reached by the Cast device")
+      notifyUser(activity.getString(R.string.cast_error_source_unreachable))
       castContext.sessionManager.endCurrentSession(true)
       return
     }
@@ -141,7 +142,7 @@ class CastPlaybackController(
         .setCurrentTime(snapshot.positionMs.coerceAtLeast(0L))
         .build()
     val remote = session.remoteMediaClient ?: run {
-      notifyUser("Cast receiver is not ready")
+      notifyUser(activity.getString(R.string.cast_error_receiver_not_ready))
       return
     }
 
@@ -157,7 +158,7 @@ class CastPlaybackController(
           activity.startActivity(Intent(activity, CastExpandedControlsActivity::class.java))
         } else {
           CastMediaServer.stop()
-          notifyUser(result.status.statusMessage ?: "Unable to play this media on the Cast device")
+          notifyUser(result.status.statusMessage ?: activity.getString(R.string.cast_error_play_failed))
         }
       }
     }

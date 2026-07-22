@@ -47,14 +47,14 @@ enum class CustomKeyCodes(
 }
 
 enum class Decoder(
-  val title: String,
+  @StringRes val titleRes: Int,
   val value: String,
 ) {
-  AutoCopy("Auto", "auto-copy"),
-  Auto("Auto", "auto"),
-  SW("SW", "no"),
-  HW("HW", "mediacodec-copy"),
-  HWPlus("HW+", "mediacodec"),
+  AutoCopy(R.string.decoder_auto, "auto-copy"),
+  Auto(R.string.decoder_auto, "auto"),
+  SW(R.string.decoder_sw, "no"),
+  HW(R.string.decoder_hw, "mediacodec-copy"),
+  HWPlus(R.string.decoder_hw_plus, "mediacodec"),
   ;
 
   companion object {

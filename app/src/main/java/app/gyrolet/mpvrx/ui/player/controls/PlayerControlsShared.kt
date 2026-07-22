@@ -9,6 +9,7 @@ import android.os.BatteryManager
 import android.text.format.DateFormat
 import app.gyrolet.mpvrx.ui.icons.Icon as AppSymbolIcon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.player.controls.components.AbLoopIcon
 
 import androidx.compose.animation.AnimatedContent
@@ -50,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
@@ -291,7 +293,7 @@ fun RenderPlayerButton(
               ),
         ) {
           Text(
-            text = decoder.title,
+            text = stringResource(decoder.titleRes),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodyMedium,

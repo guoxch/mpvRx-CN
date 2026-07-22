@@ -1,6 +1,5 @@
 package app.gyrolet.mpvrx.ui.browser.dialogs
 
-import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -27,7 +26,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -53,13 +51,13 @@ fun DeleteConfirmationDialog(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
       ) {
         Icon(
-          imageVector = Icons.Default.Delete,
+          imageVector = Icons.RoundedFilled.Delete,
           contentDescription = null,
           tint = MaterialTheme.colorScheme.error,
           modifier = Modifier.size(28.dp),
         )
         Text(
-          text = stringResource(R.string.dialog_delete_title, itemCount, itemText),
+          text = "Delete $itemCount $itemText?",
           style = MaterialTheme.typography.headlineSmall,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurface,
@@ -83,13 +81,13 @@ fun DeleteConfirmationDialog(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
           ) {
             Icon(
-              imageVector = Icons.Outlined.Warning,
+              imageVector = Icons.RoundedFilled.Warning,
               contentDescription = null,
               tint = MaterialTheme.colorScheme.onErrorContainer,
               modifier = Modifier.size(20.dp),
             )
             Text(
-              text = if (itemCount == 1) stringResource(R.string.dialog_delete_warning_single) else stringResource(R.string.dialog_delete_warning_multiple),
+              text = "This action cannot be undone. The selected item${if (itemCount == 1) "" else "s"} will be permanently deleted.",
               style = MaterialTheme.typography.bodyMedium,
               fontWeight = FontWeight.Medium,
               color = MaterialTheme.colorScheme.onErrorContainer,
@@ -152,13 +150,12 @@ fun DeleteConfirmationDialog(
         shape = MaterialTheme.shapes.extraLarge,
       ) {
         Icon(
-          imageVector = Icons.Default.Delete,
+          imageVector = Icons.RoundedFilled.Delete,
           contentDescription = null,
           modifier = Modifier.size(18.dp),
         )
         Spacer(modifier = Modifier.width(6.dp))
-        Text(
-          text = stringResource(R.string.dialog_delete),
+        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.delete),
           fontWeight = FontWeight.Bold,
         )
       }
@@ -169,12 +166,12 @@ fun DeleteConfirmationDialog(
         shape = MaterialTheme.shapes.extraLarge,
       ) {
         Icon(
-          imageVector = Icons.Default.Close,
+          imageVector = Icons.RoundedFilled.Close,
           contentDescription = null,
           modifier = Modifier.size(16.dp),
         )
         Spacer(modifier = Modifier.width(4.dp))
-        Text(stringResource(R.string.generic_cancel), fontWeight = FontWeight.Medium)
+        Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel), fontWeight = FontWeight.Medium)
       }
     },
     containerColor = MaterialTheme.colorScheme.surface,

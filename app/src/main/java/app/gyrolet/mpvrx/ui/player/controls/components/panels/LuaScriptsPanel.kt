@@ -1,8 +1,10 @@
 package app.gyrolet.mpvrx.ui.player.controls.components.panels
 
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
-import app.gyrolet.mpvrx.R
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -21,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
@@ -60,7 +61,7 @@ fun LuaScriptsPanel(
       if (isEnabled) {
         Toast.makeText(
           context,
-          context.getString(R.string.player_lua_script_disabled, scriptName),
+          "$scriptName disabled. Reopen the video if the script stays active.",
           Toast.LENGTH_LONG,
         ).show()
         selectedScripts - scriptName
@@ -82,13 +83,12 @@ fun LuaScriptsPanel(
             .padding(horizontal = MaterialTheme.spacing.medium)
             .padding(top = MaterialTheme.spacing.small),
       ) {
-        Text(
-          text = stringResource(R.string.player_lua_scripts_title),
+        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_section_scripts),
           style = MaterialTheme.typography.titleLarge,
         )
         Spacer(Modifier.weight(1f))
         IconButton(onClick = onDismissRequest) {
-          Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(32.dp))
+          Icon(Icons.RoundedFilled.Close, contentDescription = null, modifier = Modifier.size(32.dp))
         }
       }
     },
@@ -114,14 +114,14 @@ fun LuaScriptsPanel(
         }
         mpvConfStorageLocation.isBlank() -> {
           LuaScriptsEmptyState(
-            title = stringResource(R.string.player_lua_no_folder),
-            summary = stringResource(R.string.player_lua_choose_folder),
+            title = stringResource(R.string.lua_no_mpv_folder),
+            summary = "Choose an MPV config folder in Advanced settings, then open this panel again to manage scripts.",
           )
         }
         catalog.availableScripts.isEmpty() -> {
           LuaScriptsEmptyState(
-            title = stringResource(R.string.player_lua_no_scripts),
-            summary = stringResource(R.string.player_lua_put_scripts),
+            title = stringResource(R.string.lua_no_scripts_found),
+            summary = "Put your .lua or .js files inside the MPV scripts folder to manage them here.",
           )
         }
         else -> {

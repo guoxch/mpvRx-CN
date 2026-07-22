@@ -1,5 +1,8 @@
 package app.gyrolet.mpvrx.ui.player.controls.components.sheets
 
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
+
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
@@ -33,11 +36,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.presentation.components.PlayerSheet
 import app.gyrolet.mpvrx.presentation.components.SliderItem
 import app.gyrolet.mpvrx.ui.icons.Icon as AppSymbolIcon
@@ -95,6 +96,7 @@ fun AmbientSheet(
             vignetteStrength = vignetteStrength,
             opacity = opacity,
         )
+        AmbientVisualMode.YOUTUBE -> false
     }
     val isBalanced = when (ambientMode) {
         AmbientVisualMode.GLOW -> matchesGlowPreset(
@@ -119,6 +121,7 @@ fun AmbientSheet(
             vignetteStrength = vignetteStrength,
             opacity = opacity,
         )
+        AmbientVisualMode.YOUTUBE -> false
     }
     val isHQ = when (ambientMode) {
         AmbientVisualMode.GLOW -> matchesGlowPreset(
@@ -143,6 +146,7 @@ fun AmbientSheet(
             vignetteStrength = vignetteStrength,
             opacity = opacity,
         )
+        AmbientVisualMode.YOUTUBE -> false
     }
     val configuration = LocalConfiguration.current
     val customMaxHeight = if (configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
@@ -164,8 +168,7 @@ fun AmbientSheet(
         ) {
 
             // ── Title ────────────────────────────────────────────────────────
-            Text(
-                text = stringResource(R.string.player_ambience),
+            Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_ambience_mode),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -184,18 +187,21 @@ fun AmbientSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 ExpressivePresetButton(
-                    label = stringResource(R.string.ambient_preset_fast),
+                    label = "Fast",
                     selected = isFast,
+                    enabled = ambientMode != AmbientVisualMode.YOUTUBE,
                     onClick = { viewModel.applyAmbientProfileFast() },
                 )
                 ExpressivePresetButton(
-                    label = stringResource(R.string.ambient_preset_balanced),
+                    label = "Balanced",
                     selected = isBalanced,
+                    enabled = ambientMode != AmbientVisualMode.YOUTUBE,
                     onClick = { viewModel.applyAmbientProfileBalanced() },
                 )
                 ExpressivePresetButton(
-                    label = stringResource(R.string.ambient_preset_hq),
+                    label = "HQ",
                     selected = isHQ,
+                    enabled = ambientMode != AmbientVisualMode.YOUTUBE,
                     onClick = { viewModel.applyAmbientProfileHighQuality() },
                 )
             }
@@ -208,7 +214,7 @@ fun AmbientSheet(
             // ── Section: Glow ────────────────────────────────────────────────
             var glowExpanded by remember { mutableStateOf(true) }
             SectionHeader(
-                title = stringResource(R.string.ambient_section_glow),
+                title = stringResource(R.string.ambient_glow),
                 isExpanded = glowExpanded,
                 onClick = { glowExpanded = !glowExpanded },
             )
@@ -221,7 +227,7 @@ fun AmbientSheet(
                     verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
                 ) {
                     SliderItem(
-                        label = stringResource(R.string.ambient_slider_blur_samples),
+                        label = "Blur Samples",
                         valueText = "$blurSamples",
                         value = blurSamples,
                         onChange = { viewModel.updateAmbientParams(blurSamples = it) },
@@ -229,7 +235,7 @@ fun AmbientSheet(
                         max = 64,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.BlurOn,
+                                imageVector = Icons.RoundedFilled.BlurOn,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -238,7 +244,7 @@ fun AmbientSheet(
                     )
 
                     SliderItem(
-                        label = stringResource(R.string.ambient_slider_spread),
+                        label = "Spread",
                         valueText = "%.2f".format(maxRadius),
                         value = maxRadius,
                         onChange = { viewModel.updateAmbientParams(maxRadius = it) },
@@ -247,7 +253,7 @@ fun AmbientSheet(
                         steps = 75,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.Gradient,
+                                imageVector = Icons.RoundedFilled.Gradient,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -256,7 +262,7 @@ fun AmbientSheet(
                     )
 
                     SliderItem(
-                        label = stringResource(R.string.ambient_slider_glow_intensity),
+                        label = "Glow Intensity",
                         valueText = "%.1f".format(glowIntensity),
                         value = glowIntensity,
                         onChange = { viewModel.updateAmbientParams(glowIntensity = it) },
@@ -265,7 +271,7 @@ fun AmbientSheet(
                         steps = 25,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.Brightness6,
+                                imageVector = Icons.RoundedFilled.Brightness6,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -274,7 +280,7 @@ fun AmbientSheet(
                     )
 
                     SliderItem(
-                        label = stringResource(R.string.ambient_slider_fade_curve),
+                        label = "Fade Curve",
                         valueText = "%.1f".format(fadeCurve),
                         value = fadeCurve,
                         onChange = { viewModel.updateAmbientParams(fadeCurve = it) },
@@ -283,7 +289,7 @@ fun AmbientSheet(
                         steps = 25,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.WbSunny,
+                                imageVector = Icons.RoundedFilled.WbSunny,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -301,7 +307,7 @@ fun AmbientSheet(
             // ── Section: Color ───────────────────────────────────────────────
             var colorExpanded by remember { mutableStateOf(true) }
             SectionHeader(
-                title = stringResource(R.string.ambient_section_color),
+                title = stringResource(R.string.ambient_color),
                 isExpanded = colorExpanded,
                 onClick = { colorExpanded = !colorExpanded },
             )
@@ -314,7 +320,7 @@ fun AmbientSheet(
                     verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
                 ) {
                     SliderItem(
-                        label = stringResource(R.string.ambient_slider_saturation),
+                        label = "Saturation",
                         valueText = "%.1f".format(satBoost),
                         value = satBoost,
                         onChange = { viewModel.updateAmbientParams(satBoost = it) },
@@ -323,7 +329,7 @@ fun AmbientSheet(
                         steps = 30,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.Palette,
+                                imageVector = Icons.RoundedFilled.Palette,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -332,7 +338,7 @@ fun AmbientSheet(
                     )
 
                     SliderItem(
-                        label = stringResource(R.string.ambient_slider_warmth),
+                        label = "Warmth",
                         valueText = if (warmth == 0f) "0" else "%.2f".format(warmth),
                         value = warmth,
                         onChange = { viewModel.updateAmbientParams(warmth = it) },
@@ -341,7 +347,7 @@ fun AmbientSheet(
                         steps = 40,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.Thermostat,
+                                imageVector = Icons.RoundedFilled.Thermostat,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -359,7 +365,7 @@ fun AmbientSheet(
             // ── Section: Compositing ─────────────────────────────────────────
             var compositingExpanded by remember { mutableStateOf(true) }
             SectionHeader(
-                title = stringResource(R.string.ambient_section_compositing),
+                title = stringResource(R.string.ambient_compositing),
                 isExpanded = compositingExpanded,
                 onClick = { compositingExpanded = !compositingExpanded },
             )
@@ -372,7 +378,7 @@ fun AmbientSheet(
                     verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
                 ) {
                     SliderItem(
-                        label = stringResource(R.string.ambient_slider_opacity),
+                        label = "Opacity",
                         valueText = "%.2f".format(opacity),
                         value = opacity,
                         onChange = { viewModel.updateAmbientParams(opacity = it) },
@@ -381,7 +387,7 @@ fun AmbientSheet(
                         steps = 20,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.Opacity,
+                                imageVector = Icons.RoundedFilled.Opacity,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -390,7 +396,7 @@ fun AmbientSheet(
                     )
 
                     SliderItem(
-                        label = stringResource(R.string.ambient_slider_vignette),
+                        label = "Vignette",
                         valueText = "%.1f".format(vignetteStrength),
                         value = vignetteStrength,
                         onChange = { viewModel.updateAmbientParams(vignetteStrength = it) },
@@ -399,7 +405,7 @@ fun AmbientSheet(
                         steps = 10,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.Vignette,
+                                imageVector = Icons.RoundedFilled.Vignette,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -415,7 +421,7 @@ fun AmbientSheet(
             )
 
             // ── Section: Visual Style ────────────────────────────────────────
-            SectionHeader(title = stringResource(R.string.ambient_section_visual_style))
+            SectionHeader(title = stringResource(R.string.ambient_visual_style))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -424,14 +430,19 @@ fun AmbientSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 AmbientModeButton(
-                    label = stringResource(AmbientVisualMode.GLOW.labelRes),
+                    label = AmbientVisualMode.GLOW.label,
                     selected = ambientMode == AmbientVisualMode.GLOW,
                     onClick = { viewModel.updateAmbientVisualMode(AmbientVisualMode.GLOW) },
                 )
                 AmbientModeButton(
-                    label = stringResource(AmbientVisualMode.FRAME_EXTEND.labelRes),
+                    label = AmbientVisualMode.FRAME_EXTEND.label,
                     selected = ambientMode == AmbientVisualMode.FRAME_EXTEND,
                     onClick = { viewModel.updateAmbientVisualMode(AmbientVisualMode.FRAME_EXTEND) },
+                )
+                AmbientModeButton(
+                    label = AmbientVisualMode.YOUTUBE.label,
+                    selected = ambientMode == AmbientVisualMode.YOUTUBE,
+                    onClick = { viewModel.updateAmbientVisualMode(AmbientVisualMode.YOUTUBE) },
                 )
             }
 
@@ -443,7 +454,7 @@ fun AmbientSheet(
 
                 var frameExtendExpanded by remember { mutableStateOf(true) }
                 SectionHeader(
-                    title = stringResource(R.string.ambient_section_frame_extend),
+                    title = stringResource(R.string.ambient_frame_extend),
                     isExpanded = frameExtendExpanded,
                     onClick = { frameExtendExpanded = !frameExtendExpanded },
                 )
@@ -456,7 +467,7 @@ fun AmbientSheet(
                         verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
                     ) {
                         SliderItem(
-                            label = stringResource(R.string.ambient_slider_strength),
+                            label = "Strength",
                             valueText = "%.2f".format(frameExtendStrength),
                             value = frameExtendStrength,
                             onChange = { viewModel.updateFrameExtendParams(extendStrength = it) },
@@ -465,7 +476,7 @@ fun AmbientSheet(
                             steps = 32,
                             icon = {
                                 AppSymbolIcon(
-                                    imageVector = Icons.Default.Gradient,
+                                    imageVector = Icons.RoundedFilled.Gradient,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp),
@@ -474,7 +485,7 @@ fun AmbientSheet(
                         )
 
                         SliderItem(
-                            label = stringResource(R.string.ambient_slider_detail_protect),
+                            label = "Detail Protect",
                             valueText = "%.2f".format(frameExtendDetailProtection),
                             value = frameExtendDetailProtection,
                             onChange = { viewModel.updateFrameExtendParams(detailProtection = it) },
@@ -483,7 +494,7 @@ fun AmbientSheet(
                             steps = 20,
                             icon = {
                                 AppSymbolIcon(
-                                    imageVector = Icons.Default.BlurOn,
+                                    imageVector = Icons.RoundedFilled.BlurOn,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp),
@@ -492,7 +503,7 @@ fun AmbientSheet(
                         )
 
                         SliderItem(
-                            label = stringResource(R.string.ambient_slider_glow_mix),
+                            label = "Glow Mix",
                             valueText = "%.2f".format(frameExtendGlowMix),
                             value = frameExtendGlowMix,
                             onChange = { viewModel.updateFrameExtendParams(glowMix = it) },
@@ -501,7 +512,7 @@ fun AmbientSheet(
                             steps = 32,
                             icon = {
                                 AppSymbolIcon(
-                                    imageVector = Icons.Default.Brightness6,
+                                    imageVector = Icons.RoundedFilled.Brightness6,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp),
@@ -510,7 +521,7 @@ fun AmbientSheet(
                         )
 
                         SliderItem(
-                            label = stringResource(R.string.ambient_slider_bezel),
+                            label = "Bezel",
                             valueText = "%.3f".format(bezelDepth),
                             value = bezelDepth,
                             onChange = { viewModel.updateAmbientParams(bezelDepth = it) },
@@ -519,7 +530,7 @@ fun AmbientSheet(
                             steps = 50,
                             icon = {
                                 AppSymbolIcon(
-                                    imageVector = Icons.Default.RoundedCorner,
+                                    imageVector = Icons.RoundedFilled.RoundedCorner,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp),
@@ -528,7 +539,7 @@ fun AmbientSheet(
                         )
 
                         SliderItem(
-                            label = stringResource(R.string.ambient_slider_dither),
+                            label = "Dither",
                             valueText = "%.3f".format(ditherNoise),
                             value = ditherNoise,
                             onChange = { viewModel.updateFrameExtendParams(ditherNoise = it) },
@@ -537,7 +548,7 @@ fun AmbientSheet(
                             steps = 50,
                             icon = {
                                 AppSymbolIcon(
-                                    imageVector = Icons.Default.Grain,
+                                    imageVector = Icons.RoundedFilled.Grain,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp),
@@ -558,6 +569,7 @@ fun AmbientSheet(
 private fun RowScope.ExpressivePresetButton(
     label: String,
     selected: Boolean,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     val targetScale = if (selected) 1.02f else 1.0f
@@ -569,6 +581,7 @@ private fun RowScope.ExpressivePresetButton(
 
     FilledTonalButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier
             .weight(1f)
             .graphicsLayer(scaleX = scale, scaleY = scale),

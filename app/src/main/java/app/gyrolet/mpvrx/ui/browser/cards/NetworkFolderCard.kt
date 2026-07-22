@@ -25,10 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.domain.network.NetworkFile
@@ -81,8 +79,8 @@ fun NetworkFolderCard(
         contentAlignment = Alignment.Center,
       ) {
         Icon(
-          Icons.Filled.Folder,
-          contentDescription = stringResource(R.string.cd_folder),
+          Icons.RoundedFilled.Folder,
+          contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_folder),
           modifier = Modifier.size(48.dp),
           tint = MaterialTheme.colorScheme.secondary,
         )

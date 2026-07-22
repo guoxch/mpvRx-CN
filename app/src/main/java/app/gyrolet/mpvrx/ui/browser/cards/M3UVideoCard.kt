@@ -1,6 +1,5 @@
 package app.gyrolet.mpvrx.ui.browser.cards
 
-import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -37,7 +36,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -45,7 +43,7 @@ import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.domain.thumbnail.ThumbnailRepository
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
-import coil3.compose.AsyncImage
+import app.gyrolet.mpvrx.presentation.components.RemoteImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.withContext
@@ -197,8 +195,8 @@ fun M3UVideoCard(
             contentScale = ContentScale.Crop,
           )
         } else if (!logoUrl.isNullOrBlank()) {
-          AsyncImage(
-            model = logoUrl,
+          RemoteImage(
+            url = logoUrl,
             contentDescription = null,
             contentScale = ContentScale.Fit,
             modifier = Modifier
@@ -207,7 +205,7 @@ fun M3UVideoCard(
           )
         } else {
           Icon(
-            Icons.Filled.PlayArrow,
+            Icons.RoundedFilled.PlayArrow,
             contentDescription = null,
             modifier = Modifier.size(42.dp),
             tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.65f),
@@ -251,21 +249,21 @@ fun M3UVideoCard(
           }
           if (hasDrm) {
             M3UMetadataChip(
-              text = stringResource(R.string.label_drm),
+              text = "DRM",
               containerColor = MaterialTheme.colorScheme.errorContainer,
               contentColor = MaterialTheme.colorScheme.onErrorContainer,
             )
           }
           if (hasCustomUserAgent) {
             M3UMetadataChip(
-              text = stringResource(R.string.label_ua),
+              text = "UA",
               containerColor = MaterialTheme.colorScheme.tertiaryContainer,
               contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
             )
           }
           if (isFavorite) {
             M3UMetadataChip(
-              text = stringResource(R.string.playlist_saved),
+              text = "Saved",
               containerColor = MaterialTheme.colorScheme.primaryContainer,
               contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             )
@@ -277,8 +275,8 @@ fun M3UVideoCard(
         Spacer(modifier = Modifier.width(8.dp))
         IconButton(onClick = onFavoriteClick) {
           Icon(
-            imageVector = Icons.Outlined.Bookmarks,
-            contentDescription = if (isFavorite) stringResource(R.string.cd_unsave_stream) else stringResource(R.string.cd_save_stream),
+            imageVector = Icons.RoundedFilled.Bookmarks,
+            contentDescription = if (isFavorite) "Unsave stream" else "Save stream",
             tint = if (isFavorite) {
               MaterialTheme.colorScheme.primary
             } else {

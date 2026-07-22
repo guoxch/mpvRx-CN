@@ -6,10 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import app.gyrolet.mpvrx.domain.media.model.Video
+import app.gyrolet.mpvrx.database.entities.PlaybackStateEntity
 import app.gyrolet.mpvrx.domain.playbackstate.repository.PlaybackStateRepository
 import app.gyrolet.mpvrx.repository.MediaFileRepository
 import app.gyrolet.mpvrx.ui.browser.base.BaseBrowserViewModel
-import app.gyrolet.mpvrx.utils.history.RecentlyPlayedOps
 import app.gyrolet.mpvrx.utils.media.MediaLibraryEvents
 import app.gyrolet.mpvrx.utils.media.MetadataRetrieval
 import app.gyrolet.mpvrx.utils.media.PlaybackStateEvents
@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -94,8 +95,6 @@ class VideoListViewModel(
     // Listen for global media library changes and refresh this list when they occur
     viewModelScope.launch(Dispatchers.IO) {
         MediaLibraryEvents.changes.collectLatest {
-          // Clear cache when media library changes
-          MediaFileRepository.clearCache()
           loadVideos()
         }
       }
@@ -236,16 +235,17 @@ class VideoListViewModel(
         // Video is unplayed if there's no playback state record
         val isOldAndUnplayed = playbackState == null
 
-        val isWatched = if (playbackState != null && video.duration > 0) {
-           val durationSeconds = video.duration / 1000
-           val timeRemaining = playbackState.timeRemaining.toLong()
-           val watched = durationSeconds - timeRemaining
-           val progressValue = (watched.toFloat() / durationSeconds.toFloat()).coerceIn(0f, 1f)
-           val calculatedWatched = progressValue >= (watchedThreshold / 100f)
-           playbackState.hasBeenWatched || calculatedWatched
-        } else {
-           false
-        }
+        val isWatched =
+          playbackState?.hasBeenWatched == true ||
+            if (playbackState != null && video.duration > 0) {
+              val durationSeconds = video.duration / 1000
+              val timeRemaining = playbackState.timeRemaining.toLong()
+              val watched = durationSeconds - timeRemaining
+              val progressValue = (watched.toFloat() / durationSeconds.toFloat()).coerceIn(0f, 1f)
+              progressValue >= (watchedThreshold / 100f)
+            } else {
+              false
+            }
 
         VideoWithPlaybackInfo(
           video = video,
@@ -257,6 +257,56 @@ class VideoListViewModel(
       }
     _videosWithPlaybackInfo.value = videosWithInfo
   }
+
+  fun setWatched(video: Video, watched: Boolean) {
+    _videosWithPlaybackInfo.update { videos ->
+      videos.map { item ->
+        if (item.video.path == video.path) {
+          item.copy(
+            timeRemaining = if (watched) 0L else (video.duration / 1000L).coerceAtLeast(0L),
+            progressPercentage = null,
+            isOldAndUnplayed = false,
+            isWatched = watched,
+          )
+        } else {
+          item
+        }
+      }
+    }
+
+    viewModelScope.launch(Dispatchers.IO) {
+      val durationSeconds = (video.duration / 1000L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+      runCatching {
+        val existing = playbackStateRepository.getVideoDataByTitle(video.displayName)
+        playbackStateRepository.upsert(
+          (existing ?: emptyPlaybackState(video, durationSeconds)).copy(
+            lastPosition = 0,
+            timeRemaining = if (watched) 0 else durationSeconds,
+            hasBeenWatched = watched,
+          ),
+        )
+        PlaybackStateEvents.notifyChanged(video.displayName)
+      }.onFailure { error ->
+        Log.e(tag, "Failed to update watched state for ${video.displayName}", error)
+        loadPlaybackInfo(_videos.value)
+      }
+    }
+  }
+
+  private fun emptyPlaybackState(video: Video, durationSeconds: Int): PlaybackStateEntity =
+    PlaybackStateEntity(
+      mediaTitle = video.displayName,
+      lastPosition = 0,
+      playbackSpeed = 1.0,
+      sid = -1,
+      secondarySid = -1,
+      subDelay = 0,
+      subSpeed = 1.0,
+      aid = -1,
+      audioDelay = 0,
+      timeRemaining = durationSeconds,
+      hasBeenWatched = false,
+    )
 
   private fun triggerMediaScan() {
     try {

@@ -189,7 +189,7 @@ fun FrameNavigationSheet(
                   Toast.LENGTH_SHORT,
                 ).show()
             }.onFailure { error ->
-              Toast.makeText(context, context.getString(R.string.player_sheets_frame_navigation_failed_save, error.message), Toast.LENGTH_LONG).show()
+              Toast.makeText(context, context.getString(R.string.toast_failed_to_save_snapshot, error.message ?: context.getString(R.string.generic_unknown_error)), Toast.LENGTH_LONG).show()
             }
           } finally {
             isSnapshotLoading = false
@@ -438,8 +438,7 @@ private fun FrameInfoDisplay(
       horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
       verticalAlignment = Alignment.CenterVertically,
     ) {
-      Text(
-        text = stringResource(R.string.player_sheets_frame_navigation_label_frame),
+      Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_frame),
         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.ExtraBold),
         color = MaterialTheme.colorScheme.tertiary,
       )
@@ -458,8 +457,7 @@ private fun FrameInfoDisplay(
       horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
       verticalAlignment = Alignment.CenterVertically,
     ) {
-      Text(
-        text = stringResource(R.string.player_sheets_frame_navigation_label_timestamp),
+      Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_timestamp),
         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.ExtraBold),
         color = MaterialTheme.colorScheme.tertiary,
       )
@@ -495,7 +493,7 @@ private fun ControlButtons(
       contentPadding = PaddingValues(0.dp),
     ) {
       Icon(
-        Icons.Default.FastRewind,
+        Icons.RoundedFilled.FastRewind,
         contentDescription = null,
         modifier = Modifier.size(32.dp),
       )
@@ -509,7 +507,7 @@ private fun ControlButtons(
       contentPadding = PaddingValues(0.dp),
     ) {
       Icon(
-        if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+        if (isPaused) Icons.RoundedFilled.PlayArrow else Icons.RoundedFilled.Pause,
         contentDescription = null,
         modifier = Modifier.size(32.dp),
       )
@@ -523,7 +521,7 @@ private fun ControlButtons(
       contentPadding = PaddingValues(0.dp),
     ) {
       Icon(
-        Icons.Default.FastForward,
+        Icons.RoundedFilled.FastForward,
         contentDescription = null,
         modifier = Modifier.size(32.dp),
       )
@@ -544,7 +542,7 @@ private fun ControlButtons(
         )
       } else {
         Icon(
-          Icons.Default.Aperture,
+          Icons.RoundedFilled.Aperture,
           contentDescription = null,
           modifier = Modifier.size(32.dp),
         )
@@ -569,7 +567,7 @@ private fun FrameNavigationCardTitle(
     )
     IconButton(onClose) {
       Icon(
-        Icons.Default.Close,
+        Icons.RoundedFilled.Close,
         null,
         modifier = Modifier.size(32.dp),
       )
@@ -603,14 +601,14 @@ private fun IncludeSubsToggle(
         ) { isChecked ->
           if (isChecked) {
             Icon(
-              Icons.Filled.Check,
+              Icons.RoundedFilled.Check,
               contentDescription = null,
               modifier = Modifier.size(SwitchDefaults.IconSize),
               tint = MaterialTheme.colorScheme.onPrimaryContainer
             )
           } else {
             Icon(
-              Icons.Filled.Close,
+              Icons.RoundedFilled.Close,
               contentDescription = null,
               modifier = Modifier.size(SwitchDefaults.IconSize),
               tint = MaterialTheme.colorScheme.onSurfaceVariant

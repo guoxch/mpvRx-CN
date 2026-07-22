@@ -21,8 +21,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.res.stringResource
-import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.PlayerButton
 import app.gyrolet.mpvrx.preferences.getPlayerButtonLabel
 import app.gyrolet.mpvrx.ui.icons.AppIcon
@@ -79,8 +77,7 @@ fun PlayerButtonChip(
       ) {
         when (button) {
           PlayerButton.VIDEO_TITLE -> {
-            Text(
-              text = stringResource(R.string.player_button_video_title),
+            Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_video_title), // TODO: strings
               fontSize = 15.sp, // Increased font size
               textAlign = TextAlign.Center,
               lineHeight = 14.sp,
@@ -96,8 +93,7 @@ fun PlayerButtonChip(
                 contentDescription = label,
                 modifier = Modifier.size(24.dp), 
               )
-              Text(
-                text = "1:06 • Chapter 1", // TODO: strings
+              Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_1_06_chapter_1), // TODO: strings
                 fontSize = 15.sp, 
                 textAlign = TextAlign.Center,
                 lineHeight = 14.sp,

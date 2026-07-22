@@ -8,8 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import app.gyrolet.mpvrx.R
-import app.gyrolet.mpvrx.database.MpvRxDatabase
+import app.gyrolet.mpvrx.database.mpvRxDatabase
 import app.gyrolet.mpvrx.database.entities.RecentlyPlayedEntity
 import app.gyrolet.mpvrx.database.repository.PlaylistRepository
 import app.gyrolet.mpvrx.database.repository.VideoMetadataCacheRepository
@@ -17,6 +16,7 @@ import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.domain.recentlyplayed.repository.RecentlyPlayedRepository
 import app.gyrolet.mpvrx.utils.storage.FileTypeUtils
 import app.gyrolet.mpvrx.utils.permission.PermissionUtils
+
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,17 +36,13 @@ class RecentlyPlayedViewModel(application: Application) : AndroidViewModel(appli
   private val _recentItems = MutableStateFlow<List<RecentlyPlayedItem>>(emptyList())
   val recentItems: StateFlow<List<RecentlyPlayedItem>> = _recentItems.asStateFlow()
 
-  // Keep for backward compatibility
-  private val _recentVideos = MutableStateFlow<List<Video>>(emptyList())
-  val recentVideos: StateFlow<List<Video>> = _recentVideos.asStateFlow()
-
   private val _isLoading = MutableStateFlow(true)
   val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
   init {
     // Observe recently played changes and update automatically
     viewModelScope.launch {
-      val db = org.koin.java.KoinJavaComponent.get<MpvRxDatabase>(MpvRxDatabase::class.java)
+      val db = org.koin.java.KoinJavaComponent.get<mpvRxDatabase>(mpvRxDatabase::class.java)
 
       // Combine both flows - entities and playlists
       kotlinx.coroutines.flow.combine(
@@ -154,13 +150,9 @@ class RecentlyPlayedViewModel(application: Application) : AndroidViewModel(appli
       val sortedItems = items.sortedByDescending { it.timestamp }
       _recentItems.value = sortedItems
 
-      // Keep backward compatibility
-      val videos = sortedItems.filterIsInstance<RecentlyPlayedItem.VideoItem>().map { it.video }
-      _recentVideos.value = videos
     } catch (e: Exception) {
       Log.e("RecentlyPlayedViewModel", "Error loading recent videos", e)
       _recentItems.value = emptyList()
-      _recentVideos.value = emptyList()
     } finally {
       _isLoading.value = false
     }
@@ -283,7 +275,7 @@ class RecentlyPlayedViewModel(application: Application) : AndroidViewModel(appli
     
     // Use host as bucket ID (grouping by domain)
     val bucketId = (uri.host ?: "network").hashCode().toString()
-    val bucketDisplayName = uri.host ?: getApplication<android.app.Application>().getString(R.string.network_streams)
+    val bucketDisplayName = uri.host ?: "Network Streams"
     
     // Determine mime type based on URL extension, default to generic video
     val extension = uri.lastPathSegment?.substringAfterLast('.', "")?.lowercase() ?: ""

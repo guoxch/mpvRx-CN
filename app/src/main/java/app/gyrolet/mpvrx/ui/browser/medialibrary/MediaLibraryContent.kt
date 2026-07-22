@@ -1,5 +1,7 @@
 package app.gyrolet.mpvrx.ui.browser.medialibrary
 
+import androidx.compose.ui.focus.FocusRequester
+
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -47,17 +49,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.gyrolet.mpvrx.BuildConfig
-import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
 import app.gyrolet.mpvrx.preferences.MediaLibraryType
@@ -292,13 +291,13 @@ fun MediaLibraryContent() {
               onSearch = { },
               expanded = false,
               onExpandedChange = { },
-              placeholder = {
-                Text(stringResource(app.gyrolet.mpvrx.R.string.search_hint_videos))
-              },
+               placeholder = {
+                Text(if (mediaType == MediaLibraryType.Audio) androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_search_audio) else androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_search_videos))
+               },
               leadingIcon = {
                 Icon(
-                  imageVector = Icons.Filled.Search,
-                  contentDescription = stringResource(app.gyrolet.mpvrx.R.string.nav_icon_search),
+                  imageVector = Icons.RoundedFilled.Search,
+                  contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.settings_search_title),
                 )
               },
               trailingIcon = {
@@ -309,8 +308,8 @@ fun MediaLibraryContent() {
                   },
                 ) {
                   Icon(
-                    imageVector = Icons.Filled.Close,
-                    contentDescription = stringResource(app.gyrolet.mpvrx.R.string.generic_cancel),
+                    imageVector = Icons.RoundedFilled.Close,
+                    contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel),
                   )
                 }
               },
@@ -325,7 +324,7 @@ fun MediaLibraryContent() {
         ) { }
       } else {
         BrowserTopBar(
-          title = stringResource(app.gyrolet.mpvrx.R.string.media_library_title),
+          title = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_media_library_section),
           isInSelectionMode = selectionManager.isInSelectionMode,
           selectedCount = selectionManager.selectedCount,
           totalCount = filteredVideosWithInfo.size,
@@ -353,7 +352,7 @@ fun MediaLibraryContent() {
           onCopyClick = {
             val selectedPaths = selectionManager.getSelectedItems().map { it.path }.distinct()
             if (selectedPaths.isNotEmpty()) {
-              SafeClipboard.copyPlainText(context, context.getString(R.string.clipboard_label_selected_paths), selectedPaths.joinToString("\n"))
+              SafeClipboard.copyPlainText(context, "Selected paths", selectedPaths.joinToString("\n"))
             }
           },
           onPlayClick = { selectionManager.playSelected() },
@@ -373,7 +372,11 @@ fun MediaLibraryContent() {
       if (filteredVideosWithInfo.isNotEmpty()) {
         TooltipBox(
           positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-          tooltip = { PlainTooltip { Text(stringResource(app.gyrolet.mpvrx.R.string.common_play_first_or_recent)) } },
+           tooltip = {
+             PlainTooltip {
+              Text(if (mediaType == MediaLibraryType.Audio) androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_play_recent_or_first_audio) else androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_play_recent_or_first_video))
+             }
+           },
           state = rememberTooltipState(),
         ) {
           FloatingActionButton(
@@ -399,7 +402,7 @@ fun MediaLibraryContent() {
               }
             },
           ) {
-            Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(app.gyrolet.mpvrx.R.string.common_play_first_or_recent))
+            Icon(Icons.RoundedFilled.PlayArrow, contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_play_recently_played_or_first_video))
           }
         }
       }
@@ -448,9 +451,9 @@ fun MediaLibraryContent() {
               contentAlignment = Alignment.Center,
             ) {
               EmptyState(
-                icon = Icons.Filled.Search,
-                title = stringResource(app.gyrolet.mpvrx.R.string.media_library_no_results_title),
-                message = stringResource(app.gyrolet.mpvrx.R.string.media_library_no_results_message),
+                icon = Icons.RoundedFilled.Search,
+                title = if (mediaType == MediaLibraryType.Audio) androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_no_audio_found) else androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_no_videos_found),
+                message = "Try a different search term",
               )
             }
           } else {
@@ -530,7 +533,8 @@ fun MediaLibraryContent() {
         sortType = videoSortType,
         sortOrder = videoSortOrder,
         onSortTypeChange = { browserPreferences.videoSortType.set(it) },
-        onSortOrderChange = { browserPreferences.videoSortOrder.set(it) }
+        onSortOrderChange = { browserPreferences.videoSortOrder.set(it) },
+        isFolderView = false,
       )
     }
 

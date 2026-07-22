@@ -150,7 +150,6 @@ import app.gyrolet.mpvrx.ui.player.controls.components.sheets.toFixed
 import app.gyrolet.mpvrx.ui.theme.controlColor
 import app.gyrolet.mpvrx.ui.theme.playerRippleConfiguration
 import app.gyrolet.mpvrx.ui.theme.spacing
-import app.gyrolet.mpvrx.presentation.components.ConfirmDialog
 import `is`.xyz.mpv.MPVLib
 import `is`.xyz.mpv.Utils
 import dev.vivvvek.seeker.Segment
@@ -223,6 +222,7 @@ fun PlayerControls(
   val showDoubleTapOvals by playerPreferences.showDoubleTapOvals.collectAsState()
   val showSeekTime by playerPreferences.showSeekTimeWhileSeeking.collectAsState()
   val showBufferedRange by playerPreferences.showBufferedRange.collectAsState()
+  val showChapterIndicators by playerPreferences.showChapterIndicators.collectAsState()
   val useThumbFastSeekPreview by playerPreferences.useThumbFastSeekPreview.collectAsState()
   val safeAreaWindow by playerPreferences.safeAreaWindow.collectAsState()
   val safeAreaInsetModifier =
@@ -1142,8 +1142,8 @@ fun PlayerControls(
                       },
                   ) {
                     Icon(
-                      imageVector = Icons.Default.SkipPrevious,
-                      contentDescription = stringResource(R.string.pref_gesture_media_previous),
+                      imageVector = Icons.RoundedFilled.SkipPrevious,
+                      contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_gesture_media_previous),
                       tint =
                         if (viewModel.hasPrevious()) {
                           if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface
@@ -1239,8 +1239,8 @@ fun PlayerControls(
                       },
                   ) {
                     Icon(
-                      imageVector = Icons.Default.SkipNext,
-                      contentDescription = stringResource(R.string.pref_gesture_media_next),
+                      imageVector = Icons.RoundedFilled.SkipNext,
+                      contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_gesture_media_next),
                       tint =
                         if (viewModel.hasNext()) {
                           if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface
@@ -1345,11 +1345,14 @@ fun PlayerControls(
             }
           // Memoize the immutable copies so they are not reallocated on every position
           // tick (this scope recomposes ~20x/sec while scrubbing).
-          val chaptersImmutable = remember(chapters) { chapters.toImmutableList() }
+          val seekbarChapters = remember(chapters, showChapterIndicators) {
+            if (showChapterIndicators) chapters.toImmutableList() else persistentListOf()
+          }
           val skipSegmentsImmutable = remember(skipSegments) { skipSegments.toImmutableList() }
 
           SeekbarWithTimers(
             position = displayedSeekbarPosition,
+            committedPosition = precisePosition,
             duration = if (preciseDuration > 0) preciseDuration else duration?.toFloat() ?: 0f,
             onValueChange = {
               isSeeking = true
@@ -1375,7 +1378,7 @@ fun PlayerControls(
               playerPreferences.invertDuration.set(!invertDuration)
             },
             positionTimerOnClick = {},
-            chapters = chaptersImmutable,
+            chapters = seekbarChapters,
             skipSegments = skipSegmentsImmutable,
             paused = paused ?: false,
             seekbarStyle = seekbarStyle,
@@ -1660,6 +1663,7 @@ fun PlayerControls(
       onAddSubtitle = viewModel::addSubtitle,
       onToggleSubtitle = viewModel::toggleSubtitle,
       isSubtitleSelected = viewModel::isSubtitleSelected,
+      subtitleSelectionIndicator = viewModel::subtitleSelectionIndicator,
       onRemoveSubtitle = viewModel::removeSubtitle,
       audioTracks = audioTracks.toImmutableList(),
       onAddAudio = viewModel::addAudio,
@@ -1701,18 +1705,6 @@ fun PlayerControls(
       viewModel = viewModel,
       onDismissRequest = { onOpenPanel(Panels.None) },
     )
-
-    val activity = LocalActivity.current as PlayerActivity
-
-    // Delete video confirmation dialog
-    if (activity.showDeleteDialog) {
-      ConfirmDialog(
-        title = stringResource(R.string.player_delete_video_title),
-        subtitle = stringResource(R.string.player_delete_video_message),
-        onConfirm = { activity.deleteCurrentVideo() },
-        onCancel = { activity.showDeleteDialog = false },
-      )
-    }
   }
 }
 
@@ -1757,6 +1749,10 @@ private fun CustomStatsPageSixOverlay(
   val context = LocalContext.current.applicationContext
   val isHdrOutputEnabled by viewModel.isHdrScreenOutputEnabled.collectAsState()
   val hdrScreenMode by viewModel.hdrScreenMode.collectAsState()
+  val hdrOutputText = stringResource(
+    R.string.hdr_mode_output_diagnostic,
+    stringResource(hdrScreenMode.shortTitleRes),
+  )
   val stats by produceState(
     initialValue =
       CustomStatsSnapshot(
@@ -1767,18 +1763,18 @@ private fun CustomStatsPageSixOverlay(
         cpuPercent = 0f,
         gpuEstimatePercent = 0f,
         batteryPercentText = "--%",
-        batteryRateText = context.getString(R.string.stats_unknown),
+        batteryRateText = "Unknown",
         batteryWattsText = "-- W",
         batteryTempText = "--°C",
         hdrActive = "--",
         sessionPlayTimeText = "00:00:00",
-        decoderEfficiencyText = context.getString(R.string.stats_unknown),
-        thermalStateText = context.getString(R.string.stats_normal),
+        decoderEfficiencyText = "Unknown",
+        thermalStateText = "Normal",
         peakTempText = "--°C",
         tempRiseText = "+0.0°C",
       ),
     isHdrOutputEnabled,
-    hdrScreenMode,
+    hdrOutputText,
   ) {
     var lastCpuMs   = runCatching { android.os.Process.getElapsedCpuTime() }.getOrDefault(0L)
     var lastTimeMs  = android.os.SystemClock.elapsedRealtime()
@@ -1845,14 +1841,14 @@ private fun CustomStatsPageSixOverlay(
         0
       }
       val thermalStateText = when (thermalStatus) {
-        0 -> context.getString(R.string.stats_normal)
-        1 -> context.getString(R.string.stats_light_throttling)
-        2 -> context.getString(R.string.stats_moderate_throttling)
-        3 -> context.getString(R.string.stats_severe_throttling)
-        4 -> context.getString(R.string.stats_critical_throttling)
-        5 -> context.getString(R.string.stats_emergency)
-        6 -> context.getString(R.string.stats_shutdown)
-        else -> context.getString(R.string.stats_normal)
+        0 -> "Normal"
+        1 -> "Light Throttling"
+        2 -> "Moderate Throttling"
+        3 -> "Severe Throttling"
+        4 -> "Critical Throttling"
+        5 -> "Emergency!"
+        6 -> "Overheating Shutdown!"
+        else -> "Normal"
       }
 
       val currentHwdec = runCatching { MPVLib.getPropertyString("hwdec-current") ?: "no" }.getOrDefault("no")
@@ -1885,13 +1881,13 @@ private fun CustomStatsPageSixOverlay(
 
           val sourceLabel = if (isHdrSource) "HDR Source" else "SDR Source"
           val outputLabel = if (isHdrOutputEnabled) {
-            "HDR - ${context.getString(hdrScreenMode.shortTitleRes)} Mode Output"
+            hdrOutputText
           } else {
             "SDR Output"
           }
 
           "$sourceLabel | $outputLabel"
-        }.getOrDefault(context.getString(R.string.stats_unknown)),
+        }.getOrDefault("Unknown"),
         sessionPlayTimeText = sessionPlayTimeText,
         decoderEfficiencyText = decoderEfficiencyText,
         thermalStateText  = thermalStateText,
@@ -1930,20 +1926,20 @@ private fun CustomStatsPageSixOverlay(
     val labelStyle = baseStyle.copy(fontWeight = FontWeight.Bold)
     val valueStyle = baseStyle
 
-    OutlinedText(stringResource(R.string.stats_playback_decoder), style = headerStyle)
-    OutlinedLabeled(stringResource(R.string.stats_file), stats.fileName, labelStyle, valueStyle)
-    OutlinedLabeled(stringResource(R.string.stats_decoder_vo), "${stats.renderContext} | ${stats.video} | Eff: ${stats.decoderEfficiencyText}", labelStyle, valueStyle)
-    OutlinedLabeled(stringResource(R.string.stats_audio), "${stats.audio} | HDR: ${stats.hdrActive}", labelStyle, valueStyle)
+    OutlinedText(stringResource(R.string.diagnostics_playback_decoder_header), style = headerStyle)
+    OutlinedLabeled("File", stats.fileName, labelStyle, valueStyle)
+    OutlinedLabeled("Decoder & VO", "${stats.renderContext} | ${stats.video} | Eff: ${stats.decoderEfficiencyText}", labelStyle, valueStyle)
+    OutlinedLabeled("Audio", "${stats.audio} | HDR: ${stats.hdrActive}", labelStyle, valueStyle)
 
     Spacer(modifier = Modifier.height(2.dp))
-    OutlinedText(stringResource(R.string.stats_power_thermals), style = headerStyle)
-    OutlinedLabeled(stringResource(R.string.stats_battery), "${stats.batteryPercentText} | ${stats.batteryWattsText} | Rate: ${stats.batteryRateText}", labelStyle, valueStyle)
-    OutlinedLabeled(stringResource(R.string.stats_temp), "${stats.batteryTempText} (Peak: ${stats.peakTempText} | Rise: ${stats.tempRiseText})", labelStyle, valueStyle)
-    OutlinedLabeled(stringResource(R.string.stats_thermal), stats.thermalStateText, labelStyle, valueStyle)
+    OutlinedText(stringResource(R.string.diagnostics_power_thermals_header), style = headerStyle)
+    OutlinedLabeled("Battery", "${stats.batteryPercentText} | ${stats.batteryWattsText} | Rate: ${stats.batteryRateText}", labelStyle, valueStyle)
+    OutlinedLabeled("Temp", "${stats.batteryTempText} (Peak: ${stats.peakTempText} | Rise: ${stats.tempRiseText})", labelStyle, valueStyle)
+    OutlinedLabeled("Thermal", stats.thermalStateText, labelStyle, valueStyle)
 
     Spacer(modifier = Modifier.height(2.dp))
-    OutlinedText(stringResource(R.string.stats_session), style = headerStyle)
-    OutlinedLabeled(stringResource(R.string.stats_active), stats.sessionPlayTimeText, labelStyle, valueStyle)
+    OutlinedText(stringResource(R.string.diagnostics_session_header), style = headerStyle)
+    OutlinedLabeled("Active", stats.sessionPlayTimeText, labelStyle, valueStyle)
 
     LinearProgressIndicator(
       progress = { stats.cpuPercent / 100f },
@@ -1952,7 +1948,7 @@ private fun CustomStatsPageSixOverlay(
         .height(3.dp)
         .padding(vertical = 0.5.dp)
     )
-    OutlinedLabeled(stringResource(R.string.stats_app_cpu), "${stats.cpuPercent.toInt()}%", labelStyle, valueStyle)
+    OutlinedLabeled("App CPU", "${stats.cpuPercent.toInt()}%", labelStyle, valueStyle)
     LinearProgressIndicator(
       progress = { stats.gpuEstimatePercent / 100f },
       modifier = Modifier
@@ -1960,7 +1956,7 @@ private fun CustomStatsPageSixOverlay(
         .height(3.dp)
         .padding(vertical = 0.5.dp)
     )
-    OutlinedLabeled(stringResource(R.string.stats_frame_pressure), "${stats.gpuEstimatePercent.toInt()}%", labelStyle, valueStyle)
+    OutlinedLabeled("Frame Pressure", "${stats.gpuEstimatePercent.toInt()}%", labelStyle, valueStyle)
   }
 }
 

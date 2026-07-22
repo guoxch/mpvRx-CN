@@ -354,82 +354,6 @@ class PlayerActivity :
   private val playbackRenderDispatcher = Dispatchers.Main
   private val mediaLoadDispatcher = Dispatchers.Default.limitedParallelism(1)
 
-  // ==================== Delete Video Dialog ====================
-  internal var showDeleteDialog by mutableStateOf(false)
-  private var isDeletingVideo = false
-
-  fun showDeleteConfirmDialog() {
-    showDeleteDialog = true
-  }
-
-  fun deleteCurrentVideo() {
-    // Prevent concurrent deletions — rapid clicks on the confirm button
-    // must not launch overlapping playlist mutations.
-    if (isDeletingVideo) {
-      showDeleteDialog = false
-      return
-    }
-    isDeletingVideo = true
-
-    try {
-      val currentUri = if (playlist.isNotEmpty() && playlistIndex >= 0 && playlistIndex < playlist.size) {
-        playlist[playlistIndex]
-      } else {
-        null
-      }
-
-      if (currentUri == null) {
-        Toast.makeText(this, getString(R.string.generic_error), Toast.LENGTH_SHORT).show()
-        return
-      }
-
-      // Reject network/content URIs that can't be deleted
-      if (currentUri.scheme != "file" && currentUri.scheme != "content") {
-        Toast.makeText(this, getString(R.string.player_delete_unsupported_uri), Toast.LENGTH_SHORT).show()
-        return
-      }
-
-      var deleted = false
-      val fileName = getFileNameFromUri(currentUri)
-
-      if (currentUri.scheme == "file") {
-        // File URI: use java.io.File
-        val file = java.io.File(currentUri.path!!)
-        if (file.exists()) {
-          deleted = file.delete()
-        } else {
-          Toast.makeText(this, getString(R.string.player_delete_file_not_found), Toast.LENGTH_SHORT).show()
-          return
-        }
-      } else {
-        // Content URI: use ContentResolver to delete via DocumentsProvider
-        deleted = try {
-          contentResolver.delete(currentUri, null, null) > 0
-        } catch (e: SecurityException) {
-          Log.e(TAG, "No permission to delete content URI: ${e.message}", e)
-          Toast.makeText(this, getString(R.string.player_delete_no_permission), Toast.LENGTH_SHORT).show()
-          return
-        }
-      }
-
-      if (deleted) {
-        Toast.makeText(this, "$fileName ${getString(R.string.player_delete_success)}", Toast.LENGTH_SHORT).show()
-        // Synchronously remove from playlist and play the next video.
-        // No delay — the content URI/file deletion is synchronous on Android,
-        // so the next URI is safe to access immediately.
-        deleteCurrentVideoAndPlayNext()
-      } else {
-        Toast.makeText(this, getString(R.string.player_delete_failed), Toast.LENGTH_SHORT).show()
-      }
-    } catch (e: Exception) {
-      Log.e(TAG, "Error deleting video: ${e.message}", e)
-      Toast.makeText(this, "${getString(R.string.player_delete_error)} ${e.message}", Toast.LENGTH_SHORT).show()
-    } finally {
-      showDeleteDialog = false
-      isDeletingVideo = false
-    }
-  }
-
   // ==================== Background Playback ====================
 
   /**
@@ -451,7 +375,7 @@ class PlayerActivity :
         if (pendingBackgroundTransition && started) {
           pendingBackgroundTransition = false
           isBackgroundPlaybackSessionActive = true
-          viewModel.showToast(getString(R.string.background_playback_on))
+          viewModel.showToast("Background playback on")
         } else if (pendingBackNavigationBackgroundTransition && started) {
           pendingBackNavigationBackgroundTransition = false
           finishIntoBackgroundPlayback()
@@ -669,7 +593,7 @@ class PlayerActivity :
     // Extract fileName early so it's available when video loads
     fileName = getFileName(intent)
     if (fileName.isBlank()) {
-      fileName = intent.data?.lastPathSegment ?: getString(R.string.unknown_video)
+      fileName = intent.data?.lastPathSegment ?: "Unknown Video"
     }
     mediaIdentifier = getMediaIdentifier(intent, fileName)
 
@@ -743,10 +667,10 @@ class PlayerActivity :
             loadScriptAtRuntime(scriptName)
           }
           if (advancedPreferences.selectedLuaScripts.get().isEmpty()) {
-            viewModel.showToast(getString(R.string.scripts_enabled))
+            viewModel.showToast("Scripts enabled")
           }
         } else {
-          viewModel.showToast(getString(R.string.scripts_disabled))
+          viewModel.showToast("Scripts disabled. Reopen the video if a script stays active.")
         }
       }
     }
@@ -928,10 +852,13 @@ class PlayerActivity :
     binding.controls.setContent {
       MpvrxTheme {
         val isAudioOnly by viewModel.isAudioOnly.collectAsState()
+        val hasAlbumArt by viewModel.hasAlbumArt.collectAsState()
         val audioBlobEnabled by audioPreferences.audioBlobEnabled.collectAsState()
         val paused by MPVLib.propBoolean["pause"].collectAsState()
         Box(modifier = Modifier.fillMaxSize()) {
-          if (isAudioOnly && isCurrentMediaKnownAudio() && audioBlobEnabled) {
+          // Audio-only tracks without artwork otherwise leave the player area blank.
+          // Keep the visualizer enabled by default for that fallback state.
+          if (isAudioOnly && !hasAlbumArt && audioBlobEnabled) {
             BlobOverlay(isPlaying = paused == false)
           }
           PlayerControls(
@@ -2157,7 +2084,7 @@ class PlayerActivity :
             withContext(Dispatchers.Main) {
               if (!canIssueMpvCommands()) return@withContext
               MPVLib.command("load-script", targetFile.absolutePath)
-              viewModel.showToast(getString(R.string.player_script_loaded, scriptName))
+              viewModel.showToast("Loaded script: $scriptName")
             }
           }
         }
@@ -2166,7 +2093,7 @@ class PlayerActivity :
         withContext(Dispatchers.Main) {
           android.widget.Toast.makeText(
             this@PlayerActivity,
-            getString(R.string.player_script_load_failed, e.message ?: ""),
+            "Failed to load script: ${e.message}",
             android.widget.Toast.LENGTH_LONG
           ).show()
         }
@@ -2542,7 +2469,7 @@ class PlayerActivity :
     // For HTTP/HTTPS URLs, extract from path (will be updated async via HTTP headers)
     if (HttpUtils.isNetworkStream(uri)) {
       // Get the last path segment and decode URL encoding
-      val path = uri.path ?: return uri.host ?: getString(R.string.network_stream)
+      val path = uri.path ?: return uri.host ?: "Network Stream"
       val lastSegment = path.substringAfterLast("/")
 
       if (lastSegment.isNotBlank()) {
@@ -2551,7 +2478,7 @@ class PlayerActivity :
           java.net.URLDecoder.decode(lastSegment, "UTF-8")
             .substringBefore("?") // Remove query parameters
             .substringBefore("#") // Remove fragments (only for network streams)
-            .takeIf { it.isNotBlank() } ?: uri.host ?: getString(R.string.network_stream)
+            .takeIf { it.isNotBlank() } ?: uri.host ?: "Network Stream"
         } catch (e: Exception) {
           lastSegment
             .substringBefore("?")
@@ -2560,11 +2487,11 @@ class PlayerActivity :
       }
 
       // If no filename in path, use hostname
-      return uri.host ?: getString(R.string.network_stream)
+      return uri.host ?: "Network Stream"
     }
 
     // For file:// and content:// URIs - preserve # characters as they're part of the filename
-    val lastSegment = uri.lastPathSegment?.substringAfterLast("/") ?: uri.path ?: getString(R.string.unknown_video)
+    val lastSegment = uri.lastPathSegment?.substringAfterLast("/") ?: uri.path ?: "Unknown Video"
     
     // For local files, only decode URL encoding but preserve # characters
     return try {
@@ -3107,7 +3034,7 @@ class PlayerActivity :
       fileName = getFileName(intent)
       // Ensure fileName is not blank - use a fallback if necessary
       if (fileName.isBlank()) {
-        fileName = intent.data?.lastPathSegment ?: getString(R.string.unknown_video)
+        fileName = intent.data?.lastPathSegment ?: "Unknown Video"
       }
       mediaIdentifier = getMediaIdentifier(intent, fileName)
     } else if (mediaIdentifier.isBlank()) {
@@ -3297,7 +3224,7 @@ class PlayerActivity :
         if (betterFilename != null && betterFilename.isNotBlank() &&
           betterFilename != fileName &&
           betterFilename != uri.host &&
-          betterFilename != getString(R.string.network_stream) &&
+          betterFilename != "Network Stream" &&
           !HttpUtils.isLikelyJunkTitle(betterFilename)
         ) {
 
@@ -3912,7 +3839,7 @@ class PlayerActivity :
     // Extract the new fileName before loading the file
     fileName = getFileName(intent)
     if (fileName.isBlank()) {
-      fileName = intent.data?.lastPathSegment ?: getString(R.string.unknown_video)
+      fileName = intent.data?.lastPathSegment ?: "Unknown Video"
     }
     mediaIdentifier = getMediaIdentifier(intent, fileName)
 
@@ -4562,7 +4489,7 @@ class PlayerActivity :
 
     if (fileName.isBlank() || !isReady) {
       Log.w(TAG, "Cannot start background playback: media not ready")
-      viewModel.showToast(getString(R.string.background_playback_on))
+      viewModel.showToast("Background playback on")
       return
     }
 
@@ -4570,7 +4497,7 @@ class PlayerActivity :
     when (startBackgroundPlayback()) {
       BackgroundPlaybackStartResult.Started -> {
         isBackgroundPlaybackSessionActive = true
-        viewModel.showToast(getString(R.string.background_playback_on))
+        viewModel.showToast("Background playback on")
       }
       BackgroundPlaybackStartResult.PendingPermission -> pendingBackgroundTransition = true
       BackgroundPlaybackStartResult.Blocked -> {
@@ -4713,44 +4640,6 @@ class PlayerActivity :
         playlistIndex = 0
         loadPlaylistItem(0)
       }
-    }
-  }
-
-  /**
-   * Delete current video from playlist and play next
-   */
-  fun deleteCurrentVideoAndPlayNext() {
-    if (playlist.isEmpty()) {
-      finish()
-      return
-    }
-
-    val currentIndex = playlistIndex
-    playlist = playlist.toMutableList().apply {
-      removeAt(currentIndex)
-    }
-    // Keep playlistItems in sync so index-based lookups remain correct
-    if (currentIndex < playlistItems.size) {
-      playlistItems = playlistItems.toMutableList().apply { removeAt(currentIndex) }
-    }
-
-    if (playlist.isEmpty()) {
-      finish()
-      return
-    }
-
-    if (viewModel.shuffleEnabled.value) {
-      shuffledIndices = shuffledIndices.filter { it != currentIndex }.map {
-        if (it > currentIndex) it - 1 else it
-      }
-      if (shuffledPosition >= shuffledIndices.size) {
-        shuffledPosition = shuffledIndices.size - 1
-      }
-      playlistIndex = shuffledIndices.getOrElse(shuffledPosition) { 0 }
-      loadPlaylistItem(playlistIndex)
-    } else {
-      playlistIndex = currentIndex.coerceAtMost(playlist.lastIndex)
-      loadPlaylistItem(playlistIndex)
     }
   }
 
@@ -4907,7 +4796,7 @@ class PlayerActivity :
 
   private fun syncBackgroundPlaybackService(updateThumbnail: Boolean) {
     val service = mediaPlaybackService ?: return
-    val title = getPreferredCurrentTitle().ifBlank { fileName.ifBlank { getString(R.string.unknown_video) } }
+    val title = getPreferredCurrentTitle().ifBlank { fileName.ifBlank { getString(R.string.player_unknown_video) } }
     val artist = runCatching { MPVLib.getPropertyString("metadata/artist") }.getOrNull() ?: ""
     val thumbnailKey = buildBackgroundThumbnailKey()
     val cachedThumbnail =
@@ -4986,7 +4875,7 @@ class PlayerActivity :
         ?.takeIf { !HttpUtils.isLikelyJunkTitle(it) }
         ?.let { return it }
     }
-    return fileName.ifBlank { getString(R.string.unknown_video) }
+    return fileName.ifBlank { "Unknown Video" }
   }
 
   /**
@@ -5401,7 +5290,7 @@ class PlayerActivity :
         connection.connectTimeout = 15000
         connection.readTimeout = 15000
         connection.requestMethod = "GET"
-        connection.setRequestProperty("User-Agent", "MpvRx/1.0")
+        connection.setRequestProperty("User-Agent", "mpvRx/1.0")
         val responseCode = connection.responseCode
         if (responseCode == HttpURLConnection.HTTP_OK) {
           val text = BufferedReader(InputStreamReader(connection.inputStream, "UTF-8")).use { reader ->

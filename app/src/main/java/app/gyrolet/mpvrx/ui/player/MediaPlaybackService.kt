@@ -32,6 +32,7 @@ import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.AudioPreferences
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
+import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.utils.media.PlaybackStateEvents
 import `is`.xyz.mpv.MPVLib
 import `is`.xyz.mpv.MPVNode
@@ -337,7 +338,7 @@ class MediaPlaybackService :
 
   private fun updateMediaSession() {
     try {
-      val title = mediaTitle.ifBlank { getString(R.string.unknown_video) }
+      val title = mediaTitle.ifBlank { getString(R.string.player_unknown_video) }
       val duration = (mediaDurationSeconds * 1000).toLong().coerceAtLeast(0L)
 
       val metadataBuilder =
@@ -426,18 +427,18 @@ class MediaPlaybackService :
     )
 
   private fun prevAction() = NotificationCompat.Action(
-    android.R.drawable.ic_media_previous, "Previous",
+    Icons.Platform.Previous, "Previous",
     buildTransportIntent(ACTION_NOTIFICATION_PREVIOUS, 1001),
   )
 
   private fun playPauseAction() = NotificationCompat.Action(
-    if (paused) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause,
+    if (paused) Icons.Platform.Play else Icons.Platform.Pause,
     if (paused) "Play" else "Pause",
     MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE),
   )
 
   private fun nextAction() = NotificationCompat.Action(
-    android.R.drawable.ic_media_next, "Next",
+    Icons.Platform.Next, "Next",
     buildTransportIntent(ACTION_NOTIFICATION_NEXT, 1002),
   )
 
@@ -534,7 +535,7 @@ class MediaPlaybackService :
 
     val builder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
       .setSmallIcon(R.drawable.ic_launcher_monochrome)
-      .setContentTitle(mediaTitle.ifBlank { getString(R.string.unknown_video) })
+      .setContentTitle(mediaTitle.ifBlank { "Unknown Video" })
       .setContentText(chapterContentText())
       .setSubText(chapterLabel())
       .setLargeIcon(thumbnail)
@@ -570,7 +571,7 @@ class MediaPlaybackService :
 
     return NotificationCompat
       .Builder(this, NOTIFICATION_CHANNEL_ID)
-      .setContentTitle(mediaTitle.ifBlank { getString(R.string.unknown_video) })
+      .setContentTitle(mediaTitle.ifBlank { "Unknown Video" })
       .setContentText(chapterContentText())
       .setSubText(playbackTimeText())
       .setSmallIcon(R.drawable.ic_launcher_monochrome)
@@ -888,42 +889,8 @@ class MediaPlaybackService :
   }
 
   override fun onTaskRemoved(rootIntent: Intent?) {
-    Log.d(TAG, "Task removed - killing playback and cleaning up service")
-    try {
-      try {
-        MPVLib.command("quit")
-        Log.d(TAG, "MPV quit command sent")
-      } catch (e: Exception) {
-        Log.e(TAG, "Error sending quit command to MPV", e)
-      }
-
-      try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-          stopForeground(STOP_FOREGROUND_REMOVE)
-        } else {
-          @Suppress("DEPRECATION")
-          stopForeground(true)
-        }
-      } catch (e: Exception) {
-        Log.e(TAG, "Error stopping foreground in onTaskRemoved", e)
-      }
-
-      try {
-        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.cancel(NOTIFICATION_ID)
-      } catch (e: Exception) {
-        Log.e(TAG, "Error canceling notification in onTaskRemoved", e)
-      }
-
-      thumbnail = null
-
-      stopSelf()
-
-      android.os.Process.killProcess(android.os.Process.myPid())
-    } catch (e: Exception) {
-      Log.e(TAG, "Error in onTaskRemoved", e)
-      android.os.Process.killProcess(android.os.Process.myPid())
-    }
+    Log.d(TAG, "Task removed - keeping foreground background playback active")
+    schedulePlaybackStateSave(force = true)
     super.onTaskRemoved(rootIntent)
   }
 }

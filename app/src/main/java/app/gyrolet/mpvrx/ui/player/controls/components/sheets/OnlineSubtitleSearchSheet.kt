@@ -39,7 +39,7 @@ import app.gyrolet.mpvrx.repository.subtitle.subdlGroupEpisodeRange
 import app.gyrolet.mpvrx.repository.subtitle.withSelectedSubdlGroupEpisode
 import app.gyrolet.mpvrx.ui.theme.spacing
 import app.gyrolet.mpvrx.utils.media.MediaInfoParser
-import coil3.compose.AsyncImage
+import app.gyrolet.mpvrx.presentation.components.RemoteImage
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
@@ -78,7 +78,6 @@ fun OnlineSubtitleSearchSheet(
   onSelectEpisode: (app.gyrolet.mpvrx.repository.wyzie.WyzieEpisode) -> Unit = {},
   onClearMediaSelection: () -> Unit = {}
 ) {
-  val context = LocalContext.current
   val items = remember(searchResults, isSearching, isOnlineSectionExpanded) {
     val list = mutableListOf<OnlineSubtitleItem>()
     
@@ -87,9 +86,9 @@ fun OnlineSubtitleSearchSheet(
         val hashMatches = searchResults.count { it.isHashMatch }
         val headerText =
           if (hashMatches > 0) {
-            context.getString(R.string.online_subtitle_verified_matches, hashMatches)
+            "Verified Matches ($hashMatches) + Others"
           } else {
-            context.getString(R.string.online_subtitle_online_results, searchResults.size)
+            "Online Results (${searchResults.size})"
           }
         list.add(OnlineSubtitleItem.Header(headerText))
         if (isOnlineSectionExpanded) {
@@ -103,6 +102,7 @@ fun OnlineSubtitleSearchSheet(
   PlayerSheet(onDismissRequest) {
     Column(modifier) {
       val keyboardController = LocalSoftwareKeyboardController.current
+      val context = LocalContext.current
       val mediaInfo = remember(mediaTitle) { MediaInfoParser.parse(mediaTitle) }
       var searchQuery by remember { mutableStateOf(mediaInfo.title) }
       val aiPreferences = koinInject<AiPreferences>()
@@ -140,7 +140,7 @@ fun OnlineSubtitleSearchSheet(
       fun formatWithAi() {
         val input = if (searchQuery.isNotBlank()) searchQuery else mediaInfo.title
         if (input.isBlank()) {
-          Toast.makeText(context, context.getString(R.string.online_subtitle_search_empty_query), Toast.LENGTH_SHORT).show()
+          Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.ui_search_query_is_empty), Toast.LENGTH_SHORT).show()
           return
         }
         scope.launch {
@@ -152,7 +152,7 @@ fun OnlineSubtitleSearchSheet(
               keyboardController?.hide()
             }
             .onFailure { e ->
-              Toast.makeText(context, context.getString(R.string.online_subtitle_ai_format_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
+              Toast.makeText(context, context.getString(R.string.toast_ai_format_failed, e.message ?: context.getString(R.string.generic_unknown_error)), Toast.LENGTH_SHORT).show()
             }
           isAiFormatting = false
         }
@@ -171,7 +171,7 @@ fun OnlineSubtitleSearchSheet(
             verticalAlignment = Alignment.CenterVertically
           ) {
             Icon(
-              Icons.Default.AutoFixHigh,
+              Icons.RoundedFilled.AutoFixHigh,
               contentDescription = null,
               modifier = Modifier.size(14.dp),
               tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
@@ -207,7 +207,7 @@ fun OnlineSubtitleSearchSheet(
                 searchQuery = mediaInfo.title
                 onSearchMedia(mediaInfo.title)
               }) {
-                Icon(Icons.Default.AutoFixHigh, null, tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.RoundedFilled.AutoFixHigh, null, tint = MaterialTheme.colorScheme.primary)
               }
             },
             trailingIcon = {
@@ -217,7 +217,7 @@ fun OnlineSubtitleSearchSheet(
                     searchQuery = ""
                     onClearMediaSelection()
                   }) {
-                    Icon(Icons.Default.Close, null)
+                    Icon(Icons.RoundedFilled.Close, null)
                   }
                 }
                 if (aiPreferences.enabled.get() && aiPreferences.subtitleFormatWithAi.get()) {
@@ -226,7 +226,7 @@ fun OnlineSubtitleSearchSheet(
                     Spacer(Modifier.width(4.dp))
                   } else {
                     IconButton(onClick = { formatWithAi() }) {
-                      Icon(Icons.Default.AutoAwesome, stringResource(R.string.online_subtitle_format_with_ai), tint = MaterialTheme.colorScheme.tertiary)
+                      Icon(Icons.RoundedFilled.AutoAwesome, "Format with AI", tint = MaterialTheme.colorScheme.tertiary)
                     }
                   }
                 }
@@ -235,7 +235,7 @@ fun OnlineSubtitleSearchSheet(
                   Spacer(Modifier.width(8.dp))
                 }
                 IconButton(onClick = { runSearch() }) {
-                  Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.primary)
+                  Icon(Icons.RoundedFilled.Search, null, tint = MaterialTheme.colorScheme.primary)
                 }
               }
             },
@@ -273,7 +273,7 @@ fun OnlineSubtitleSearchSheet(
               .padding(horizontal = MaterialTheme.spacing.medium)
           ) {
             Text(
-              text = stringResource(R.string.online_subtitle_found_results, mediaSearchResults.size),
+              text = "Found ${mediaSearchResults.size}",
               style = MaterialTheme.typography.labelSmall,
               color = MaterialTheme.colorScheme.outline,
               modifier = Modifier
@@ -340,7 +340,7 @@ fun OnlineSubtitleSearchSheet(
                 )
                 if (isOnlineHeader) {
                   Icon(
-                    imageVector = if (isOnlineSectionExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    imageVector = if (isOnlineSectionExpanded) Icons.RoundedFilled.ExpandLess else Icons.RoundedFilled.ExpandMore,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp),
@@ -398,8 +398,8 @@ fun OnlineSubtitleRow(
             // Verification badge
             if (subtitle.isHashMatch) {
                 Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = stringResource(R.string.cd_online_subtitle_verified_sync),
+                    imageVector = Icons.RoundedFilled.Check,
+                    contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_verified_sync),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
                 )
@@ -441,7 +441,7 @@ fun OnlineSubtitleRow(
                                 horizontalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.Download,
+                                    Icons.RoundedFilled.Download,
                                     contentDescription = null,
                                     modifier = Modifier.size(12.dp),
                                     tint = MaterialTheme.colorScheme.primary
@@ -512,8 +512,7 @@ fun OnlineSubtitleRow(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.outlineVariant
                         )
-                        Text(
-                            text = stringResource(R.string.cd_online_subtitle_sync),
+                        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_sync),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
@@ -536,8 +535,8 @@ fun OnlineSubtitleRow(
                 modifier = Modifier.size(32.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Download,
-                    contentDescription = stringResource(R.string.cd_online_subtitle_download),
+                    imageVector = Icons.RoundedFilled.Download,
+                    contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_download),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
@@ -564,13 +563,13 @@ private fun SubdlEpisodeDropdown(
             shape = RoundedCornerShape(8.dp),
         ) {
             Text(
-                text = stringResource(R.string.cd_online_subtitle_ep_short, selectedEpisode),
+                text = "Ep $selectedEpisode",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
             )
             Icon(
-                imageVector = Icons.Default.ArrowDropDown,
+                imageVector = Icons.RoundedFilled.ArrowDropDown,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp),
             )
@@ -584,7 +583,7 @@ private fun SubdlEpisodeDropdown(
         ) {
             episodes.forEach { episode ->
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.cd_online_subtitle_episode, episode)) },
+                    text = { Text(androidx.compose.ui.res.stringResource(R.string.online_subtitle_episode, episode)) },
                     onClick = {
                         onEpisodeSelected(episode)
                         expanded = false
@@ -619,8 +618,8 @@ fun TmdbMediaCard(
         Box {
             // Poster image
             if (posterUrl != null) {
-                AsyncImage(
-                    model = posterUrl,
+                RemoteImage(
+                    url = posterUrl,
                     contentDescription = result.title,
                     modifier = Modifier
                         .matchParentSize()
@@ -630,7 +629,7 @@ fun TmdbMediaCard(
                 )
             } else {
                 Icon(
-                    Icons.Default.Movie,
+                    Icons.RoundedFilled.Movie,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     modifier = Modifier
@@ -713,8 +712,8 @@ fun TmdbResultRow(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                AsyncImage(
-                    model = posterUrl,
+                RemoteImage(
+                    url = posterUrl,
                     contentDescription = result.title,
                     modifier = Modifier
                         .matchParentSize()
@@ -736,7 +735,7 @@ fun TmdbResultRow(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Default.Movie,
+                    Icons.RoundedFilled.Movie,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     modifier = Modifier.size(24.dp)
@@ -810,7 +809,7 @@ private fun SeriesSelectionControls(
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                 )
-                Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp))
+                Icon(Icons.RoundedFilled.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp))
             }
             DropdownMenu(
                 expanded = seasonDropdownExpanded.value,
@@ -859,7 +858,7 @@ private fun SeriesSelectionControls(
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                 )
-                Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp))
+                Icon(Icons.RoundedFilled.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp))
             }
             DropdownMenu(
                 expanded = episodeDropdownExpanded.value,
@@ -901,7 +900,7 @@ private fun SeriesSelectionControls(
             onClick = onClose,
             modifier = Modifier.size(40.dp),
         ) {
-            Icon(Icons.Default.Close, null, modifier = Modifier.size(18.dp))
+            Icon(Icons.RoundedFilled.Close, null, modifier = Modifier.size(18.dp))
         }
     }
 }

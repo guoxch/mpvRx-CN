@@ -24,32 +24,32 @@ enum class HdrScreenMode(
   val hdrToysProfile: HdrToysProfile? = null,
 ) {
   OFF(
-    titleRes = R.string.hdr_mode_off_title,
-    shortTitleRes = R.string.hdr_mode_off_short,
-    descriptionRes = R.string.hdr_mode_off_desc,
+    titleRes = R.string.hdr_mode_off,
+    shortTitleRes = R.string.hdr_mode_off,
+    descriptionRes = R.string.hdr_mode_off_description,
   ),
   BT_2100_PQ(
-    titleRes = R.string.hdr_mode_bt2100_pq_title,
-    shortTitleRes = R.string.hdr_mode_bt2100_pq_short,
-    descriptionRes = R.string.hdr_mode_bt2100_pq_desc,
+    titleRes = R.string.hdr_mode_bt2100_pq,
+    shortTitleRes = R.string.hdr_mode_pq_short,
+    descriptionRes = R.string.hdr_mode_bt2100_pq_description,
     hdrToysProfile = HdrToysProfile.BT_2100_PQ,
   ),
   BT_2100_HLG(
-    titleRes = R.string.hdr_mode_bt2100_hlg_title,
-    shortTitleRes = R.string.hdr_mode_bt2100_hlg_short,
-    descriptionRes = R.string.hdr_mode_bt2100_hlg_desc,
+    titleRes = R.string.hdr_mode_bt2100_hlg,
+    shortTitleRes = R.string.hdr_mode_hlg_short,
+    descriptionRes = R.string.hdr_mode_bt2100_hlg_description,
     hdrToysProfile = HdrToysProfile.BT_2100_HLG,
   ),
   BT_2020(
-    titleRes = R.string.hdr_mode_bt2020_title,
-    shortTitleRes = R.string.hdr_mode_bt2020_short,
-    descriptionRes = R.string.hdr_mode_bt2020_desc,
+    titleRes = R.string.hdr_mode_bt2020,
+    shortTitleRes = R.string.hdr_mode_bt2020,
+    descriptionRes = R.string.hdr_mode_bt2020_description,
     hdrToysProfile = HdrToysProfile.BT_2020,
   ),
   LINEAR(
-    titleRes = R.string.hdr_mode_linear_title,
+    titleRes = R.string.hdr_mode_linear,
     shortTitleRes = R.string.hdr_mode_linear_short,
-    descriptionRes = R.string.hdr_mode_linear_desc,
+    descriptionRes = R.string.hdr_mode_linear_description,
   );
 
   companion object {

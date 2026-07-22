@@ -1,8 +1,12 @@
 package app.gyrolet.mpvrx.ui.browser.playlist
 
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
+
+import androidx.compose.ui.focus.FocusRequester
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
-import androidx.compose.ui.res.stringResource
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
@@ -45,7 +49,6 @@ import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,14 +58,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.gyrolet.mpvrx.database.repository.PlaylistRepository
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
 import app.gyrolet.mpvrx.preferences.MediaLayoutMode
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
@@ -87,7 +88,6 @@ object PlaylistScreen : Screen {
   @Composable
   override fun Content() {
     val context = LocalContext.current
-    val repository = koinInject<PlaylistRepository>()
     val browserPreferences = koinInject<BrowserPreferences>()
     val backStack = LocalBackStack.current
     val scope = rememberCoroutineScope()
@@ -184,11 +184,11 @@ object PlaylistScreen : Screen {
                   onSearch = { },
                   expanded = false,
                   onExpandedChange = { },
-                  placeholder = { Text(stringResource(app.gyrolet.mpvrx.R.string.search_hint_playlists)) },
+                  placeholder = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_search_playlists)) },
                   leadingIcon = {
                     Icon(
-                      imageVector = Icons.Filled.Search,
-                      contentDescription = stringResource(app.gyrolet.mpvrx.R.string.nav_icon_search),
+                      imageVector = Icons.RoundedFilled.Search,
+                      contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.settings_search_title),
                     )
                   },
                   trailingIcon = {
@@ -199,8 +199,8 @@ object PlaylistScreen : Screen {
                       },
                     ) {
                       Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = stringResource(app.gyrolet.mpvrx.R.string.generic_cancel),
+                        imageVector = Icons.RoundedFilled.Close,
+                        contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel),
                       )
                     }
                   },
@@ -219,7 +219,7 @@ object PlaylistScreen : Screen {
             }
           } else {
             BrowserTopBar(
-              title = stringResource(app.gyrolet.mpvrx.R.string.nav_tab_playlists),
+              title = stringResource(R.string.ui_playlists),
               isInSelectionMode = selectionManager.isInSelectionMode,
               selectedCount = selectionManager.selectedCount,
               totalCount = playlistsWithCount.size,
@@ -245,8 +245,8 @@ object PlaylistScreen : Screen {
           if (!selectionManager.isInSelectionMode && isFabVisible.value) {
             ExtendedFloatingActionButton(
               onClick = { showPlaylistActionSheet = true },
-              icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-              text = { Text(stringResource(app.gyrolet.mpvrx.R.string.playlist_create)) },
+              icon = { Icon(Icons.RoundedFilled.Add, contentDescription = null) },
+              text = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_create_playlist)) },
               modifier = Modifier.padding(bottom = navigationBarHeight)
             )
           }
@@ -261,9 +261,9 @@ object PlaylistScreen : Screen {
             contentAlignment = Alignment.Center,
           ) {
             EmptyState(
-              icon = Icons.Filled.Search,
-              title = stringResource(app.gyrolet.mpvrx.R.string.no_playlists_title),
-              message = stringResource(app.gyrolet.mpvrx.R.string.search_hint_videos),
+              icon = Icons.RoundedFilled.Search,
+              title = stringResource(R.string.ui_no_playlists_found),
+              message = "Try a different search term",
             )
           }
         } else if (playlistsWithCount.isEmpty() && hasCompletedInitialLoad) {
@@ -278,9 +278,9 @@ object PlaylistScreen : Screen {
               verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
               EmptyState(
-                icon = Icons.Outlined.PlaylistAdd,
-                title = stringResource(app.gyrolet.mpvrx.R.string.no_playlists_message),
-                message = stringResource(app.gyrolet.mpvrx.R.string.no_playlists_title),
+                icon = Icons.RoundedFilled.PlaylistAdd,
+                title = stringResource(R.string.ui_no_playlists_yet),
+                message = "Create a playlist or add one from an m3u URL",
               )
             }
           }
@@ -314,7 +314,9 @@ object PlaylistScreen : Screen {
       PlaylistActionSheet(
         isOpen = showPlaylistActionSheet,
         onDismiss = { showPlaylistActionSheet = false },
-        repository = repository,
+        onCreatePlaylist = viewModel::createPlaylist,
+        onCreateM3UPlaylistFromFile = viewModel::createM3UPlaylistFromFile,
+        onCreateM3UPlaylist = viewModel::createM3UPlaylist,
         context = context,
       )
 
@@ -324,12 +326,12 @@ object PlaylistScreen : Screen {
           var playlistName by remember { mutableStateOf(selectedPlaylist.playlist.name) }
           androidx.compose.material3.AlertDialog(
             onDismissRequest = { showRenameDialog = false },
-            title = { Text(stringResource(app.gyrolet.mpvrx.R.string.playlist_rename_title)) },
+            title = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_rename_playlist)) },
             text = {
               androidx.compose.material3.OutlinedTextField(
                 value = playlistName,
                 onValueChange = { playlistName = it },
-                label = { Text(stringResource(app.gyrolet.mpvrx.R.string.common_playlist_name)) },
+                label = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_playlist_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
               )
@@ -339,7 +341,7 @@ object PlaylistScreen : Screen {
                 onClick = {
                   if (playlistName.isNotBlank()) {
                     scope.launch {
-                      repository.updatePlaylist(selectedPlaylist.playlist.copy(name = playlistName.trim()))
+                      viewModel.updatePlaylist(selectedPlaylist.playlist.copy(name = playlistName.trim()))
                       showRenameDialog = false
                       selectionManager.clear()
                     }
@@ -347,14 +349,14 @@ object PlaylistScreen : Screen {
                 },
                 enabled = playlistName.isNotBlank(),
               ) {
-                Text(stringResource(app.gyrolet.mpvrx.R.string.rename))
+                Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.rename))
               }
             },
             dismissButton = {
               androidx.compose.material3.TextButton(
                 onClick = { showRenameDialog = false },
               ) {
-                Text(stringResource(app.gyrolet.mpvrx.R.string.common_cancel))
+                Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel))
               }
             },
           )

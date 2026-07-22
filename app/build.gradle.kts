@@ -21,8 +21,8 @@ android {
     applicationId = "app.gyrolet.mpvrx"
     minSdk = 26
     targetSdk = 36
-    versionCode = 152
-    versionName = "1.5.0-preview.4"
+    versionCode = 153
+    versionName = "1.5.0-preview.5"
 
     vectorDrawables {
       useSupportLibrary = true
@@ -109,7 +109,7 @@ android {
     named("debug") {
       applicationIdSuffix = ".debug"
       versionNameSuffix = "-${getCommitCount()}"
-      resValue("string", "app_name", "MpvRx-Debug")
+      resValue("string", "app_name", "mpvRx-Debug")
     }
   }
 
@@ -224,7 +224,6 @@ dependencies {
   implementation(libs.androidx.compose.animation.graphics)
   implementation(libs.mediasession)
   implementation(libs.androidx.documentfile)
-  implementation(libs.bundles.coil)
 
   implementation(platform(libs.koin.bom))
   implementation(libs.bundles.koin)
@@ -256,7 +255,7 @@ dependencies {
   implementation(libs.truetype.parser)
   implementation(libs.fsaf)
   implementation(libs.mediainfo.lib)
-  implementation("com.llamatik:library:1.4.0")
+  implementation(libs.llamatik)
   implementation(libs.androidx.profileinstaller)
   implementation(libs.google.cast.framework)
   

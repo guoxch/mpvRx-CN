@@ -1,8 +1,11 @@
 package app.gyrolet.mpvrx.ui.browser.recentlyplayed
 
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
+
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
-import androidx.compose.ui.res.stringResource
 
 import android.content.Intent
 import android.widget.Toast
@@ -43,7 +46,6 @@ import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,7 +59,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.gyrolet.mpvrx.database.repository.PlaylistRepository
 import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.domain.media.model.VideoFolder
 import app.gyrolet.mpvrx.domain.thumbnail.ThumbnailRepository
@@ -93,12 +94,10 @@ object RecentlyPlayedScreen : Screen {
   override fun Content() {
     val context = LocalContext.current
     val backStack = LocalBackStack.current
-    val playlistRepository = koinInject<PlaylistRepository>()
     val viewModel: RecentlyPlayedViewModel =
       viewModel(factory = RecentlyPlayedViewModel.factory(context.applicationContext as android.app.Application))
 
     val recentItems by viewModel.recentItems.collectAsState()
-    val recentVideos by viewModel.recentVideos.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val deleteDialogOpen = rememberSaveable { mutableStateOf(false) }
     val deleteFilesCheckbox = rememberSaveable { mutableStateOf(false) }
@@ -189,7 +188,7 @@ object RecentlyPlayedScreen : Screen {
     Scaffold(
         topBar = {
           BrowserTopBar(
-            title = stringResource(app.gyrolet.mpvrx.R.string.nav_tab_recents),
+            title = stringResource(R.string.pref_advanced_enable_recently_played_title),
             isInSelectionMode = selectionManager.isInSelectionMode,
             selectedCount = selectionManager.selectedCount,
             totalCount = recentItems.size,
@@ -223,7 +222,7 @@ object RecentlyPlayedScreen : Screen {
                   TooltipAnchorPosition.Above
                 }
               ),
-              tooltip = { PlainTooltip { Text(stringResource(app.gyrolet.mpvrx.R.string.common_toggle_menu)) } },
+              tooltip = { PlainTooltip { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_toggle_menu)) } },
               state = rememberTooltipState(),
             ) {
               ToggleFloatingActionButton(
@@ -237,7 +236,7 @@ object RecentlyPlayedScreen : Screen {
               ) {
                 val imageVector by remember {
                   derivedStateOf {
-                    if (checkedProgress > 0.5f) Icons.Filled.Close else Icons.Filled.PlayArrow
+                    if (checkedProgress > 0.5f) Icons.RoundedFilled.Close else Icons.RoundedFilled.PlayArrow
                   }
                 }
                 Icon(
@@ -254,8 +253,8 @@ object RecentlyPlayedScreen : Screen {
               isFabExpanded.value = false
               filePicker.launch(arrayOf("video/*"))
             },
-            icon = { Icon(Icons.Filled.FileOpen, contentDescription = null) },
-            text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.common_open_file)) },
+            icon = { Icon(Icons.RoundedFilled.FileOpen, contentDescription = null) },
+            text = { Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_open_file)) },
           )
 
           FloatingActionButtonMenuItem(
@@ -274,8 +273,8 @@ object RecentlyPlayedScreen : Screen {
                 }
               }
             },
-            icon = { Icon(Icons.Filled.History, contentDescription = null) },
-            text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.nav_tab_recents)) },
+            icon = { Icon(Icons.RoundedFilled.History, contentDescription = null) },
+            text = { Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_advanced_enable_recently_played_title)) },
           )
 
           FloatingActionButtonMenuItem(
@@ -283,8 +282,8 @@ object RecentlyPlayedScreen : Screen {
               isFabExpanded.value = false
               showLinkDialog.value = true
             },
-            icon = { Icon(Icons.Filled.Link, contentDescription = null) },
-            text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.common_open_link)) },
+            icon = { Icon(Icons.RoundedFilled.Link, contentDescription = null) },
+            text = { Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_open_link)) },
           )
         }
       },
@@ -298,9 +297,9 @@ object RecentlyPlayedScreen : Screen {
             contentAlignment = Alignment.Center,
           ) {
             EmptyState(
-              icon = Icons.Filled.History,
-              title = stringResource(app.gyrolet.mpvrx.R.string.recents_disabled_title),
-              message = stringResource(app.gyrolet.mpvrx.R.string.recents_disabled_message),
+              icon = Icons.RoundedFilled.History,
+              title = stringResource(R.string.ui_recently_played_disabled),
+              message = "Enable it in Advanced Settings to track your playback history",
             )
           }
         }
@@ -327,9 +326,9 @@ object RecentlyPlayedScreen : Screen {
             contentAlignment = Alignment.Center,
           ) {
             EmptyState(
-              icon = Icons.Filled.History,
-              title = stringResource(app.gyrolet.mpvrx.R.string.recents_empty_title),
-              message = stringResource(app.gyrolet.mpvrx.R.string.recents_empty_message),
+              icon = Icons.RoundedFilled.History,
+              title = stringResource(R.string.ui_no_recently_played_videos),
+              message = "Videos you play will appear here",
             )
           }
         }
@@ -337,7 +336,6 @@ object RecentlyPlayedScreen : Screen {
         else -> {
           RecentItemsContent(
             recentItems = recentItems,
-            playlistRepository = playlistRepository,
             selectionManager = selectionManager,
             onVideoClick = { video ->
               coroutineScope.launch {
@@ -346,7 +344,7 @@ object RecentlyPlayedScreen : Screen {
                   // Always play individual videos without creating a playlist.
                   MediaUtils.playFile(playableVideo, context, "recently_played")
                 } else {
-                  Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.recents_file_not_found), Toast.LENGTH_SHORT).show()
+                  Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.ui_recent_file_no_longer_exists), Toast.LENGTH_SHORT).show()
                 }
               }
             },
@@ -366,20 +364,22 @@ object RecentlyPlayedScreen : Screen {
       if (deleteDialogOpen.value && selectionManager.isInSelectionMode) {
         // Remove selected items from history
         val itemCount = selectionManager.selectedCount
-        val itemText = if (itemCount == 1) context.getString(app.gyrolet.mpvrx.R.string.recents_item) else context.getString(app.gyrolet.mpvrx.R.string.recents_items)
+        val itemText = if (itemCount == 1) "item" else "items"
         val deleteFiles = deleteFilesCheckbox.value
 
         val title = if (deleteFiles) {
-          context.getString(app.gyrolet.mpvrx.R.string.recents_delete_title_delete, itemCount, itemText)
+          "Delete $itemCount $itemText?"
         } else {
-          context.getString(app.gyrolet.mpvrx.R.string.recents_delete_title_remove, itemCount, itemText)
+          "Remove $itemCount $itemText from history?"
         }
 
         val subtitle = buildString {
           if (deleteFiles) {
-            append(context.getString(app.gyrolet.mpvrx.R.string.recents_delete_subtitle_delete))
+            append("This will permanently delete the original video file(s) from your device storage.\n\n")
+            append("This action cannot be undone.")
           } else {
-            append(context.getString(app.gyrolet.mpvrx.R.string.recents_delete_subtitle_remove, itemText))
+            append("This will remove the selected $itemText from your recently played list. ")
+            append("The original video files will not be deleted.")
           }
         }
 
@@ -397,8 +397,7 @@ object RecentlyPlayedScreen : Screen {
                   deleteFilesCheckbox.value = it
                 },
               )
-              androidx.compose.material3.Text(
-                text = context.getString(app.gyrolet.mpvrx.R.string.recents_delete_files_checkbox),
+              androidx.compose.material3.Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_also_delete_original_file_s),
                 modifier = Modifier.padding(start = 8.dp),
                 style = MaterialTheme.typography.bodyMedium,
               )
@@ -429,7 +428,6 @@ object RecentlyPlayedScreen : Screen {
 @Composable
 private fun RecentItemsContent(
   recentItems: List<RecentlyPlayedItem>,
-  playlistRepository: PlaylistRepository,
   selectionManager: app.gyrolet.mpvrx.ui.browser.selection.SelectionManager<RecentlyPlayedItem, String>,
   onVideoClick: (Video) -> Unit,
   onPlaylistClick: suspend (RecentlyPlayedItem.PlaylistItem) -> Unit,
@@ -667,7 +665,7 @@ private fun RecentItemsContent(
                       }
                     }
                   },
-                  customIcon = Icons.Filled.PlaylistPlay,
+                  customIcon = Icons.RoundedFilled.PlaylistPlay,
                   showDateModified = true,
                   isGridMode = true,
                 )
@@ -787,7 +785,7 @@ private fun RecentItemsContent(
                       }
                     }
                   },
-                  customIcon = Icons.Filled.PlaylistPlay,
+                  customIcon = Icons.RoundedFilled.PlaylistPlay,
                   showDateModified = true,
                   isGridMode = false,
                 )

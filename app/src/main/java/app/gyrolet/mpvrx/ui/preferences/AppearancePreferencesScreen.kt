@@ -48,18 +48,21 @@ import app.gyrolet.mpvrx.ui.player.VideoOpenAnimation
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.toFixed
 import app.gyrolet.mpvrx.preferences.MultiChoiceSegmentedButton
 import app.gyrolet.mpvrx.preferences.ThumbnailMode
+import app.gyrolet.mpvrx.preferences.ThumbnailQuality
 import app.gyrolet.mpvrx.preferences.TreeFlattenDepth
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.presentation.Screen
 import app.gyrolet.mpvrx.presentation.components.ConfirmDialog
 import app.gyrolet.mpvrx.ui.preferences.components.ThemePicker
 import app.gyrolet.mpvrx.ui.theme.DarkMode
+import app.gyrolet.mpvrx.ui.theme.LocalThemeTransitionState
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
 import app.gyrolet.mpvrx.ui.utils.LocalShowSettingsBackArrow
 import app.gyrolet.mpvrx.ui.utils.popSafely
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -84,12 +87,14 @@ object AppearancePreferencesScreen : Screen {
         val backstack = LocalBackStack.current
         val scope = rememberCoroutineScope()
         val systemDarkTheme = isSystemInDarkTheme()
+        val themeTransition = LocalThemeTransitionState.current
 
         val darkMode by preferences.darkMode.collectAsState()
         val appTheme by preferences.appTheme.collectAsState()
         var pendingThumbnailMode by remember { mutableStateOf<ThumbnailMode?>(null) }
         var isThemeSectionExpanded by rememberSaveable { mutableStateOf(true) }
         val storedThumbnailMode by browserPreferences.thumbnailMode.collectAsState()
+        val thumbnailQuality by browserPreferences.thumbnailQuality.collectAsState()
         val thumbnailFramePosition by browserPreferences.thumbnailFramePosition.collectAsState()
         val dualPaneForTablet by browserPreferences.dualPaneForTablet.collectAsState()
         val treeFlattenDepth by browserPreferences.treeFlattenDepth.collectAsState()
@@ -131,7 +136,7 @@ object AppearancePreferencesScreen : Screen {
                                             context,
                                             context.resources.getString(
                                                 R.string.pref_thumbnail_cache_clear_failed,
-                                                error.message ?: context.getString(R.string.error_unknown),
+                                                error.message ?: "Unknown error",
                                             ),
                                             Toast.LENGTH_LONG,
                                         ).show()
@@ -158,7 +163,7 @@ object AppearancePreferencesScreen : Screen {
                         if (LocalShowSettingsBackArrow.current) {
                             IconButton(onClick = { backstack.popSafely() }) {
                                 Icon(
-                                    Icons.Outlined.ArrowBack,
+                                    Icons.RoundedFilled.ArrowBack,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.secondary,
                                 )
@@ -205,7 +210,7 @@ object AppearancePreferencesScreen : Screen {
                                     )
                                 }
                                 Icon(
-                                    imageVector = if (isThemeSectionExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                    imageVector = if (isThemeSectionExpanded) Icons.RoundedFilled.ExpandLess else Icons.RoundedFilled.ExpandMore,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -220,7 +225,15 @@ object AppearancePreferencesScreen : Screen {
                                         MultiChoiceSegmentedButton(
                                             choices = DarkMode.entries.map { stringResource(it.titleRes) }.toImmutableList(),
                                             selectedIndices = persistentListOf(DarkMode.entries.indexOf(darkMode)),
-                                            onClick = { preferences.darkMode.set(DarkMode.entries[it]) },
+                                            onClick = { index, position ->
+                                                if (themeTransition?.isAnimating != true) {
+                                                    themeTransition?.startTransition(position)
+                                                    scope.launch {
+                                                        delay(50)
+                                                        preferences.darkMode.set(DarkMode.entries[index])
+                                                    }
+                                                }
+                                            },
                                         )
                                     }
 
@@ -230,7 +243,15 @@ object AppearancePreferencesScreen : Screen {
                                     ThemePicker(
                                         currentTheme = appTheme,
                                         isDarkMode = isDarkMode,
-                                        onThemeSelected = { preferences.appTheme.set(it) },
+                                        onThemeSelected = { theme, position ->
+                                            if (theme != appTheme && themeTransition?.isAnimating != true) {
+                                                themeTransition?.startTransition(position)
+                                                scope.launch {
+                                                    delay(50)
+                                                    preferences.appTheme.set(theme)
+                                                }
+                                            }
+                                        },
                                         modifier = Modifier.padding(vertical = 8.dp),
                                     )
 
@@ -239,7 +260,13 @@ object AppearancePreferencesScreen : Screen {
                                     SwitchPreference(
                                         value = amoledMode,
                                         onValueChange = { newValue ->
-                                            preferences.amoledMode.set(newValue)
+                                            if (themeTransition?.isAnimating != true) {
+                                                themeTransition?.startTransition(androidx.compose.ui.geometry.Offset.Zero)
+                                                scope.launch {
+                                                    delay(50)
+                                                    preferences.amoledMode.set(newValue)
+                                                }
+                                            }
                                         },
                                         title = { Text(text = stringResource(id = R.string.pref_appearance_amoled_mode_title)) },
                                         summary = {
@@ -376,11 +403,10 @@ object AppearancePreferencesScreen : Screen {
                                 value = dualPaneForTablet,
                                 onValueChange = { browserPreferences.dualPaneForTablet.set(it) },
                                 title = {
-                                    Text(text = stringResource(R.string.pref_dual_pane_title))
+                                    Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_dual_pane_view))
                                 },
                                 summary = {
-                                    Text(
-                                        text = stringResource(R.string.pref_dual_pane_summary),
+                                    Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_enable_dual_pane_layout_on_tablets_in_folder_view),
                                         color = MaterialTheme.colorScheme.outline,
                                     )
                                 }
@@ -414,7 +440,7 @@ object AppearancePreferencesScreen : Screen {
                             SwitchPreference(
                                 value = deleteFolderAllContents,
                                 onValueChange = { browserPreferences.deleteFolderAllContents.set(it) },
-                                title = { Text("Delete folder + all contents") },
+                                title = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_delete_folder_all_contents)) },
                                 summary = {
                                     Text(
                                         text = if (deleteFolderAllContents) "Deletes entire folder (all files)"
@@ -466,6 +492,35 @@ object AppearancePreferencesScreen : Screen {
                                                 "${thumbnailMode.displayName} (${thumbnailFramePosition.roundToInt()}%)"
                                             else -> thumbnailMode.displayName
                                         },
+                                        color = MaterialTheme.colorScheme.outline,
+                                    )
+                                },
+                                enabled = showVideoThumbnails,
+                            )
+
+                            PreferenceDivider()
+
+                            ListPreference(
+                                value = thumbnailQuality,
+                                onValueChange = { newQuality ->
+                                    if (newQuality != thumbnailQuality) {
+                                        scope.launch {
+                                            withContext(Dispatchers.IO) {
+                                                thumbnailRepository.clearThumbnailCache()
+                                            }
+                                            browserPreferences.thumbnailQuality.set(newQuality)
+                                        }
+                                    }
+                                },
+                                values = ThumbnailQuality.entries,
+                                valueToText = { AnnotatedString(it.displayName) },
+                                title = { Text(text = stringResource(id = R.string.pref_appearance_thumbnail_quality_title)) },
+                                summary = {
+                                    Text(
+                                        text = stringResource(
+                                            id = R.string.pref_appearance_thumbnail_quality_summary,
+                                            thumbnailQuality.maxSizePx,
+                                        ),
                                         color = MaterialTheme.colorScheme.outline,
                                     )
                                 },
@@ -619,9 +674,9 @@ object AppearancePreferencesScreen : Screen {
                                 value = controlsAnimStyle,
                                 onValueChange = playerPreferences.controlsAnimStyle::set,
                                 values = ControlsAnimationStyle.entries,
-                                valueToText = { AnnotatedString(stringResource(it.displayNameRes)) },
+                                valueToText = { AnnotatedString(it.displayName) },
                                 title = { Text(stringResource(R.string.pref_anim_controls_style_title)) },
-                                summary = { Text(stringResource(controlsAnimStyle.displayNameRes), color = MaterialTheme.colorScheme.outline) },
+                                summary = { Text(controlsAnimStyle.displayName, color = MaterialTheme.colorScheme.outline) },
                             )
 
                             PreferenceDivider()
@@ -631,9 +686,9 @@ object AppearancePreferencesScreen : Screen {
                                 value = videoOpenAnim,
                                 onValueChange = playerPreferences.videoOpenAnimation::set,
                                 values = VideoOpenAnimation.entries,
-                                valueToText = { AnnotatedString(stringResource(it.displayNameRes)) },
+                                valueToText = { AnnotatedString(it.displayName) },
                                 title = { Text(stringResource(R.string.pref_anim_video_open_title)) },
-                                summary = { Text(stringResource(videoOpenAnim.displayNameRes), color = MaterialTheme.colorScheme.outline) },
+                                summary = { Text(videoOpenAnim.displayName, color = MaterialTheme.colorScheme.outline) },
                             )
 
                             PreferenceDivider()
@@ -643,9 +698,9 @@ object AppearancePreferencesScreen : Screen {
                                 value = navAnimStyle,
                                 onValueChange = playerPreferences.navAnimStyle::set,
                                 values = NavigationAnimStyle.entries,
-                                valueToText = { AnnotatedString(stringResource(it.displayNameRes)) },
+                                valueToText = { AnnotatedString(it.displayName) },
                                 title = { Text(stringResource(R.string.pref_anim_tab_nav_style_title)) },
-                                summary = { Text(stringResource(navAnimStyle.displayNameRes), color = MaterialTheme.colorScheme.outline) },
+                                summary = { Text(navAnimStyle.displayName, color = MaterialTheme.colorScheme.outline) },
                             )
 
                             PreferenceDivider()
@@ -655,9 +710,9 @@ object AppearancePreferencesScreen : Screen {
                                 value = appNavStyle,
                                 onValueChange = playerPreferences.appNavStyle::set,
                                 values = NavigationAnimStyle.entries,
-                                valueToText = { AnnotatedString(stringResource(it.displayNameRes)) },
+                                valueToText = { AnnotatedString(it.displayName) },
                                 title = { Text(stringResource(R.string.pref_anim_screen_nav_style_title)) },
-                                summary = { Text(stringResource(appNavStyle.displayNameRes), color = MaterialTheme.colorScheme.outline) },
+                                summary = { Text(appNavStyle.displayName, color = MaterialTheme.colorScheme.outline) },
                             )
 
                             PreferenceDivider()

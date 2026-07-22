@@ -30,11 +30,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.network.NetworkConnection
 import app.gyrolet.mpvrx.domain.network.NetworkProtocol
 
@@ -84,8 +82,7 @@ fun AddConnectionSheet(
     onDismissRequest = handleDismiss,
     modifier = Modifier.widthIn(min = 400.dp, max = 600.dp),
     title = {
-      Text(
-        text = stringResource(R.string.dialog_add_connection_title),
+      Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_add_network_connection),
         style = MaterialTheme.typography.headlineSmall,
         fontWeight = FontWeight.Medium,
       )
@@ -107,7 +104,7 @@ fun AddConnectionSheet(
               OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text(stringResource(R.string.dialog_name), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                label = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_name), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 modifier = Modifier.weight(0.50f),
                 singleLine = true,
               )
@@ -122,7 +119,7 @@ fun AddConnectionSheet(
                   value = protocol.displayName,
                   onValueChange = { },
                   readOnly = true,
-                  label = { Text(stringResource(R.string.dialog_protocol), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                  label = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_protocol), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                   trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = protocolMenuExpanded) },
                   modifier = Modifier
                     .fillMaxWidth()
@@ -150,10 +147,10 @@ fun AddConnectionSheet(
       OutlinedTextField(
         value = host,
         onValueChange = { host = it },
-        label = { Text(stringResource(R.string.dialog_host_ip), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        label = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_host_ip_address), maxLines = 1, overflow = TextOverflow.Ellipsis) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
-        placeholder = { Text(stringResource(R.string.dialog_host_ip_placeholder), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        placeholder = { Text("192.168.1.100", maxLines = 1, overflow = TextOverflow.Ellipsis) },
       )
 
       // Port and Path in one row
@@ -165,7 +162,7 @@ fun AddConnectionSheet(
               OutlinedTextField(
                 value = port,
                 onValueChange = { port = it },
-                label = { Text(stringResource(R.string.dialog_port), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                label = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_port), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 modifier = Modifier.weight(0.3f),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -175,10 +172,10 @@ fun AddConnectionSheet(
               OutlinedTextField(
                 value = path,
                 onValueChange = { path = it },
-                label = { Text(stringResource(R.string.dialog_path), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                label = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_path), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 modifier = Modifier.weight(0.7f),
                 singleLine = true,
-                placeholder = { Text(stringResource(R.string.dialog_path_placeholder), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                placeholder = { Text("/", maxLines = 1, overflow = TextOverflow.Ellipsis) },
               )
             }
 
@@ -192,7 +189,7 @@ fun AddConnectionSheet(
           onCheckedChange = { isAnonymous = it },
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Text(stringResource(R.string.dialog_anonymous_access))
+        Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_anonymous_guest_access))
       }
       
       // HTTPS checkbox (only for WebDAV)
@@ -214,7 +211,7 @@ fun AddConnectionSheet(
             },
           )
           Spacer(modifier = Modifier.width(8.dp))
-          Text(stringResource(R.string.dialog_use_https))
+          Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_use_https_secure_connection))
         }
       }
 
@@ -227,7 +224,7 @@ fun AddConnectionSheet(
               OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
-                label = { Text(stringResource(R.string.dialog_username), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                label = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_username), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 modifier = Modifier.weight(0.50f),
                 singleLine = true,
                 enabled = !isAnonymous,
@@ -237,7 +234,7 @@ fun AddConnectionSheet(
               OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text(stringResource(R.string.dialog_password), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                label = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_password), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 modifier = Modifier.weight(0.50f),
                 singleLine = true,
                 enabled = !isAnonymous,
@@ -251,16 +248,14 @@ fun AddConnectionSheet(
         onClick = handleSave,
         enabled = host.isNotBlank() && (isAnonymous || username.isNotBlank()),
       ) {
-        Text(
-          text = stringResource(R.string.dialog_save),
+        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_save),
           fontWeight = FontWeight.SemiBold,
         )
       }
     },
     dismissButton = {
       TextButton(onClick = handleDismiss) {
-        Text(
-          text = stringResource(R.string.generic_cancel),
+        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel),
           fontWeight = FontWeight.Medium,
         )
       }

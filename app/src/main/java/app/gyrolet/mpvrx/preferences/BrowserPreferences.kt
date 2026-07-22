@@ -48,6 +48,7 @@ class BrowserPreferences(
   // Visibility preferences for video card chips
   val showVideoThumbnails = preferenceStore.getBoolean("show_video_thumbnails", true)
   val thumbnailMode = preferenceStore.getEnum("thumbnail_mode", ThumbnailMode.Smart)
+  val thumbnailQuality = preferenceStore.getEnum("thumbnail_quality", ThumbnailQuality.High)
   val thumbnailFramePosition = preferenceStore.getFloat("thumbnail_frame_position", 33f)
   val showSizeChip = preferenceStore.getBoolean("show_size_chip", true)
   // Metadata-dependent chips (disabled by default for better performance)
@@ -57,6 +58,9 @@ class BrowserPreferences(
   val showProgressBar = preferenceStore.getBoolean("show_progress_bar", true)
   val centerGridTitles = preferenceStore.getBoolean("center_grid_titles", true)
   val mediaLayoutMode = preferenceStore.getEnum("media_layout_mode", MediaLayoutMode.LIST)
+  val folderViewFolderLayoutMode = preferenceStore.getEnum("folder_view_folder_layout_mode", MediaLayoutMode.LIST)
+  val folderViewVideoLayoutMode = preferenceStore.getEnum("folder_view_video_layout_mode", MediaLayoutMode.LIST)
+  val separateFolderVideoLayout = preferenceStore.getBoolean("separate_folder_video_layout", false)
   val manualGridColumnsEnabled = preferenceStore.getBoolean("manual_grid_columns_enabled", false)
 
   // Visibility preferences for folder card chips
@@ -211,6 +215,15 @@ enum class ThumbnailMode {
         FrameAtPosition -> "指定位置帧"
         EmbeddedThumbnail -> "内置缩略图"
       }
+}
+
+enum class ThumbnailQuality(
+  val maxSizePx: Int,
+  val displayName: String,
+) {
+  Balanced(720, "Balanced (720p)"),
+  High(1080, "High (1080p)"),
+  Ultra(1440, "Ultra (1440p)"),
 }
 
 internal class CoercedPreference(

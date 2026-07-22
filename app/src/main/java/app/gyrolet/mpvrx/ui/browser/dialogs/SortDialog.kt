@@ -18,12 +18,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -47,11 +49,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
-import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.AppIcon
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
@@ -69,7 +69,7 @@ fun SortDialog(
   onSortOrderChange: (Boolean) -> Unit,
   types: List<String>,
   icons: List<AppIcon>,
-  getLabelForType: @Composable (String, Boolean) -> Pair<String, String>,
+  getLabelForType: (String, Boolean) -> Pair<String, String>,
   modifier: Modifier = Modifier,
   visibilityToggles: List<VisibilityToggle> = emptyList(),
   viewModeSelector: MultiViewModeSelector? = null,
@@ -103,7 +103,7 @@ fun SortDialog(
             .verticalScroll(rememberScrollState()),
         ) {
           if (showSortOptions) {
-            DialogSectionTitle(text = stringResource(R.string.sort_by_label))
+            DialogSectionTitle(text = "Sort by")
             SortTypeSelector(
               sortType = sortType,
               onSortTypeChange = onSortTypeChange,
@@ -187,6 +187,35 @@ fun SortDialog(
                 Text(text = layoutModeSelector.secondOptionLabel)
               }
             }
+            if (layoutModeSelector.checkboxLabel != null && layoutModeSelector.onCheckboxChange != null) {
+              Spacer(modifier = Modifier.height(4.dp))
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .clip(RoundedCornerShape(8.dp))
+                  .clickable {
+                    if (enableLayoutModeOptions) {
+                      layoutModeSelector.onCheckboxChange.invoke(!layoutModeSelector.isCheckboxChecked)
+                    }
+                  }
+                  .padding(vertical = 2.dp),
+              ) {
+                Checkbox(
+                  checked = layoutModeSelector.isCheckboxChecked,
+                  onCheckedChange = { checked ->
+                    if (enableLayoutModeOptions) {
+                      layoutModeSelector.onCheckboxChange.invoke(checked)
+                    }
+                  },
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                  text = layoutModeSelector.checkboxLabel,
+                  style = MaterialTheme.typography.bodyMedium,
+                )
+              }
+            }
           }
 
           GridColumnsNextSection(
@@ -209,13 +238,12 @@ fun SortDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
               ) {
-                Text(
-                  text = stringResource(R.string.sort_fields_label),
+                Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_fields),
                   style = MaterialTheme.typography.titleSmall,
                 )
                 Icon(
-                  imageVector = if (isFieldsExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                  contentDescription = if (isFieldsExpanded) stringResource(R.string.sort_collapse) else stringResource(R.string.sort_expand),
+                  imageVector = if (isFieldsExpanded) Icons.RoundedFilled.KeyboardArrowUp else Icons.RoundedFilled.KeyboardArrowDown,
+                  contentDescription = if (isFieldsExpanded) "Collapse" else "Expand",
                   tint = MaterialTheme.colorScheme.onSurfaceVariant,
                   modifier = Modifier.size(20.dp)
                 )
@@ -250,7 +278,7 @@ fun SortDialog(
     },
     confirmButton = {
       TextButton(onClick = onDismiss) {
-        Text(text = stringResource(R.string.sort_done))
+        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_done))
       }
     },
     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -358,7 +386,7 @@ private fun SortOrderSelector(
         ),
         icon = {
           Icon(
-            imageVector = if (index == 0) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+            imageVector = if (index == 0) Icons.RoundedFilled.KeyboardArrowUp else Icons.RoundedFilled.KeyboardArrowDown,
             contentDescription = null,
             modifier = Modifier.size(16.dp),
           )
@@ -387,7 +415,7 @@ private fun GridColumnsNextSection(
   if (folderGridColumnSelector == null && videoGridColumnSelector == null) return
 
   HorizontalDivider(modifier = Modifier.padding(top = 10.dp))
-  DialogSectionTitle(text = stringResource(R.string.sort_grid_columns_label))
+  DialogSectionTitle(text = "Grid Columns")
 
   val haptic = LocalHapticFeedback.current
 
@@ -402,13 +430,12 @@ private fun GridColumnsNextSection(
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Text(
-            text = stringResource(R.string.sort_folder_grid_label),
+          Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_folder_grid),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
           Text(
-            text = stringResource(R.string.sort_columns_count, folderGridColumnSelector.currentValue),
+            text = "${folderGridColumnSelector.currentValue} cols",
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.primary,
@@ -437,13 +464,12 @@ private fun GridColumnsNextSection(
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Text(
-            text = stringResource(R.string.sort_video_grid_label),
+          Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_video_grid),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
           Text(
-            text = stringResource(R.string.sort_columns_count, videoGridColumnSelector.currentValue),
+            text = "${videoGridColumnSelector.currentValue} cols",
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.primary,
@@ -493,6 +519,9 @@ data class ViewModeSelector(
   val secondOptionIcon: AppIcon,
   val isFirstOptionSelected: Boolean,
   val onViewModeChange: (Boolean) -> Unit,
+  val checkboxLabel: String? = null,
+  val isCheckboxChecked: Boolean = false,
+  val onCheckboxChange: ((Boolean) -> Unit)? = null,
 )
 
 data class GridColumnSelector(

@@ -22,7 +22,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import app.gyrolet.mpvrx.R
+import app.gyrolet.mpvrx.domain.anime4k.Anime4KManager
 import app.gyrolet.mpvrx.domain.hdr.HdrToysManager
+import app.gyrolet.mpvrx.domain.syncplay.SyncplayFile
+import app.gyrolet.mpvrx.domain.syncplay.SyncplayPlaybackState
 import app.gyrolet.mpvrx.preferences.AudioPreferences
 import app.gyrolet.mpvrx.preferences.GesturePreferences
 import app.gyrolet.mpvrx.preferences.IntroSegmentProvider
@@ -37,13 +40,12 @@ import app.gyrolet.mpvrx.repository.subtitle.OnlineSubtitleSearchRequest
 import app.gyrolet.mpvrx.repository.subtitle.OnlineSubtitleSearchMode
 import app.gyrolet.mpvrx.repository.ai.SubtitleGenerationService
 import app.gyrolet.mpvrx.repository.wyzie.WyzieSearchRepository
-import app.gyrolet.mpvrx.domain.media.model.Video
-import app.gyrolet.mpvrx.utils.permission.PermissionUtils
 import app.gyrolet.mpvrx.utils.media.ChecksumUtils
 import app.gyrolet.mpvrx.utils.media.MediaInfoParser
 import app.gyrolet.mpvrx.utils.media.ParsedMediaInfo
 import app.gyrolet.mpvrx.utils.media.SubtitleHashUtils
 import app.gyrolet.mpvrx.utils.media.resolveSubtitleLookupDirectories
+import app.gyrolet.mpvrx.utils.storage.FileTypeUtils
 import `is`.xyz.mpv.MPVLib
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -71,12 +73,18 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import app.gyrolet.mpvrx.ui.preferences.CustomButton
 import app.gyrolet.mpvrx.ui.preferences.CustomButtonScriptLanguage
 import app.gyrolet.mpvrx.ui.player.screenshot.ScreenshotSaver
 import app.gyrolet.mpvrx.ui.player.screenshot.ScreenshotSettings
+import app.gyrolet.mpvrx.ui.player.anime4k.Anime4KUiState
+import app.gyrolet.mpvrx.ui.player.anime4k.applyAnime4KShaderChain
+import app.gyrolet.mpvrx.ui.player.anime4k.applyAnime4KStabilityOptions
+import app.gyrolet.mpvrx.ui.player.anime4k.clearAnime4KShaders
+import app.gyrolet.mpvrx.ui.player.anime4k.selectRuntimeStableAnime4K
 import java.io.File
 import java.security.MessageDigest
 import androidx.core.net.toUri
@@ -150,6 +158,7 @@ class PlayerViewModel(
   private val aiPreferences: app.gyrolet.mpvrx.preferences.AiPreferences by inject()
   private val advancedPreferences: AdvancedPreferences by inject()
   private val decoderPreferences: DecoderPreferences by inject()
+  private val anime4kManager: Anime4KManager by inject()
   private val hdrToysManager: HdrToysManager by inject()
   private val json: Json by inject()
   private val playbackStateDao: app.gyrolet.mpvrx.database.dao.PlaybackStateDao by inject()
@@ -159,9 +168,45 @@ class PlayerViewModel(
   private val wyzieRepository: WyzieSearchRepository by inject()
   private val onlineSubtitleOrchestrator: OnlineSubtitleOrchestrator by inject()
   private val introDbRepository: IntroDbRepository by inject()
+  val syncplayManager: app.gyrolet.mpvrx.domain.syncplay.SyncplayManager by inject()
   private val introMarkerCachePrefs by lazy {
     host.context.getSharedPreferences(INTRO_MARKER_CACHE_PREFS, Context.MODE_PRIVATE)
   }
+
+  private val initialAnime4KUiState
+    get() = Anime4KUiState(
+      isEnabled = decoderPreferences.enableAnime4K.get(),
+      selectedMode = decoderPreferences.anime4kMode.get(),
+      usesGpuNext = decoderPreferences.gpuNext.get(),
+      usesVulkan = decoderPreferences.useVulkan.get(),
+    )
+
+  private val anime4KPreferenceState = combine(
+    decoderPreferences.enableAnime4K.changes(),
+    decoderPreferences.anime4kMode.changes(),
+    decoderPreferences.gpuNext.changes(),
+    decoderPreferences.useVulkan.changes(),
+  ) { enabled, mode, gpuNext, useVulkan ->
+    Anime4KUiState(
+      isEnabled = enabled,
+      selectedMode = mode,
+      usesGpuNext = gpuNext,
+      usesVulkan = useVulkan,
+    )
+  }
+
+  val anime4KUiState = anime4KPreferenceState
+    .combine(MPVLib.propInt["video-params/w"]) { state, width ->
+      state.copy(videoWidth = width ?: 0)
+    }
+    .combine(MPVLib.propInt["video-params/h"]) { state, height ->
+      state.copy(videoHeight = height ?: 0)
+    }
+    .stateIn(
+      scope = viewModelScope,
+      started = SharingStarted.WhileSubscribed(5_000),
+      initialValue = initialAnime4KUiState,
+    )
 
   // HTTP bridge for Lua/JS scripts — executes curl_request payloads via native libcurl
   private val scriptCurlBridge = ScriptCurlBridge(scope = viewModelScope)
@@ -318,8 +363,8 @@ class PlayerViewModel(
       "credit roll",
       "rolling credits",
       "staff roll",
-      "ã‚¨ãƒ³ãƒ‰ãƒ­ãƒ¼ãƒ«",
-      "ã‚¯ãƒ¬ã‚¸ãƒƒãƒˆ",
+      "エンドロール",
+      "クレジット",
     )
 
   private val previewKeywordPatterns =
@@ -329,9 +374,9 @@ class PlayerViewModel(
       "next week on",
       "up next",
       "teaser",
-      "æ¬¡å›žäºˆå‘Š",
-      "äºˆå‘Š",
-      "æ¬¡å›ž",
+      "次回予告",
+      "予告",
+      "次回",
     )
 
   private val _skipSegments = MutableStateFlow<List<SkipSegment>>(emptyList())
@@ -350,7 +395,7 @@ class PlayerViewModel(
     } else {
       IntroDbStatus(
         state = IntroDbStatusState.DISABLED,
-        message = host.context.getString(R.string.toast_skip_markers_disabled),
+        message = "Online skip markers are disabled",
       )
     },
   )
@@ -733,6 +778,31 @@ class PlayerViewModel(
   )
 
   init {
+    syncplayManager.playbackStateProvider = { currentSyncplayPlaybackState() }
+    syncplayManager.fileInfoProvider = { currentSyncplayFileInfo() }
+    syncplayManager.onRemotePause = { shouldPause ->
+      viewModelScope.launch(Dispatchers.IO) {
+        val currentlyPaused = MPVLib.getPropertyBoolean("pause") ?: false
+        if (currentlyPaused != shouldPause) {
+          if (!shouldPause) {
+            withContext(Dispatchers.Main) { host.requestAudioFocus() }
+          }
+          MPVLib.setPropertyBoolean("pause", shouldPause)
+          if (shouldPause) {
+            withContext(Dispatchers.Main) { host.abandonAudioFocus() }
+          }
+        }
+      }
+    }
+    syncplayManager.onRemoteSeek = { pos ->
+      viewModelScope.launch(Dispatchers.IO) {
+        val currentPos = MPVLib.getPropertyDouble("time-pos") ?: 0.0
+        if (kotlin.math.abs(currentPos - pos) > 0.75) {
+          MPVLib.command("seek", pos.toString(), "absolute+exact")
+        }
+      }
+    }
+
     // Single adaptive polling loop for playback position.
     //  1. An event-driven collect on MPVLib.propInt["time-pos"]
     //  2. This polling loop via MPVLib.getPropertyDouble("time-pos")
@@ -806,6 +876,7 @@ class PlayerViewModel(
             _preciseDuration.value = dur.toFloat()
             mergeSkipSegments()
             checkPendingIntroLookup()
+            syncplayManager.updateFileInfo(currentSyncplayFileInfo())
 
             // --- AMBIENT FIX: Adapt shader to new file dimensions by @Chinna95P ---
             if (_isAmbientEnabled.value) {
@@ -1004,6 +1075,49 @@ class PlayerViewModel(
         current
       }
     }
+    syncplayManager.updateFileInfo(currentSyncplayFileInfo())
+  }
+
+  private fun currentSyncplayPlaybackState(): SyncplayPlaybackState =
+    SyncplayPlaybackState(
+      position = runCatching { MPVLib.getPropertyDouble("time-pos") }.getOrNull()
+        ?: precisePosition.value.toDouble(),
+      paused = runCatching { MPVLib.getPropertyBoolean("pause") }.getOrNull()
+        ?: (paused ?: true),
+    )
+
+  private fun currentSyncplayFileInfo(): SyncplayFile? {
+    val name =
+      listOfNotNull(
+        runCatching { MPVLib.getPropertyString("filename") }.getOrNull(),
+        currentMediaTitle,
+        runCatching { MPVLib.getPropertyString("media-title") }.getOrNull(),
+        runCatching { MPVLib.getPropertyString("stream-open-filename") }
+          .getOrNull()
+          ?.substringAfterLast('/'),
+        runCatching { MPVLib.getPropertyString("path") }
+          .getOrNull()
+          ?.substringAfterLast('/'),
+      )
+        .map { it.trim() }
+        .firstOrNull { it.isNotBlank() }
+        ?: return null
+
+    val durationSeconds =
+      runCatching { MPVLib.getPropertyDouble("duration") }.getOrNull()?.takeIf { it > 0.0 }
+        ?: _preciseDuration.value.toDouble().takeIf { it > 0.0 }
+        ?: 0.0
+    val sizeBytes =
+      listOfNotNull(
+        runCatching { MPVLib.getPropertyDouble("file-size")?.toLong() }.getOrNull(),
+        runCatching { MPVLib.getPropertyDouble("stream-end")?.toLong() }.getOrNull(),
+      ).firstOrNull { it > 0L } ?: 0L
+
+    return SyncplayFile(
+      duration = durationSeconds,
+      name = name,
+      size = JsonPrimitive(sizeBytes),
+    )
   }
 
   private fun setupCustomButtons() {
@@ -1419,16 +1533,16 @@ class PlayerViewModel(
         val path =
           uri.resolveUri(host.context)
             ?: return@launch withContext(Dispatchers.Main) {
-              showToast(host.context.getString(R.string.toast_audio_load_failed))
+              showToast("Failed to load audio file: Invalid URI")
             }
 
         withContext(Dispatchers.Main) {
           MPVLib.command("audio-add", path, "cached")
-          showToast(host.context.getString(R.string.toast_audio_track_added))
+          showToast("Audio track added")
         }
       }.onFailure { e ->
         withContext(Dispatchers.Main) {
-          showToast(host.context.getString(R.string.toast_audio_load_error, e.message))
+          showToast("Failed to load audio: ${e.message}")
         }
         android.util.Log.e("PlayerViewModel", "Error adding audio", e)
       }
@@ -1454,7 +1568,7 @@ class PlayerViewModel(
 
           if (!isValidSubtitleFile(fileName)) {
             return@withLock withContext(Dispatchers.Main) {
-              showToast(host.context.getString(R.string.toast_subtitle_invalid_format))
+              showToast("Invalid subtitle file format")
             }
           }
 
@@ -1505,13 +1619,13 @@ class PlayerViewModel(
           val displayName = fileName.take(30).let { if (fileName.length > 30) "$it..." else it }
           if (!silent) {
             withContext(Dispatchers.Main) {
-              showToast(host.context.getString(R.string.toast_subtitle_added, displayName))
+              showToast("$displayName added")
             }
           }
         }.onFailure {
           if (!silent) {
             withContext(Dispatchers.Main) {
-              showToast(host.context.getString(R.string.toast_subtitle_load_failed))
+              showToast("Failed to load subtitle")
             }
           }
         }
@@ -1537,7 +1651,7 @@ class PlayerViewModel(
       _translatingTrackId.value = track.id
       _translatingTrackName.value = getFileNameFromUri(uri)?.let { it.substringBeforeLast(".") }?.lowercase() ?: "subtitle"
       _translationProgress.value = 0f
-      _translationStatus.value = host.context.getString(R.string.status_preparing_translation)
+      _translationStatus.value = "Preparing translation"
 
       try {
         val content = host.context.contentResolver.openInputStream(uri)?.use {
@@ -1550,7 +1664,7 @@ class PlayerViewModel(
         val result = aiService.translateSubtitle(content, targetLanguage, extension) { progress ->
           _translationProgress.value = progress.progress
           _translationStatus.value = buildString {
-            append(host.context.getString(if (progress.isResuming) R.string.status_resuming else R.string.status_translating))
+            append(if (progress.isResuming) "Resuming" else "Translating")
             append(" ${progress.completedChunks}/${progress.totalChunks}")
           }
         }
@@ -1565,16 +1679,16 @@ class PlayerViewModel(
 
           withContext(Dispatchers.Main) {
             addSubtitle(savedUri, select = true)
-            showToast(host.context.getString(R.string.toast_translation_complete, newFileName))
+            showToast("Translation complete: $newFileName")
           }
         }.onFailure { error ->
           withContext(Dispatchers.Main) {
-            showToast(host.context.getString(R.string.toast_translation_failed, error.message))
+            showToast("Translation failed: ${error.message}")
           }
         }
       } catch (e: Exception) {
         withContext(Dispatchers.Main) {
-          showToast(host.context.getString(R.string.toast_error_format, e.message))
+          showToast("Error: ${e.message}")
         }
       } finally {
         _isTranslatingSub.value = false
@@ -1600,13 +1714,13 @@ class PlayerViewModel(
       cacheDir.listFiles()?.forEach { it.delete() }
       cacheDir.delete()
     }
-    showToast(host.context.getString(R.string.toast_translation_cancelled))
+    showToast("Translation cancelled")
   }
 
   fun generateSubtitles(language: String, outputFormat: String = "srt") {
     val videoUri = currentVideoUriForSubtitleGeneration()
     if (videoUri == null) {
-      showToast(host.context.getString(R.string.toast_video_path_not_found))
+      showToast("Could not find current video path")
       return
     }
 
@@ -1616,7 +1730,7 @@ class PlayerViewModel(
     viewModelScope.launch(Dispatchers.IO) {
       _isGeneratingSubtitles.value = true
       _subtitleGenerationProgress.value = 0f
-      _subtitleGenerationStatus.value = host.context.getString(R.string.status_preparing_audio)
+      _subtitleGenerationStatus.value = "Preparing audio"
 
       try {
         val result = subtitleGenerationService.generateSubtitles(
@@ -1636,16 +1750,16 @@ class PlayerViewModel(
             ?: throw Exception("Could not save generated subtitles")
           withContext(Dispatchers.Main) {
             addSubtitle(savedUri, select = true)
-            showToast(host.context.getString(R.string.toast_subtitles_generated, newFileName))
+            showToast("Generated subtitles: $newFileName")
           }
         }.onFailure { error ->
           withContext(Dispatchers.Main) {
-            showToast(host.context.getString(R.string.toast_subtitle_generation_failed, error.message))
+            showToast("Subtitle generation failed: ${error.message}")
           }
         }
       } catch (e: Exception) {
         withContext(Dispatchers.Main) {
-          showToast(host.context.getString(R.string.toast_subtitle_generation_error, e.message))
+          showToast("Subtitle generation error: ${e.message}")
         }
       } finally {
         _isGeneratingSubtitles.value = false
@@ -1663,12 +1777,12 @@ class PlayerViewModel(
   fun startRealtimeSubtitles(language: String) {
     val videoUri = currentVideoUriForSubtitleGeneration()
     if (videoUri == null) {
-      showToast(host.context.getString(R.string.toast_video_path_not_found))
+      showToast("Could not find current video path")
       return
     }
     val videoDurationMs = (_preciseDuration.value * 1000f).toLong()
     if (videoDurationMs <= 0) {
-      showToast(host.context.getString(R.string.toast_video_duration_unknown))
+      showToast("Video duration unknown")
       return
     }
 
@@ -1685,7 +1799,7 @@ class PlayerViewModel(
       scope = viewModelScope,
       onProgress = { progress ->
         _realtimeSubsProgress.value = progress.chunkIndex.toFloat() / progress.totalChunks.coerceAtLeast(1)
-        _translationStatus.value = host.context.getString(R.string.status_chunk_progress, progress.chunkIndex + 1, progress.totalChunks)
+        _translationStatus.value = "Chunk ${progress.chunkIndex + 1}/${progress.totalChunks}"
       },
       onNewContent = { srtContent ->
         realtimeSrtFile?.writeText(srtContent)
@@ -1705,14 +1819,14 @@ class PlayerViewModel(
         _realtimeSubsProgress.value = 0f
         _translationStatus.value = ""
         realtimeSrtFile = null
-        showToast(host.context.getString(R.string.toast_realtime_subtitles_complete))
+        showToast("Real-time subtitles complete")
       },
       onError = { error ->
         _isRealtimeSubsActive.value = false
         _realtimeSubsLanguage.value = ""
         _realtimeSubsProgress.value = 0f
         _translationStatus.value = ""
-        showToast(host.context.getString(R.string.toast_realtime_subtitles_error, error))
+        showToast("Real-time subtitles error: $error")
       },
     )
   }
@@ -1728,7 +1842,7 @@ class PlayerViewModel(
     realtimeSrtFile = null
     realtimeSrtFileAdded = false
     if (showToastMessage && wasActive) {
-      showToast(host.context.getString(R.string.toast_realtime_subtitles_stopped))
+      showToast("Real-time subtitles stopped")
     }
   }
 
@@ -1859,6 +1973,7 @@ class PlayerViewModel(
       _videoHash.value = null
       // Scan for previously downloaded/added subtitles
       scanLocalSubtitles(mediaTitle)
+      syncplayManager.updateFileInfo(currentSyncplayFileInfo())
 
       // Restore persisted aspect mode, while zoom and pan continue to reset per file.
       restoreSavedVideoAspect(showUpdate = false)
@@ -1875,7 +1990,7 @@ class PlayerViewModel(
         } else {
           IntroDbStatus(
             state = IntroDbStatusState.DISABLED,
-            message = host.context.getString(R.string.toast_skip_markers_disabled),
+            message = "Online skip markers are disabled",
           )
         }
       lookupIntroSegments(mediaTitle)
@@ -1924,14 +2039,24 @@ class PlayerViewModel(
 
     skippedSegmentTypes += activeSegment.type
     MPVLib.setPropertyDouble("time-pos", activeSegment.endSeconds)
-    showToast(host.context.getString(R.string.toast_segment_skipped_auto, activeSegment.label))
+    syncplayManager.updatePlayerState(
+      activeSegment.endSeconds,
+      MPVLib.getPropertyBoolean("pause") ?: false,
+      doSeek = true,
+    )
+    showToast("${activeSegment.label} (auto)")
   }
 
   fun skipActiveSegment() {
     val segment = _currentSkippableSegment.value ?: return
     skippedSegmentTypes += segment.type
     MPVLib.setPropertyDouble("time-pos", segment.endSeconds)
-    showToast(host.context.getString(R.string.toast_segment_skipped, segment.label))
+    syncplayManager.updatePlayerState(
+      segment.endSeconds,
+      MPVLib.getPropertyBoolean("pause") ?: false,
+      doSeek = true,
+    )
+    showToast("${segment.label}")
   }
 
   private fun mergeSkipSegments() {
@@ -2000,7 +2125,7 @@ class PlayerViewModel(
     _introDbStatus.value =
       IntroDbStatus(
         state = IntroDbStatusState.LOOKING_UP,
-        message = host.context.getString(R.string.toast_matching_title, provider.displayName),
+        message = "${provider.displayName}: matching title",
       )
 
     introLookupJob?.cancel()
@@ -2214,7 +2339,7 @@ class PlayerViewModel(
         _introDbStatus.value =
           IntroDbStatus(
             state = IntroDbStatusState.LOADED,
-            message = cacheStatusMessage(provider, entry.message, host.context.getString(R.string.status_markers_loaded, entry.segments.size)),
+            message = cacheStatusMessage(provider, entry.message, "loaded ${entry.segments.size} marker${if (entry.segments.size == 1) "" else "s"}"),
             imdbId = entry.imdbId,
             segmentCount = entry.segments.size,
           )
@@ -2225,7 +2350,7 @@ class PlayerViewModel(
         _introDbStatus.value =
           IntroDbStatus(
             state = IntroDbStatusState.NO_SEGMENTS,
-            message = cacheStatusMessage(provider, entry.message, host.context.getString(R.string.status_no_markers_cached)),
+            message = cacheStatusMessage(provider, entry.message, "no markers cached"),
             imdbId = entry.imdbId,
           )
       }
@@ -2235,7 +2360,7 @@ class PlayerViewModel(
         _introDbStatus.value =
           IntroDbStatus(
             state = IntroDbStatusState.UNRESOLVED,
-            message = cacheStatusMessage(provider, entry.message, host.context.getString(R.string.status_cached_match_failed)),
+            message = cacheStatusMessage(provider, entry.message, "cached title match failed"),
           )
       }
     }
@@ -2293,9 +2418,8 @@ class PlayerViewModel(
     message: String,
     fallback: String,
   ): String {
-    val sourceMessage = message.ifBlank { host.context.getString(R.string.status_provider_format, provider.displayName, fallback) }
-    val cachedTag = host.context.getString(R.string.status_cached)
-    return if (sourceMessage.contains(cachedTag)) sourceMessage else "$sourceMessage $cachedTag"
+    val sourceMessage = message.ifBlank { "${provider.displayName}: $fallback" }
+    return if (sourceMessage.contains("(cached)")) sourceMessage else "$sourceMessage (cached)"
   }
 
   private fun refreshChapterDerivedSegments(chapters: List<dev.vivvvek.seeker.Segment>) {
@@ -2426,7 +2550,7 @@ class PlayerViewModel(
           _externalSubtitles.remove(originalUriString)
           mpvPathToUriMap.remove(mpvPath)
           withContext(Dispatchers.Main) {
-            showToast(host.context.getString(R.string.toast_subtitle_deleted))
+            showToast("Subtitle deleted")
           }
         }
       }
@@ -2502,7 +2626,7 @@ class PlayerViewModel(
           }
         }
         .onFailure {
-          showProviderStatusToast(host.context.getString(R.string.status_failed_series_details, it.message))
+          showProviderStatusToast("Failed to load series details: ${it.message}")
         }
       _isFetchingTvDetails.value = false
     }
@@ -2536,7 +2660,7 @@ class PlayerViewModel(
           }
         }
         .onFailure {
-          showProviderStatusToast(host.context.getString(R.string.status_failed_episodes, it.message))
+          showProviderStatusToast("Failed to load episodes: ${it.message}")
         }
       _isFetchingEpisodes.value = false
     }
@@ -2557,6 +2681,8 @@ class PlayerViewModel(
   }
 
   // --- Subtitle Search ---
+  private var subtitleSearchJob: Job? = null
+
   fun searchOnlineSubtitles(query: String) {
     val queryInfo = MediaInfoParser.parse(query)
     val fileInfo = MediaInfoParser.parse(currentMediaTitle)
@@ -2602,39 +2728,44 @@ class PlayerViewModel(
     includeWyzie: Boolean = true,
     includeSubtitleHub: Boolean = true,
   ) {
-     viewModelScope.launch {
-          _isSearchingSub.value = true
-          val cleanSubHubTitle = MediaInfoParser.parse(query).title.ifBlank { query.trim() }
-          val wyzieRequest =
-              OnlineSubtitleSearchRequest(
-                  query = query,
-                  tmdbId = tmdbId,
-                  season = season,
-                  episode = episode,
-                  year = year,
-                  movieHash = _videoHash.value,
-              )
-          val subtitleHubRequest =
-              OnlineSubtitleSearchRequest(
-                  query = cleanSubHubTitle,
-                  year = year,
-              )
-          onlineSubtitleOrchestrator.search(
-              wyzieRequest,
-              subtitlesPreferences.onlineSubtitleSearchMode.get(),
-              subtitleHubRequest = subtitleHubRequest,
-              includeWyzie = includeWyzie,
-              includeSubtitleHub = includeSubtitleHub,
-          )
-              .onSuccess { results ->
-                  _onlineSubtitleSearchResults.value = results
-             }
-             .onFailure {
-                 showProviderStatusToast(host.context.getString(R.string.status_search_failed, it.message))
-             }
-          _isSearchingSub.value = false
-      }
-   }
+    subtitleSearchJob?.cancel()
+    _onlineSubtitleSearchResults.value = emptyList()
+    subtitleSearchJob = viewModelScope.launch {
+      _isSearchingSub.value = true
+      val cleanSubHubTitle = MediaInfoParser.parse(query).title.ifBlank { query.trim() }
+      val wyzieRequest =
+        OnlineSubtitleSearchRequest(
+          query = query,
+          tmdbId = tmdbId,
+          season = season,
+          episode = episode,
+          year = year,
+          movieHash = _videoHash.value,
+        )
+      val subtitleHubRequest =
+        OnlineSubtitleSearchRequest(
+          query = cleanSubHubTitle,
+          year = year,
+        )
+      onlineSubtitleOrchestrator.search(
+        wyzieRequest,
+        subtitlesPreferences.onlineSubtitleSearchMode.get(),
+        subtitleHubRequest = subtitleHubRequest,
+        includeWyzie = includeWyzie,
+        includeSubtitleHub = includeSubtitleHub,
+        onResults = { results ->
+          _onlineSubtitleSearchResults.value = results
+        },
+      )
+        .onSuccess { results ->
+          _onlineSubtitleSearchResults.value = results
+        }
+        .onFailure {
+          showProviderStatusToast("Search failed: ${it.message}")
+        }
+      _isSearchingSub.value = false
+    }
+  }
 
   private fun buildWyzieSearchPlan(
     searchTitle: String,
@@ -2650,7 +2781,7 @@ class PlayerViewModel(
       if (selectedSeason == null || selectedEpisode == null) {
         return WyzieSearchPlan(
           request = null,
-          missingSelectionMessage = host.context.getString(R.string.toast_select_season_episode),
+          missingSelectionMessage = "Select season and episode for Wyzie.",
         )
       }
       return WyzieSearchPlan(
@@ -2671,7 +2802,7 @@ class PlayerViewModel(
     if (detectedSeason != null || detectedEpisode != null) {
       return WyzieSearchPlan(
         request = null,
-        missingSelectionMessage = host.context.getString(R.string.toast_select_show_season_episode),
+        missingSelectionMessage = "Select the show, season, and episode for Wyzie.",
       )
     }
 
@@ -2697,7 +2828,7 @@ class PlayerViewModel(
                   addSubtitle(uri)
               }
               .onFailure {
-                  showToast(host.context.getString(R.string.toast_download_failed, it.message))
+                  showToast("Download failed: ${it.message}")
               }
           _isDownloadingSub.value = false
       }
@@ -2731,6 +2862,16 @@ class PlayerViewModel(
     return (id == primarySid && primarySid > 0) || (id == secondarySid && secondarySid > 0)
   }
 
+  fun subtitleSelectionIndicator(id: Int): String? {
+    val primarySid = getTrackSelectionId("sid")
+    val secondarySid = getTrackSelectionId("secondary-sid")
+    return when {
+      primarySid > 0 && id == primarySid -> "P"
+      secondarySid > 0 && id == secondarySid -> "S"
+      else -> null
+    }
+  }
+
   private fun getFileNameFromUri(uri: Uri): String? =
     when (uri.scheme) {
       "content" ->
@@ -2755,9 +2896,11 @@ class PlayerViewModel(
         // We are about to unpause, so request focus
         withContext(Dispatchers.Main) { host.requestAudioFocus() }
         MPVLib.setPropertyBoolean("pause", false)
+        syncplayManager.updatePlayerState(precisePosition.value.toDouble(), false, doSeek = false)
       } else {
         // We are about to pause
         MPVLib.setPropertyBoolean("pause", true)
+        syncplayManager.updatePlayerState(precisePosition.value.toDouble(), true, doSeek = false)
         withContext(Dispatchers.Main) { host.abandonAudioFocus() }
       }
     }
@@ -2766,6 +2909,7 @@ class PlayerViewModel(
   fun pause() {
     viewModelScope.launch(Dispatchers.IO) {
       MPVLib.setPropertyBoolean("pause", true)
+      syncplayManager.updatePlayerState(precisePosition.value.toDouble(), true, doSeek = false)
       withContext(Dispatchers.Main) { host.abandonAudioFocus() }
     }
   }
@@ -2774,6 +2918,7 @@ class PlayerViewModel(
     viewModelScope.launch(Dispatchers.IO) {
       withContext(Dispatchers.Main) { host.requestAudioFocus() }
       MPVLib.setPropertyBoolean("pause", false)
+      syncplayManager.updatePlayerState(precisePosition.value.toDouble(), false, doSeek = false)
     }
   }
 
@@ -3089,6 +3234,11 @@ class PlayerViewModel(
         if (shouldUsePreciseSeeking) "absolute+exact" else "absolute+keyframes"
       }
       MPVLib.command("seek", clampedPosition.toString(), seekMode)
+      syncplayManager.updatePlayerState(
+        clampedPosition.toDouble(),
+        MPVLib.getPropertyBoolean("pause") ?: false,
+        doSeek = true,
+      )
     }
   }
 
@@ -3108,11 +3258,21 @@ class PlayerViewModel(
           if (duration > 0 && currentPos + toApply >= duration) {
               // If seeking past the end, force seek to 100% absolute to ensure EOF is triggered
               MPVLib.command("seek", "100", "absolute-percent+exact")
+              syncplayManager.updatePlayerState(
+                duration.toDouble(),
+                MPVLib.getPropertyBoolean("pause") ?: false,
+                doSeek = true,
+              )
           } else {
               // Use precise seeking for videos shorter than 2 minutes (120 seconds) or if preference is enabled
               val shouldUsePreciseSeeking = playerPreferences.usePreciseSeeking.get() || duration < 120
               val seekMode = if (shouldUsePreciseSeeking) "relative+exact" else "relative+keyframes"
               MPVLib.command("seek", toApply.toString(), seekMode)
+              syncplayManager.updatePlayerState(
+                (currentPos + toApply).toDouble(),
+                MPVLib.getPropertyBoolean("pause") ?: false,
+                doSeek = true,
+              )
           }
         }
       }
@@ -3251,7 +3411,7 @@ class PlayerViewModel(
     val newPosition = clampSubtitlePosition(position)
     subtitlesPreferences.subPos.set(newPosition)
     syncSubtitleLayout(newPosition)
-    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_subtitle_position, newPosition))
+    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.subtitle_position_update, newPosition))
   }
 
   private fun syncSubtitleLayout(primaryPosition: Int = subtitlesPreferences.subPos.get()) {
@@ -3653,7 +3813,7 @@ class PlayerViewModel(
         }
       } catch (e: Exception) {
         withContext(Dispatchers.Main) {
-          Toast.makeText(context, context.getString(R.string.player_snapshot_save_failed, e.message ?: ""), Toast.LENGTH_LONG).show()
+          Toast.makeText(context, context.getString(R.string.toast_failed_to_save_snapshot, e.message ?: context.getString(R.string.generic_unknown_error)), Toast.LENGTH_LONG).show()
         }
       } finally {
         _isSnapshotLoading.value = false
@@ -3705,6 +3865,12 @@ class PlayerViewModel(
         uri
       }
       val path = resolvedUri.toString()
+      val isAudio =
+        path
+          .substringBefore('?')
+          .substringBefore('#')
+          .substringAfterLast('.', "")
+          .lowercase() in FileTypeUtils.AUDIO_EXTENSIONS
       val isCurrentlyPlaying = index == activity.playlistIndex
 
       // Try to get from cache first (synchronized access)
@@ -3721,6 +3887,7 @@ class PlayerViewModel(
         isWatched = isCurrentlyPlaying && currentProgress >= 95f,
         duration = durationStr,
         resolution = resolutionStr,
+        isAudio = isAudio,
       )
     }
   }
@@ -4133,7 +4300,7 @@ class PlayerViewModel(
     } else {
       MPVLib.command("vf", "remove", "@mpvrx_hflip")
     }
-    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(if (newMirrorState) R.string.player_hflip_on else R.string.player_hflip_off))
+    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(if (newMirrorState) R.string.player_horizontal_flip_on else R.string.player_horizontal_flip_off))
   }
 
   fun toggleVerticalFlip() {
@@ -4147,7 +4314,7 @@ class PlayerViewModel(
       MPVLib.command("vf", "remove", "@mpvrx_vflip")
     }
 
-    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(if (newState) R.string.player_vflip_on else R.string.player_vflip_off))
+    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(if (newState) R.string.player_vertical_flip_on else R.string.player_vertical_flip_off))
   }
 
   fun toggleHdrScreenOutput() {
@@ -4160,8 +4327,8 @@ class PlayerViewModel(
   fun setHdrScreenMode(mode: HdrScreenMode) {
     val pipelineReady = isHdrScreenOutputAvailable(mode)
     if (mode != HdrScreenMode.OFF && !pipelineReady) {
-      val message = if (mode == HdrScreenMode.LINEAR) host.context.getString(R.string.player_hdr_linear_needs_gpu_next)
-                    else host.context.getString(R.string.player_hdr_needs_gpu_next)
+      val message = if (mode == HdrScreenMode.LINEAR) "Linear HDR needs GPU Next + Vulkan"
+                    else "HDR Screen output needs GPU Next"
       playerUpdate.value = PlayerUpdates.ShowText(message)
       applyHdrScreenOutput(HdrScreenMode.OFF)
       return
@@ -4172,7 +4339,7 @@ class PlayerViewModel(
     decoderPreferences.hdrScreenMode.set(mode)
     decoderPreferences.hdrScreenOutput.set(mode != HdrScreenMode.OFF)
     applyHdrScreenOutput(mode)
-    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_hdr_screen_output, host.context.getString(mode.shortTitleRes)))
+    playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.hdr_screen_output_update, host.context.getString(mode.shortTitleRes)))
   }
 
   private fun isHdrScreenOutputAvailable(mode: HdrScreenMode = _hdrScreenMode.value): Boolean {
@@ -4217,6 +4384,47 @@ class PlayerViewModel(
     applyHdrScreenOutput(_hdrScreenMode.value)
   }
 
+  fun selectAnime4KMode(mode: Anime4KManager.Mode) {
+    decoderPreferences.anime4kMode.set(mode.name)
+    viewModelScope.launch(Dispatchers.Default) {
+      runCatching {
+        val shouldRefreshShaderStack = if (mode == Anime4KManager.Mode.OFF) {
+          clearAnime4KShaders()
+          true
+        } else {
+          val selection = selectRuntimeStableAnime4K(
+            mode = mode,
+            quality = decoderPreferences.anime4kQuality.get(),
+            context = host.context,
+          )
+          if (selection.mode == Anime4KManager.Mode.OFF) {
+            clearAnime4KShaders()
+            true
+          } else {
+            anime4kManager.setPostFilters(
+              darken = decoderPreferences.anime4kDarken.get(),
+              thin = decoderPreferences.anime4kThin.get(),
+              deblur = decoderPreferences.anime4kDeblur.get(),
+            )
+            applyAnime4KShaderChain(anime4kManager, selection.mode, selection.quality).also { applied ->
+              if (applied) {
+                applyAnime4KStabilityOptions(
+                  useVulkan = MPVLib.getPropertyString("gpu-api") == "vulkan",
+                )
+              }
+            }
+          }
+        }
+
+        if (shouldRefreshShaderStack) {
+          restartHdrScreenOutputAndAmbientIfActive()
+        }
+      }.onFailure { error ->
+        Log.e(TAG, "Failed to apply Anime4K mode ${mode.name}", error)
+      }
+    }
+  }
+
   /**
    * Called after Anime4K or file changes so HDR remains layered with the rest of
    * the shader stack, then the ambient shader is moved back to the final pass.
@@ -4233,7 +4441,7 @@ class PlayerViewModel(
       return
     }
     if (!hdrToysManager.apply(profile)) {
-      playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_hdr_toys_unavailable))
+      playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_hdr_shaders_unavailable))
     }
   }
 
@@ -4245,10 +4453,10 @@ class PlayerViewModel(
     if (_isAmbientEnabled.value) {
       lastAmbientScaleX = -1.0 // Force rewrite
       updateAmbientStretch()
-      playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_ambient_on))
+      playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_ambience_on))
     } else {
       disableAmbientShader()
-      playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_ambient_off))
+      playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_ambience_off))
     }
   }
 
@@ -4323,7 +4531,7 @@ class PlayerViewModel(
     playerPreferences.ambientVisualMode.set(mode)
 
     if (_isAmbientEnabled.value) {
-      playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_ambient_style, host.context.getString(mode.labelRes)))
+      playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.ambient_style_update, mode.label))
       scheduleAmbientUpdate(75)
     }
   }
@@ -4439,6 +4647,7 @@ class PlayerViewModel(
         )
       }
       AmbientVisualMode.FRAME_EXTEND -> applyFrameExtendPreset(AmbientShaderPresets.frameExtendFast)
+      AmbientVisualMode.YOUTUBE -> {}
     }
   }
 
@@ -4459,6 +4668,7 @@ class PlayerViewModel(
         )
       }
       AmbientVisualMode.FRAME_EXTEND -> applyFrameExtendPreset(AmbientShaderPresets.frameExtendBalanced)
+      AmbientVisualMode.YOUTUBE -> {}
     }
   }
 
@@ -4479,6 +4689,7 @@ class PlayerViewModel(
         )
       }
       AmbientVisualMode.FRAME_EXTEND -> applyFrameExtendPreset(AmbientShaderPresets.frameExtendHighQuality)
+      AmbientVisualMode.YOUTUBE -> {}
     }
   }
 
@@ -4682,50 +4893,14 @@ class PlayerViewModel(
             glowMix = _frameExtendGlowMix.value,
             ditherNoise = ditherNoise,
           )
+        AmbientVisualMode.YOUTUBE ->
+          AmbientYouTubeShaderSpec(
+            context = context,
+            shared = shared,
+          )
       }
 
     return AmbientShaderBuilder.build(spec)
-  }
-
-  // ==================== Video Deletion ====================
-
-  fun deleteCurrentVideo() {
-    val activity = host as? PlayerActivity ?: return
-    val currentUri = activity.getCurrentPlayableUriForLookup() ?: return
-    val uri = Uri.parse(currentUri)
-
-    val video = Video(
-      id = 0,
-      title = "",
-      displayName = activity.getPlaylistItemTitle(uri),
-      path = currentUri,
-      uri = uri,
-      duration = 0,
-      durationFormatted = "",
-      size = 0,
-      sizeFormatted = "",
-      dateModified = 0,
-      dateAdded = 0,
-      mimeType = "",
-      bucketId = "",
-      bucketDisplayName = "",
-      width = 0,
-      height = 0,
-      fps = 0f,
-      resolution = "",
-    )
-
-    viewModelScope.launch(Dispatchers.IO) {
-      val (deleted, failed) = PermissionUtils.StorageOps.deleteVideos(activity, listOf(video))
-
-      launch(Dispatchers.Main) {
-        if (deleted > 0) {
-          activity.deleteCurrentVideoAndPlayNext()
-        } else {
-          showToast(host.context.getString(R.string.toast_delete_video_failed))
-        }
-      }
-    }
   }
 
   // ==================== Utility ====================
@@ -4755,6 +4930,8 @@ class PlayerViewModel(
     // bounded at 100 entries, so it is not urgent to clear, but clearing
     // here keeps the working set fresh for the next session.
     runCatching { metadataCache.evictAll() }
+
+    runCatching { syncplayManager.clearPlayerBindings() }
 
     super.onCleared()
   }

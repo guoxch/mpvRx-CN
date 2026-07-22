@@ -1,11 +1,13 @@
 package app.gyrolet.mpvrx.ui.editor
 
 import app.gyrolet.mpvrx.R
+
+import androidx.compose.ui.focus.FocusRequester
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
 import android.widget.Toast
-import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -54,7 +56,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -127,7 +128,7 @@ data class MpvHelpScreen(
                 HelpEntryKind.JS_API -> entry.signature.substringBefore("(") + "()"
             }
             SafeClipboard.copyPlainText(context, "mpv_help", text, showToast = false)
-            Toast.makeText(context, context.getString(R.string.mpv_help_copied, text), Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.toast_copied_value, text), Toast.LENGTH_SHORT).show()
         }
 
         LaunchedEffect(Unit) {
@@ -138,8 +139,7 @@ data class MpvHelpScreen(
             topBar = {
                 TopAppBar(
                     title = {
-                        Text(
-                            text = stringResource(R.string.mpv_help_documentation),
+                        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_mpv_documentation),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.primary,
@@ -148,7 +148,7 @@ data class MpvHelpScreen(
                     navigationIcon = {
                         IconButton(onClick = { backstack.popSafely() }) {
                             Icon(
-                                Icons.Outlined.ArrowBack,
+                                Icons.RoundedFilled.ArrowBack,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.secondary,
                             )
@@ -170,14 +170,13 @@ data class MpvHelpScreen(
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                         .focusRequester(focusRequester),
                     placeholder = {
-                        Text(
-                            text = stringResource(R.string.mpv_help_search_placeholder),
+                        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_search_commands_options_properties),
                             color = MaterialTheme.colorScheme.outline,
                         )
                     },
                     leadingIcon = {
                         Icon(
-                            imageVector = Icons.Outlined.Search,
+                            imageVector = Icons.RoundedFilled.Search,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.outline,
                         )
@@ -190,8 +189,8 @@ data class MpvHelpScreen(
                         ) {
                             IconButton(onClick = { searchQuery = "" }) {
                                 Icon(
-                                    imageVector = Icons.Outlined.Clear,
-                                    contentDescription = stringResource(R.string.cd_mpv_help_clear),
+                                    imageVector = Icons.RoundedFilled.Clear,
+                                    contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_clear_content_desc),
                                     tint = MaterialTheme.colorScheme.outline,
                                 )
                             }
@@ -221,7 +220,7 @@ data class MpvHelpScreen(
                     FilterChip(
                         selected = selectedKind == null,
                         onClick = { selectedKind = null },
-                        label = { Text(stringResource(R.string.mpv_help_all)) },
+                        label = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_all_sources)) },
                         colors = filterChipColors(),
                     )
                     HelpEntryKind.entries.forEach { kind ->
@@ -245,14 +244,13 @@ data class MpvHelpScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                imageVector = Icons.Outlined.Search,
+                                imageVector = Icons.RoundedFilled.Search,
                                 contentDescription = null,
                                 modifier = Modifier.size(64.dp),
                                 tint = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                             )
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = stringResource(R.string.mpv_help_no_results),
+                            Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_no_results_found),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.outline,
                             )
@@ -347,8 +345,7 @@ private fun HelpEntryCard(entry: HelpEntry, onClick: () -> Unit) {
                         shape = RoundedCornerShape(4.dp),
                         color = colors.error.copy(alpha = 0.12f),
                     ) {
-                        Text(
-                            text = stringResource(R.string.mpv_help_no_android),
+                        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_no_android),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = colors.error,

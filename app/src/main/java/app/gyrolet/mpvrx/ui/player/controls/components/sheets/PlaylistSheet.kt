@@ -43,8 +43,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,15 +54,14 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.geometry.Offset
-import coil3.ImageLoader
-import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
-import app.gyrolet.mpvrx.R
+import app.gyrolet.mpvrx.domain.media.model.Video
+import app.gyrolet.mpvrx.domain.thumbnail.ThumbnailRepository
 import app.gyrolet.mpvrx.presentation.components.PlayerSheet
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.theme.spacing
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
 
 data class PlaylistItem(
@@ -77,25 +74,76 @@ data class PlaylistItem(
   val path: String = "", // Video path for thumbnail loading
   val duration: String = "", // Duration in formatted string (e.g., "10:30")
   val resolution: String = "", // Resolution (e.g., "1920x1080")
+  val isAudio: Boolean = false,
 )
 
-private fun playlistThumbnailKey(item: PlaylistItem): String {
-  val base = item.path.ifBlank { item.uri.toString() }
-  return "playlist-thumb|$base"
+@Composable
+private fun PlaylistThumbnail(
+  item: PlaylistItem,
+  thumbnailRepository: ThumbnailRepository,
+  contentDescription: String?,
+  modifier: Modifier = Modifier,
+  contentScale: ContentScale = ContentScale.Crop,
+) {
+  val video = remember(item.uri, item.path, item.title) {
+    Video(
+      id = item.uri.toString().hashCode().toLong(),
+      title = item.title,
+      displayName = item.title,
+      path = item.path.ifBlank { item.uri.toString() },
+      uri = item.uri,
+      duration = 0L,
+      durationFormatted = item.duration,
+      size = 0L,
+      sizeFormatted = "",
+      dateModified = 0L,
+      dateAdded = 0L,
+      mimeType = if (item.isAudio) "audio/*" else "video/*",
+      bucketId = "",
+      bucketDisplayName = "",
+      width = 0,
+      height = 0,
+      fps = 0f,
+      resolution = item.resolution,
+    )
+  }
+  val thumbnailKey = remember(video) {
+    thumbnailRepository.thumbnailKey(video, PLAYLIST_THUMBNAIL_WIDTH, PLAYLIST_THUMBNAIL_HEIGHT)
+  }
+  var bitmap by remember(thumbnailKey) {
+    mutableStateOf(
+      thumbnailRepository.getThumbnailFromMemory(
+        video,
+        PLAYLIST_THUMBNAIL_WIDTH,
+        PLAYLIST_THUMBNAIL_HEIGHT,
+      ),
+    )
+  }
+
+  LaunchedEffect(thumbnailKey) {
+    if (bitmap == null) {
+      bitmap = withContext(Dispatchers.IO) {
+        thumbnailRepository.getThumbnail(
+          video,
+          PLAYLIST_THUMBNAIL_WIDTH,
+          PLAYLIST_THUMBNAIL_HEIGHT,
+        )
+      }
+    }
+  }
+
+  bitmap?.let { thumbnail ->
+    androidx.compose.foundation.Image(
+      bitmap = thumbnail.asImageBitmap(),
+      contentDescription = contentDescription,
+      modifier = modifier,
+      contentScale = contentScale,
+    )
+  }
 }
 
-private fun buildPlaylistThumbnailRequest(
-  context: android.content.Context,
-  item: PlaylistItem,
-): ImageRequest {
-  val cacheKey = playlistThumbnailKey(item)
-  return ImageRequest.Builder(context)
-    .data(item.uri)
-    .memoryCacheKey(cacheKey)
-    .diskCacheKey(cacheKey)
-    .crossfade(true)
-    .build()
-}
+private const val PLAYLIST_THUMBNAIL_WIDTH = 512
+private const val PLAYLIST_THUMBNAIL_HEIGHT = 288
 
 @Composable
 fun PlaylistSheet(
@@ -109,9 +157,8 @@ fun PlaylistSheet(
   swipeOffset: Float = 0f,
   modifier: Modifier = Modifier,
 ) {
-  val context = LocalContext.current
   val configuration = LocalConfiguration.current
-  val imageLoader = koinInject<ImageLoader>()
+  val thumbnailRepository = koinInject<ThumbnailRepository>()
 
   val accentColor = MaterialTheme.colorScheme.primary
 
@@ -206,8 +253,7 @@ fun PlaylistSheet(
             modifier = Modifier.weight(1f)
           ) {
             if (currentItem != null) {
-              Text(
-                text = stringResource(R.string.player_now_playing),
+              Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_now_playing),
                 style = MaterialTheme.typography.titleSmall.copy(
                   fontWeight = FontWeight.Bold,
                   color = accentColor,
@@ -232,8 +278,8 @@ fun PlaylistSheet(
               onClick = { isListMode = !isListMode }
             ) {
               Icon(
-                imageVector = if (isListMode) Icons.Default.GridView else Icons.Default.ViewList,
-                contentDescription = if (isListMode) stringResource(R.string.player_switch_grid) else stringResource(R.string.player_switch_list),
+                imageVector = if (isListMode) Icons.RoundedFilled.GridView else Icons.RoundedFilled.ViewList,
+                contentDescription = if (isListMode) "Switch to Grid View" else "Switch to List View",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
@@ -250,7 +296,7 @@ fun PlaylistSheet(
             items(playlist, key = { it.uri.toString() }) { item ->
               PlaylistTrackListItem(
                 item = item,
-                imageLoader = imageLoader,
+                thumbnailRepository = thumbnailRepository,
                 onClick = { onItemClick(item) },
                 skipThumbnail = false,
                 accentColor = accentColor
@@ -270,7 +316,7 @@ fun PlaylistSheet(
             items(playlist, key = { it.uri.toString() }) { item ->
               PlaylistTrackGridItem(
                 item = item,
-                imageLoader = imageLoader,
+                thumbnailRepository = thumbnailRepository,
                 onClick = {
                   onItemClick(item)
                 },
@@ -287,7 +333,7 @@ fun PlaylistSheet(
 @Composable
 fun PlaylistTrackListItem(
   item: PlaylistItem,
-  imageLoader: ImageLoader,
+  thumbnailRepository: ThumbnailRepository,
   onClick: () -> Unit,
   skipThumbnail: Boolean = false,
   accentColor: Color,
@@ -295,7 +341,6 @@ fun PlaylistTrackListItem(
 ) {
   // Use theme colors dynamically
   val accentSecondary = MaterialTheme.colorScheme.tertiary
-  val context = LocalContext.current
 
   val borderModifier = if (item.isPlaying) {
     Modifier.border(
@@ -341,16 +386,16 @@ fun PlaylistTrackListItem(
         contentAlignment = Alignment.Center,
       ) {
         Icon(
-          imageVector = Icons.Default.Videocam,
+          imageVector = if (item.isAudio) Icons.RoundedFilled.Audiotrack else Icons.RoundedFilled.Videocam,
           contentDescription = null,
           tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
           modifier = Modifier.size(24.dp),
         )
         if (!skipThumbnail) {
-          AsyncImage(
-            model = remember(item.uri, item.path) { buildPlaylistThumbnailRequest(context, item) },
-            imageLoader = imageLoader,
-            contentDescription = stringResource(R.string.cd_thumbnail),
+          PlaylistThumbnail(
+            item = item,
+            thumbnailRepository = thumbnailRepository,
+            contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_thumbnail),
             modifier = Modifier.matchParentSize(),
             contentScale = ContentScale.Crop,
           )
@@ -437,7 +482,7 @@ fun PlaylistTrackListItem(
                 color = if (item.isPlaying) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
               )
             }
-          } else {
+          } else if (!item.isAudio) {
             LoadingChip(width = 60.dp)
           }
         }
@@ -450,8 +495,7 @@ fun PlaylistTrackListItem(
             color = accentColor.copy(alpha = 0.15f),
             shape = RoundedCornerShape(16.dp),
           ) {
-            Text(
-              text = stringResource(R.string.player_playing),
+            Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.notification_playing),
               modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
               style = MaterialTheme.typography.labelSmall.copy(
                 fontWeight = FontWeight.SemiBold,
@@ -469,7 +513,7 @@ fun PlaylistTrackListItem(
 @Composable
 fun PlaylistTrackGridItem(
   item: PlaylistItem,
-  imageLoader: ImageLoader,
+  thumbnailRepository: ThumbnailRepository,
   onClick: () -> Unit,
   skipThumbnail: Boolean = false,
   modifier: Modifier = Modifier,
@@ -477,7 +521,6 @@ fun PlaylistTrackGridItem(
   // Use theme colors dynamically
   val accentColor = MaterialTheme.colorScheme.primary
   val accentSecondary = MaterialTheme.colorScheme.tertiary
-  val context = LocalContext.current
 
   val borderModifier = if (item.isPlaying) {
     Modifier.border(
@@ -513,16 +556,16 @@ fun PlaylistTrackGridItem(
         contentAlignment = Alignment.Center,
       ) {
         Icon(
-          imageVector = Icons.Default.Videocam,
+          imageVector = if (item.isAudio) Icons.RoundedFilled.Audiotrack else Icons.RoundedFilled.Videocam,
           contentDescription = null,
           tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
           modifier = Modifier.size(32.dp),
         )
         if (!skipThumbnail) {
-          AsyncImage(
-            model = remember(item.uri, item.path) { buildPlaylistThumbnailRequest(context, item) },
-            imageLoader = imageLoader,
-            contentDescription = stringResource(R.string.cd_thumbnail),
+          PlaylistThumbnail(
+            item = item,
+            thumbnailRepository = thumbnailRepository,
+            contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_thumbnail),
             modifier = Modifier.matchParentSize(),
             contentScale = ContentScale.Crop,
           )
@@ -640,7 +683,7 @@ fun PlaylistTrackGridItem(
                 color = if (item.isPlaying) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
               )
             }
-          } else {
+          } else if (!item.isAudio) {
             LoadingChip(width = 60.dp)
           }
 
@@ -649,8 +692,7 @@ fun PlaylistTrackGridItem(
               color = accentColor.copy(alpha = 0.15f),
               shape = RoundedCornerShape(4.dp),
             ) {
-              Text(
-                text = stringResource(R.string.player_playing),
+              Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.notification_playing),
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 style = MaterialTheme.typography.labelSmall.copy(
                   fontSize = 10.sp,

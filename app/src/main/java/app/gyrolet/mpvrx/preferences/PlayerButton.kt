@@ -13,34 +13,33 @@ import app.gyrolet.mpvrx.ui.icons.Icons
 enum class PlayerButton(
   val icon: AppIcon,
 ) {
-  BACK_ARROW(Icons.Outlined.ArrowBack),
-  VIDEO_TITLE(Icons.Outlined.Title),
-  BOOKMARKS_CHAPTERS(Icons.Outlined.Bookmarks),
-  PLAYBACK_SPEED(Icons.Outlined.Speed),
-  DECODER(Icons.Default.DeveloperBoard),
-  HDR_MODE(Icons.Default.HdrOff),
-  SCREEN_ROTATION(Icons.Outlined.ScreenRotation),
-  FRAME_NAVIGATION(Icons.Default.Screenshot),
-  VIDEO_ZOOM(Icons.Outlined.ZoomIn),
-  PICTURE_IN_PICTURE(Icons.Outlined.PictureInPictureAlt),
-  CAST(Icons.Outlined.Cast),
-  ASPECT_RATIO(Icons.Outlined.AspectRatio),
-  LOCK_CONTROLS(Icons.Outlined.LockOpen),
-  AUDIO_TRACK(Icons.Outlined.Audiotrack),
-  SUBTITLES(Icons.Outlined.Subtitles),
-  MORE_OPTIONS(Icons.Outlined.MoreVert),
-  CURRENT_CHAPTER(Icons.Outlined.Bookmarks), // <-- CHANGED ICON
-  REPEAT_MODE(Icons.Filled.Repeat),
-  SHUFFLE(Icons.Outlined.Shuffle),
-  MIRROR(Icons.Outlined.Flip),
-  VERTICAL_FLIP(Icons.Outlined.Flip),
-  AB_LOOP(Icons.Outlined.Repeat),
-  CUSTOM_SKIP(Icons.Outlined.FastForward),
-  BACKGROUND_PLAYBACK(Icons.Outlined.Headset),
-  AMBIENT_MODE(Icons.Outlined.BlurOff),
-  TIME_NETWORK(Icons.Default.AccessTime),
-  DELETE_VIDEO(Icons.Default.Delete),
-  NONE(Icons.Outlined.Bookmarks),
+  BACK_ARROW(Icons.RoundedFilled.ArrowBack),
+  VIDEO_TITLE(Icons.RoundedFilled.Title),
+  BOOKMARKS_CHAPTERS(Icons.RoundedFilled.Bookmarks),
+  PLAYBACK_SPEED(Icons.RoundedFilled.Speed),
+  DECODER(Icons.RoundedFilled.DeveloperBoard),
+  HDR_MODE(Icons.RoundedFilled.HdrOff),
+  SCREEN_ROTATION(Icons.RoundedFilled.ScreenRotation),
+  FRAME_NAVIGATION(Icons.RoundedFilled.Screenshot),
+  VIDEO_ZOOM(Icons.RoundedFilled.ZoomIn),
+  PICTURE_IN_PICTURE(Icons.RoundedFilled.PictureInPictureAlt),
+  CAST(Icons.RoundedFilled.Cast),
+  ASPECT_RATIO(Icons.RoundedFilled.AspectRatio),
+  LOCK_CONTROLS(Icons.RoundedFilled.LockOpen),
+  AUDIO_TRACK(Icons.RoundedFilled.Audiotrack),
+  SUBTITLES(Icons.RoundedFilled.Subtitles),
+  MORE_OPTIONS(Icons.RoundedFilled.MoreVert),
+  CURRENT_CHAPTER(Icons.RoundedFilled.Bookmarks), // <-- CHANGED ICON
+  REPEAT_MODE(Icons.RoundedFilled.Repeat),
+  SHUFFLE(Icons.RoundedFilled.Shuffle),
+  MIRROR(Icons.RoundedFilled.Flip),
+  VERTICAL_FLIP(Icons.RoundedFilled.Flip),
+  AB_LOOP(Icons.RoundedFilled.Repeat),
+  CUSTOM_SKIP(Icons.RoundedFilled.FastForward),
+  BACKGROUND_PLAYBACK(Icons.RoundedFilled.Headset),
+  AMBIENT_MODE(Icons.RoundedFilled.BlurOff),
+  TIME_NETWORK(Icons.RoundedFilled.AccessTime),
+  NONE(Icons.RoundedFilled.Bookmarks),
 }
 
 /**
@@ -56,7 +55,6 @@ val allPlayerButtons =
 
 /**
  * Gets the human-readable label for a player button.
- * TODO: You must add these string resources to your `strings.xml` file.
  */
 @Composable
 fun getPlayerButtonLabel(button: PlayerButton): String =
@@ -84,9 +82,8 @@ fun getPlayerButtonLabel(button: PlayerButton): String =
     PlayerButton.VERTICAL_FLIP -> stringResource(R.string.btn_label_vertical_flip)
     PlayerButton.AB_LOOP -> stringResource(R.string.btn_label_ab_loop)
     PlayerButton.CUSTOM_SKIP -> stringResource(R.string.btn_label_custom_skip)
-    PlayerButton.BACKGROUND_PLAYBACK -> stringResource(R.string.btn_label_bg_playback)
+    PlayerButton.BACKGROUND_PLAYBACK -> stringResource(R.string.btn_label_background_playback)
     PlayerButton.AMBIENT_MODE -> stringResource(R.string.btn_label_ambient)
     PlayerButton.TIME_NETWORK -> stringResource(R.string.btn_label_time_network)
-    PlayerButton.DELETE_VIDEO -> stringResource(R.string.btn_label_delete)
     PlayerButton.NONE -> stringResource(R.string.btn_label_none)
   }

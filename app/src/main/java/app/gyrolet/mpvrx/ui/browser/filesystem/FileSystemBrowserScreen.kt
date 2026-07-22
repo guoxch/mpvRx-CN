@@ -1,5 +1,10 @@
 package app.gyrolet.mpvrx.ui.browser.filesystem
 
+import app.gyrolet.mpvrx.R
+
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.unit.Dp
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -68,19 +73,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.gyrolet.mpvrx.BuildConfig
-import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.browser.FileSystemItem
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
@@ -486,16 +488,16 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 placeholder = {
                   Text(
                     if (isAtRoot) {
-                      stringResource(app.gyrolet.mpvrx.R.string.common_search_hint_all_volumes)
+                      "Search in all storage volumes..."
                     } else {
-                      stringResource(app.gyrolet.mpvrx.R.string.common_search_hint_folder, breadcrumbs.lastOrNull()?.name ?: stringResource(app.gyrolet.mpvrx.R.string.common_folder))
+                      "Search in ${breadcrumbs.lastOrNull()?.name ?: "folder"}..."
                     }
                   )
                 },
                 leadingIcon = {
                   Icon(
-                    imageVector = Icons.Filled.Search,
-                    contentDescription = stringResource(app.gyrolet.mpvrx.R.string.nav_icon_search),
+                    imageVector = Icons.RoundedFilled.Search,
+                    contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.settings_search_title),
                   )
                 },
                 trailingIcon = {
@@ -506,8 +508,8 @@ fun FileSystemBrowserScreen(path: String? = null) {
                     },
                   ) {
                     Icon(
-                      imageVector = Icons.Filled.Close,
-                      contentDescription = stringResource(app.gyrolet.mpvrx.R.string.generic_cancel),
+                      imageVector = Icons.RoundedFilled.Close,
+                      contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel),
                     )
                   }
                 },
@@ -529,7 +531,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
             title = if (isAtRoot) {
               stringResource(app.gyrolet.mpvrx.R.string.app_name)
             } else {
-              breadcrumbs.lastOrNull()?.name ?: stringResource(app.gyrolet.mpvrx.R.string.common_tree_view)
+              breadcrumbs.lastOrNull()?.name ?: "Tree View"
             },
             isInSelectionMode = isInSelectionMode,
             selectedCount = selectedCount,
@@ -582,7 +584,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                   }
                   .distinct()
               if (selectedPaths.isNotEmpty()) {
-                SafeClipboard.copyPlainText(context, context.getString(R.string.clipboard_label_selected_paths), selectedPaths.joinToString("\n"))
+                SafeClipboard.copyPlainText(context, "Selected paths", selectedPaths.joinToString("\n"))
               }
             },
             onPlayClick = {
@@ -618,7 +620,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                     TooltipAnchorPosition.Above
                   }
                 ),
-                tooltip = { PlainTooltip { Text(stringResource(app.gyrolet.mpvrx.R.string.common_toggle_menu)) } },
+                tooltip = { PlainTooltip { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_toggle_menu)) } },
                 state = rememberTooltipState(),
               ) {
                 ToggleFloatingActionButton(
@@ -632,7 +634,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 ) {
                   val imageVector by remember {
                     derivedStateOf {
-                      if (checkedProgress > 0.5f) Icons.Filled.Close else Icons.Filled.PlayArrow
+                      if (checkedProgress > 0.5f) Icons.RoundedFilled.Close else Icons.RoundedFilled.PlayArrow
                   }
                 }
                 Icon(
@@ -649,8 +651,8 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 isFabExpanded.value = false
                 filePicker.launch(arrayOf("video/*"))
               },
-              icon = { Icon(Icons.Filled.FileOpen, contentDescription = null) },
-              text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.common_open_file)) },
+              icon = { Icon(Icons.RoundedFilled.FileOpen, contentDescription = null) },
+              text = { Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_open_file)) },
             )
 
             FloatingActionButtonMenuItem(
@@ -664,8 +666,8 @@ fun FileSystemBrowserScreen(path: String? = null) {
                   }
                 }
               },
-              icon = { Icon(Icons.Filled.History, contentDescription = null) },
-              text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.common_recently_played)) },
+              icon = { Icon(Icons.RoundedFilled.History, contentDescription = null) },
+              text = { Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_advanced_enable_recently_played_title)) },
             )
 
             FloatingActionButtonMenuItem(
@@ -673,8 +675,8 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 isFabExpanded.value = false
                 showLinkDialog.value = true
               },
-              icon = { Icon(Icons.Filled.Link, contentDescription = null) },
-              text = { Text(text = stringResource(app.gyrolet.mpvrx.R.string.common_open_link)) },
+              icon = { Icon(Icons.RoundedFilled.Link, contentDescription = null) },
+              text = { Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_open_link)) },
             )
           }
         }
@@ -1252,8 +1254,8 @@ private fun FileSystemBrowserContent(
         contentAlignment = Alignment.Center,
       ) {
         EmptyState(
-          icon = Icons.Filled.Folder,
-          title = stringResource(app.gyrolet.mpvrx.R.string.common_error_loading_directory),
+          icon = Icons.RoundedFilled.Folder,
+          title = stringResource(R.string.ui_error_loading_directory),
           message = error,
         )
       }
@@ -1265,9 +1267,9 @@ private fun FileSystemBrowserContent(
         contentAlignment = Alignment.Center,
       ) {
         EmptyState(
-          icon = Icons.Filled.FolderOpen,
-          title = stringResource(app.gyrolet.mpvrx.R.string.common_empty_folder),
-          message = stringResource(app.gyrolet.mpvrx.R.string.common_folder_empty_videos),
+          icon = Icons.RoundedFilled.FolderOpen,
+          title = stringResource(R.string.ui_empty_folder),
+          message = "This folder contains no videos or subfolders",
         )
       }
     }
@@ -1649,7 +1651,7 @@ private fun FileSystemSearchContent(
               color = MaterialTheme.colorScheme.primary,
             )
             Text(
-              text = if (isAtRoot) stringResource(app.gyrolet.mpvrx.R.string.common_search_hint_all_volumes) else stringResource(app.gyrolet.mpvrx.R.string.generic_searching),
+              text = if (isAtRoot) "Searching all storage volumes..." else "Searching...",
               style = MaterialTheme.typography.bodyMedium,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1663,9 +1665,9 @@ private fun FileSystemSearchContent(
           contentAlignment = Alignment.Center,
         ) {
           EmptyState(
-            icon = Icons.Filled.Search,
-            title = stringResource(app.gyrolet.mpvrx.R.string.search_no_results_title),
-            message = stringResource(app.gyrolet.mpvrx.R.string.common_no_files_match_query, searchQuery),
+            icon = Icons.RoundedFilled.Search,
+            title = stringResource(R.string.ui_no_results_found),
+            message = "No files or folders match \"$searchQuery\"",
           )
         }
       }

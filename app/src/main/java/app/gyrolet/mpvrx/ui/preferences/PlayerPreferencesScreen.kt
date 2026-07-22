@@ -80,7 +80,7 @@ object PlayerPreferencesScreen : Screen {
             if (LocalShowSettingsBackArrow.current) {
               IconButton(onClick = { backstack.popSafely() }) {
                 Icon(
-                  Icons.Outlined.ArrowBack, 
+                  Icons.RoundedFilled.ArrowBack,
                   contentDescription = null,
                   tint = MaterialTheme.colorScheme.secondary,
                 )
@@ -241,10 +241,10 @@ object PlayerPreferencesScreen : Screen {
                     android.util.Log.e("PlayerPreferencesScreen", "Failed to set alias state", e)
                   }
                 },
-                title = { Text(stringResource(R.string.media_info_show_in_chooser_title)) },
+                title = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_show_media_info_in_chooser)) },
                 summary = {
                   Text(
-                    stringResource(R.string.media_info_show_in_chooser_summary),
+                    androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_show_media_info_in_system),
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },
@@ -282,6 +282,21 @@ object PlayerPreferencesScreen : Screen {
                 summary = {
                   Text(
                     stringResource(R.string.pref_player_show_buffered_range_summary),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+
+              PreferenceDivider()
+
+              val showChapterIndicators by preferences.showChapterIndicators.collectAsState()
+              SwitchPreference(
+                value = showChapterIndicators,
+                onValueChange = preferences.showChapterIndicators::set,
+                title = { Text(stringResource(R.string.pref_player_show_chapter_indicators_title)) },
+                summary = {
+                  Text(
+                    stringResource(R.string.pref_player_show_chapter_indicators_summary),
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },
@@ -416,7 +431,7 @@ object PlayerPreferencesScreen : Screen {
                           value = value,
                           onValueChange = onValueChange,
                           modifier = Modifier.fillMaxWidth(),
-                          placeholder = { Text(stringResource(R.string.pref_screenshot_intro_placeholder)) },
+                          placeholder = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_e_g_intro_opening_op)) },
                           singleLine = true,
                         )
                       }
@@ -461,7 +476,7 @@ object PlayerPreferencesScreen : Screen {
                           value = value,
                           onValueChange = onValueChange,
                           modifier = Modifier.fillMaxWidth(),
-                          placeholder = { Text(stringResource(R.string.pref_screenshot_outro_placeholder)) },
+                          placeholder = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_e_g_outro_ending_ed)) },
                           singleLine = true,
                         )
                       }
@@ -582,7 +597,7 @@ object PlayerPreferencesScreen : Screen {
           }
 
           // ── Screenshots ─────────────────────────────────────────────────
-          item { PreferenceSectionHeader(title = stringResource(R.string.pref_section_screenshots)) }
+          item { PreferenceSectionHeader(title = stringResource(R.string.pref_screenshots_section)) }
           item {
             PreferenceCard {
               val screenshotFormat by preferences.screenshotFormat.collectAsState()
@@ -591,7 +606,7 @@ object PlayerPreferencesScreen : Screen {
                 onValueChange = preferences.screenshotFormat::set,
                 values = ScreenshotFormat.entries,
                 valueToText = { AnnotatedString(it.title) },
-                title = { Text(stringResource(R.string.pref_screenshot_image_format)) },
+                title = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_image_format)) },
                 summary = { Text("${screenshotFormat.title} .${screenshotFormat.extension}", color = MaterialTheme.colorScheme.outline) },
               )
 
@@ -601,14 +616,14 @@ object PlayerPreferencesScreen : Screen {
               SwitchPreference(
                 value = includeSubtitles,
                 onValueChange = preferences.includeSubtitlesInSnapshot::set,
-                title = { Text(stringResource(R.string.pref_screenshot_include_subtitles)) },
+                title = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_include_subtitles_in_screenshots)) },
               )
 
               PreferenceDivider()
 
               val screenshotTemplate by preferences.screenshotTemplate.collectAsState()
               Preference(
-                title = { Text(stringResource(R.string.pref_screenshot_filename_template)) },
+                title = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_filename_template)) },
                 summary = { Text(screenshotTemplate, color = MaterialTheme.colorScheme.outline) },
                 onClick = {
                   templateDraft = screenshotTemplate
@@ -622,7 +637,7 @@ object PlayerPreferencesScreen : Screen {
               SliderPreference(
                 value = screenshotQuality.toFloat(),
                 onValueChange = { preferences.screenshotQuality.set(it.roundToInt().coerceIn(1, 100)) },
-                title = { Text(stringResource(R.string.pref_screenshot_quality)) },
+                title = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_jpeg_webp_quality)) },
                 valueRange = 1f..100f,
                 summary = { Text("$screenshotQuality", color = MaterialTheme.colorScheme.outline) },
                 onSliderValueChange = { preferences.screenshotQuality.set(it.roundToInt().coerceIn(1, 100)) },
@@ -635,7 +650,7 @@ object PlayerPreferencesScreen : Screen {
               SliderPreference(
                 value = pngCompression.toFloat(),
                 onValueChange = { preferences.screenshotPngCompression.set(it.roundToInt().coerceIn(0, 9)) },
-                title = { Text(stringResource(R.string.pref_screenshot_png_compression)) },
+                title = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_png_compression)) },
                 valueRange = 0f..9f,
                 summary = { Text("$pngCompression", color = MaterialTheme.colorScheme.outline) },
                 onSliderValueChange = { preferences.screenshotPngCompression.set(it.roundToInt().coerceIn(0, 9)) },
@@ -649,8 +664,8 @@ object PlayerPreferencesScreen : Screen {
                 SwitchPreference(
                   value = webpLossless,
                   onValueChange = preferences.screenshotWebpLossless::set,
-                  title = { Text(stringResource(R.string.pref_screenshot_webp_lossless)) },
-                  summary = { Text(stringResource(R.string.pref_screenshot_webp_lossless_summary), color = MaterialTheme.colorScheme.outline) },
+                  title = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_webp_lossless)) },
+                  summary = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_uses_mpv_native_lossless_output_android_fallback_uses_lossless_o), color = MaterialTheme.colorScheme.outline) },
                 )
               }
             }
@@ -785,17 +800,21 @@ object PlayerPreferencesScreen : Screen {
     if (showTemplateDialog) {
       AlertDialog(
         onDismissRequest = { showTemplateDialog = false },
-        title = { Text(stringResource(R.string.pref_screenshot_filename_template)) },
+        title = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_filename_template)) },
         text = {
           Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
               value = templateDraft,
               onValueChange = { templateDraft = it },
-              label = { Text(stringResource(R.string.pref_screenshot_template_label)) },
+              label = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_template)) },
               modifier = Modifier.fillMaxWidth()
             )
-            Text(
-              text = stringResource(R.string.pref_screenshot_template_help),
+            Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_use_placeholders_to_customize_the_screenshot_filename_n) +
+                  "• %f — Video title or filename\n" +
+                  "• %p — Playback position (seconds)\n" +
+                  "• %Y, %m, %d — Year, Month, Day\n" +
+                  "• %H, %M, %S — Hour, Minute, Second\n" +
+                  "• %wH, %wM, %wS, %wT — Wall-clock time (hour, min, sec, ms)",
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -808,12 +827,12 @@ object PlayerPreferencesScreen : Screen {
               showTemplateDialog = false
             },
           ) {
-            Text(stringResource(R.string.action_save))
+            Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_save))
           }
         },
         dismissButton = {
           TextButton(onClick = { showTemplateDialog = false }) {
-            Text(stringResource(R.string.action_cancel))
+            Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel))
           }
         },
       )

@@ -1,5 +1,7 @@
 package app.gyrolet.mpvrx.ui.player.controls.components.sheets
 
+import androidx.compose.ui.unit.Dp
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -46,7 +48,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.AudioPreferences
@@ -112,7 +113,7 @@ fun PlaybackSpeedSheet(
            onClick = { onSpeedChange((speed - 0.05f).coerceAtLeast(0.05f)) },
            modifier = Modifier.size(40.dp)
         ) {
-           Icon(Icons.Default.Remove, null, modifier = Modifier.size(24.dp))
+           Icon(Icons.RoundedFilled.Remove, null, modifier = Modifier.size(24.dp))
         }
 
           Slider(
@@ -130,7 +131,7 @@ fun PlaybackSpeedSheet(
            onClick = { onSpeedChange((speed + 0.05f).coerceAtMost(4.0f)) },
            modifier = Modifier.size(40.dp)
         ) {
-           Icon(Icons.Default.Add, null, modifier = Modifier.size(24.dp))
+           Icon(Icons.RoundedFilled.Add, null, modifier = Modifier.size(24.dp))
         }
       }
 
@@ -185,8 +186,8 @@ fun PlaybackSpeedSheet(
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                         modifier = buttonModifier
                     ) {
-                       Icon(Icons.Default.Remove, null, modifier = Modifier.size(16.dp).padding(end = 4.dp))
-                       Text(stringResource(R.string.player_speed_remove))
+                       Icon(Icons.RoundedFilled.Remove, null, modifier = Modifier.size(16.dp).padding(end = 4.dp))
+                       Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_remove))
                     }
                 }
             } else {
@@ -195,8 +196,8 @@ fun PlaybackSpeedSheet(
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                     modifier = buttonModifier
                 ) {
-                  Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp).padding(end = 4.dp))
-                  Text(stringResource(R.string.player_speed_add))
+                  Icon(Icons.RoundedFilled.Add, null, modifier = Modifier.size(16.dp).padding(end = 4.dp))
+                  Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_add))
                 }
             }
       }

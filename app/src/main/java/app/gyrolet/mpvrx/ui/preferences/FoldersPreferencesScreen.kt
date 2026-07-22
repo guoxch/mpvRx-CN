@@ -35,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -119,7 +120,9 @@ object FoldersPreferencesScreen : Screen {
     Scaffold(
       topBar = {
         BrowserTopBar(
-          title = stringResource(R.string.pref_section_storage),
+          title = stringResource(R.string.pref_folders_title),
+          colors = TopAppBarDefaults.topAppBarColors(),
+          forceHeadlineSmall = true,
           isInSelectionMode = selectionState.isInSelectionMode,
           selectedCount = selectionState.selectedCount,
           totalCount = blacklistedFoldersList.size,
@@ -142,7 +145,7 @@ object FoldersPreferencesScreen : Screen {
                 modifier = Modifier.padding(horizontal = 2.dp),
               ) {
                 Icon(
-                  Icons.Default.Clear,
+                  Icons.RoundedFilled.Clear,
                   contentDescription = stringResource(R.string.pref_folders_clear_all),
                   modifier = Modifier.size(28.dp),
                   tint = MaterialTheme.colorScheme.error,
@@ -163,7 +166,7 @@ object FoldersPreferencesScreen : Screen {
         if (!selectionState.isInSelectionMode) {
 
           // ── Media Library ─────────────────────────────────────────────
-          PreferenceSectionHeader(title = stringResource(R.string.pref_section_media_library))
+          PreferenceSectionHeader(title = stringResource(R.string.pref_media_library_section))
 
           NoMediaPreferenceCard(
             includeNoMediaFolders = includeNoMediaFolders,
@@ -177,7 +180,7 @@ object FoldersPreferencesScreen : Screen {
           Spacer(modifier = Modifier.height(16.dp))
 
           // ── Hidden Folders ────────────────────────────────────────────
-          PreferenceSectionHeader(title = stringResource(R.string.pref_section_hidden_folders))
+          PreferenceSectionHeader(title = stringResource(R.string.pref_hidden_folders_section))
 
           Text(
             text = stringResource(R.string.pref_folders_summary),
@@ -195,7 +198,7 @@ object FoldersPreferencesScreen : Screen {
               .weight(1f),
           ) {
             EmptyState(
-              icon = Icons.Filled.FolderOff,
+              icon = Icons.RoundedFilled.FolderOff,
               title = stringResource(R.string.pref_folders_empty_title),
               message = stringResource(R.string.pref_folders_empty_message),
             )
@@ -252,7 +255,7 @@ object FoldersPreferencesScreen : Screen {
               verticalAlignment = Alignment.CenterVertically,
             ) {
               Icon(
-                imageVector = Icons.Default.Folder,
+                imageVector = Icons.RoundedFilled.Folder,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
               )
@@ -389,7 +392,7 @@ private fun BlacklistedFolderItem(
       if (!isInSelectionMode) {
         IconButton(onClick = onRemove) {
           Icon(
-            imageVector = Icons.Default.RemoveCircle,
+            imageVector = Icons.RoundedFilled.RemoveCircle,
             contentDescription = stringResource(R.string.delete),
             tint = MaterialTheme.colorScheme.error,
           )
@@ -430,7 +433,7 @@ private fun AddFolderDialog(
           overflow = TextOverflow.Ellipsis,
         )
         if (!isLoading && availableFolders.isNotEmpty()) {
-          Icon(Icons.Filled.ArrowDropDown, contentDescription = stringResource(R.string.selection_options), modifier = Modifier.size(24.dp))
+          Icon(Icons.RoundedFilled.ArrowDropDown, contentDescription = stringResource(R.string.selection_options), modifier = Modifier.size(24.dp))
         }
         DropdownMenu(expanded = showDropdown, onDismissRequest = { showDropdown = false }) {
           DropdownMenuItem(text = { Text(stringResource(R.string.select_all)) }, onClick = {
@@ -508,14 +511,13 @@ internal fun StorageRootPickerCard(
       horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
       Icon(
-        imageVector = Icons.Default.Folder,
+        imageVector = Icons.RoundedFilled.Folder,
         contentDescription = null,
         tint = MaterialTheme.colorScheme.primary,
         modifier = Modifier.size(24.dp),
       )
       Column(modifier = Modifier.weight(1f)) {
-        Text(
-          text = stringResource(R.string.pref_base_storage_folder),
+        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_base_storage_folder),
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.Bold,
         )
@@ -534,8 +536,8 @@ internal fun StorageRootPickerCard(
       if (currentPath.isNotEmpty()) {
         IconButton(onClick = onClearClick) {
           Icon(
-            imageVector = Icons.Default.Clear,
-            contentDescription = stringResource(R.string.cd_clear),
+            imageVector = Icons.RoundedFilled.Clear,
+            contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_clear_content_desc),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
           )
         }

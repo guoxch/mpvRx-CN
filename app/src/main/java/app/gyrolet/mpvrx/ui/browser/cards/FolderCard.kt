@@ -37,11 +37,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.media.model.VideoFolder
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
@@ -83,6 +81,7 @@ fun FolderCard(
   val showFolderPath by browserPreferences.showFolderPath.collectAsState()
   val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
   val showFolderThumbnails by browserPreferences.showFolderThumbnails.collectAsState()
+  val thumbnailQuality by browserPreferences.thumbnailQuality.collectAsState()
   val includeAudio by browserPreferences.includeAudioBrowser.collectAsState()
   val manualGridColumnsEnabled by browserPreferences.manualGridColumnsEnabled.collectAsState()
   val folderGridColumnsPortrait by browserPreferences.folderGridColumnsPortrait.collectAsState()
@@ -92,7 +91,7 @@ fun FolderCard(
   val thumbnailRepository = koinInject<ThumbnailRepository>()
   var folderThumbnail by remember(folder.bucketId) { mutableStateOf<android.graphics.Bitmap?>(null) }
 
-  LaunchedEffect(folder.bucketId, showFolderThumbnails, isGridMode, manualGridColumnsEnabled, folderGridColumnsPortrait, folderGridColumnsLandscape, isDualPane) {
+  LaunchedEffect(folder.bucketId, showFolderThumbnails, thumbnailQuality, isGridMode, manualGridColumnsEnabled, folderGridColumnsPortrait, folderGridColumnsLandscape, isDualPane) {
     if (isGridMode && showFolderThumbnails) {
       withContext(Dispatchers.IO) {
         val videos = app.gyrolet.mpvrx.repository.MediaFileRepository.getVideosInFolder(context, folder.bucketId)
@@ -158,8 +157,8 @@ fun FolderCard(
       modifier = modifier.rotate(-18f),
     ) {
       Icon(
-        imageVector = Icons.Default.PushPin,
-        contentDescription = stringResource(R.string.cd_pinned_folder),
+        imageVector = Icons.RoundedFilled.PushPin,
+        contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_pinned_folder),
         modifier =
           Modifier
             .padding(horizontal = 6.dp, vertical = 4.dp)
@@ -265,8 +264,8 @@ fun FolderCard(
               )
             } else {
               Icon(
-                customIcon ?: Icons.Filled.Folder,
-                contentDescription = stringResource(R.string.cd_folder),
+                customIcon ?: Icons.RoundedFilled.Folder,
+                contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_folder),
                 modifier = Modifier.size(56.dp),
                 tint = MaterialTheme.colorScheme.secondary,
               )
@@ -343,14 +342,6 @@ fun FolderCard(
               color = MaterialTheme.colorScheme. onSurfaceVariant,
             )
           }
-
-          if (showTotalSizeChip && folder.totalSize > 0) {
-            Text(
-              formatFileSize(folder.totalSize),
-              style = MaterialTheme.typography.labelSmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
         }
       } else {
         Row(
@@ -381,8 +372,8 @@ fun FolderCard(
               )
             } else {
               Icon(
-                customIcon ?: Icons.Filled.Folder,
-                contentDescription = stringResource(R.string.cd_folder),
+                customIcon ?: Icons.RoundedFilled.Folder,
+                contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_folder),
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.secondary,
               )

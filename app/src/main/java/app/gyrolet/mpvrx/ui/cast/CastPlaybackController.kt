@@ -2,9 +2,10 @@ package app.gyrolet.mpvrx.ui.cast
 
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import android.webkit.MimeTypeMap
 import androidx.appcompat.app.AppCompatActivity
-import app.gyrolet.mpvrx.R
+import androidx.core.content.ContextCompat
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaLoadRequestData
 import com.google.android.gms.cast.MediaMetadata
@@ -29,7 +30,8 @@ class CastPlaybackController(
   private val restoreLocal: (positionMs: Long, play: Boolean) -> Unit,
   private val notifyUser: (String) -> Unit,
 ) {
-  private val castContext: CastContext by lazy { CastContext.getSharedInstance(activity) }
+  private var castContext: CastContext? = null
+  private var released = false
   private var localWasPlaying = false
   private var lastRemotePositionMs = 0L
   private var remoteWasPlaying = false
@@ -75,7 +77,7 @@ class CastPlaybackController(
 
       override fun onSessionStartFailed(session: CastSession, error: Int) {
         CastMediaServer.stop()
-        notifyUser(activity.getString(R.string.cast_error_connect_failed))
+        notifyUser("Could not connect to Cast device")
       }
 
       override fun onSessionResumeFailed(session: CastSession, error: Int) {
@@ -88,15 +90,32 @@ class CastPlaybackController(
     }
 
   fun start() {
-    castContext.sessionManager.addSessionManagerListener(sessionListener, CastSession::class.java)
-    castContext.sessionManager.currentCastSession
-      ?.takeIf { it.isConnected }
-      ?.let { session -> sessionListener.onSessionResumed(session, false) }
+    released = false
+    try {
+      CastContext
+        .getSharedInstance(activity.applicationContext, ContextCompat.getMainExecutor(activity))
+        .addOnSuccessListener { context ->
+          if (released) return@addOnSuccessListener
+
+          castContext = context
+          context.sessionManager.addSessionManagerListener(sessionListener, CastSession::class.java)
+          context.sessionManager.currentCastSession
+            ?.takeIf { it.isConnected }
+            ?.let { session -> sessionListener.onSessionResumed(session, false) }
+        }.addOnFailureListener { exception ->
+          Log.w(TAG, "Google Cast is unavailable; continuing with local playback", exception)
+        }
+    } catch (exception: RuntimeException) {
+      Log.w(TAG, "Google Cast initialization failed; continuing with local playback", exception)
+    }
   }
 
   fun release() {
-    castContext.sessionManager.removeSessionManagerListener(sessionListener, CastSession::class.java)
-    if (castContext.sessionManager.currentCastSession?.isConnected != true) {
+    released = true
+    val context = castContext
+    castContext = null
+    context?.sessionManager?.removeSessionManagerListener(sessionListener, CastSession::class.java)
+    if (context?.sessionManager?.currentCastSession?.isConnected != true) {
       CastMediaServer.stop()
     }
   }
@@ -104,15 +123,15 @@ class CastPlaybackController(
   private fun loadCurrentMedia(session: CastSession) {
     val snapshot = currentMedia()
     if (snapshot == null) {
-      notifyUser(activity.getString(R.string.cast_error_media_not_ready))
-      castContext.sessionManager.endCurrentSession(true)
+      notifyUser("Media is not ready to cast")
+      castContext?.sessionManager?.endCurrentSession(true)
       return
     }
 
     val contentUrl = resolveContentUrl(snapshot)
     if (contentUrl == null) {
-      notifyUser(activity.getString(R.string.cast_error_source_unreachable))
-      castContext.sessionManager.endCurrentSession(true)
+      notifyUser("This media source cannot be reached by the Cast device")
+      castContext?.sessionManager?.endCurrentSession(true)
       return
     }
 
@@ -142,7 +161,7 @@ class CastPlaybackController(
         .setCurrentTime(snapshot.positionMs.coerceAtLeast(0L))
         .build()
     val remote = session.remoteMediaClient ?: run {
-      notifyUser(activity.getString(R.string.cast_error_receiver_not_ready))
+      notifyUser("Cast receiver is not ready")
       return
     }
 
@@ -158,7 +177,7 @@ class CastPlaybackController(
           activity.startActivity(Intent(activity, CastExpandedControlsActivity::class.java))
         } else {
           CastMediaServer.stop()
-          notifyUser(result.status.statusMessage ?: activity.getString(R.string.cast_error_play_failed))
+          notifyUser(result.status.statusMessage ?: "Unable to play this media on the Cast device")
         }
       }
     }
@@ -187,5 +206,9 @@ class CastPlaybackController(
     activity.contentResolver.getType(uri)?.let { return it }
     val extension = MimeTypeMap.getFileExtensionFromUrl(uri.toString())
     return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension.lowercase()) ?: "video/mp4"
+  }
+
+  private companion object {
+    const val TAG = "CastPlaybackController"
   }
 }

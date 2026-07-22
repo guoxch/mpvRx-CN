@@ -1,5 +1,7 @@
 package app.gyrolet.mpvrx.ui.cast
 
+import androidx.compose.ui.unit.Dp
+
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.BorderStroke
@@ -13,12 +15,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color as ComposeColor
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.mediarouter.app.MediaRouteButton
-import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.PlayerButton
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.theme.controlColor
@@ -30,6 +29,7 @@ fun CastPlayerButton(
   hideBackground: Boolean,
   buttonSize: Dp,
 ) {
+  val castContentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_cast)
   Surface(
     shape = CircleShape,
     color =
@@ -52,7 +52,7 @@ fun CastPlayerButton(
         factory = { context ->
           MediaRouteButton(context).apply {
             setBackgroundColor(Color.TRANSPARENT)
-            contentDescription = context.getString(R.string.cast_button_description)
+            contentDescription = castContentDescription
             CastButtonFactory.setUpMediaRouteButton(context.applicationContext, this)
             setRemoteIndicatorDrawable(ColorDrawable(Color.TRANSPARENT))
           }

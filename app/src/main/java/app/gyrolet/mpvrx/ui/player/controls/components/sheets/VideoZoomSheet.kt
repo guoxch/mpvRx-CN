@@ -132,7 +132,7 @@ private fun ZoomVideoSheet(
         },
         modifier = Modifier.size(36.dp),
       ) {
-        Icon(Icons.Default.Remove, contentDescription = stringResource(R.string.player_zoom_decrease), modifier = Modifier.size(18.dp))
+        Icon(Icons.RoundedFilled.Remove, contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_decrease_zoom), modifier = Modifier.size(18.dp))
       }
 
       SliderItem(
@@ -152,7 +152,7 @@ private fun ZoomVideoSheet(
         },
         modifier = Modifier.size(36.dp),
       ) {
-        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.player_zoom_increase), modifier = Modifier.size(18.dp))
+        Icon(Icons.RoundedFilled.Add, contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_increase_zoom), modifier = Modifier.size(18.dp))
       }
     }
 
@@ -185,14 +185,14 @@ private fun ZoomVideoSheet(
             ) { isChecked ->
               if (isChecked) {
                 Icon(
-                  Icons.Filled.Check,
+                  Icons.RoundedFilled.Check,
                   contentDescription = null,
                   modifier = Modifier.size(SwitchDefaults.IconSize),
                   tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
               } else {
                 Icon(
-                  Icons.Filled.Close,
+                  Icons.RoundedFilled.Close,
                   contentDescription = null,
                   modifier = Modifier.size(SwitchDefaults.IconSize),
                   tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -202,8 +202,7 @@ private fun ZoomVideoSheet(
           }
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Text(
-          text = stringResource(R.string.player_pan_zoom),
+        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_pan_zoom),
           style = MaterialTheme.typography.bodyMedium,
           color = if (panAndZoomEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         )

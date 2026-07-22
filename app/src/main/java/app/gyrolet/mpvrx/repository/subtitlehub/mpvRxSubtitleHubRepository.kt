@@ -11,9 +11,11 @@ import app.gyrolet.mpvrx.repository.subtitle.SUBDL_GROUP_EPISODE_END_KEY
 import app.gyrolet.mpvrx.repository.subtitle.SUBDL_GROUP_EPISODE_START_KEY
 import app.gyrolet.mpvrx.repository.subtitle.SubtitleProvider
 import app.gyrolet.mpvrx.repository.wyzie.WyzieLanguages
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -31,7 +33,7 @@ import org.jsoup.nodes.Element
 import java.net.URL
 import java.net.URLEncoder
 
-class MpvRxSubtitleHubRepository(
+class mpvRxSubtitleHubRepository(
   private val client: OkHttpClient,
   private val json: Json,
   private val preferences: SubtitlesPreferences,
@@ -42,16 +44,23 @@ class MpvRxSubtitleHubRepository(
   @Volatile private var buildId: String? = null
 
   override suspend fun search(request: OnlineSubtitleSearchRequest): Result<List<OnlineSubtitle>> =
+    searchIncrementally(request) {}
+
+  override suspend fun searchIncrementally(
+    request: OnlineSubtitleSearchRequest,
+    onResults: suspend (List<OnlineSubtitle>) -> Unit,
+  ): Result<List<OnlineSubtitle>> =
     withContext(Dispatchers.IO) {
       try {
         val selectedSources =
           SubtitleHubSearchMatcher.sourcesFor(
             request = request,
-            selectedSources = MpvRxSubtitleHubSources.resolveSelected(preferences.subtitleHubSources.get()),
+            selectedSources = mpvRxSubtitleHubSources.resolveSelected(preferences.subtitleHubSources.get()),
           )
         val results = coroutineScope {
-          selectedSources.map { source ->
-            async {
+          val completedSources = Channel<List<OnlineSubtitle>>(selectedSources.size)
+          selectedSources.forEach { source ->
+            launch {
               runCatching {
                 when (source) {
                   "subdl_com" -> searchSubdlCom(request)
@@ -65,26 +74,36 @@ class MpvRxSubtitleHubRepository(
               }.getOrElse { error ->
                 Log.w(TAG, "Skipping $source after provider failure", error)
                 emptyList()
-              }
+              }.let { completedSources.send(it) }
             }
-          }.flatMap { it.await() }
+          }
+
+          buildList {
+            repeat(selectedSources.size) {
+              addAll(completedSources.receive())
+              onResults(normalizeSearchResults(this))
+            }
+          }
         }
 
-        Result.success(
-          results
-            .distinctBy { it.url.lowercase() }
-            .filterNot { it.format.equals("html", ignoreCase = true) }
-            .sortedWith(
-              compareByDescending<OnlineSubtitle> { it.downloadCount ?: 0 }
-                .thenBy { it.source ?: "" }
-                .thenBy { it.displayName.lowercase() },
-            ),
-        )
+        Result.success(normalizeSearchResults(results))
+      } catch (e: CancellationException) {
+        throw e
       } catch (e: Exception) {
-        Log.e(TAG, "MpvRx SubtitleHub search failed", e)
+        Log.e(TAG, "mpvRx SubtitleHub search failed", e)
         Result.failure(e)
       }
     }
+
+  private fun normalizeSearchResults(results: List<OnlineSubtitle>): List<OnlineSubtitle> =
+    results
+      .distinctBy { it.url.lowercase() }
+      .filterNot { it.format.equals("html", ignoreCase = true) }
+      .sortedWith(
+        compareByDescending<OnlineSubtitle> { it.downloadCount ?: 0 }
+          .thenBy { it.source ?: "" }
+          .thenBy { it.displayName.lowercase() },
+      )
 
   override suspend fun download(
     subtitle: OnlineSubtitle,
@@ -106,7 +125,7 @@ class MpvRxSubtitleHubRepository(
           Result.success(fileStore.save(response.body.bytes(), subtitle, mediaTitle))
         }
       } catch (e: Exception) {
-        Log.e(TAG, "MpvRx SubtitleHub download failed", e)
+        Log.e(TAG, "mpvRx SubtitleHub download failed", e)
         Result.failure(e)
       }
     }
@@ -934,9 +953,9 @@ class MpvRxSubtitleHubRepository(
     }
 
   private companion object {
-    const val TAG = "MpvRxSubtitleHub"
+    const val TAG = "mpvRxSubtitleHub"
     const val USER_AGENT =
-      "Mozilla/5.0 (Linux; Android 14; MpvRx) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36"
+      "Mozilla/5.0 (Linux; Android 14; mpvRx) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36"
     const val SUBTITLECAT_BASE_URL = "https://www.subtitlecat.com/"
     const val MOVIESUBTITLES_ORG_BASE_URL = "https://www.moviesubtitles.org/"
     const val MOVIESUBTITLESRT_BASE_URL = "https://moviesubtitlesrt.com/"

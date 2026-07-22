@@ -40,16 +40,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.database.entities.PlaylistEntity
-import app.gyrolet.mpvrx.database.repository.PlaylistRepository
 import app.gyrolet.mpvrx.domain.media.model.Video
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -62,11 +59,8 @@ fun AddToPlaylistDialog(
   onSuccess: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
-  val repository = koinInject<PlaylistRepository>()
-  val playlistsFromDb by repository.observeAllPlaylists().collectAsState(initial = emptyList())
-  val playlists = remember(playlistsFromDb) {
-    playlistsFromDb.sortedBy { it.name.lowercase() }
-  }
+  val viewModel: AddToPlaylistViewModel = viewModel()
+  val playlistOptions by viewModel.playlistOptions.collectAsState()
   val scope = rememberCoroutineScope()
   var showCreateDialog by remember { mutableStateOf(false) }
   val context = LocalContext.current
@@ -78,15 +72,11 @@ fun AddToPlaylistDialog(
       onDismiss = { showCreateDialog = false },
       onConfirm = { name ->
         scope.launch {
-          val playlistId = repository.createPlaylist(name)
-          val items = videos.map { video ->
-            video.path to video.displayName
-          }
-          repository.addItemsToPlaylist(playlistId.toInt(), items)
+          viewModel.createAndAdd(name, videos)
           val message = if (videos.size == 1) {
-            context.getString(R.string.toast_video_added_to_playlist, name)
+            "Video added to \"$name\""
           } else {
-            context.getString(R.string.toast_videos_added_to_playlist, videos.size, name)
+            "${videos.size} videos added to \"$name\""
           }
           Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
           showCreateDialog = false
@@ -101,8 +91,7 @@ fun AddToPlaylistDialog(
   AlertDialog(
     onDismissRequest = onDismiss,
     title = {
-      Text(
-        text = stringResource(R.string.dialog_add_to_playlist_title),
+      Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_add_to_playlist),
         style = MaterialTheme.typography.headlineMedium,
         fontWeight = FontWeight.Bold,
       )
@@ -115,9 +104,9 @@ fun AddToPlaylistDialog(
         // Show video count
         Text(
           text = if (videos.size == 1) {
-            stringResource(R.string.dialog_adding_videos_single)
+            "Adding 1 video to playlist"
           } else {
-            stringResource(R.string.dialog_adding_videos_multiple, videos.size)
+            "Adding ${videos.size} videos to playlist"
           },
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -130,21 +119,19 @@ fun AddToPlaylistDialog(
           shape = MaterialTheme.shapes.extraLarge,
         ) {
           Icon(
-            imageVector = Icons.Filled.Add,
+            imageVector = Icons.RoundedFilled.Add,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
           )
           Spacer(modifier = Modifier.width(8.dp))
-          Text(
-            text = stringResource(R.string.dialog_create_new_playlist),
+          Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_create_new_playlist),
             fontWeight = FontWeight.Medium,
           )
         }
 
         // Existing playlists
-        if (playlists.isNotEmpty()) {
-          Text(
-            text = stringResource(R.string.dialog_existing_playlists),
+        if (playlistOptions.isNotEmpty()) {
+          Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_existing_playlists),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
@@ -155,20 +142,17 @@ fun AddToPlaylistDialog(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(vertical = 4.dp),
           ) {
-            items(playlists, key = { it.id }) { playlist ->
+            items(playlistOptions, key = { it.playlist.id }) { option ->
               PlaylistItemCard(
-                playlist = playlist,
-                repository = repository,
+                playlist = option.playlist,
+                itemCount = option.itemCount,
                 onClick = {
                   scope.launch {
-                    val items = videos.map { video ->
-                      video.path to video.displayName
-                    }
-                    repository.addItemsToPlaylist(playlist.id, items)
+                    viewModel.addToPlaylist(option.playlist.id, videos)
                     val message = if (videos.size == 1) {
-                      context.getString(R.string.toast_video_added_to_playlist, playlist.name)
+                      "Video added to \"${option.playlist.name}\""
                     } else {
-                      context.getString(R.string.toast_videos_added_to_playlist, videos.size, playlist.name)
+                      "${videos.size} videos added to \"${option.playlist.name}\""
                     }
                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                   }
@@ -193,7 +177,7 @@ fun AddToPlaylistDialog(
         ),
         shape = MaterialTheme.shapes.extraLarge,
       ) {
-        Text(stringResource(R.string.common_done), fontWeight = FontWeight.Bold)
+        Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_done), fontWeight = FontWeight.Bold)
       }
     },
     dismissButton = {
@@ -201,7 +185,7 @@ fun AddToPlaylistDialog(
         onClick = onDismiss,
         shape = MaterialTheme.shapes.extraLarge,
       ) {
-        Text(stringResource(R.string.common_cancel), fontWeight = FontWeight.Medium)
+        Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel), fontWeight = FontWeight.Medium)
       }
     },
     containerColor = MaterialTheme.colorScheme.surface,
@@ -214,11 +198,9 @@ fun AddToPlaylistDialog(
 @Composable
 private fun PlaylistItemCard(
   playlist: PlaylistEntity,
-  repository: PlaylistRepository,
+  itemCount: Int,
   onClick: () -> Unit,
 ) {
-  val itemCount by repository.observePlaylistItemCount(playlist.id).collectAsState(initial = 0)
-
   Card(
     modifier = Modifier
       .fillMaxWidth()
@@ -235,7 +217,7 @@ private fun PlaylistItemCard(
       verticalAlignment = Alignment.CenterVertically,
     ) {
       Icon(
-        imageVector = Icons.Filled.PlaylistPlay,
+        imageVector = Icons.RoundedFilled.PlaylistPlay,
         contentDescription = null,
         modifier = Modifier.size(40.dp),
         tint = MaterialTheme.colorScheme.primary,
@@ -253,7 +235,7 @@ private fun PlaylistItemCard(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-          text = stringResource(R.string.dialog_playlist_item_info, itemCount, formatDate(playlist.updatedAt)),
+          text = "$itemCount videos • ${formatDate(playlist.updatedAt)}",
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -279,19 +261,17 @@ private fun EmptyPlaylistsMessage() {
       verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
       Icon(
-        imageVector = Icons.Outlined.PlaylistAdd,
+        imageVector = Icons.RoundedFilled.PlaylistAdd,
         contentDescription = null,
         modifier = Modifier.size(48.dp),
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
       )
-      Text(
-        text = stringResource(R.string.no_playlists_message),
+      Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_no_playlists_yet),
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
-      Text(
-        text = stringResource(R.string.dialog_create_first_playlist),
+      Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_create_your_first_playlist_above),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
@@ -309,8 +289,7 @@ private fun CreatePlaylistDialog(
   AlertDialog(
     onDismissRequest = onDismiss,
     title = {
-      Text(
-        text = stringResource(R.string.dialog_create_new_playlist),
+      Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_create_new_playlist),
         style = MaterialTheme.typography.headlineSmall,
         fontWeight = FontWeight.Bold,
       )
@@ -319,7 +298,7 @@ private fun CreatePlaylistDialog(
       OutlinedTextField(
         value = playlistName,
         onValueChange = { playlistName = it },
-        label = { Text(stringResource(R.string.common_playlist_name)) },
+        label = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_playlist_name)) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
@@ -335,7 +314,7 @@ private fun CreatePlaylistDialog(
         enabled = playlistName.isNotBlank(),
         shape = MaterialTheme.shapes.extraLarge,
       ) {
-        Text(stringResource(R.string.dialog_create), fontWeight = FontWeight.Bold)
+        Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_create), fontWeight = FontWeight.Bold)
       }
     },
     dismissButton = {
@@ -343,7 +322,7 @@ private fun CreatePlaylistDialog(
         onClick = onDismiss,
         shape = MaterialTheme.shapes.extraLarge,
       ) {
-        Text(stringResource(R.string.common_cancel), fontWeight = FontWeight.Medium)
+        Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel), fontWeight = FontWeight.Medium)
       }
     },
     containerColor = MaterialTheme.colorScheme.surface,

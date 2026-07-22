@@ -117,7 +117,7 @@ object PlayerControlsPreferencesScreen : Screen {
             if (LocalShowSettingsBackArrow.current) {
               IconButton(onClick = { backstack.popSafely() }) {
                 Icon(
-                  Icons.Default.ArrowBack, 
+                  Icons.RoundedFilled.ArrowBack,
                   contentDescription = null,
                   tint = MaterialTheme.colorScheme.secondary,
                 )
@@ -254,7 +254,7 @@ object PlayerControlsPreferencesScreen : Screen {
                 onValueChange = { appearancePrefs.portraitPlaybackControlsPosition.set(it) },
                 values = PortraitPlaybackControlsPosition.entries,
                 valueToText = { AnnotatedString(it.displayName) },
-                title = { Text(stringResource(R.string.player_controls_portrait_playback_buttons)) },
+                title = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_portrait_playback_buttons)) },
                 summary = { Text(portraitPlaybackControlsPosition.displayName) },
               )
 
@@ -314,7 +314,7 @@ object PlayerControlsPreferencesScreen : Screen {
                 onValueChange = { playerPrefs.clockFormat.set(it) },
                 values = PlayerClockFormat.entries,
                 valueToText = { AnnotatedString(it.displayName) },
-                title = { Text(stringResource(R.string.pref_time_network_clock)) },
+                title = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_time_network_clock)) },
                 summary = { Text(clockFormat.displayName) },
               )
             }
@@ -393,7 +393,7 @@ object PlayerControlsPreferencesScreen : Screen {
       )
       IconButton(onClick = onClick) {
         Icon(
-          imageVector = Icons.Outlined.Edit,
+          imageVector = Icons.RoundedFilled.Edit,
           contentDescription = stringResource(R.string.pref_edit_region_content_desc, title),
           tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )

@@ -1,5 +1,8 @@
 package app.gyrolet.mpvrx.ui.preferences
 
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -33,10 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.PlayerButton
 import app.gyrolet.mpvrx.preferences.allPlayerButtons
@@ -63,7 +63,6 @@ data class ControlLayoutEditorScreen(
   @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
   @Composable
   override fun Content() {
-    val context = LocalContext.current
     val backstack = LocalBackStack.current
     val preferences = koinInject<AppearancePreferences>()
 
@@ -148,10 +147,10 @@ data class ControlLayoutEditorScreen(
     val title =
       remember(region) {
         when (region) {
-          ControlRegion.TOP_RIGHT -> context.getString(R.string.controls_title_top_right)
-          ControlRegion.BOTTOM_RIGHT -> context.getString(R.string.controls_title_bottom_right)
-          ControlRegion.BOTTOM_LEFT -> context.getString(R.string.controls_title_bottom_left)
-          ControlRegion.PORTRAIT_BOTTOM -> context.getString(R.string.controls_title_portrait_bottom)
+          ControlRegion.TOP_RIGHT -> "Edit Top Right"
+          ControlRegion.BOTTOM_RIGHT -> "Edit Bottom Right"
+          ControlRegion.BOTTOM_LEFT -> "Edit Bottom Left"
+          ControlRegion.PORTRAIT_BOTTOM -> "Edit Portrait Bottom"
         }
       }
 
@@ -159,8 +158,8 @@ data class ControlLayoutEditorScreen(
 
     if (showResetDialog) {
       ConfirmDialog(
-        title = context.getString(R.string.controls_reset_title),
-        subtitle = context.getString(R.string.controls_reset_message),
+        title = stringResource(R.string.controls_reset_default_title),
+        subtitle = stringResource(R.string.controls_reset_default_summary),
         onConfirm = {
           prefToEdit.delete()
           selectedButtons = prefToEdit
@@ -188,12 +187,12 @@ data class ControlLayoutEditorScreen(
           title = { Text(text = title) },
           navigationIcon = {
             IconButton(onClick = { backstack.popSafely() }) {
-              AppSymbolIcon(Icons.Outlined.ArrowBack, contentDescription = context.getString(R.string.back))
+              AppSymbolIcon(Icons.RoundedFilled.ArrowBack, contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.back))
             }
           },
           actions = {
             IconButton(onClick = { showResetDialog = true }) {
-              AppSymbolIcon(Icons.Default.Refresh, contentDescription = context.getString(R.string.cd_reset_default))
+              AppSymbolIcon(Icons.RoundedFilled.Refresh, contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_layout_reset_default))
             }
           },
         )
@@ -228,8 +227,7 @@ data class ControlLayoutEditorScreen(
         ) {
             // --- 1. Header & Active Selected Zone ---
             item(span = { GridItemSpan(maxLineSpan) }) {
-              androidx.compose.material3.Text(
-                      text = context.getString(R.string.controls_reorder_hint),
+              androidx.compose.material3.Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_long_press_to_reorder_items_tap_the_icon_to_remove_them),
                       style = MaterialTheme.typography.bodySmall,
                       color = MaterialTheme.colorScheme.onSurfaceVariant,
                       modifier = Modifier.padding(bottom = 12.dp, start = 4.dp)
@@ -256,21 +254,19 @@ data class ControlLayoutEditorScreen(
                              verticalArrangement = Arrangement.Center
                          ) {
                              AppSymbolIcon(
-                                 imageVector = Icons.Default.AddCircle,
+                                 imageVector = Icons.RoundedFilled.AddCircle,
                                  contentDescription = null,
                                  modifier = Modifier
                                      .size(32.dp)
                                      .padding(bottom = 8.dp),
                                  tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                              )
-                             androidx.compose.material3.Text(
-                                  text = context.getString(R.string.controls_empty_zone),
+                             androidx.compose.material3.Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_drop_zone_is_empty),
                                   style = MaterialTheme.typography.bodyMedium,
                                   fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
                                   color = MaterialTheme.colorScheme.onSurfaceVariant,
                              )
-                             androidx.compose.material3.Text(
-                                  text = context.getString(R.string.controls_empty_hint),
+                             androidx.compose.material3.Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_tap_buttons_from_the_available_palette_below),
                                   style = MaterialTheme.typography.labelSmall,
                                   color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                              )
@@ -316,7 +312,7 @@ data class ControlLayoutEditorScreen(
                                 button = button,
                                 enabled = true,
                                 onClick = { selectedButtons = selectedButtons - button },
-                                badgeIcon = Icons.Default.RemoveCircle,
+                                badgeIcon = Icons.RoundedFilled.RemoveCircle,
                                 badgeColor = Color(0xFFEF5350),
                             )
                        }
@@ -352,7 +348,7 @@ data class ControlLayoutEditorScreen(
                                 button = button,
                                 enabled = isEnabled,
                                 onClick = { selectedButtons = selectedButtons + button },
-                                badgeIcon = Icons.Default.AddCircle,
+                                badgeIcon = Icons.RoundedFilled.AddCircle,
                                 badgeColor = if (isEnabled) MaterialTheme.colorScheme.primary 
                                              else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                             )
@@ -363,8 +359,7 @@ data class ControlLayoutEditorScreen(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                androidx.compose.material3.Text(
-                                    text = context.getString(R.string.controls_all_used),
+                                androidx.compose.material3.Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_all_available_buttons_are_in_use),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -391,7 +386,6 @@ data class ControlLayoutEditorScreen(
 
 @Composable
 private fun IconsLegend() {
-    val context = LocalContext.current
     androidx.compose.material3.Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -409,14 +403,12 @@ private fun IconsLegend() {
         ) {
             // Header
             androidx.compose.foundation.layout.Column {
-                Text(
-                    text = context.getString(R.string.controls_icons_legend),
+                Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_icons_legend),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                Text(
-                    text = context.getString(R.string.controls_icons_legend_subtitle),
+                Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_what_is_each_icon_for),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

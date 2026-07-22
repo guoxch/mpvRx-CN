@@ -1,7 +1,5 @@
 package app.gyrolet.mpvrx.ui.player
 
-import androidx.annotation.StringRes
-import app.gyrolet.mpvrx.R
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.cos
@@ -20,10 +18,11 @@ data class AmbientSharedShaderConfig(
 )
 
 enum class AmbientVisualMode(
-  @StringRes val labelRes: Int,
+  val label: String,
 ) {
-  GLOW(R.string.ambient_mode_glow),
-  FRAME_EXTEND(R.string.ambient_mode_frame_extend),
+  GLOW("Glow"),
+  FRAME_EXTEND("Frame Extend"),
+  YOUTUBE("YouTube"),
 }
 
 sealed interface AmbientShaderSpec {
@@ -50,6 +49,11 @@ data class AmbientFrameExtendShaderSpec(
   val detailProtection: Float,
   val glowMix: Float,
   val ditherNoise: Float,
+) : AmbientShaderSpec
+
+data class AmbientYouTubeShaderSpec(
+  override val context: AmbientRenderContext,
+  override val shared: AmbientSharedShaderConfig,
 ) : AmbientShaderSpec
 
 data class AmbientGlowPreset(
@@ -228,7 +232,71 @@ object AmbientShaderBuilder {
     when (spec) {
       is AmbientGlowShaderSpec -> buildGlow(spec)
       is AmbientFrameExtendShaderSpec -> buildFrameExtend(spec)
+      is AmbientYouTubeShaderSpec -> buildYouTube(spec)
     }
+
+  private fun buildYouTube(spec: AmbientYouTubeShaderSpec): String =
+    """
+//!HOOK OUTPUT
+//!BIND HOOKED
+//!DESC YouTube-Style Ambient Mode
+
+#define SCALE_X    ${spec.context.scaleX}
+#define SCALE_Y    ${spec.context.scaleY}
+
+// Simple hash function for pseudo-random sampling
+float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+vec4 hook() {
+    vec2 uv = HOOKED_pos;
+    vec2 video_uv = (uv - 0.5) * vec2(SCALE_X, SCALE_Y) + 0.5;
+
+    // Return video pixel if inside video bounds
+    if (video_uv.x >= 0.0 && video_uv.x <= 1.0 &&
+        video_uv.y >= 0.0 && video_uv.y <= 1.0) {
+        return HOOKED_tex(video_uv);
+    }
+
+    // Ambient region - sample random areas from entire video
+    // Use fixed seed for temporal stability (color doesn't flicker)
+    vec3 avg_color = vec3(0.0);
+    int samples = 20;
+    float base_seed = 42.0; // Fixed seed for stability
+    
+    // Sample random positions across the entire video
+    for (int i = 0; i < samples; i++) {
+        float seed = base_seed + float(i) * 0.618034;
+        float x = hash(vec2(seed, 0.123));
+        float y = hash(vec2(seed, 0.456));
+        
+        vec2 sample_pos = vec2(x, y);
+        avg_color += HOOKED_tex(sample_pos).rgb;
+    }
+    
+    avg_color /= float(samples);
+
+    // Boost saturation slightly for more vibrant glow
+    float luma = dot(avg_color, vec3(0.2126, 0.7152, 0.0722));
+    avg_color = mix(vec3(luma), avg_color, 1.3); // 30% saturation boost
+
+    // Increased brightness for more visible glow (30% instead of 20%)
+    avg_color *= 0.30;
+
+    // Smooth fade based on distance from video edge
+    vec2 edge_uv = clamp(video_uv, 0.0, 1.0);
+    float dist = length(video_uv - edge_uv);
+    float fade = exp(-dist * 2.5);
+    avg_color *= fade;
+
+    // Debanding: add subtle dither noise to eliminate color banding
+    float dither = hash(uv * 1000.0) * 0.004 - 0.002; // ±0.002 range
+    avg_color = clamp(avg_color + dither, 0.0, 1.0);
+
+    return vec4(avg_color, 1.0);
+}
+    """.trimIndent()
 
   private fun buildGlow(spec: AmbientGlowShaderSpec): String =
     buildGlowFull(spec)

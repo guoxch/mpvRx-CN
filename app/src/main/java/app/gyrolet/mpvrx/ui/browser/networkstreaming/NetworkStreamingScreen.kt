@@ -1,8 +1,10 @@
 package app.gyrolet.mpvrx.ui.browser.networkstreaming
 
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
-import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -113,7 +115,7 @@ object NetworkStreamingScreen : Screen {
     Scaffold(
         topBar = {
           BrowserTopBar(
-            title = stringResource(app.gyrolet.mpvrx.R.string.nav_tab_network),
+            title = stringResource(R.string.ui_network),
             isInSelectionMode = false,
             selectedCount = 0,
             totalCount = 0,
@@ -141,8 +143,8 @@ object NetworkStreamingScreen : Screen {
         if (isFabVisible) {
           ExtendedFloatingActionButton(
             onClick = { showAddSheet = true },
-            icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-            text = { Text(stringResource(app.gyrolet.mpvrx.R.string.common_add_connection)) },
+            icon = { Icon(Icons.RoundedFilled.Add, contentDescription = null) },
+            text = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_add_connection)) },
             modifier = Modifier.padding(bottom = navigationBarHeight)
           )
         }
@@ -169,11 +171,37 @@ object NetworkStreamingScreen : Screen {
             )
           }
 
+          // Syncplay
+          item {
+            Spacer(modifier = Modifier.height(24.dp))
+            var showSyncplaySheet by remember { mutableStateOf(false) }
+
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Text(
+                text = stringResource(R.string.syncplay_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(vertical = 8.dp),
+              )
+              Button(onClick = { showSyncplaySheet = true }) {
+                Text(stringResource(R.string.syncplay_open))
+              }
+            }
+
+            if (showSyncplaySheet) {
+              SyncplaySheet(onDismiss = { showSyncplaySheet = false })
+            }
+          }
+
           // Section 2: Local Network header
           item {
             Spacer(modifier = Modifier.height(24.dp))
-            Text(
-              text = stringResource(app.gyrolet.mpvrx.R.string.common_local_network),
+            Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_local_network),
               style = MaterialTheme.typography.titleLarge,
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.primary,
@@ -197,21 +225,19 @@ object NetworkStreamingScreen : Screen {
                   horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                   Icon(
-                    imageVector = Icons.Rounded.SignalWifiStatusbarConnectedNoInternet4,
+                    imageVector = Icons.RoundedFilled.SignalWifiStatusbarConnectedNoInternet4,
                     contentDescription = null,
                     modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                   )
                   Spacer(modifier = Modifier.height(16.dp))
-                  Text(
-                    text = stringResource(app.gyrolet.mpvrx.R.string.common_no_network_connections),
+                  Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_no_network_connections),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface, // a
                   )
                   Spacer(modifier = Modifier.height(8.dp))
-                  Text(
-                    text = stringResource(app.gyrolet.mpvrx.R.string.common_add_network_connection_hint),
+                  Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_add_smb_ftp_or_webdav_connections_to_browse_network_files),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -286,6 +312,7 @@ private fun StreamLinkSection(
 ) {
   val context = LocalContext.current
   val keyboardController = LocalSoftwareKeyboardController.current
+  val playStreamContentDescription = stringResource(R.string.ui_play_stream)
   var linkUrl by rememberSaveable { mutableStateOf("") }
 
   fun pasteFromClipboard() {
@@ -312,8 +339,7 @@ private fun StreamLinkSection(
   Column(
     modifier = Modifier.fillMaxWidth(),
   ) {
-    Text(
-      text = stringResource(app.gyrolet.mpvrx.R.string.network_stream_link),
+    Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_stream_link),
       style = MaterialTheme.typography.titleLarge,
       fontWeight = FontWeight.Bold,
       color = MaterialTheme.colorScheme.primary,
@@ -337,14 +363,13 @@ private fun StreamLinkSection(
           onValueChange = { linkUrl = it },
           modifier = Modifier.weight(1f),
           placeholder = {
-            Text(
-              text = stringResource(app.gyrolet.mpvrx.R.string.network_enter_url),
+            Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_enter_stream_url),
               color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             )
           },
           leadingIcon = {
             Icon(
-              imageVector = Icons.Filled.Link,
+              imageVector = Icons.RoundedFilled.Link,
               contentDescription = null,
               tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
               modifier = Modifier.size(20.dp),
@@ -356,16 +381,16 @@ private fun StreamLinkSection(
             ) {
               IconButton(onClick = { pasteFromClipboard() }) {
                 Icon(
-                  imageVector = Icons.Filled.ContentPaste,
-                  contentDescription = stringResource(app.gyrolet.mpvrx.R.string.network_paste_url),
+                  imageVector = Icons.RoundedFilled.ContentPaste,
+                  contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_paste_stream_url),
                   modifier = Modifier.size(18.dp),
                 )
               }
               if (linkUrl.isNotBlank()) {
                 IconButton(onClick = { linkUrl = "" }) {
                   Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = stringResource(app.gyrolet.mpvrx.R.string.network_clear_url),
+                    imageVector = Icons.RoundedFilled.Close,
+                    contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_clear_stream_url),
                     modifier = Modifier.size(18.dp),
                   )
                 }
@@ -395,11 +420,11 @@ private fun StreamLinkSection(
             containerColor = MaterialTheme.colorScheme.primary,
           ),
           modifier = Modifier.semantics {
-            contentDescription = context.getString(app.gyrolet.mpvrx.R.string.network_play_stream)
+            contentDescription = playStreamContentDescription
           },
         ) {
           Icon(
-            imageVector = Icons.Filled.PlayArrow,
+            imageVector = Icons.RoundedFilled.PlayArrow,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
           )

@@ -1,11 +1,10 @@
 package app.gyrolet.mpvrx.ui.player
 
-import androidx.annotation.StringRes
-import app.gyrolet.mpvrx.R
+import androidx.compose.animation.core.Spring
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
@@ -36,23 +35,23 @@ import app.gyrolet.mpvrx.ui.theme.AppMotion
 import kotlinx.coroutines.delay
 
 /** Which style to use when player controls appear/disappear. */
-enum class ControlsAnimationStyle(@StringRes val displayNameRes: Int) {
-  Default(R.string.anim_controls_default),
-  Elastic(R.string.anim_controls_elastic),
-  Cinematic(R.string.anim_controls_cinematic),
-  SlideUp(R.string.anim_controls_slide_up),
-  Minimal(R.string.anim_controls_minimal),
-  None(R.string.anim_controls_none),
+enum class ControlsAnimationStyle(val displayName: String) {
+  Default("Default"),
+  Elastic("Elastic Bounce"),
+  Cinematic("Cinematic Scale"),
+  SlideUp("Slide Up"),
+  Minimal("Minimal Fade"),
+  None("None"),
 }
 
 /** Animation style when the video first opens. */
-enum class VideoOpenAnimation(@StringRes val displayNameRes: Int) {
-  Default(R.string.anim_video_open_default),
-  FadeDark(R.string.anim_video_open_fade_dark),
-  ZoomBurst(R.string.anim_video_open_zoom_burst),
-  SlideUp(R.string.anim_video_open_slide_up),
-  CinemaBars(R.string.anim_video_open_cinema_bars),
-  None(R.string.anim_video_open_none),
+enum class VideoOpenAnimation(val displayName: String) {
+  Default("Default"),
+  FadeDark("Fade from Black"),
+  ZoomBurst("Zoom Burst"),
+  SlideUp("Slide Up"),
+  CinemaBars("Cinema Bars"),
+  None("None"),
 }
 
 /** Tracks whether the selected open animation should still cover the player while media loads. */
@@ -62,13 +61,13 @@ data class VideoOpenAnimationState(
 )
 
 /** Animation style for tab / screen navigation. */
-enum class NavigationAnimStyle(@StringRes val displayNameRes: Int) {
-  Default(R.string.anim_nav_default),
-  Elastic(R.string.anim_nav_elastic),
-  Depth(R.string.anim_nav_depth),
-  FlipFade(R.string.anim_nav_flip_fade),
-  Minimal(R.string.anim_nav_minimal),
-  None(R.string.anim_nav_none),
+enum class NavigationAnimStyle(val displayName: String) {
+  Default("Default"),
+  Elastic("Elastic Slide"),
+  Depth("Depth Zoom"),
+  FlipFade("Flip Fade"),
+  Minimal("Minimal Fade"),
+  None("None"),
 }
 
 // ────────────────────────────────────────────────────────────────────────────

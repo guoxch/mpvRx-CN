@@ -1,9 +1,7 @@
 package app.gyrolet.mpvrx.ui.browser.sheets
 
-import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
-import androidx.compose.ui.res.stringResource
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -101,8 +99,7 @@ fun PlayLinkSheet(
       verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
       // Title
-      Text(
-        text = stringResource(R.string.play_link_title),
+      Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_play_link),
         style = MaterialTheme.typography.headlineSmall,
         fontWeight = FontWeight.Medium,
         color = MaterialTheme.colorScheme.onSurface,
@@ -119,8 +116,8 @@ fun PlayLinkSheet(
             isLinkInputUrlValid = newValue.isBlank() || MediaUtils.isURLValid(newValue)
           },
           modifier = Modifier.fillMaxWidth(),
-          label = { Text(stringResource(R.string.play_link_enter_url)) },
-          placeholder = { Text(stringResource(R.string.play_link_url_placeholder)) },
+          label = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_enter_url)) },
+          placeholder = { Text("https://example.com/video.mp4") },
           singleLine = true,
           isError = linkInputUrl.isNotBlank() && !isLinkInputUrlValid,
           trailingIcon = {
@@ -131,8 +128,7 @@ fun PlayLinkSheet(
         )
 
         if (linkInputUrl.isNotBlank() && !isLinkInputUrlValid) {
-          Text(
-            text = stringResource(R.string.play_link_unsupported_protocol),
+          Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_unsupported_url_protocol),
             color = MaterialTheme.colorScheme.error,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
@@ -146,8 +142,7 @@ fun PlayLinkSheet(
         horizontalArrangement = Arrangement.End,
       ) {
         TextButton(onClick = handleDismiss) {
-          Text(
-            text = stringResource(android.R.string.cancel),
+          Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel),
             fontWeight = FontWeight.Medium,
           )
         }
@@ -160,8 +155,7 @@ fun PlayLinkSheet(
               containerColor = MaterialTheme.colorScheme.primary,
             ),
         ) {
-          Text(
-            text = stringResource(R.string.common_play),
+          Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_play),
             fontWeight = FontWeight.SemiBold,
           )
         }
@@ -176,14 +170,14 @@ fun PlayLinkSheet(
 private fun ValidationIcon(isValid: Boolean) {
   if (isValid) {
     Icon(
-      Icons.Filled.Check,
-      contentDescription = stringResource(R.string.cd_play_link_valid),
+      Icons.RoundedFilled.Check,
+      contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_valid_url),
       tint = MaterialTheme.colorScheme.primary,
     )
   } else {
     Icon(
-      Icons.Filled.Close,
-      contentDescription = stringResource(R.string.cd_play_link_invalid),
+      Icons.RoundedFilled.Close,
+      contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_invalid_url),
       tint = MaterialTheme.colorScheme.error,
     )
   }

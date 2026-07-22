@@ -1,6 +1,7 @@
 package app.gyrolet.mpvrx.ui.player.controls
 
 import app.gyrolet.mpvrx.R
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -57,6 +58,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -98,11 +100,11 @@ fun GestureHandler(
   interactionSource: MutableInteractionSource,
   modifier: Modifier = Modifier,
 ) {
-  val context = androidx.compose.ui.platform.LocalContext.current
   val playerPreferences = koinInject<PlayerPreferences>()
   val audioPreferences = koinInject<AudioPreferences>()
   val gesturePreferences = koinInject<GesturePreferences>()
   val subtitlesPreferences = koinInject<SubtitlesPreferences>()
+  val context = LocalContext.current
   val subtitleTracks by viewModel.subtitleTracks.collectAsState(emptyList())
 
   fun getSubtitleScreenY(subPos: Int, width: Float, height: Float): Float {
@@ -488,7 +490,7 @@ fun GestureHandler(
                   haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                   originalSubtitlePosition = MPVLib.getPropertyInt("sub-pos") ?: subtitlesPreferences.subPos.get()
                   lastSubtitlePosition = originalSubtitlePosition
-                  viewModel.playerUpdate.update { PlayerUpdates.ShowText(context.getString(R.string.gesture_drag_subtitles_hint)) }
+                  viewModel.playerUpdate.update { PlayerUpdates.ShowText(context.getString(R.string.player_move_subtitles_hint)) }
                 } else if (paused == false && multipleSpeedGesture > 0f) {
                   longPressTriggered = true
                   isLongPressing = true
@@ -1093,7 +1095,7 @@ fun GestureHandler(
                     MPVLib.command("sub-seek", direction)
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     viewModel.playerUpdate.update {
-                      PlayerUpdates.ShowText(if (isForward) context.getString(R.string.player_next_dialog) else context.getString(R.string.player_prev_dialog))
+                      PlayerUpdates.ShowText(context.getString(if (isForward) R.string.player_next_dialog else R.string.player_previous_dialog))
                     }
                     change.consume()
                   }
@@ -1345,7 +1347,7 @@ fun CombiningChevronsAnimation(
         Box {
              // Static Chevron
              Icon(
-                imageVector = Icons.Filled.KeyboardArrowRight,
+                imageVector = Icons.RoundedFilled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(48.dp)
@@ -1382,7 +1384,7 @@ fun MovingChevron(
     val alpha = 1f - progress.value
     
     Icon(
-        imageVector = Icons.Filled.KeyboardArrowRight,
+        imageVector = Icons.RoundedFilled.KeyboardArrowRight,
         contentDescription = null,
         tint = Color.White,
         modifier = Modifier

@@ -87,7 +87,7 @@ object DecoderPreferencesScreen : Screen {
             if (LocalShowSettingsBackArrow.current) {
               IconButton(onClick = { backstack.popSafely() }) {
                 Icon(
-                  Icons.Default.ArrowBack, 
+                  Icons.RoundedFilled.ArrowBack,
                   contentDescription = null,
                   tint = MaterialTheme.colorScheme.secondary,
                 )
@@ -117,10 +117,9 @@ object DecoderPreferencesScreen : Screen {
                 onValueChange = { preferences.profile.set(it.value) },
                 values = MPVProfile.entries,
                 title = { Text(stringResource(R.string.pref_decoder_profile_title)) },
-                valueToText = { AnnotatedString(stringResource(it.displayNameRes)) },
                 summary = {
                   Text(
-                    stringResource(currentProfile.displayNameRes),
+                    currentProfile.displayName,
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },
@@ -224,7 +223,7 @@ object DecoderPreferencesScreen : Screen {
                   }
                 },
                 enabled = isVulkanSupported,
-                title = { Text(stringResource(R.string.pref_decoder_vulkan_title) + stringResource(R.string.pref_decoder_vulkan_experimental_suffix)) },
+                title = { Text(stringResource(R.string.pref_decoder_vulkan_experimental_title)) },
                 summary = {
                   Text(
                     stringResource(
@@ -291,8 +290,7 @@ object DecoderPreferencesScreen : Screen {
                       stringResource(R.string.pref_anime4k_summary),
                       color = MaterialTheme.colorScheme.outline,
                     )
-                    Text(
-                      text = "github.com/bloc97/Anime4K",
+                    Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_anime4k_link),
                       color = MaterialTheme.colorScheme.primary,
                       style = MaterialTheme.typography.bodySmall,
                       textDecoration = TextDecoration.Underline,
@@ -321,15 +319,14 @@ object DecoderPreferencesScreen : Screen {
                   horizontalArrangement = Arrangement.SpaceBetween,
                   verticalAlignment = Alignment.CenterVertically
                 ) {
-                  Text(
-                    text = stringResource(R.string.pref_anime4k_shaders_options),
+                  Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_anime4k_shaders_options),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
                   )
                   Icon(
-                    Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (anime4kExpanded) stringResource(R.string.sort_collapse) else stringResource(R.string.sort_expand),
+                    Icons.RoundedFilled.KeyboardArrowDown,
+                    contentDescription = if (anime4kExpanded) "Collapse" else "Expand",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.rotate(rotationState)
                   )

@@ -1,5 +1,7 @@
 package app.gyrolet.mpvrx.ui.player.controls
 
+import androidx.compose.ui.unit.Dp
+
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -49,7 +51,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.AudioPreferences
@@ -101,7 +102,7 @@ fun RenderPlayerButton(
   when (button) {
     PlayerButton.BACK_ARROW -> {
       ControlsButton(
-        icon = Icons.Default.ArrowBack,
+        icon = Icons.RoundedFilled.ArrowBack,
         onClick = onBackPress,
         color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.size(buttonSize),
@@ -182,7 +183,7 @@ fun RenderPlayerButton(
     PlayerButton.BOOKMARKS_CHAPTERS -> {
       if (chapters.isNotEmpty()) {
         ControlsButton(
-          Icons.Default.Bookmarks,
+          Icons.RoundedFilled.Bookmarks,
           onClick = { onOpenSheet(Sheets.Chapters) },
           color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
           modifier = Modifier.size(buttonSize),
@@ -223,8 +224,8 @@ fun RenderPlayerButton(
             ),
           ) {
             AppSymbolIcon(
-              imageVector = Icons.Default.Speed,
-              contentDescription = "Playback Speed",
+              imageVector = Icons.RoundedFilled.Speed,
+              contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_playback_speed),
               tint = MaterialTheme.colorScheme.primary,
               modifier = Modifier.size(20.dp),
             )
@@ -237,7 +238,7 @@ fun RenderPlayerButton(
         }
       } else {
         ControlsButton(
-          icon = Icons.Default.Speed,
+          icon = Icons.RoundedFilled.Speed,
           onClick = { onOpenSheet(Sheets.PlaybackSpeed) },
           color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
           modifier = Modifier.size(buttonSize),
@@ -302,7 +303,7 @@ fun RenderPlayerButton(
     PlayerButton.HDR_MODE -> {
       val isHdrEnabled by viewModel.isHdrScreenOutputEnabled.collectAsState()
       ControlsButton(
-        icon = if (isHdrEnabled) Icons.Default.HdrOn else Icons.Default.HdrOff,
+        icon = if (isHdrEnabled) Icons.RoundedFilled.HdrOn else Icons.RoundedFilled.HdrOff,
         onClick = viewModel::toggleHdrScreenOutput,
         onLongClick = { onOpenPanel(Panels.HdrScreenOutput) },
         color = if (hideBackground) {
@@ -316,7 +317,7 @@ fun RenderPlayerButton(
 
     PlayerButton.SCREEN_ROTATION -> {
       ControlsButton(
-        icon = Icons.Default.ScreenRotation,
+        icon = Icons.RoundedFilled.ScreenRotation,
         onClick = viewModel::cycleScreenRotations,
         color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.size(buttonSize),
@@ -363,8 +364,8 @@ fun RenderPlayerButton(
               ) {
                 Box(contentAlignment = Alignment.Center) {
                   AppSymbolIcon(
-                    imageVector = Icons.Default.FastRewind,
-                    contentDescription = "Previous Frame",
+                    imageVector = Icons.RoundedFilled.FastRewind,
+                    contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_previous_frame),
                     tint = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp),
                   )
@@ -406,8 +407,8 @@ fun RenderPlayerButton(
                 ) {
                   Box(contentAlignment = Alignment.Center) {
                     AppSymbolIcon(
-                      imageVector = Icons.Default.Aperture,
-                      contentDescription = "Take Screenshot",
+                      imageVector = Icons.RoundedFilled.Aperture,
+                      contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_take_screenshot),
                       tint = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
                       modifier = Modifier.size(20.dp),
                     )
@@ -429,8 +430,8 @@ fun RenderPlayerButton(
               ) {
                 Box(contentAlignment = Alignment.Center) {
                   AppSymbolIcon(
-                    imageVector = Icons.Default.FastForward,
-                    contentDescription = "Next Frame",
+                    imageVector = Icons.RoundedFilled.FastForward,
+                    contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_next_frame),
                     tint = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp),
                   )
@@ -441,7 +442,7 @@ fun RenderPlayerButton(
         } else {
           // Collapsed: Show camera icon button
           ControlsButton(
-            icon = Icons.Default.CameraAlt,
+            icon = Icons.RoundedFilled.CameraAlt,
             onClick = viewModel::toggleFrameNavigationExpanded,
             onLongClick = { onOpenSheet(Sheets.FrameNavigation) },
             color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
@@ -489,8 +490,8 @@ fun RenderPlayerButton(
             ),
           ) {
             AppSymbolIcon(
-              imageVector = Icons.Default.ZoomIn,
-              contentDescription = "Video Zoom",
+              imageVector = Icons.RoundedFilled.ZoomIn,
+              contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.player_sheets_zoom_slider_label),
               tint = MaterialTheme.colorScheme.primary,
               modifier = Modifier.size(20.dp),
             )
@@ -503,7 +504,7 @@ fun RenderPlayerButton(
         }
       } else {
         ControlsButton(
-          Icons.Default.ZoomIn,
+          Icons.RoundedFilled.ZoomIn,
           onClick = {
             clickEvent()
             onOpenSheet(Sheets.VideoZoom)
@@ -517,7 +518,7 @@ fun RenderPlayerButton(
 
     PlayerButton.PICTURE_IN_PICTURE -> {
       ControlsButton(
-        Icons.Default.PictureInPictureAlt,
+        Icons.RoundedFilled.PictureInPictureAlt,
         onClick = { activity.enterPipModeHidingOverlay() },
         color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.size(buttonSize),
@@ -535,9 +536,9 @@ fun RenderPlayerButton(
       ControlsButton(
         icon =
           when (aspect) {
-            VideoAspect.Fit -> Icons.Default.AspectRatio
-            VideoAspect.Stretch -> Icons.Default.ZoomOutMap
-            VideoAspect.Crop -> Icons.Default.FitScreen
+            VideoAspect.Fit -> Icons.RoundedFilled.AspectRatio
+            VideoAspect.Stretch -> Icons.RoundedFilled.ZoomOutMap
+            VideoAspect.Crop -> Icons.RoundedFilled.FitScreen
           },
         onClick = {
           when (aspect) {
@@ -554,7 +555,7 @@ fun RenderPlayerButton(
 
     PlayerButton.LOCK_CONTROLS -> {
       ControlsButton(
-        Icons.Default.LockOpen,
+        Icons.RoundedFilled.LockOpen,
         onClick = viewModel::lockControls,
         color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.size(buttonSize),
@@ -563,7 +564,7 @@ fun RenderPlayerButton(
 
     PlayerButton.AUDIO_TRACK -> {
       ControlsButton(
-        Icons.Default.Audiotrack,
+        Icons.RoundedFilled.Audiotrack,
         onClick = { onOpenSheet(Sheets.AudioTracks) },
         onLongClick = { onOpenPanel(Panels.AudioDelay) },
         color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
@@ -573,7 +574,7 @@ fun RenderPlayerButton(
 
     PlayerButton.SUBTITLES -> {
       ControlsButton(
-        Icons.Default.Subtitles,
+        Icons.RoundedFilled.Subtitles,
         onClick = { onOpenSheet(Sheets.SubtitleTracks) },
         onLongClick = { onOpenPanel(Panels.SubtitleDelay) },
         color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
@@ -583,7 +584,7 @@ fun RenderPlayerButton(
 
     PlayerButton.MORE_OPTIONS -> {
       ControlsButton(
-        Icons.Default.MoreVert,
+        Icons.RoundedFilled.MoreVert,
         onClick = { onOpenSheet(Sheets.More) },
         onLongClick = { onOpenPanel(Panels.VideoFilters) },
         color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
@@ -612,9 +613,9 @@ fun RenderPlayerButton(
     PlayerButton.REPEAT_MODE -> {
       val repeatMode by viewModel.repeatMode.collectAsState()
       val icon = when (repeatMode) {
-        app.gyrolet.mpvrx.ui.player.RepeatMode.OFF -> Icons.Filled.Repeat
-        app.gyrolet.mpvrx.ui.player.RepeatMode.ONE -> Icons.Filled.RepeatOne
-        app.gyrolet.mpvrx.ui.player.RepeatMode.ALL -> Icons.Filled.RepeatOn
+        app.gyrolet.mpvrx.ui.player.RepeatMode.OFF -> Icons.RoundedFilled.Repeat
+        app.gyrolet.mpvrx.ui.player.RepeatMode.ONE -> Icons.RoundedFilled.RepeatOne
+        app.gyrolet.mpvrx.ui.player.RepeatMode.ALL -> Icons.RoundedFilled.RepeatOn
       }
       ControlsButton(
         icon = icon,
@@ -637,7 +638,7 @@ fun RenderPlayerButton(
     PlayerButton.CUSTOM_SKIP -> {
       val playerPreferences = org.koin.compose.koinInject<app.gyrolet.mpvrx.preferences.PlayerPreferences>()
       ControlsButton(
-        icon = Icons.Default.FastForward,
+        icon = Icons.RoundedFilled.FastForward,
         onClick = { viewModel.seekBy(playerPreferences.customSkipDuration.get()) },
         color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.size(buttonSize),
@@ -649,7 +650,7 @@ fun RenderPlayerButton(
       if (viewModel.hasPlaylistSupport()) {
         val shuffleEnabled by viewModel.shuffleEnabled.collectAsState()
         ControlsButton(
-          icon = if (shuffleEnabled) Icons.Default.ShuffleOn else Icons.Default.Shuffle,
+          icon = if (shuffleEnabled) Icons.RoundedFilled.ShuffleOn else Icons.RoundedFilled.Shuffle,
           onClick = viewModel::toggleShuffle,
           color = if (hideBackground) {
             if (shuffleEnabled) MaterialTheme.colorScheme.primary else controlColor
@@ -664,7 +665,7 @@ fun RenderPlayerButton(
     PlayerButton.MIRROR -> {
       val transform by viewModel.transformState.collectAsState()
       ControlsButton(
-        icon = Icons.Default.Flip,
+        icon = Icons.RoundedFilled.Flip,
         onClick = viewModel::toggleMirroring,
         color = if (hideBackground) {
           if (transform.isMirrored) MaterialTheme.colorScheme.primary else controlColor
@@ -695,8 +696,8 @@ fun RenderPlayerButton(
       ) {
         Box(contentAlignment = Alignment.Center) {
           AppSymbolIcon(
-            imageVector = Icons.Default.Flip,
-            contentDescription = "Vertical Flip",
+            imageVector = Icons.RoundedFilled.Flip,
+            contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_vertical_flip),
             tint = vFlipColor,
             modifier = Modifier
               .padding(MaterialTheme.spacing.small)
@@ -773,8 +774,8 @@ fun RenderPlayerButton(
               ) {
                 Box(contentAlignment = Alignment.Center) {
                   AppSymbolIcon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Clear Loop",
+                    imageVector = Icons.RoundedFilled.Close,
+                    contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_clear_loop),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(16.dp),
                   )
@@ -834,7 +835,7 @@ fun RenderPlayerButton(
       val audioPreferences = koinInject<AudioPreferences>()
       val backgroundPlaybackEnabled by audioPreferences.backgroundPlayback.collectAsState()
       ControlsButton(
-        icon = Icons.Default.Headset,
+        icon = Icons.RoundedFilled.Headset,
         onClick = { activity.toggleBackgroundPlayback() },
         color =
           if (backgroundPlaybackEnabled) {
@@ -878,8 +879,8 @@ fun RenderPlayerButton(
         ) {
           Box(contentAlignment = Alignment.Center) {
             AppSymbolIcon(
-              imageVector = if (isAmbientEnabled) Icons.Filled.BlurOn else Icons.Outlined.BlurOff,
-              contentDescription = "Ambience Mode",
+              imageVector = if (isAmbientEnabled) Icons.RoundedFilled.BlurOn else Icons.RoundedFilled.BlurOff,
+              contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_ambience_mode),
               tint = if (isAmbientEnabled) MaterialTheme.colorScheme.primary else (if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface),
               modifier = Modifier.size(24.dp)
             )
@@ -926,8 +927,8 @@ fun RenderPlayerButton(
             .padding(horizontal = MaterialTheme.spacing.small),
         ) {
           AppSymbolIcon(
-            imageVector = Icons.Default.AccessTime,
-            contentDescription = "Time and Network",
+            imageVector = Icons.RoundedFilled.AccessTime,
+            contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_time_and_network),
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(18.dp),
           )

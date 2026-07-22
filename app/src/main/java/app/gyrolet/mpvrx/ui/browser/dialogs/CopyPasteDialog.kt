@@ -162,7 +162,7 @@ fun FileOperationProgressDialog(
             ),
           shape = MaterialTheme.shapes.extraLarge,
         ) {
-          Text("Done", fontWeight = FontWeight.Bold)
+          Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_done), fontWeight = FontWeight.Bold)
         }
       } else {
         TextButton(
@@ -170,11 +170,11 @@ fun FileOperationProgressDialog(
           shape = MaterialTheme.shapes.extraLarge,
         ) {
           Icon(
-            imageVector = Icons.Default.Cancel,
-            contentDescription = "Cancel",
+            imageVector = Icons.RoundedFilled.Cancel,
+            contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel),
             modifier = Modifier.padding(end = 4.dp),
           )
-          Text("Cancel", fontWeight = FontWeight.Medium)
+          Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel), fontWeight = FontWeight.Medium)
         }
       }
     },

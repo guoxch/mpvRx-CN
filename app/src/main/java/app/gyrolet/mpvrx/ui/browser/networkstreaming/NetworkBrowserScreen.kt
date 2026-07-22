@@ -1,5 +1,8 @@
 package app.gyrolet.mpvrx.ui.browser.networkstreaming
 
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -26,14 +29,12 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.gyrolet.mpvrx.database.dao.NetworkConnectionDao
 import app.gyrolet.mpvrx.domain.network.NetworkConnection
 import app.gyrolet.mpvrx.domain.network.NetworkFile
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
@@ -75,6 +76,7 @@ data class NetworkBrowserScreen(
       )
 
     val files by viewModel.files.collectAsState()
+    val connection by viewModel.connection.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
 
@@ -124,8 +126,7 @@ data class NetworkBrowserScreen(
     ) { padding ->
       NetworkBrowserContent(
         files = files,
-        connectionId = connectionId,
-        connectionName = connectionName,
+        connection = connection,
         isLoading = isLoading && files.isEmpty(),
         isRefreshing = isRefreshing,
         error = error,
@@ -151,8 +152,7 @@ data class NetworkBrowserScreen(
 @Composable
 private fun NetworkBrowserContent(
   files: List<NetworkFile>,
-  connectionId: Long,
-  connectionName: String,
+  connection: NetworkConnection?,
   isLoading: Boolean,
   isRefreshing: MutableState<Boolean>,
   error: String?,
@@ -161,14 +161,6 @@ private fun NetworkBrowserContent(
   onVideoClick: (NetworkFile) -> Unit,
   modifier: Modifier = Modifier,
 ) {
-  // Load connection details
-  val dao = org.koin.compose.koinInject<NetworkConnectionDao>()
-  var connection by remember { mutableStateOf<NetworkConnection?>(null) }
-
-  LaunchedEffect(connectionId) {
-    connection = dao.getConnectionById(connectionId)
-  }
-
   when {
     isLoading -> {
       Box(
@@ -190,8 +182,8 @@ private fun NetworkBrowserContent(
         contentAlignment = Alignment.Center,
       ) {
         EmptyState(
-          icon = Icons.Filled.Folder,
-          title = "Error loading files",
+          icon = Icons.RoundedFilled.Folder,
+          title = stringResource(R.string.ui_error_loading_files),
           message = error,
         )
       }
@@ -203,8 +195,8 @@ private fun NetworkBrowserContent(
         contentAlignment = Alignment.Center,
       ) {
         EmptyState(
-          icon = Icons.Filled.Folder,
-          title = "Empty folder",
+          icon = Icons.RoundedFilled.Folder,
+          title = stringResource(R.string.ui_empty_folder),
           message = "This folder contains no files or directories",
         )
       }
@@ -265,8 +257,7 @@ private fun NetworkBrowserContent(
             // Folders section
             if (folders.isNotEmpty()) {
               item {
-                Text(
-                  text = "Folders",
+                Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_folders_title),
                   style = MaterialTheme.typography.titleMedium,
                   color = MaterialTheme.colorScheme.primary,
                   modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
@@ -287,8 +278,7 @@ private fun NetworkBrowserContent(
             // Videos section
             if (videos.isNotEmpty()) {
               item {
-                Text(
-                  text = "Videos",
+                Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_videos),
                   style = MaterialTheme.typography.titleMedium,
                   color = MaterialTheme.colorScheme.primary,
                   modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp),

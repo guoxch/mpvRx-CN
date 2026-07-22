@@ -852,10 +852,13 @@ class PlayerActivity :
     binding.controls.setContent {
       MpvrxTheme {
         val isAudioOnly by viewModel.isAudioOnly.collectAsState()
+        val hasAlbumArt by viewModel.hasAlbumArt.collectAsState()
         val audioBlobEnabled by audioPreferences.audioBlobEnabled.collectAsState()
         val paused by MPVLib.propBoolean["pause"].collectAsState()
         Box(modifier = Modifier.fillMaxSize()) {
-          if (isAudioOnly && isCurrentMediaKnownAudio() && audioBlobEnabled) {
+          // Audio-only tracks without artwork otherwise leave the player area blank.
+          // Keep the visualizer enabled by default for that fallback state.
+          if (isAudioOnly && !hasAlbumArt && audioBlobEnabled) {
             BlobOverlay(isPlaying = paused == false)
           }
           PlayerControls(
@@ -4793,7 +4796,7 @@ class PlayerActivity :
 
   private fun syncBackgroundPlaybackService(updateThumbnail: Boolean) {
     val service = mediaPlaybackService ?: return
-    val title = getPreferredCurrentTitle().ifBlank { fileName.ifBlank { "Unknown Video" } }
+    val title = getPreferredCurrentTitle().ifBlank { fileName.ifBlank { getString(R.string.player_unknown_video) } }
     val artist = runCatching { MPVLib.getPropertyString("metadata/artist") }.getOrNull() ?: ""
     val thumbnailKey = buildBackgroundThumbnailKey()
     val cachedThumbnail =
@@ -5287,7 +5290,7 @@ class PlayerActivity :
         connection.connectTimeout = 15000
         connection.readTimeout = 15000
         connection.requestMethod = "GET"
-        connection.setRequestProperty("User-Agent", "MpvRx/1.0")
+        connection.setRequestProperty("User-Agent", "mpvRx/1.0")
         val responseCode = connection.responseCode
         if (responseCode == HttpURLConnection.HTTP_OK) {
           val text = BufferedReader(InputStreamReader(connection.inputStream, "UTF-8")).use { reader ->

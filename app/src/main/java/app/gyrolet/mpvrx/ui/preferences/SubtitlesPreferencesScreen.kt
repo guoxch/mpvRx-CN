@@ -76,7 +76,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.TextButton
 import android.net.Uri
 import app.gyrolet.mpvrx.repository.subtitle.OnlineSubtitleSearchMode
-import app.gyrolet.mpvrx.repository.subtitlehub.MpvRxSubtitleHubSources
+import app.gyrolet.mpvrx.repository.subtitlehub.mpvRxSubtitleHubSources
 import app.gyrolet.mpvrx.repository.wyzie.WyzieLanguages
 import org.koin.compose.koinInject
 import java.io.File
@@ -154,7 +154,7 @@ object SubtitlesPreferencesScreen : Screen {
                 onClick = { backstack.popSafely() },
               ) {
                 Icon(
-                  Icons.Outlined.ArrowBack, 
+                  Icons.RoundedFilled.ArrowBack,
                   contentDescription = null,
                   tint = MaterialTheme.colorScheme.secondary,
                 )
@@ -330,7 +330,7 @@ object SubtitlesPreferencesScreen : Screen {
                 },
                 icon = {
                   Icon(
-                    Icons.Default.Folder,
+                    Icons.RoundedFilled.Folder,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                   )
@@ -391,7 +391,7 @@ object SubtitlesPreferencesScreen : Screen {
                 },
                 icon = {
                   Icon(
-                    Icons.Default.Refresh,
+                    Icons.RoundedFilled.Refresh,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                   )
@@ -412,7 +412,7 @@ object SubtitlesPreferencesScreen : Screen {
                   },
                   icon = {
                     Icon(
-                      Icons.Default.Clear,
+                      Icons.RoundedFilled.Clear,
                       contentDescription = null,
                       tint = MaterialTheme.colorScheme.error,
                     )
@@ -459,11 +459,11 @@ object SubtitlesPreferencesScreen : Screen {
                   val summaryText = if (subtitleHubSources.isEmpty() || subtitleHubSources.contains("all")) {
                     stringResource(R.string.pref_all_sources)
                   } else {
-                    subtitleHubSources.mapNotNull { MpvRxSubtitleHubSources.ALL[it] }.joinToString(", ")
+                    subtitleHubSources.mapNotNull { mpvRxSubtitleHubSources.ALL[it] }.joinToString(", ")
                   }
                   Text(summaryText, color = MaterialTheme.colorScheme.outline)
                 },
-                values = MpvRxSubtitleHubSources.ALL,
+                values = mpvRxSubtitleHubSources.ALL,
                 selectedValues = subtitleHubSources,
                 onValuesChange = { preferences.subtitleHubSources.set(it) },
                 hasAllOption = true,
@@ -546,8 +546,8 @@ object SubtitlesPreferencesScreen : Screen {
                           modifier = Modifier.size(24.dp)
                         ) {
                           Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Refresh",
+                            imageVector = Icons.RoundedFilled.Refresh,
+                            contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_refresh),
                             modifier = Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.primary
                           )
@@ -568,7 +568,7 @@ object SubtitlesPreferencesScreen : Screen {
                         ) {
                           SuggestionChip(
                             onClick = {},
-                            label = { Text("API Key: $keyType") },
+                            label = { Text(stringResource(R.string.pref_api_key_type, keyType)) },
                             colors = SuggestionChipDefaults.suggestionChipColors(
                               containerColor = badgeColor,
                               labelColor = badgeTextColor
@@ -627,8 +627,7 @@ object SubtitlesPreferencesScreen : Screen {
                           // Free Sources Group
                           if (freeItems.isNotEmpty()) {
                             item {
-                              Text(
-                                text = "Free Sources",
+                              Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_free_sources),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(vertical = 8.dp)
@@ -686,8 +685,7 @@ object SubtitlesPreferencesScreen : Screen {
                           // Paid Sources Group
                           if (paidItems.isNotEmpty()) {
                             item {
-                              Text(
-                                text = "Paid Sources",
+                              Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_paid_sources),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(vertical = 8.dp)
@@ -743,8 +741,7 @@ object SubtitlesPreferencesScreen : Screen {
                                     }
                                   }
                                   if (!isAvailable) {
-                                    Text(
-                                      text = "Restricted (Requires Paid API Key)",
+                                    Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_restricted_requires_paid_api_key),
                                       style = MaterialTheme.typography.bodySmall,
                                       color = MaterialTheme.colorScheme.error
                                     )
@@ -753,8 +750,8 @@ object SubtitlesPreferencesScreen : Screen {
                                 
                                 if (!isAvailable) {
                                   Icon(
-                                    imageVector = Icons.Filled.Lock,
-                                    contentDescription = "Restricted",
+                                    imageVector = Icons.RoundedFilled.Lock,
+                                    contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_restricted),
                                     tint = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.size(16.dp)
                                   )
@@ -814,7 +811,7 @@ object SubtitlesPreferencesScreen : Screen {
                     fontWeight = FontWeight.Bold
                   )
                   Icon(
-                    imageVector = if (showAdvanced) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    imageVector = if (showAdvanced) Icons.RoundedFilled.KeyboardArrowUp else Icons.RoundedFilled.KeyboardArrowDown,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                   )
@@ -919,7 +916,7 @@ object SubtitlesPreferencesScreen : Screen {
                             }
                           }.onFailure { e ->
                             withContext(Dispatchers.Main) {
-                              android.widget.Toast.makeText(context, context.getString(R.string.pref_subtitle_search_error, e.message ?: "Unknown error"), android.widget.Toast.LENGTH_SHORT).show()
+                              android.widget.Toast.makeText(context, context.getString(R.string.pref_subtitle_search_error, e.message ?: context.getString(R.string.generic_unknown_error)), android.widget.Toast.LENGTH_SHORT).show()
                             }
                           }
                         }

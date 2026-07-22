@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -42,10 +43,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.util.fastJoinToString
 import androidx.core.net.toUri
+import androidx.core.os.LocaleListCompat
 import androidx.documentfile.provider.DocumentFile
+import androidx.appcompat.app.AppCompatDelegate
 import android.os.Build
 import app.gyrolet.mpvrx.R
-import app.gyrolet.mpvrx.database.MpvRxDatabase
+import app.gyrolet.mpvrx.database.mpvRxDatabase
 import app.gyrolet.mpvrx.domain.thumbnail.ThumbnailRepository
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.FoldersPreferences
@@ -73,9 +76,42 @@ import me.zhanghai.compose.preference.TwoTargetIconButtonPreference
 import org.koin.compose.koinInject
 import java.io.File
 import java.text.DecimalFormat
+import java.util.Locale
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.outputStream
 import kotlin.io.path.readLines
+
+private enum class AppLanguage(val languageTag: String) {
+  SystemDefault(""),
+  English("en"),
+  Arabic("ar"),
+  German("de"),
+  Spanish("es"),
+  French("fr"),
+  Japanese("ja"),
+  PortugueseBrazil("pt-BR"),
+  Russian("ru"),
+  SimplifiedChinese("zh-CN"),
+  ;
+
+  fun displayName(context: android.content.Context): String {
+    if (this == SystemDefault) return context.getString(R.string.pref_app_language_system_default)
+    val locale = Locale.forLanguageTag(languageTag)
+    return locale.getDisplayName(locale)
+  }
+
+  companion object {
+    fun fromLanguageTag(languageTag: String): AppLanguage {
+      if (languageTag.isBlank()) return SystemDefault
+      return entries.firstOrNull { it.languageTag.equals(languageTag, ignoreCase = true) }
+        ?: entries.firstOrNull {
+          it != SystemDefault &&
+            Locale.forLanguageTag(it.languageTag).language == Locale.forLanguageTag(languageTag).language
+        }
+        ?: SystemDefault
+    }
+  }
+}
 
 @Serializable
 object AdvancedPreferencesScreen : Screen {
@@ -93,10 +129,19 @@ object AdvancedPreferencesScreen : Screen {
     var showExportDialog by remember { mutableStateOf(false) }
     var importStats by remember { mutableStateOf<SettingsManager.ImportStats?>(null) }
     var exportStats by remember { mutableStateOf<SettingsManager.ExportStats?>(null) }
+    var pendingAppLanguage by remember { mutableStateOf<AppLanguage?>(null) }
+    val configuration = LocalConfiguration.current
+    val currentAppLanguage =
+      remember(configuration) {
+        AppLanguage.fromLanguageTag(
+          AppCompatDelegate.getApplicationLocales().get(0)?.toLanguageTag().orEmpty(),
+        )
+      }
     val playbackHistoryClearedMessage = stringResource(R.string.pref_advanced_cleared_playback_history)
     val fontsCacheClearedMessage = stringResource(R.string.pref_advanced_cleared_fonts_cache)
-    val exportFailedMessage = stringResource(R.string.pref_export_failed, "Unknown error")
-    val importFailedMessage = stringResource(R.string.pref_import_failed, "Unknown error")
+    val unknownError = stringResource(R.string.generic_unknown_error)
+    val exportFailedMessage = stringResource(R.string.pref_export_failed, unknownError)
+    val importFailedMessage = stringResource(R.string.pref_import_failed, unknownError)
 
     // Export settings launcher
     val exportLauncher =
@@ -113,7 +158,7 @@ object AdvancedPreferencesScreen : Screen {
               onFailure = { error ->
                 Toast.makeText(
                   context,
-                  context.getString(R.string.pref_export_failed, error.message ?: "Unknown error"),
+                  context.getString(R.string.pref_export_failed, error.message ?: context.getString(R.string.generic_unknown_error)),
                   Toast.LENGTH_LONG,
                 ).show()
               },
@@ -137,7 +182,7 @@ object AdvancedPreferencesScreen : Screen {
               onFailure = { error ->
                 Toast.makeText(
                   context,
-                  context.getString(R.string.pref_import_failed, error.message ?: "Unknown error"),
+                  context.getString(R.string.pref_import_failed, error.message ?: context.getString(R.string.generic_unknown_error)),
                   Toast.LENGTH_LONG,
                 ).show()
               },
@@ -218,6 +263,35 @@ object AdvancedPreferencesScreen : Screen {
       )
     }
 
+    pendingAppLanguage?.let { language ->
+      AlertDialog(
+        onDismissRequest = { pendingAppLanguage = null },
+        title = { Text(stringResource(R.string.pref_app_language_restart_title)) },
+        text = { Text(stringResource(R.string.pref_app_language_restart_message)) },
+        dismissButton = {
+          TextButton(onClick = { pendingAppLanguage = null }) {
+            Text(stringResource(R.string.generic_cancel))
+          }
+        },
+        confirmButton = {
+          TextButton(
+            onClick = {
+              pendingAppLanguage = null
+              val locales =
+                if (language == AppLanguage.SystemDefault) {
+                  LocaleListCompat.getEmptyLocaleList()
+                } else {
+                  LocaleListCompat.forLanguageTags(language.languageTag)
+                }
+              AppCompatDelegate.setApplicationLocales(locales)
+            },
+          ) {
+            Text(stringResource(R.string.pref_app_language_restart_now))
+          }
+        },
+      )
+    }
+
     Scaffold(
       topBar = {
         TopAppBar(
@@ -233,7 +307,7 @@ object AdvancedPreferencesScreen : Screen {
             if (LocalShowSettingsBackArrow.current) {
               IconButton(onClick = { backStack.popSafely() }) {
                 Icon(
-                  Icons.Default.ArrowBack, 
+                  Icons.RoundedFilled.ArrowBack,
                   contentDescription = null,
                   tint = MaterialTheme.colorScheme.secondary,
                 )
@@ -250,6 +324,31 @@ object AdvancedPreferencesScreen : Screen {
             .fillMaxSize()
             .padding(padding),
         ) {
+          // App Language Section
+          item {
+            PreferenceSectionHeader(title = stringResource(R.string.pref_section_app_language))
+          }
+
+          item {
+            PreferenceCard {
+              ListPreference(
+                value = currentAppLanguage,
+                onValueChange = { language ->
+                  if (language != currentAppLanguage) pendingAppLanguage = language
+                },
+                values = AppLanguage.entries,
+                valueToText = { AnnotatedString(it.displayName(context)) },
+                title = { Text(stringResource(R.string.pref_app_language_title)) },
+                summary = {
+                  Text(
+                    text = currentAppLanguage.displayName(context),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+            }
+          }
+
           // Backup & Restore Section
           item {
             PreferenceSectionHeader(title = stringResource(R.string.pref_section_backup_restore))
@@ -267,7 +366,7 @@ object AdvancedPreferencesScreen : Screen {
                 },
                 icon = { 
                   Icon(
-                    Icons.Outlined.FileUpload, 
+                    Icons.RoundedFilled.FileUpload,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                   ) 
@@ -289,7 +388,7 @@ object AdvancedPreferencesScreen : Screen {
                 },
                 icon = { 
                   Icon(
-                    Icons.Outlined.FileDownload, 
+                    Icons.RoundedFilled.FileDownload,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                   ) 
@@ -321,7 +420,7 @@ object AdvancedPreferencesScreen : Screen {
                     overflow = TextOverflow.Ellipsis,
                   )
                 },
-                icon = { Icon(Icons.Default.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                icon = { Icon(Icons.RoundedFilled.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 onClick = { storageRootPicker.launch(null) },
               )
               
@@ -329,7 +428,7 @@ object AdvancedPreferencesScreen : Screen {
                 PreferenceDivider()
                 Preference(
                   title = { Text(stringResource(R.string.pref_clear_storage_root_title)) },
-                  icon = { Icon(Icons.Default.Clear, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                  icon = { Icon(Icons.RoundedFilled.Clear, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                   onClick = {
                     if (subtitlesPreferences.fontsFolder.get() == baseStorageFolder) {
                       subtitlesPreferences.fontsFolder.set("")
@@ -496,16 +595,15 @@ object AdvancedPreferencesScreen : Screen {
               PreferenceDivider()
 
               Preference(
-                title = { Text("yt-dlp Manager") },
+                title = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_yt_dlp_manager)) },
                 summary = {
-                  Text(
-                    "Install and update yt-dlp for streaming support",
+                  Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_install_and_update_yt_dlp_for_streaming_support),
                     color = MaterialTheme.colorScheme.outline
                   )
                 },
                 icon = {
                   Icon(
-                    Icons.Default.CloudDownload,
+                    Icons.RoundedFilled.CloudDownload,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                   )
@@ -525,7 +623,7 @@ object AdvancedPreferencesScreen : Screen {
           item {
             PreferenceCard {
               var isConfirmDialogShown by remember { mutableStateOf(false) }
-              val mpvrxDatabase = koinInject<MpvRxDatabase>()
+              val mpvrxDatabase = koinInject<mpvRxDatabase>()
               val enableRecentlyPlayed by preferences.enableRecentlyPlayed.collectAsState()
               var recentlyPlayedCount by remember { mutableStateOf(0) }
 
@@ -641,8 +739,7 @@ object AdvancedPreferencesScreen : Screen {
                     listOf(
                       File(context.cacheDir, "thumbnails"),
                       File(context.filesDir, "thumbnails"),
-                      File(context.cacheDir, "image_cache"),
-                      File(context.cacheDir, "coil"),
+                      File(context.cacheDir, "remote_images"),
                     ).forEach { dir ->
                       if (dir.exists()) {
                         dir.walkTopDown().filter { it.isFile }.forEach { size += it.length() }
@@ -738,7 +835,7 @@ object AdvancedPreferencesScreen : Screen {
                       }.onFailure { error ->
                         withContext(Dispatchers.Main) {
                           isClearThumbsConfirmShown = false
-                          Toast.makeText(context, context.getString(R.string.pref_failed_to_clear, error.message ?: "Unknown error"), Toast.LENGTH_LONG).show()
+                          Toast.makeText(context, context.getString(R.string.pref_failed_to_clear, error.message ?: context.getString(R.string.generic_unknown_error)), Toast.LENGTH_LONG).show()
                         }
                       }
                     }

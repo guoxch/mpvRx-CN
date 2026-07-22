@@ -1,5 +1,7 @@
 package app.gyrolet.mpvrx.ui.browser.dialogs
 
+import androidx.compose.ui.unit.Dp
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -41,7 +43,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import app.gyrolet.mpvrx.utils.storage.StorageVolumeUtils
@@ -176,8 +177,7 @@ fun FilePickerDialog(
                 // Portrait: title/path stacked on top, nav buttons centered below
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                   Column(modifier = Modifier.fillMaxWidth()) {
-                      Text(
-                        text = "Select Subtitle",
+                      Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_select_subtitle),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                       )
@@ -214,8 +214,7 @@ fun FilePickerDialog(
                       verticalAlignment = Alignment.CenterVertically
                   ) {
                       Column(modifier = Modifier.weight(1f)) {
-                          Text(
-                            text = "Select Subtitle",
+                          Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_select_subtitle),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                           )
@@ -271,7 +270,7 @@ fun FilePickerDialog(
                     }
                     if (storageVolumes.isEmpty()) {
                       item {
-                         Text("No storage devices found", modifier = Modifier.padding(16.dp))
+                         Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_no_storage_devices_found), modifier = Modifier.padding(16.dp))
                       }
                     }
                   } else {
@@ -291,7 +290,7 @@ fun FilePickerDialog(
                     }
                     if (folders.isEmpty() && files.isEmpty()) {
                       item {
-                         Text("No folders or supported files", modifier = Modifier.padding(16.dp))
+                         Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_no_folders_or_supported_files), modifier = Modifier.padding(16.dp))
                       }
                     }
                   }
@@ -308,7 +307,7 @@ fun FilePickerDialog(
                     shape = MaterialTheme.shapes.extraLarge,
                     // Reduced padding for the button itself if needed, or rely on Row padding
                   ) {
-                    Text("Cancel", fontWeight = FontWeight.Medium)
+                    Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel), fontWeight = FontWeight.Medium)
                   }
               }
           }
@@ -329,10 +328,10 @@ private fun StorageVolumeItem(
   val isRemovable = volume.isRemovable
   
   val icon = when {
-    isPrimary -> Icons.Default.Home
-    isRemovable && volumePath.contains("usb", ignoreCase = true) -> Icons.Default.Usb
-    isRemovable -> Icons.Default.SdCard
-    else -> Icons.Default.Folder
+    isPrimary -> Icons.RoundedFilled.Home
+    isRemovable && volumePath.contains("usb", ignoreCase = true) -> Icons.RoundedFilled.Usb
+    isRemovable -> Icons.RoundedFilled.SdCard
+    else -> Icons.RoundedFilled.Folder
   }
   
   Row(
@@ -388,7 +387,7 @@ private fun FolderItem(
     verticalAlignment = Alignment.CenterVertically,
   ) {
     Icon(
-      imageVector = Icons.Default.Folder,
+      imageVector = Icons.RoundedFilled.Folder,
       contentDescription = null,
       tint = MaterialTheme.colorScheme.primary,
       modifier = Modifier.size(28.dp),
@@ -423,7 +422,7 @@ private fun FileItem(
     verticalAlignment = Alignment.CenterVertically,
   ) {
     Icon(
-      imageVector = Icons.Filled.InsertDriveFile,
+      imageVector = Icons.RoundedFilled.InsertDriveFile,
       contentDescription = null,
       tint = MaterialTheme.colorScheme.secondary,
       modifier = Modifier.size(28.dp),
@@ -461,7 +460,7 @@ private fun NavigationButtons(
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
       )
     ) {
-      Icon(Icons.Filled.ArrowBack, "Back", modifier = Modifier.size(iconSize))
+      Icon(Icons.RoundedFilled.ArrowBack, "Back", modifier = Modifier.size(iconSize))
     }
   }
 
@@ -473,7 +472,7 @@ private fun NavigationButtons(
       contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
     )
   ) {
-    Icon(Icons.Default.Home, "Home", modifier = Modifier.size(iconSize))
+    Icon(Icons.RoundedFilled.Home, "Home", modifier = Modifier.size(iconSize))
   }
 
   FilledTonalIconButton(
@@ -484,7 +483,7 @@ private fun NavigationButtons(
       contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
     )
   ) {
-    Icon(Icons.Default.DriveFolderUpload, "System Picker", modifier = Modifier.size(iconSize))
+    Icon(Icons.RoundedFilled.DriveFolderUpload, "System Picker", modifier = Modifier.size(iconSize))
   }
 }
 

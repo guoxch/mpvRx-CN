@@ -1,5 +1,7 @@
 package app.gyrolet.mpvrx.ui.player.controls.components.panels
 
+import androidx.compose.ui.res.stringResource
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -55,13 +57,12 @@ fun HdrScreenOutputPanel(
           .padding(horizontal = MaterialTheme.spacing.medium)
           .padding(top = MaterialTheme.spacing.small),
       ) {
-        Text(
-          text = "HDR Output",
+        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_hdr_output),
           style = MaterialTheme.typography.titleLarge,
         )
         Spacer(Modifier.weight(1f))
         IconButton(onClick = onDismissRequest) {
-          Icon(Icons.Default.Close, null, modifier = Modifier.size(32.dp))
+          Icon(Icons.RoundedFilled.Close, null, modifier = Modifier.size(32.dp))
         }
       }
     },
@@ -117,20 +118,18 @@ private fun HdrPipelineUnavailableStatus(
         contentAlignment = Alignment.Center,
       ) {
         Icon(
-          imageVector = Icons.Default.HdrOff,
+          imageVector = Icons.RoundedFilled.HdrOff,
           contentDescription = null,
           modifier = Modifier.size(22.dp),
           tint = contentColor,
         )
       }
       Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
-          text = "HDR cannot be enabled",
+        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_hdr_cannot_be_enabled),
           style = MaterialTheme.typography.titleLarge,
           fontWeight = FontWeight.SemiBold,
         )
-        Text(
-          text = "Enable GPU Next and Vulkan before using HDR modes",
+        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_enable_gpu_next_and_vulkan_before_using_hdr_modes),
           style = MaterialTheme.typography.bodySmall,
           color = contentColor.copy(alpha = 0.78f),
         )
@@ -190,7 +189,7 @@ private fun HdrModeOption(
         contentAlignment = Alignment.Center,
       ) {
         Icon(
-          imageVector = if (mode == HdrScreenMode.OFF) Icons.Default.HdrOff else Icons.Default.HdrOn,
+          imageVector = if (mode == HdrScreenMode.OFF) Icons.RoundedFilled.HdrOff else Icons.RoundedFilled.HdrOn,
           contentDescription = null,
           modifier = Modifier.size(24.dp),
           tint =
@@ -204,12 +203,12 @@ private fun HdrModeOption(
         verticalArrangement = Arrangement.spacedBy(2.dp),
       ) {
         Text(
-          text = mode.title,
+          text = stringResource(mode.titleRes),
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.SemiBold,
         )
         Text(
-          text = mode.description,
+          text = stringResource(mode.descriptionRes),
           style = MaterialTheme.typography.bodySmall,
           color = contentColor.copy(alpha = 0.72f),
         )

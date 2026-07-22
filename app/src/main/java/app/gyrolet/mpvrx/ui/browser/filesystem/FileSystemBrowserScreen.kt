@@ -1,5 +1,10 @@
 package app.gyrolet.mpvrx.ui.browser.filesystem
 
+import app.gyrolet.mpvrx.R
+
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.unit.Dp
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -68,13 +73,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -493,8 +496,8 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 },
                 leadingIcon = {
                   Icon(
-                    imageVector = Icons.Filled.Search,
-                    contentDescription = "Search",
+                    imageVector = Icons.RoundedFilled.Search,
+                    contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.settings_search_title),
                   )
                 },
                 trailingIcon = {
@@ -505,8 +508,8 @@ fun FileSystemBrowserScreen(path: String? = null) {
                     },
                   ) {
                     Icon(
-                      imageVector = Icons.Filled.Close,
-                      contentDescription = "Cancel",
+                      imageVector = Icons.RoundedFilled.Close,
+                      contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel),
                     )
                   }
                 },
@@ -617,7 +620,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                     TooltipAnchorPosition.Above
                   }
                 ),
-                tooltip = { PlainTooltip { Text("Toggle menu") } },
+                tooltip = { PlainTooltip { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_toggle_menu)) } },
                 state = rememberTooltipState(),
               ) {
                 ToggleFloatingActionButton(
@@ -631,7 +634,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 ) {
                   val imageVector by remember {
                     derivedStateOf {
-                      if (checkedProgress > 0.5f) Icons.Filled.Close else Icons.Filled.PlayArrow
+                      if (checkedProgress > 0.5f) Icons.RoundedFilled.Close else Icons.RoundedFilled.PlayArrow
                   }
                 }
                 Icon(
@@ -648,8 +651,8 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 isFabExpanded.value = false
                 filePicker.launch(arrayOf("video/*"))
               },
-              icon = { Icon(Icons.Filled.FileOpen, contentDescription = null) },
-              text = { Text(text = "Open File") },
+              icon = { Icon(Icons.RoundedFilled.FileOpen, contentDescription = null) },
+              text = { Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_open_file)) },
             )
 
             FloatingActionButtonMenuItem(
@@ -663,8 +666,8 @@ fun FileSystemBrowserScreen(path: String? = null) {
                   }
                 }
               },
-              icon = { Icon(Icons.Filled.History, contentDescription = null) },
-              text = { Text(text = "Recently Played") },
+              icon = { Icon(Icons.RoundedFilled.History, contentDescription = null) },
+              text = { Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_advanced_enable_recently_played_title)) },
             )
 
             FloatingActionButtonMenuItem(
@@ -672,8 +675,8 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 isFabExpanded.value = false
                 showLinkDialog.value = true
               },
-              icon = { Icon(Icons.Filled.Link, contentDescription = null) },
-              text = { Text(text = "Open Link") },
+              icon = { Icon(Icons.RoundedFilled.Link, contentDescription = null) },
+              text = { Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_open_link)) },
             )
           }
         }
@@ -1251,8 +1254,8 @@ private fun FileSystemBrowserContent(
         contentAlignment = Alignment.Center,
       ) {
         EmptyState(
-          icon = Icons.Filled.Folder,
-          title = "Error loading directory",
+          icon = Icons.RoundedFilled.Folder,
+          title = stringResource(R.string.ui_error_loading_directory),
           message = error,
         )
       }
@@ -1264,8 +1267,8 @@ private fun FileSystemBrowserContent(
         contentAlignment = Alignment.Center,
       ) {
         EmptyState(
-          icon = Icons.Filled.FolderOpen,
-          title = "Empty folder",
+          icon = Icons.RoundedFilled.FolderOpen,
+          title = stringResource(R.string.ui_empty_folder),
           message = "This folder contains no videos or subfolders",
         )
       }
@@ -1662,8 +1665,8 @@ private fun FileSystemSearchContent(
           contentAlignment = Alignment.Center,
         ) {
           EmptyState(
-            icon = Icons.Filled.Search,
-            title = "No results found",
+            icon = Icons.RoundedFilled.Search,
+            title = stringResource(R.string.ui_no_results_found),
             message = "No files or folders match \"$searchQuery\"",
           )
         }

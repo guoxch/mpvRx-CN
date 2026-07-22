@@ -43,6 +43,7 @@ fun PlayerSheets(
   onAddSubtitle: (Uri) -> Unit,
   onToggleSubtitle: (Int) -> Unit,
   isSubtitleSelected: (Int) -> Boolean,
+  subtitleSelectionIndicator: (Int) -> String?,
   onRemoveSubtitle: (Int) -> Unit,
   // audio sheet
   audioTracks: ImmutableList<TrackNode>,
@@ -146,6 +147,7 @@ fun PlayerSheets(
         tracks = subtitles.toImmutableList(),
         onToggleSubtitle = onToggleSubtitle,
         isSubtitleSelected = isSubtitleSelected,
+        subtitleSelectionIndicator = subtitleSelectionIndicator,
         onAddSubtitle = { showFilePicker = true },
         onRemoveSubtitle = onRemoveSubtitle,
         onOpenSubtitleSettings = { onOpenPanel(Panels.SubtitleSettings) },
@@ -259,13 +261,15 @@ fun PlayerSheets(
     }
 
     Sheets.More -> {
+      val anime4KUiState by viewModel.anime4KUiState.composeCollectAsState()
       MoreSheet(
         remainingTime = sleepTimerTimeRemaining,
         onStartTimer = onStartSleepTimer,
         onDismissRequest = onDismissRequest,
         onEnterFiltersPanel = { onOpenPanel(Panels.VideoFilters) },
         onEnterLuaScriptsPanel = { onOpenPanel(Panels.LuaScripts) },
-        onAnime4KChanged = viewModel::restartHdrScreenOutputAndAmbientIfActive,
+        anime4KUiState = anime4KUiState,
+        onAnime4KModeSelected = viewModel::selectAnime4KMode,
       )
     }
 

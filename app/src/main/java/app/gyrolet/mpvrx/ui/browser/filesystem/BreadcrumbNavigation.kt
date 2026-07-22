@@ -44,8 +44,8 @@ fun BreadcrumbNavigation(
     breadcrumbs.forEachIndexed { index, component ->
       if (index > 0) {
         Icon(
-          imageVector = Icons.Filled.ChevronRight,
-          contentDescription = "Separator",
+          imageVector = Icons.RoundedFilled.ChevronRight,
+          contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_separator),
           tint = MaterialTheme.colorScheme.onSurfaceVariant,
           modifier = Modifier.padding(horizontal = 4.dp),
         )

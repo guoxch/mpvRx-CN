@@ -1,5 +1,6 @@
 package app.gyrolet.mpvrx.ui.player.controls.components.panels
 
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -49,7 +50,6 @@ import app.gyrolet.mpvrx.ui.player.controls.panelCardsColors
 import app.gyrolet.mpvrx.ui.theme.spacing
 import `is`.xyz.mpv.MPVLib
 import kotlinx.coroutines.delay
-import org.koin.compose.koinInject
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
 
@@ -116,8 +116,8 @@ private fun SubtitleDelayCardContent(
           max = 10f,
           step = 0.01f,
           min = 0.1f,
-          increaseIcon = Icons.Filled.Add,
-          decreaseIcon = Icons.Filled.Remove,
+          increaseIcon = Icons.RoundedFilled.Add,
+          decreaseIcon = Icons.RoundedFilled.Remove,
           valueFormatter = { "%.2f".format(it) }
         )
       }
@@ -146,9 +146,9 @@ fun DelayCardContent( // Renamed from DelayCard and removed the Card wrapper
          step = 0.1f,
          min = Float.NEGATIVE_INFINITY,
          max = Float.POSITIVE_INFINITY,
-         suffix = { Text("s") },
-         increaseIcon = Icons.Filled.Add,
-         decreaseIcon = Icons.Filled.Remove,
+         suffix = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_s)) },
+         increaseIcon = Icons.RoundedFilled.Add,
+         decreaseIcon = Icons.RoundedFilled.Remove,
          valueFormatter = { "%.1f".format(it) }
        )
        Column(
@@ -227,7 +227,7 @@ fun DelayCardContent( // Renamed from DelayCard and removed the Card wrapper
            onClick = onReset,
            enabled = isDirectionPositive == null,
          ) {
-           Icon(Icons.Default.Refresh, null)
+           Icon(Icons.RoundedFilled.Refresh, null)
          }
        }
     }
@@ -252,7 +252,7 @@ fun SubtitleDelayTitle(
     )
     Spacer(Modifier.weight(1f))
     IconButton(onClick = onClose) {
-      Icon(Icons.Default.Close, null, modifier = Modifier.size(32.dp))
+      Icon(Icons.RoundedFilled.Close, null, modifier = Modifier.size(32.dp))
     }
   }
 }

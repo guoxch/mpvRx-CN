@@ -1,5 +1,7 @@
 package app.gyrolet.mpvrx.ui.browser
 
+import androidx.compose.animation.core.Spring
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -7,7 +9,6 @@ import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
@@ -143,10 +144,10 @@ object MainScreen : Screen {
           NavigationBarItem(
             icon = {
               when (tab) {
-                MainTab.HOME -> Icon(Icons.Filled.Home, contentDescription = "Home")
-                MainTab.RECENTS -> Icon(Icons.Filled.History, contentDescription = "Recents")
-                MainTab.PLAYLISTS -> Icon(Icons.Filled.PlaylistPlay, contentDescription = "Playlists")
-                MainTab.NETWORK -> Icon(Icons.Filled.BringYourOwnIp, contentDescription = "Network")
+                MainTab.HOME -> Icon(Icons.RoundedFilled.Home, contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_home))
+                MainTab.RECENTS -> Icon(Icons.RoundedFilled.History, contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_recents))
+                MainTab.PLAYLISTS -> Icon(Icons.RoundedFilled.PlaylistPlay, contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_playlists))
+                MainTab.NETWORK -> Icon(Icons.RoundedFilled.BringYourOwnIp, contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_network))
               }
             },
             label = {
@@ -255,10 +256,10 @@ object MainScreen : Screen {
               NavigationBarItem(
                 icon = {
                   when (tab) {
-                    MainTab.HOME -> Icon(Icons.Filled.Home, contentDescription = "Home")
-                    MainTab.RECENTS -> Icon(Icons.Filled.History, contentDescription = "Recents")
-                    MainTab.PLAYLISTS -> Icon(Icons.Filled.PlaylistPlay, contentDescription = "Playlists")
-                    MainTab.NETWORK -> Icon(Icons.Filled.BringYourOwnIp, contentDescription = "Network")
+                    MainTab.HOME -> Icon(Icons.RoundedFilled.Home, contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_home))
+                    MainTab.RECENTS -> Icon(Icons.RoundedFilled.History, contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_recents))
+                    MainTab.PLAYLISTS -> Icon(Icons.RoundedFilled.PlaylistPlay, contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_playlists))
+                    MainTab.NETWORK -> Icon(Icons.RoundedFilled.BringYourOwnIp, contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_network))
                   }
                 },
                 label = {

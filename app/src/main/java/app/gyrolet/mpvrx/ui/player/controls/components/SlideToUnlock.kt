@@ -79,8 +79,7 @@ fun SlideToUnlock(
         .alpha(if (maxOffset > 0f) 1f - (offsetX.value / maxOffset).coerceIn(0f, 1f) else 1f),
       contentAlignment = Alignment.Center,
     ) {
-      Text(
-        text = "Slide to Unlock",
+      Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_slide_to_unlock),
         color = Color.White.copy(alpha = 0.7f),
         fontSize = 16.sp,
         fontWeight = FontWeight.Medium,
@@ -147,8 +146,8 @@ fun SlideToUnlock(
         animationSpec = spring(dampingRatio = AppMotion.Spatial.Standard.dampingRatio, stiffness = AppMotion.Spatial.Standard.stiffness),
       ) { showUnlock ->
         Icon(
-          imageVector = if (showUnlock) Icons.Filled.LockOpen else Icons.Filled.Lock,
-          contentDescription = "Slide to unlock",
+          imageVector = if (showUnlock) Icons.RoundedFilled.LockOpen else Icons.RoundedFilled.Lock,
+          contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_slide_to_unlock),
           tint = Color.White,
           modifier = Modifier.size(28.dp),
         )

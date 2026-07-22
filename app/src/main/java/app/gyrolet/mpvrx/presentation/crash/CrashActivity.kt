@@ -1,5 +1,7 @@
 package app.gyrolet.mpvrx.presentation.crash
 
+import androidx.compose.ui.unit.Dp
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -8,7 +10,6 @@ import android.content.ClipData
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -51,9 +52,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.coroutineScope
 import app.gyrolet.mpvrx.BuildConfig
 import app.gyrolet.mpvrx.MainActivity
@@ -74,7 +75,7 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
 
-class CrashActivity : ComponentActivity() {
+class CrashActivity : AppCompatActivity() {
   private var logcat: String = ""
   private val appearancePreferences: AppearancePreferences by inject()
 
@@ -292,7 +293,7 @@ class CrashActivity : ComponentActivity() {
                 )
               },
             ) {
-              Icon(Icons.Default.ContentCopy, null)
+              Icon(Icons.RoundedFilled.ContentCopy, null)
             }
           }
           OutlinedButton(
@@ -317,7 +318,7 @@ class CrashActivity : ComponentActivity() {
       ) {
         Spacer(Modifier.height(paddingValues.calculateTopPadding()))
         Icon(
-          Icons.Outlined.BugReport,
+          Icons.RoundedFilled.BugReport,
           null,
           modifier = Modifier.size(48.dp),
           tint = MaterialTheme.colorScheme.primary,
@@ -344,8 +345,7 @@ class CrashActivity : ComponentActivity() {
           style = MaterialTheme.typography.headlineSmall,
         )
         LogsContainer(exceptionString)
-        Text(
-          "Logcat:",
+        Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_logcat),
           style = MaterialTheme.typography.headlineSmall,
         )
         LogsContainer(logcat)

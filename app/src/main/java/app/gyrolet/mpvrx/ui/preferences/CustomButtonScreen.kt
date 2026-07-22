@@ -1,5 +1,10 @@
 package app.gyrolet.mpvrx.ui.preferences
 
+import app.gyrolet.mpvrx.R
+import androidx.compose.ui.res.stringResource
+
+import androidx.compose.animation.core.Spring
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.editor.MpvHelpScreen
@@ -7,7 +12,6 @@ import app.gyrolet.mpvrx.ui.editor.MpvScriptEditor
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
@@ -155,9 +159,9 @@ object CustomButtonScreen : Screen {
                     context.contentResolver.openOutputStream(it)?.use { output ->
                         output.write(xmlContent.toByteArray())
                     }
-                    Toast.makeText(context, "Buttons exported successfully", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.ui_buttons_exported_successfully), Toast.LENGTH_SHORT).show()
                 }.onFailure { e ->
-                    Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.pref_export_failed_toast, e.message ?: context.getString(R.string.generic_unknown_error)), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -180,7 +184,7 @@ object CustomButtonScreen : Screen {
                     
                     showImportDialog = true
                 }.onFailure { e ->
-                    Toast.makeText(context, "Failed to read file: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, context.getString(R.string.toast_failed_to_read_file, e.message ?: context.getString(R.string.generic_unknown_error)), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -227,14 +231,12 @@ object CustomButtonScreen : Screen {
                 TopAppBar(
                     title = {
                         Column {
-                            Text(
-                                text = "Custom Buttons",
+                            Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_custom_lua_title),
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.primary,
                             )
-                            Text(
-                                text = "Drag to reorder • Tap any slot to expand & edit",
+                            Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_drag_to_reorder_tap_any_slot_to_expand_edit),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -243,8 +245,8 @@ object CustomButtonScreen : Screen {
                     navigationIcon = {
                         IconButton(onClick = { backstack.popSafely() }) {
                             Icon(
-                                Icons.Outlined.ArrowBack,
-                                contentDescription = "Back",
+                                Icons.RoundedFilled.ArrowBack,
+                                contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.back),
                                 tint = MaterialTheme.colorScheme.secondary,
                             )
                         }
@@ -287,8 +289,8 @@ object CustomButtonScreen : Screen {
                             elevation = elevation,
                             dragHandle = { interceptModifier ->
                                 Icon(
-                                    Icons.Default.DragHandle,
-                                    contentDescription = "Drag to reorder",
+                                    Icons.RoundedFilled.DragHandle,
+                                    contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_drag_to_reorder),
                                     modifier = interceptModifier
                                         .draggableHandle()
                                         .padding(horizontal = 8.dp, vertical = 12.dp),
@@ -324,15 +326,13 @@ object CustomButtonScreen : Screen {
                                 .padding(20.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(
-                                text = "Import / Export",
+                            Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_import_export),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                             
-                            Text(
-                                text = "Backup or share all your custom buttons with their script code as an XML file",
+                            Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_backup_or_share_all_your_custom_buttons_with_their_script_code_a),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -347,12 +347,12 @@ object CustomButtonScreen : Screen {
                                     shape = RoundedCornerShape(12.dp),
                                 ) {
                                     Icon(
-                                        Icons.Default.FileDownload,
+                                        Icons.RoundedFilled.FileDownload,
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(Modifier.width(8.dp))
-                                    Text("Import")
+                                    Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_import))
                                 }
                                 
                                 Button(
@@ -361,12 +361,12 @@ object CustomButtonScreen : Screen {
                                     shape = RoundedCornerShape(12.dp),
                                 ) {
                                     Icon(
-                                        Icons.Default.FileUpload,
+                                        Icons.RoundedFilled.FileUpload,
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(Modifier.width(8.dp))
-                                    Text("Export")
+                                    Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_export))
                                 }
                             }
                         }
@@ -396,7 +396,7 @@ object CustomButtonScreen : Screen {
                             buttonSlots[slotIndex] = importedSlots[slotIndex]
                         }
                     }
-                    Toast.makeText(context, "Imported ${selectedImportSlots.size} button(s)", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.toast_imported_buttons, selectedImportSlots.size), Toast.LENGTH_SHORT).show()
                     showImportDialog = false
                     selectedImportSlots = emptySet()
                 },
@@ -522,7 +522,7 @@ fun ButtonSlotCard(
                             contentColor   = MaterialTheme.colorScheme.onErrorContainer,
                         ),
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(18.dp))
+                        Icon(Icons.RoundedFilled.Delete, contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.delete), modifier = Modifier.size(18.dp))
                     }
                     Spacer(Modifier.width(4.dp))
                 }
@@ -542,8 +542,8 @@ fun ButtonSlotCard(
                 } else {
                     // Disabled drag handle for empty slots
                     Icon(
-                        Icons.Default.DragHandle,
-                        contentDescription = "Drag disabled",
+                        Icons.RoundedFilled.DragHandle,
+                        contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_drag_disabled),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
                     )
@@ -647,7 +647,7 @@ fun ButtonSlotCard(
                         },
                         navigationIcon = {
                             IconButton(onClick = { dismissAndSave() }) {
-                                Icon(Icons.Outlined.ArrowBack, "Back")
+                                Icon(Icons.RoundedFilled.ArrowBack, "Back")
                             }
                         },
                         actions = {
@@ -659,14 +659,14 @@ fun ButtonSlotCard(
                                 ),
                             ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.Info,
-                                    contentDescription = "Help",
+                                    imageVector = Icons.RoundedFilled.Info,
+                                    contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_help),
                                 )
                             }
                             IconButton(onClick = { dismissAndSave() }) {
                                 Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Done",
+                                    imageVector = Icons.RoundedFilled.Check,
+                                    contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_done),
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
                             }
@@ -736,7 +736,7 @@ fun ButtonExpandedContent(
         OutlinedTextField(
             value         = draftTitle,
             onValueChange = onTitleChange,
-            label         = { Text("Button title *") },
+            label         = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_button_title)) },
             modifier      = Modifier.fillMaxWidth(),
             singleLine    = true,
             shape         = RoundedCornerShape(12.dp),
@@ -801,8 +801,7 @@ fun ButtonExpandedContent(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Column(Modifier.weight(1f)) {
-                Text(
-                    text  = "Button enabled",
+                Text(text  = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_button_enabled),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -824,13 +823,13 @@ fun ButtonExpandedContent(
             horizontalArrangement = Arrangement.End,
             modifier              = Modifier.fillMaxWidth(),
         ) {
-            TextButton(onClick = onCollapse) { Text("Cancel") }
+            TextButton(onClick = onCollapse) { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel)) }
             Spacer(Modifier.width(8.dp))
             TextButton(
                 onClick = onSave,
                 enabled = draftTitle.isNotBlank(),
             ) {
-                Text(if (isPopulated) "Save" else "Add button")
+                Text(if (isPopulated) stringResource(R.string.ui_save) else stringResource(R.string.ui_add_button))
             }
         }
     }
@@ -904,7 +903,7 @@ fun LuaEditorEntryCard(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    Icons.Default.Code,
+                    Icons.RoundedFilled.Code,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = if (hasCode) MaterialTheme.colorScheme.primary
@@ -933,8 +932,7 @@ fun LuaEditorEntryCard(
                         maxLines = 3,
                     )
                 } else {
-                    Text(
-                        text = "Tap to write code...",
+                    Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_tap_to_write_code),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     )
@@ -943,7 +941,7 @@ fun LuaEditorEntryCard(
 
             // Arrow
             Icon(
-                Icons.Default.KeyboardArrowDown,
+                Icons.RoundedFilled.KeyboardArrowDown,
                 contentDescription = null,
                 modifier = Modifier.rotate(-90f),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
@@ -971,14 +969,12 @@ fun ImportSelectionScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(
-                            text = "Select Buttons to Import",
+                        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_select_buttons_to_import),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
                         )
-                        Text(
-                            text = "Choose which buttons to import",
+                        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_choose_which_buttons_to_import),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -987,8 +983,8 @@ fun ImportSelectionScreen(
                 navigationIcon = {
                     IconButton(onClick = onDismiss) {
                         Icon(
-                            Icons.Outlined.ArrowBack,
-                            contentDescription = "Cancel",
+                            Icons.RoundedFilled.ArrowBack,
+                            contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel),
                             tint = MaterialTheme.colorScheme.secondary,
                         )
                     }
@@ -1007,8 +1003,8 @@ fun ImportSelectionScreen(
                         shape = RoundedCornerShape(8.dp),
                     ) {
                         Icon(
-                            Icons.Default.FileDownload,
-                            contentDescription = "Import",
+                            Icons.RoundedFilled.FileDownload,
+                            contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_import),
                         )
                     }
                 },
@@ -1118,8 +1114,7 @@ fun ImportSelectionScreen(
                                         color = MaterialTheme.colorScheme.error,
                                     )
                                     Spacer(Modifier.width(4.dp))
-                                    Text(
-                                        text = "Will overwrite existing button",
+                                    Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_will_overwrite_existing_button),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.error,
                                     )

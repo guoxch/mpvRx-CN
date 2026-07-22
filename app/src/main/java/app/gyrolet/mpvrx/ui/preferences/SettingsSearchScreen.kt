@@ -1,5 +1,7 @@
 package app.gyrolet.mpvrx.ui.preferences
 
+import androidx.compose.ui.focus.FocusRequester
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
@@ -45,7 +47,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalResources
@@ -129,7 +130,7 @@ object SettingsSearchScreen : Screen {
                     navigationIcon = {
                         IconButton(onClick = { backstack.popSafely() }) {
                             Icon(
-                                Icons.Outlined.ArrowBack,
+                                Icons.RoundedFilled.ArrowBack,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.secondary,
                             )
@@ -158,7 +159,7 @@ object SettingsSearchScreen : Screen {
                     },
                     leadingIcon = {
                         Icon(
-                            imageVector = Icons.Outlined.Search,
+                            imageVector = Icons.RoundedFilled.Search,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.outline,
                         )
@@ -171,8 +172,8 @@ object SettingsSearchScreen : Screen {
                         ) {
                             IconButton(onClick = { searchQuery = "" }) {
                                 Icon(
-                                    imageVector = Icons.Outlined.Clear,
-                                    contentDescription = "Clear",
+                                    imageVector = Icons.RoundedFilled.Clear,
+                                    contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_clear_content_desc),
                                     tint = MaterialTheme.colorScheme.outline,
                                 )
                             }
@@ -212,15 +213,14 @@ object SettingsSearchScreen : Screen {
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = "Search history",
+                                    Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_search_history),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     IconButton(onClick = { clearSearchHistory() }) {
                                         Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "Clear history",
+                                            imageVector = Icons.RoundedFilled.Delete,
+                                            contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_clear_history),
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
@@ -265,13 +265,12 @@ object SettingsSearchScreen : Screen {
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "Search suggestions",
+                                Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_search_suggestions),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Icon(
-                                    imageVector = Icons.Default.Search,
+                                    imageVector = Icons.RoundedFilled.Search,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -313,7 +312,7 @@ object SettingsSearchScreen : Screen {
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.Settings,
+                                imageVector = Icons.RoundedFilled.Settings,
                                 contentDescription = null,
                                 modifier = Modifier.size(64.dp),
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.52f),
@@ -401,7 +400,7 @@ private fun SearchResultItem(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Settings,
+                        imageVector = Icons.RoundedFilled.Settings,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(24.dp),
@@ -438,7 +437,7 @@ private fun SearchResultItem(
                     color = MaterialTheme.colorScheme.tertiaryContainer,
                 ) {
                     Text(
-                        text = preference.category,
+                        text = localizedSearchCategory(preference.category),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -448,4 +447,20 @@ private fun SearchResultItem(
         }
     }
 }
+
+@Composable
+private fun localizedSearchCategory(category: String): String = stringResource(
+    when (category) {
+        "Advanced" -> R.string.search_category_advanced
+        "AI" -> R.string.search_category_ai
+        "Appearance" -> R.string.search_category_appearance
+        "Audio" -> R.string.search_category_audio
+        "Decoder" -> R.string.search_category_decoder
+        "Folders" -> R.string.search_category_folders
+        "Gestures" -> R.string.search_category_gestures
+        "Player" -> R.string.search_category_player
+        "Subtitles" -> R.string.search_category_subtitles
+        else -> R.string.search_category_advanced
+    },
+)
 

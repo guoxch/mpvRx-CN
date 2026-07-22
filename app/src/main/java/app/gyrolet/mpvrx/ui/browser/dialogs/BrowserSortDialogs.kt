@@ -1,5 +1,8 @@
 package app.gyrolet.mpvrx.ui.browser.dialogs
 
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
+
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -47,6 +50,9 @@ fun FolderSortDialog(
   val unlimitedNameLines by appearancePreferences.unlimitedNameLines.collectAsState()
   val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
   val folderViewMode by browserPreferences.folderViewMode.collectAsState()
+  val folderViewFolderLayoutMode by browserPreferences.folderViewFolderLayoutMode.collectAsState()
+  val folderViewVideoLayoutMode by browserPreferences.folderViewVideoLayoutMode.collectAsState()
+  val separateFolderVideoLayout by browserPreferences.separateFolderVideoLayout.collectAsState()
   val mediaLayoutMode by browserPreferences.mediaLayoutMode.collectAsState()
   val manualGridColumnsEnabled by browserPreferences.manualGridColumnsEnabled.collectAsState()
   val folderGridColumnsPortrait by browserPreferences.folderGridColumnsPortrait.collectAsState()
@@ -76,7 +82,10 @@ fun FolderSortDialog(
   val dynamicFolderColumns = (usableFolderWidth / folderMinWidth).toInt().coerceIn(1, maxColumns)
   val dynamicVideoColumns = (usableVideoWidth / videoMinWidth).toInt().coerceIn(1, maxColumns)
 
-  val folderGridColumnSelector = if (mediaLayoutMode == MediaLayoutMode.GRID && manualGridColumnsEnabled) {
+  val isAlbumView = folderViewMode == FolderViewMode.AlbumView
+  val activeLayoutMode = if (isAlbumView) folderViewFolderLayoutMode else mediaLayoutMode
+
+  val folderGridColumnSelector = if (activeLayoutMode == MediaLayoutMode.GRID && manualGridColumnsEnabled) {
     GridColumnSelector(
       label = "Folder Grid Columns (${if (isLandscape) "Landscape" else "Portrait"})",
       currentValue = folderGridColumns.coerceIn(1, maxColumns),
@@ -89,7 +98,7 @@ fun FolderSortDialog(
     )
   } else null
 
-  val videoGridColumnSelector = if (mediaLayoutMode == MediaLayoutMode.GRID && manualGridColumnsEnabled) {
+  val videoGridColumnSelector = if (activeLayoutMode == MediaLayoutMode.GRID && manualGridColumnsEnabled) {
     GridColumnSelector(
       label = "Video Grid Columns (${if (isLandscape) "Landscape" else "Portrait"})",
       currentValue = videoGridColumns.coerceIn(1, maxColumns),
@@ -102,12 +111,10 @@ fun FolderSortDialog(
     )
   } else null
 
-  val isAlbumView = folderViewMode == FolderViewMode.AlbumView
-
   SortDialog(
     isOpen = isOpen,
     onDismiss = onDismiss,
-    title = if (isAlbumView) "Sort & View Options" else "View Options",
+    title = if (isAlbumView) stringResource(R.string.sort_view_options) else stringResource(R.string.ui_view_options),
     sortType = sortType.displayName,
     onSortTypeChange = { typeName ->
       FolderSortType.entries
@@ -124,9 +131,9 @@ fun FolderSortDialog(
       FolderSortType.Size.displayName,
     ),
     icons = listOf(
-      Icons.Filled.Title,
-      Icons.Filled.CalendarToday,
-      Icons.Filled.SwapVert,
+      Icons.RoundedFilled.Title,
+      Icons.RoundedFilled.CalendarToday,
+      Icons.RoundedFilled.SwapVert,
     ),
     getLabelForType = { type, _ ->
       when (type) {
@@ -142,19 +149,19 @@ fun FolderSortDialog(
       options = listOf(
         ViewModeOption(
           label = "Folder",
-          icon = Icons.Filled.ViewModule,
+          icon = Icons.RoundedFilled.ViewModule,
           isSelected = folderViewMode == FolderViewMode.AlbumView,
           onClick = { browserPreferences.folderViewMode.set(FolderViewMode.AlbumView) }
         ),
         ViewModeOption(
           label = "Tree",
-          icon = Icons.Filled.AccountTree,
+          icon = Icons.RoundedFilled.AccountTree,
           isSelected = folderViewMode == FolderViewMode.FileManager,
           onClick = { browserPreferences.folderViewMode.set(FolderViewMode.FileManager) }
         ),
         ViewModeOption(
           label = "Library",
-          icon = Icons.Filled.VideoLibrary,
+          icon = Icons.RoundedFilled.VideoLibrary,
           isSelected = folderViewMode == FolderViewMode.MediaLibrary,
           onClick = { browserPreferences.folderViewMode.set(FolderViewMode.MediaLibrary) }
         ),
@@ -164,14 +171,30 @@ fun FolderSortDialog(
       label = "Layout",
       firstOptionLabel = "List",
       secondOptionLabel = "Grid",
-      firstOptionIcon = Icons.Filled.ViewList,
-      secondOptionIcon = Icons.Filled.GridView,
-      isFirstOptionSelected = mediaLayoutMode == MediaLayoutMode.LIST,
+      firstOptionIcon = Icons.RoundedFilled.ViewList,
+      secondOptionIcon = Icons.RoundedFilled.GridView,
+      isFirstOptionSelected = activeLayoutMode == MediaLayoutMode.LIST,
       onViewModeChange = { isFirstOption ->
-        browserPreferences.mediaLayoutMode.set(
-          if (isFirstOption) MediaLayoutMode.LIST else MediaLayoutMode.GRID
-        )
+        val newLayout = if (isFirstOption) MediaLayoutMode.LIST else MediaLayoutMode.GRID
+        if (isAlbumView) {
+          browserPreferences.folderViewFolderLayoutMode.set(newLayout)
+          if (!separateFolderVideoLayout) {
+            browserPreferences.folderViewVideoLayoutMode.set(newLayout)
+          }
+        } else {
+          browserPreferences.mediaLayoutMode.set(newLayout)
+        }
       },
+      checkboxLabel = if (isAlbumView) "Only for folder list" else null,
+      isCheckboxChecked = separateFolderVideoLayout,
+      onCheckboxChange = if (isAlbumView) {
+        { checked ->
+          browserPreferences.separateFolderVideoLayout.set(checked)
+          if (!checked) {
+            browserPreferences.folderViewVideoLayoutMode.set(browserPreferences.folderViewFolderLayoutMode.get())
+          }
+        }
+      } else null,
     ),
     visibilityToggles = buildList {
       add(
@@ -216,7 +239,7 @@ fun FolderSortDialog(
           onCheckedChange = { browserPreferences.showDateChip.set(it) },
         )
       )
-      if (mediaLayoutMode == MediaLayoutMode.GRID) {
+      if (activeLayoutMode == MediaLayoutMode.GRID) {
         add(
           VisibilityToggle(
             label = "Manual Grid Columns",
@@ -265,6 +288,7 @@ fun VideoSortDialog(
   onSortTypeChange: (VideoSortType) -> Unit,
   onSortOrderChange: (SortOrder) -> Unit,
   isDualPane: Boolean = false,
+  isFolderView: Boolean = true,
 ) {
   val browserPreferences = koinInject<BrowserPreferences>()
   val appearancePreferences = koinInject<AppearancePreferences>()
@@ -278,6 +302,9 @@ fun VideoSortDialog(
   val showExtensionField by browserPreferences.showExtensionField.collectAsState()
   val showDurationField by browserPreferences.showDurationField.collectAsState()
   val unlimitedNameLines by appearancePreferences.unlimitedNameLines.collectAsState()
+  val folderViewVideoLayoutMode by browserPreferences.folderViewVideoLayoutMode.collectAsState()
+  val folderViewFolderLayoutMode by browserPreferences.folderViewFolderLayoutMode.collectAsState()
+  val separateFolderVideoLayout by browserPreferences.separateFolderVideoLayout.collectAsState()
   val mediaLayoutMode by browserPreferences.mediaLayoutMode.collectAsState()
   val folderViewMode by browserPreferences.folderViewMode.collectAsState()
   val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
@@ -286,6 +313,8 @@ fun VideoSortDialog(
   val folderGridColumnsLandscape by browserPreferences.folderGridColumnsLandscape.collectAsState()
   val videoGridColumnsPortrait by browserPreferences.videoGridColumnsPortrait.collectAsState()
   val videoGridColumnsLandscape by browserPreferences.videoGridColumnsLandscape.collectAsState()
+
+  val activeLayoutMode = if (isFolderView) folderViewVideoLayoutMode else mediaLayoutMode
 
   val configuration = androidx.compose.ui.platform.LocalConfiguration.current
   val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
@@ -309,7 +338,7 @@ fun VideoSortDialog(
   val dynamicFolderColumns = (usableFolderWidth / folderMinWidth).toInt().coerceIn(1, maxColumns)
   val dynamicVideoColumns = (usableVideoWidth / videoMinWidth).toInt().coerceIn(1, maxColumns)
 
-  val folderGridColumnSelector = if (mediaLayoutMode == MediaLayoutMode.GRID && manualGridColumnsEnabled) {
+  val folderGridColumnSelector = if (activeLayoutMode == MediaLayoutMode.GRID && manualGridColumnsEnabled) {
     GridColumnSelector(
       label = "Folder Grid Columns (${if (isLandscape) "Landscape" else "Portrait"})",
       currentValue = folderGridColumns.coerceIn(1, maxColumns),
@@ -322,7 +351,7 @@ fun VideoSortDialog(
     )
   } else null
 
-  val videoGridColumnSelector = if (mediaLayoutMode == MediaLayoutMode.GRID && manualGridColumnsEnabled) {
+  val videoGridColumnSelector = if (activeLayoutMode == MediaLayoutMode.GRID && manualGridColumnsEnabled) {
     GridColumnSelector(
       label = "Video Grid Columns (${if (isLandscape) "Landscape" else "Portrait"})",
       currentValue = videoGridColumns.coerceIn(1, maxColumns),
@@ -338,7 +367,7 @@ fun VideoSortDialog(
   SortDialog(
     isOpen = isOpen,
     onDismiss = onDismiss,
-    title = "Sort & View Options",
+    title = stringResource(R.string.sort_view_options),
     sortType = sortType.displayName,
     onSortTypeChange = { typeName ->
       VideoSortType.entries.find { it.displayName == typeName }?.let(onSortTypeChange)
@@ -356,10 +385,10 @@ fun VideoSortDialog(
       ),
     icons =
       listOf(
-        Icons.Filled.Title,
-        Icons.Filled.AccessTime,
-        Icons.Filled.CalendarToday,
-        Icons.Filled.SwapVert,
+        Icons.RoundedFilled.Title,
+        Icons.RoundedFilled.AccessTime,
+        Icons.RoundedFilled.CalendarToday,
+        Icons.RoundedFilled.SwapVert,
       ),
     getLabelForType = { type, _ ->
       when (type) {
@@ -375,19 +404,19 @@ fun VideoSortDialog(
       options = listOf(
         ViewModeOption(
           label = "Folder",
-          icon = Icons.Filled.ViewModule,
+          icon = Icons.RoundedFilled.ViewModule,
           isSelected = folderViewMode == FolderViewMode.AlbumView,
           onClick = { browserPreferences.folderViewMode.set(FolderViewMode.AlbumView) },
         ),
         ViewModeOption(
           label = "Tree",
-          icon = Icons.Filled.AccountTree,
+          icon = Icons.RoundedFilled.AccountTree,
           isSelected = folderViewMode == FolderViewMode.FileManager,
           onClick = { browserPreferences.folderViewMode.set(FolderViewMode.FileManager) },
         ),
         ViewModeOption(
           label = "Library",
-          icon = Icons.Filled.VideoLibrary,
+          icon = Icons.RoundedFilled.VideoLibrary,
           isSelected = folderViewMode == FolderViewMode.MediaLibrary,
           onClick = { browserPreferences.folderViewMode.set(FolderViewMode.MediaLibrary) },
         ),
@@ -397,14 +426,30 @@ fun VideoSortDialog(
       label = "Layout",
       firstOptionLabel = "List",
       secondOptionLabel = "Grid",
-      firstOptionIcon = Icons.Filled.ViewList,
-      secondOptionIcon = Icons.Filled.GridView,
-      isFirstOptionSelected = mediaLayoutMode == MediaLayoutMode.LIST,
+      firstOptionIcon = Icons.RoundedFilled.ViewList,
+      secondOptionIcon = Icons.RoundedFilled.GridView,
+      isFirstOptionSelected = activeLayoutMode == MediaLayoutMode.LIST,
       onViewModeChange = { isFirstOption ->
-        browserPreferences.mediaLayoutMode.set(
-          if (isFirstOption) MediaLayoutMode.LIST else MediaLayoutMode.GRID
-        )
+        val newLayout = if (isFirstOption) MediaLayoutMode.LIST else MediaLayoutMode.GRID
+        if (isFolderView) {
+          browserPreferences.folderViewVideoLayoutMode.set(newLayout)
+          if (!separateFolderVideoLayout) {
+            browserPreferences.folderViewFolderLayoutMode.set(newLayout)
+          }
+        } else {
+          browserPreferences.mediaLayoutMode.set(newLayout)
+        }
       },
+      checkboxLabel = if (isFolderView) "Only for video list" else null,
+      isCheckboxChecked = separateFolderVideoLayout,
+      onCheckboxChange = if (isFolderView) {
+        { checked ->
+          browserPreferences.separateFolderVideoLayout.set(checked)
+          if (!checked) {
+            browserPreferences.folderViewFolderLayoutMode.set(browserPreferences.folderViewVideoLayoutMode.get())
+          }
+        }
+      } else null,
     ),
     visibilityToggles =
       buildList {
@@ -587,7 +632,7 @@ fun FileSystemSortDialog(
   SortDialog(
     isOpen = isOpen,
     onDismiss = onDismiss,
-    title = "Sort & View Options",
+    title = stringResource(R.string.sort_view_options),
     sortType = folderSortType.displayName,
     onSortTypeChange = { typeName ->
       FolderSortType.entries.find { it.displayName == typeName }?.let {
@@ -607,9 +652,9 @@ fun FileSystemSortDialog(
       FolderSortType.Size.displayName,
     ),
     icons = listOf(
-      Icons.Filled.Title,
-      Icons.Filled.CalendarToday,
-      Icons.Filled.SwapVert,
+      Icons.RoundedFilled.Title,
+      Icons.RoundedFilled.CalendarToday,
+      Icons.RoundedFilled.SwapVert,
     ),
     getLabelForType = { type, _ ->
       when (type) {
@@ -625,19 +670,19 @@ fun FileSystemSortDialog(
       options = listOf(
         ViewModeOption(
           label = "Folder",
-          icon = Icons.Filled.ViewModule,
+          icon = Icons.RoundedFilled.ViewModule,
           isSelected = folderViewMode == FolderViewMode.AlbumView,
           onClick = { browserPreferences.folderViewMode.set(FolderViewMode.AlbumView) }
         ),
         ViewModeOption(
           label = "Tree",
-          icon = Icons.Filled.AccountTree,
+          icon = Icons.RoundedFilled.AccountTree,
           isSelected = folderViewMode == FolderViewMode.FileManager,
           onClick = { browserPreferences.folderViewMode.set(FolderViewMode.FileManager) }
         ),
         ViewModeOption(
           label = "Library",
-          icon = Icons.Filled.VideoLibrary,
+          icon = Icons.RoundedFilled.VideoLibrary,
           isSelected = folderViewMode == FolderViewMode.MediaLibrary,
           onClick = { browserPreferences.folderViewMode.set(FolderViewMode.MediaLibrary) }
         ),
@@ -647,8 +692,8 @@ fun FileSystemSortDialog(
       label = "Layout",
       firstOptionLabel = "List",
       secondOptionLabel = "Grid",
-      firstOptionIcon = Icons.Filled.ViewList,
-      secondOptionIcon = Icons.Filled.GridView,
+      firstOptionIcon = Icons.RoundedFilled.ViewList,
+      secondOptionIcon = Icons.RoundedFilled.GridView,
       isFirstOptionSelected = mediaLayoutMode == MediaLayoutMode.LIST,
       onViewModeChange = { isFirstOption ->
         browserPreferences.mediaLayoutMode.set(

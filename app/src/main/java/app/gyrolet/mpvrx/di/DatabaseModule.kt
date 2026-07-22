@@ -4,7 +4,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import app.gyrolet.mpvrx.database.MpvRxDatabase
+import app.gyrolet.mpvrx.database.mpvRxDatabase
 import app.gyrolet.mpvrx.database.repository.PlaybackStateRepositoryImpl
 import app.gyrolet.mpvrx.database.repository.PlaylistRepository
 import app.gyrolet.mpvrx.database.repository.RecentlyPlayedRepositoryImpl
@@ -500,6 +500,31 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
   }
 }
 
+val MIGRATION_9_10 = object : Migration(9, 10) {
+  override fun migrate(db: SupportSQLiteDatabase) {
+    db.execSQL(
+      """
+      CREATE TABLE IF NOT EXISTS `directory_scan_index` (
+        `scanKey` TEXT NOT NULL,
+        `path` TEXT NOT NULL,
+        `rootPath` TEXT NOT NULL,
+        `fingerprint` TEXT NOT NULL,
+        `isNoMediaRoot` INTEGER NOT NULL,
+        `videoCount` INTEGER NOT NULL,
+        `totalSize` INTEGER NOT NULL,
+        `totalDuration` INTEGER NOT NULL,
+        `lastModified` INTEGER NOT NULL,
+        `hasSubfolders` INTEGER NOT NULL,
+        `lastScanned` INTEGER NOT NULL,
+        PRIMARY KEY(`scanKey`, `path`)
+      )
+      """.trimIndent(),
+    )
+    db.execSQL("CREATE INDEX IF NOT EXISTS `index_directory_scan_index_scanKey_rootPath` ON `directory_scan_index` (`scanKey`, `rootPath`)")
+    db.execSQL("CREATE INDEX IF NOT EXISTS `index_directory_scan_index_scanKey_isNoMediaRoot` ON `directory_scan_index` (`scanKey`, `isNoMediaRoot`)")
+  }
+}
+
 
 val DatabaseModule =
   module {
@@ -510,12 +535,12 @@ val DatabaseModule =
       }
     }
 
-    single<MpvRxDatabase> {
+    single<mpvRxDatabase> {
       val context = androidContext()
       Room
-        .databaseBuilder(context, MpvRxDatabase::class.java, "mpvrx.db")
+        .databaseBuilder(context, mpvRxDatabase::class.java, "mpvrx.db")
         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
         .fallbackToDestructiveMigration(true) // Fallback if migration fails (last resort)
         .build()
     }
@@ -523,22 +548,22 @@ val DatabaseModule =
     singleOf(::PlaybackStateRepositoryImpl).bind(PlaybackStateRepository::class)
 
     single<RecentlyPlayedRepository> {
-      RecentlyPlayedRepositoryImpl(get<MpvRxDatabase>().recentlyPlayedDao())
+      RecentlyPlayedRepositoryImpl(get<mpvRxDatabase>().recentlyPlayedDao())
     }
 
-    single { ThumbnailRepository(androidContext(), get()) }
+    single { ThumbnailRepository(androidContext()) }
 
     single {
       app.gyrolet.mpvrx.database.repository.VideoMetadataCacheRepository(
         context = androidContext(),
-        dao = get<MpvRxDatabase>().videoMetadataDao(),
+        dao = get<mpvRxDatabase>().videoMetadataDao(),
       )
     }
 
     // MediaFileRepository is a singleton object - no DI needed
 
     single {
-      get<MpvRxDatabase>().networkConnectionDao()
+      get<mpvRxDatabase>().networkConnectionDao()
     }
 
     single {
@@ -549,7 +574,7 @@ val DatabaseModule =
 
     single {
       PlaylistRepository(
-        playlistDao = get<MpvRxDatabase>().playlistDao(),
+        playlistDao = get<mpvRxDatabase>().playlistDao(),
       )
     }
   }

@@ -1,5 +1,9 @@
 package app.gyrolet.mpvrx.ui.browser.folderlist
 
+import app.gyrolet.mpvrx.R
+
+import androidx.compose.ui.focus.FocusRequester
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -57,7 +61,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,7 +71,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -174,7 +176,7 @@ object FolderListScreen : Screen {
     val foldersWereDeleted by viewModel.foldersWereDeleted.collectAsState()
 
     // Preferences
-    val mediaLayoutMode by browserPreferences.mediaLayoutMode.collectAsState()
+    val mediaLayoutMode by browserPreferences.folderViewFolderLayoutMode.collectAsState()
     val showSubtitleIndicator by browserPreferences.showSubtitleIndicator.collectAsState()
     val folderSortType by browserPreferences.folderSortType.collectAsState()
     val folderSortOrder by browserPreferences.folderSortOrder.collectAsState()
@@ -432,11 +434,11 @@ object FolderListScreen : Screen {
                   onSearch = { },
                   expanded = false,
                   onExpandedChange = { },
-                  placeholder = { Text("Search folders and videos...") },
+                  placeholder = { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_search_folders_and_videos)) },
                   leadingIcon = {
                     Icon(
-                      imageVector = Icons.Filled.Search,
-                      contentDescription = "Search",
+                      imageVector = Icons.RoundedFilled.Search,
+                      contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.settings_search_title),
                     )
                   },
                   trailingIcon = {
@@ -447,8 +449,8 @@ object FolderListScreen : Screen {
                       },
                     ) {
                       Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = "Cancel",
+                        imageVector = Icons.RoundedFilled.Close,
+                        contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.generic_cancel),
                       )
                     }
                   },
@@ -577,7 +579,7 @@ object FolderListScreen : Screen {
                     TooltipAnchorPosition.Above
                   }
                 ),
-                tooltip = { PlainTooltip { Text("Toggle menu") } },
+                tooltip = { PlainTooltip { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_toggle_menu)) } },
                 state = rememberTooltipState(),
               ) {
                 ToggleFloatingActionButton(
@@ -590,7 +592,7 @@ object FolderListScreen : Screen {
                 ) {
                   val imageVector by remember {
                     derivedStateOf {
-                      if (checkedProgress > 0.5f) Icons.Filled.Close else Icons.Filled.PlayArrow
+                      if (checkedProgress > 0.5f) Icons.RoundedFilled.Close else Icons.RoundedFilled.PlayArrow
                     }
                   }
                   Icon(
@@ -607,8 +609,8 @@ object FolderListScreen : Screen {
                 isFabExpanded.value = false
                 filePicker.launch(arrayOf("video/*"))
               },
-              icon = { Icon(Icons.Filled.FileOpen, contentDescription = null) },
-              text = { Text(text = "Open File") },
+              icon = { Icon(Icons.RoundedFilled.FileOpen, contentDescription = null) },
+              text = { Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_open_file)) },
             )
 
             FloatingActionButtonMenuItem(
@@ -622,8 +624,8 @@ object FolderListScreen : Screen {
                   }
                 }
               },
-              icon = { Icon(Icons.Filled.History, contentDescription = null) },
-              text = { Text(text = "Recently Played") },
+              icon = { Icon(Icons.RoundedFilled.History, contentDescription = null) },
+              text = { Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_advanced_enable_recently_played_title)) },
             )
 
             FloatingActionButtonMenuItem(
@@ -631,8 +633,8 @@ object FolderListScreen : Screen {
                 isFabExpanded.value = false
                 showLinkDialog.value = true
               },
-              icon = { Icon(Icons.Filled.Link, contentDescription = null) },
-              text = { Text(text = "Open Link") },
+              icon = { Icon(Icons.RoundedFilled.Link, contentDescription = null) },
+              text = { Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_open_link)) },
             )
           }
         },
@@ -654,8 +656,8 @@ object FolderListScreen : Screen {
                   } else if (searchResults.isEmpty()) {
                     // No results
                     EmptyState(
-                      icon = Icons.Filled.Search,
-                      title = "No results found",
+                      icon = Icons.RoundedFilled.Search,
+                      title = stringResource(R.string.ui_no_results_found),
                       message = "No folders or videos match your search query",
                       modifier = Modifier.fillMaxSize(),
                     )
@@ -886,7 +888,7 @@ object FolderListScreen : Screen {
               coroutineScope.launch {
                 val ok = viewModel.renameFolder(folder, newName)
                 if (!ok) {
-                  android.widget.Toast.makeText(context, "Rename failed", android.widget.Toast.LENGTH_SHORT).show()
+                  android.widget.Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.ui_rename_failed), android.widget.Toast.LENGTH_SHORT).show()
                 }
                 selectionManager.clear()
                 viewModel.refresh()
@@ -919,12 +921,16 @@ object FolderListScreen : Screen {
               runCatching {
                 val (deleted, failed) = deleteFolders(foldersToDelete)
                 if (deleted > 0) {
-                  android.widget.Toast.makeText(context, "Deleted successfully", android.widget.Toast.LENGTH_SHORT).show()
+                  android.widget.Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.ui_deleted_successfully), android.widget.Toast.LENGTH_SHORT).show()
                 } else if (failed > 0) {
-                  android.widget.Toast.makeText(context, "Failed to delete", android.widget.Toast.LENGTH_SHORT).show()
+                  android.widget.Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.ui_failed_to_delete), android.widget.Toast.LENGTH_SHORT).show()
                 }
               }.onFailure {
-                android.widget.Toast.makeText(context, "Failed to delete: ${it.message}", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(
+                  context,
+                  context.getString(R.string.toast_failed_to_delete_reason, it.message ?: context.getString(R.string.generic_unknown_error)),
+                  android.widget.Toast.LENGTH_SHORT,
+                ).show()
               }
               selectionManager.clear()
               viewModel.refresh()
@@ -988,14 +994,14 @@ private fun FolderListContent(
       ) {
         if (showLoading) {
           LoadingState(
-            icon = Icons.Filled.Folder,
-            title = "Scanning for videos...",
+            icon = Icons.RoundedFilled.Folder,
+            title = stringResource(R.string.ui_scanning_for_videos),
             message = scanStatus ?: "Please wait while we search your device",
           )
         } else if (showEmpty) {
           EmptyState(
-            icon = Icons.Filled.Folder,
-            title = "No video folders found",
+            icon = Icons.RoundedFilled.Folder,
+            title = stringResource(R.string.ui_no_video_folders_found),
             message = "Add some video files to your device to see them here",
           )
         }
@@ -1214,8 +1220,7 @@ private fun ListContent(
           customChipContent =
             if (folder.path in pinnedFolderPaths) {
               {
-                Text(
-                  "Pinned",
+                Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_pinned),
                   style = MaterialTheme.typography.labelSmall,
                   modifier =
                     Modifier

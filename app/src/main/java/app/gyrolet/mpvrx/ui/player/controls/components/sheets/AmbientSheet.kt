@@ -1,5 +1,8 @@
 package app.gyrolet.mpvrx.ui.player.controls.components.sheets
 
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
+
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
@@ -93,6 +96,7 @@ fun AmbientSheet(
             vignetteStrength = vignetteStrength,
             opacity = opacity,
         )
+        AmbientVisualMode.YOUTUBE -> false
     }
     val isBalanced = when (ambientMode) {
         AmbientVisualMode.GLOW -> matchesGlowPreset(
@@ -117,6 +121,7 @@ fun AmbientSheet(
             vignetteStrength = vignetteStrength,
             opacity = opacity,
         )
+        AmbientVisualMode.YOUTUBE -> false
     }
     val isHQ = when (ambientMode) {
         AmbientVisualMode.GLOW -> matchesGlowPreset(
@@ -141,6 +146,7 @@ fun AmbientSheet(
             vignetteStrength = vignetteStrength,
             opacity = opacity,
         )
+        AmbientVisualMode.YOUTUBE -> false
     }
     val configuration = LocalConfiguration.current
     val customMaxHeight = if (configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
@@ -162,8 +168,7 @@ fun AmbientSheet(
         ) {
 
             // ── Title ────────────────────────────────────────────────────────
-            Text(
-                text = "Ambience Mode",
+            Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_ambience_mode),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -184,16 +189,19 @@ fun AmbientSheet(
                 ExpressivePresetButton(
                     label = "Fast",
                     selected = isFast,
+                    enabled = ambientMode != AmbientVisualMode.YOUTUBE,
                     onClick = { viewModel.applyAmbientProfileFast() },
                 )
                 ExpressivePresetButton(
                     label = "Balanced",
                     selected = isBalanced,
+                    enabled = ambientMode != AmbientVisualMode.YOUTUBE,
                     onClick = { viewModel.applyAmbientProfileBalanced() },
                 )
                 ExpressivePresetButton(
                     label = "HQ",
                     selected = isHQ,
+                    enabled = ambientMode != AmbientVisualMode.YOUTUBE,
                     onClick = { viewModel.applyAmbientProfileHighQuality() },
                 )
             }
@@ -206,7 +214,7 @@ fun AmbientSheet(
             // ── Section: Glow ────────────────────────────────────────────────
             var glowExpanded by remember { mutableStateOf(true) }
             SectionHeader(
-                title = "Glow",
+                title = stringResource(R.string.ambient_glow),
                 isExpanded = glowExpanded,
                 onClick = { glowExpanded = !glowExpanded },
             )
@@ -227,7 +235,7 @@ fun AmbientSheet(
                         max = 64,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.BlurOn,
+                                imageVector = Icons.RoundedFilled.BlurOn,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -245,7 +253,7 @@ fun AmbientSheet(
                         steps = 75,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.Gradient,
+                                imageVector = Icons.RoundedFilled.Gradient,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -263,7 +271,7 @@ fun AmbientSheet(
                         steps = 25,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.Brightness6,
+                                imageVector = Icons.RoundedFilled.Brightness6,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -281,7 +289,7 @@ fun AmbientSheet(
                         steps = 25,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.WbSunny,
+                                imageVector = Icons.RoundedFilled.WbSunny,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -299,7 +307,7 @@ fun AmbientSheet(
             // ── Section: Color ───────────────────────────────────────────────
             var colorExpanded by remember { mutableStateOf(true) }
             SectionHeader(
-                title = "Color",
+                title = stringResource(R.string.ambient_color),
                 isExpanded = colorExpanded,
                 onClick = { colorExpanded = !colorExpanded },
             )
@@ -321,7 +329,7 @@ fun AmbientSheet(
                         steps = 30,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.Palette,
+                                imageVector = Icons.RoundedFilled.Palette,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -339,7 +347,7 @@ fun AmbientSheet(
                         steps = 40,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.Thermostat,
+                                imageVector = Icons.RoundedFilled.Thermostat,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -357,7 +365,7 @@ fun AmbientSheet(
             // ── Section: Compositing ─────────────────────────────────────────
             var compositingExpanded by remember { mutableStateOf(true) }
             SectionHeader(
-                title = "Compositing",
+                title = stringResource(R.string.ambient_compositing),
                 isExpanded = compositingExpanded,
                 onClick = { compositingExpanded = !compositingExpanded },
             )
@@ -379,7 +387,7 @@ fun AmbientSheet(
                         steps = 20,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.Opacity,
+                                imageVector = Icons.RoundedFilled.Opacity,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -397,7 +405,7 @@ fun AmbientSheet(
                         steps = 10,
                         icon = {
                             AppSymbolIcon(
-                                imageVector = Icons.Default.Vignette,
+                                imageVector = Icons.RoundedFilled.Vignette,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -413,7 +421,7 @@ fun AmbientSheet(
             )
 
             // ── Section: Visual Style ────────────────────────────────────────
-            SectionHeader(title = "Visual Style")
+            SectionHeader(title = stringResource(R.string.ambient_visual_style))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -431,6 +439,11 @@ fun AmbientSheet(
                     selected = ambientMode == AmbientVisualMode.FRAME_EXTEND,
                     onClick = { viewModel.updateAmbientVisualMode(AmbientVisualMode.FRAME_EXTEND) },
                 )
+                AmbientModeButton(
+                    label = AmbientVisualMode.YOUTUBE.label,
+                    selected = ambientMode == AmbientVisualMode.YOUTUBE,
+                    onClick = { viewModel.updateAmbientVisualMode(AmbientVisualMode.YOUTUBE) },
+                )
             }
 
             if (ambientMode == AmbientVisualMode.FRAME_EXTEND) {
@@ -441,7 +454,7 @@ fun AmbientSheet(
 
                 var frameExtendExpanded by remember { mutableStateOf(true) }
                 SectionHeader(
-                    title = "Frame Extend",
+                    title = stringResource(R.string.ambient_frame_extend),
                     isExpanded = frameExtendExpanded,
                     onClick = { frameExtendExpanded = !frameExtendExpanded },
                 )
@@ -463,7 +476,7 @@ fun AmbientSheet(
                             steps = 32,
                             icon = {
                                 AppSymbolIcon(
-                                    imageVector = Icons.Default.Gradient,
+                                    imageVector = Icons.RoundedFilled.Gradient,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp),
@@ -481,7 +494,7 @@ fun AmbientSheet(
                             steps = 20,
                             icon = {
                                 AppSymbolIcon(
-                                    imageVector = Icons.Default.BlurOn,
+                                    imageVector = Icons.RoundedFilled.BlurOn,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp),
@@ -499,7 +512,7 @@ fun AmbientSheet(
                             steps = 32,
                             icon = {
                                 AppSymbolIcon(
-                                    imageVector = Icons.Default.Brightness6,
+                                    imageVector = Icons.RoundedFilled.Brightness6,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp),
@@ -517,7 +530,7 @@ fun AmbientSheet(
                             steps = 50,
                             icon = {
                                 AppSymbolIcon(
-                                    imageVector = Icons.Default.RoundedCorner,
+                                    imageVector = Icons.RoundedFilled.RoundedCorner,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp),
@@ -535,7 +548,7 @@ fun AmbientSheet(
                             steps = 50,
                             icon = {
                                 AppSymbolIcon(
-                                    imageVector = Icons.Default.Grain,
+                                    imageVector = Icons.RoundedFilled.Grain,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp),
@@ -556,6 +569,7 @@ fun AmbientSheet(
 private fun RowScope.ExpressivePresetButton(
     label: String,
     selected: Boolean,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     val targetScale = if (selected) 1.02f else 1.0f
@@ -567,6 +581,7 @@ private fun RowScope.ExpressivePresetButton(
 
     FilledTonalButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier
             .weight(1f)
             .graphicsLayer(scaleX = scale, scaleY = scale),

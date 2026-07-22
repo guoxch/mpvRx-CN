@@ -1,5 +1,7 @@
 package app.gyrolet.mpvrx.ui.preferences
 
+import app.gyrolet.mpvrx.R
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -115,7 +117,7 @@ data class ConfigEditorScreen(
             val tree = DocumentFile.fromTreeUri(context, mpvConfStorageLocation.toUri())
             if (tree == null) {
               withContext(Dispatchers.Main) {
-                Toast.makeText(context, "No storage location set", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.ui_no_storage_location_set), Toast.LENGTH_LONG).show()
               }
               return@launch
             }
@@ -123,7 +125,7 @@ data class ConfigEditorScreen(
             val confFile = existing ?: tree.createFile("text/plain", fileName)?.also { it.renameTo(fileName) }
             val uri = confFile?.uri ?: run {
               withContext(Dispatchers.Main) {
-                Toast.makeText(context, "Failed to create file", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.ui_failed_to_create_file), Toast.LENGTH_LONG).show()
               }
               return@launch
             }
@@ -140,7 +142,7 @@ data class ConfigEditorScreen(
           }
         } catch (e: Exception) {
           withContext(Dispatchers.Main) {
-            Toast.makeText(context, "Failed to save: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, context.getString(R.string.toast_failed_to_save_reason, e.message ?: context.getString(R.string.generic_unknown_error)), Toast.LENGTH_LONG).show()
           }
         }
       }
@@ -160,8 +162,7 @@ data class ConfigEditorScreen(
               color = MaterialTheme.colorScheme.primary,
             )
             if (hasUnsavedChanges) {
-              Text(
-                text  = "Unsaved changes",
+              Text(text  = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_unsaved_changes),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.secondary,
               )
@@ -171,8 +172,8 @@ data class ConfigEditorScreen(
         navigationIcon = {
           IconButton(onClick = { backStack.popSafely() }) {
             Icon(
-              Icons.Default.ArrowBack,
-              contentDescription = "Back",
+              Icons.RoundedFilled.ArrowBack,
+              contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.back),
               tint = MaterialTheme.colorScheme.secondary,
             )
           }
@@ -188,8 +189,8 @@ data class ConfigEditorScreen(
             ),
           ) {
             Icon(
-              imageVector = Icons.Outlined.Info,
-              contentDescription = "Help",
+              imageVector = Icons.RoundedFilled.Info,
+              contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_help),
             )
           }
           IconButton(
@@ -207,8 +208,8 @@ data class ConfigEditorScreen(
             shape = RoundedCornerShape(8.dp),
           ) {
             Icon(
-              imageVector = Icons.Default.Check,
-              contentDescription = "Save",
+              imageVector = Icons.RoundedFilled.Check,
+              contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_save),
             )
           }
         },

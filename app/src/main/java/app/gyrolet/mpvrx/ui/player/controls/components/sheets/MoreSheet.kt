@@ -35,16 +35,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimeInput
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -52,20 +49,13 @@ import androidx.compose.ui.window.DialogProperties
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.anime4k.Anime4KManager
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
-import app.gyrolet.mpvrx.preferences.DecoderPreferences
-import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.presentation.components.PlayerSheet
-import app.gyrolet.mpvrx.ui.player.applyAnime4KShaderChain
-import app.gyrolet.mpvrx.ui.player.applyAnime4KStabilityOptions
-import app.gyrolet.mpvrx.ui.player.clearAnime4KShaders
-import app.gyrolet.mpvrx.ui.player.selectRuntimeStableAnime4K
+import app.gyrolet.mpvrx.ui.player.anime4k.Anime4KUiState
 import app.gyrolet.mpvrx.ui.theme.AppMotion
 import app.gyrolet.mpvrx.ui.theme.AppShapeScale
 import app.gyrolet.mpvrx.ui.theme.spacing
 import `is`.xyz.mpv.MPVLib
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
@@ -76,31 +66,16 @@ fun MoreSheet(
   onDismissRequest: () -> Unit,
   onEnterFiltersPanel: () -> Unit,
   onEnterLuaScriptsPanel: () -> Unit,
-  onAnime4KChanged: () -> Unit = {},
+  anime4KUiState: Anime4KUiState,
+  onAnime4KModeSelected: (Anime4KManager.Mode) -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val advancedPreferences = koinInject<AdvancedPreferences>()
-  val decoderPreferences = koinInject<DecoderPreferences>()
-  val anime4kManager = koinInject<Anime4KManager>()
-  koinInject<PlayerPreferences>()
   val statisticsPage by advancedPreferences.enabledStatisticsPage.collectAsState()
   val enableLuaScripts by advancedPreferences.enableLuaScripts.collectAsState()
   val selectedLuaScripts by advancedPreferences.selectedLuaScripts.collectAsState()
   val mpvConfStorageLocation by advancedPreferences.mpvConfStorageUri.collectAsState()
   
-  val enableAnime4K by decoderPreferences.enableAnime4K.collectAsState()
-  val anime4kMode by decoderPreferences.anime4kMode.collectAsState()
-  val anime4kDarken by decoderPreferences.anime4kDarken.collectAsState()
-  val anime4kThin by decoderPreferences.anime4kThin.collectAsState()
-  val anime4kDeblur by decoderPreferences.anime4kDeblur.collectAsState()
-  val gpuNext by decoderPreferences.gpuNext.collectAsState()
-  val useVulkan by decoderPreferences.useVulkan.collectAsState()
-  // Observe video dimensions reactively — avoids raw JNI calls on every recomposition
-  val videoWidth by MPVLib.propInt["video-params/w"].collectAsState()
-  val videoHeight by MPVLib.propInt["video-params/h"].collectAsState()
-  val context = LocalContext.current
-  val scope = rememberCoroutineScope()
-
   PlayerSheet(
     onDismissRequest,
     modifier,
@@ -131,7 +106,7 @@ fun MoreSheet(
               verticalAlignment = Alignment.CenterVertically,
               horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
             ) {
-              Icon(imageVector = Icons.Outlined.Timer, contentDescription = null)
+              Icon(imageVector = Icons.RoundedFilled.Timer, contentDescription = null)
               Text(
                 text =
                   if (remainingTime == 0) {
@@ -157,7 +132,7 @@ fun MoreSheet(
               verticalAlignment = Alignment.CenterVertically,
               horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
             ) {
-              Icon(imageVector = Icons.Default.Tune, contentDescription = null)
+              Icon(imageVector = Icons.RoundedFilled.Tune, contentDescription = null)
               Text(text = stringResource(id = R.string.player_sheets_filters_title))
             }
           }
@@ -170,7 +145,7 @@ fun MoreSheet(
               horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
             ) {
               Icon(
-                imageVector = Icons.Default.Code,
+                imageVector = Icons.RoundedFilled.Code,
                 contentDescription = null,
                 tint =
                   if (enableLuaScripts && selectedLuaScripts.isNotEmpty()) {
@@ -260,21 +235,16 @@ fun MoreSheet(
         }
       }
 
-      // Shaders Controls
-      val isHighRes = (videoWidth ?: 0) >= 3840 || (videoHeight ?: 0) >= 2160
-
-      // Standard Anime4K: needs legacy gpu or gpu-next+Vulkan
-      if (enableAnime4K && (!gpuNext || useVulkan)) {
-
+      // Standard Anime4K needs legacy gpu or gpu-next with Vulkan.
+      if (anime4KUiState.isAvailable) {
         Text(
             text = stringResource(R.string.anime4k_mode_title),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary
         )
         
-        if (isHighRes) {
-            Text(
-                text = "Not available for 4K/8K video",
+        if (anime4KUiState.isHighResolution) {
+            Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_not_available_for_4k_8k_video),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(bottom = 4.dp)
@@ -287,25 +257,10 @@ fun MoreSheet(
           items(Anime4KManager.Mode.entries) { mode ->
             FilterChip(
               label = { Text(stringResource(mode.titleRes)) },
-              selected = anime4kMode == mode.name,
-              enabled = !isHighRes || mode == Anime4KManager.Mode.OFF,
+              selected = anime4KUiState.selectedMode == mode.name,
+              enabled = !anime4KUiState.isHighResolution || mode == Anime4KManager.Mode.OFF,
               leadingIcon = null,
-              onClick = {
-                decoderPreferences.anime4kMode.set(mode.name)
-
-                // Apply shaders immediately (runtime change)
-                scope.launch(Dispatchers.Default) {
-                  applyAnime4KRuntimeSelection(
-                    anime4kManager = anime4kManager,
-                    mode = mode.name,
-                    quality = decoderPreferences.anime4kQuality.get(),
-                    darken = anime4kDarken,
-                    thin = anime4kThin,
-                    deblur = anime4kDeblur,
-                    onAnime4KChanged = onAnime4KChanged,
-                  )
-                }
-              }
+              onClick = { onAnime4KModeSelected(mode) },
             )
           }
         }
@@ -317,41 +272,6 @@ fun MoreSheet(
 }
 
 private val sleepTimerPresets = listOf(15, 30, 45, 60)
-
-private suspend fun applyAnime4KRuntimeSelection(
-  anime4kManager: Anime4KManager,
-  mode: String,
-  quality: Anime4KManager.Quality,
-  darken: Boolean,
-  thin: Boolean,
-  deblur: Boolean,
-  onAnime4KChanged: () -> Unit,
-) {
-  runCatching {
-    val modeEnum = runCatching { Anime4KManager.Mode.valueOf(mode) }
-      .getOrDefault(Anime4KManager.Mode.OFF)
-
-    if (modeEnum == Anime4KManager.Mode.OFF) {
-      clearAnime4KShaders()
-      onAnime4KChanged()
-      return
-    }
-
-    val selection = selectRuntimeStableAnime4K(modeEnum, quality)
-    if (selection.mode == Anime4KManager.Mode.OFF) {
-      clearAnime4KShaders()
-      onAnime4KChanged()
-      return
-    }
-
-    anime4kManager.setPostFilters(darken = darken, thin = thin, deblur = deblur)
-    if (applyAnime4KShaderChain(anime4kManager, selection.mode, selection.quality)) {
-      val useVulkan = (MPVLib.getPropertyString("gpu-api") ?: "") == "vulkan"
-      applyAnime4KStabilityOptions(useVulkan = useVulkan)
-      onAnime4KChanged()
-    }
-  }
-}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -413,8 +333,7 @@ fun TimePickerDialog(
             horizontalAlignment = Alignment.Start,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                "Quick Presets",
+            Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_quick_presets),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -430,7 +349,7 @@ fun TimePickerDialog(
                             onTimeSelect(minutes * 60)
                             onDismissRequest()
                         },
-                        label = { Text("${minutes}m") },
+                        label = { Text(stringResource(R.string.generic_minutes_short, minutes)) },
                         leadingIcon = null,
                     )
                 }
@@ -490,8 +409,8 @@ fun SectionHeaderWithInfo(
     Spacer(modifier = Modifier.width(8.dp))
     IconButton(onClick = onInfoClick, modifier = Modifier.size(24.dp)) {
       Icon(
-        imageVector = Icons.Outlined.Info,
-        contentDescription = "Info",
+        imageVector = Icons.RoundedFilled.Info,
+        contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.info),
         tint = MaterialTheme.colorScheme.primary,
         modifier = Modifier.size(16.dp)
       )

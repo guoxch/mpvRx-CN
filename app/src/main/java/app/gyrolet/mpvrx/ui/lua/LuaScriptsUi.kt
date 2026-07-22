@@ -1,5 +1,7 @@
 package app.gyrolet.mpvrx.ui.lua
 
+import app.gyrolet.mpvrx.R
+
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -96,7 +98,11 @@ fun rememberLuaScriptsCatalog(
         }
       }.onFailure { error ->
         state = LuaScriptsCatalogState(availableScripts = emptyList(), isLoading = false)
-        Toast.makeText(context, "Error loading scripts: ${error.message}", Toast.LENGTH_LONG).show()
+        Toast.makeText(
+          context,
+          context.getString(R.string.toast_error_loading_scripts, error.message ?: context.getString(R.string.generic_unknown_error)),
+          Toast.LENGTH_LONG,
+        ).show()
       }
   }
 
@@ -169,7 +175,7 @@ fun LuaRuntimeStatusCard(
           contentAlignment = Alignment.Center,
         ) {
           Icon(
-            imageVector = Icons.Default.Code,
+            imageVector = Icons.RoundedFilled.Code,
             contentDescription = null,
             tint =
               if (enabled && hasStorageLocation) {
@@ -185,8 +191,7 @@ fun LuaRuntimeStatusCard(
         modifier = Modifier.weight(1f),
         verticalArrangement = Arrangement.spacedBy(2.dp),
       ) {
-        Text(
-          text = "Script runtime",
+        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_script_runtime),
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.SemiBold,
         )
@@ -253,7 +258,7 @@ fun LuaScriptsEmptyState(
           contentAlignment = Alignment.Center,
         ) {
           Icon(
-            imageVector = Icons.Default.Code,
+            imageVector = Icons.RoundedFilled.Code,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
           )
@@ -337,7 +342,7 @@ fun LuaScriptToggleCard(
           contentAlignment = Alignment.Center,
         ) {
           Icon(
-            imageVector = Icons.Default.Code,
+            imageVector = Icons.RoundedFilled.Code,
             contentDescription = null,
             tint =
               if (active) {
@@ -387,8 +392,7 @@ fun LuaScriptToggleCard(
 fun LuaSelectionFootnote(
   modifier: Modifier = Modifier,
 ) {
-  Text(
-    text = "Newly enabled scripts can load during playback. Scripts you turn off may need the video to be reopened before they fully stop running.",
+  Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_newly_enabled_scripts_can_load_during_playback_scripts_you_turn),
     style = MaterialTheme.typography.bodySmall,
     color = MaterialTheme.colorScheme.onSurfaceVariant,
     modifier = modifier

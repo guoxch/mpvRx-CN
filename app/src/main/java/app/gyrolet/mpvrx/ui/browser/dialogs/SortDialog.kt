@@ -18,12 +18,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -185,6 +187,35 @@ fun SortDialog(
                 Text(text = layoutModeSelector.secondOptionLabel)
               }
             }
+            if (layoutModeSelector.checkboxLabel != null && layoutModeSelector.onCheckboxChange != null) {
+              Spacer(modifier = Modifier.height(4.dp))
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .clip(RoundedCornerShape(8.dp))
+                  .clickable {
+                    if (enableLayoutModeOptions) {
+                      layoutModeSelector.onCheckboxChange.invoke(!layoutModeSelector.isCheckboxChecked)
+                    }
+                  }
+                  .padding(vertical = 2.dp),
+              ) {
+                Checkbox(
+                  checked = layoutModeSelector.isCheckboxChecked,
+                  onCheckedChange = { checked ->
+                    if (enableLayoutModeOptions) {
+                      layoutModeSelector.onCheckboxChange.invoke(checked)
+                    }
+                  },
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                  text = layoutModeSelector.checkboxLabel,
+                  style = MaterialTheme.typography.bodyMedium,
+                )
+              }
+            }
           }
 
           GridColumnsNextSection(
@@ -207,12 +238,11 @@ fun SortDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
               ) {
-                Text(
-                  text = "Fields",
+                Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_fields),
                   style = MaterialTheme.typography.titleSmall,
                 )
                 Icon(
-                  imageVector = if (isFieldsExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                  imageVector = if (isFieldsExpanded) Icons.RoundedFilled.KeyboardArrowUp else Icons.RoundedFilled.KeyboardArrowDown,
                   contentDescription = if (isFieldsExpanded) "Collapse" else "Expand",
                   tint = MaterialTheme.colorScheme.onSurfaceVariant,
                   modifier = Modifier.size(20.dp)
@@ -248,7 +278,7 @@ fun SortDialog(
     },
     confirmButton = {
       TextButton(onClick = onDismiss) {
-        Text(text = "Done")
+        Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_done))
       }
     },
     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -356,7 +386,7 @@ private fun SortOrderSelector(
         ),
         icon = {
           Icon(
-            imageVector = if (index == 0) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+            imageVector = if (index == 0) Icons.RoundedFilled.KeyboardArrowUp else Icons.RoundedFilled.KeyboardArrowDown,
             contentDescription = null,
             modifier = Modifier.size(16.dp),
           )
@@ -400,8 +430,7 @@ private fun GridColumnsNextSection(
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Text(
-            text = "Folder Grid",
+          Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_folder_grid),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
@@ -435,8 +464,7 @@ private fun GridColumnsNextSection(
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Text(
-            text = "Video Grid",
+          Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_video_grid),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
@@ -491,6 +519,9 @@ data class ViewModeSelector(
   val secondOptionIcon: AppIcon,
   val isFirstOptionSelected: Boolean,
   val onViewModeChange: (Boolean) -> Unit,
+  val checkboxLabel: String? = null,
+  val isCheckboxChecked: Boolean = false,
+  val onCheckboxChange: ((Boolean) -> Unit)? = null,
 )
 
 data class GridColumnSelector(

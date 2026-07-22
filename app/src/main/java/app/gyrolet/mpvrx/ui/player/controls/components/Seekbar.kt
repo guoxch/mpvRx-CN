@@ -18,8 +18,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -38,12 +36,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
@@ -60,6 +55,7 @@ import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -67,10 +63,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -84,6 +79,9 @@ import app.gyrolet.mpvrx.ui.player.SkipSegmentType
 import app.gyrolet.mpvrx.ui.theme.AppMotion
 import app.gyrolet.mpvrx.ui.theme.spacing
 import dev.vivvvek.seeker.Segment
+import dev.vivvvek.seeker.Seeker
+import dev.vivvvek.seeker.SeekerDefaults
+import dev.vivvvek.seeker.rememberSeekerState
 import `is`.xyz.mpv.Utils
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -105,17 +103,126 @@ private fun bufferedEndPx(
   trackWidth: Float,
   playedPx: Float,
 ): Float {
-  val bufferedUntil = bufferPosition ?: return playedPx
-  if (bufferedUntil <= 0f || duration <= 0f || trackWidth <= 0f || bufferedUntil.isNaN() || bufferedUntil.isInfinite()) {
+  if (duration <= 0f || trackWidth <= 0f) {
     return playedPx
   }
+  val playedPosition = (playedPx / trackWidth * duration).coerceIn(0f, duration)
+  val bufferedUntil = normalizedReadAheadValue(bufferPosition, playedPosition, duration)
   return (bufferedUntil / duration * trackWidth).coerceIn(playedPx, trackWidth)
+}
+
+/**
+ * Normalizes mpv's absolute `demuxer-cache-time` endpoint for both the visible
+ * buffered range and Seeker's read-ahead state. The indicator must never trail
+ * the committed playback position or extend beyond the media duration.
+ */
+private fun normalizedReadAheadValue(
+  bufferPosition: Float?,
+  playedPosition: Float,
+  duration: Float,
+): Float {
+  if (duration <= 0f) return 0f
+  val safePlayedPosition = playedPosition.takeIf { it.isFinite() }?.coerceIn(0f, duration) ?: 0f
+  val safeBufferPosition = bufferPosition
+    ?.takeIf { it.isFinite() && it > 0f }
+    ?: safePlayedPosition
+  return safeBufferPosition.coerceIn(safePlayedPosition, duration)
+}
+
+private fun DrawScope.drawSeekbarTrackSegments(
+  segments: List<SeekbarTrackSegment>,
+  playedPx: Float,
+  bufferedPx: Float,
+  centerY: Float,
+  trackHeight: Float,
+  playedColor: Color,
+  bufferedColor: Color,
+  unplayedColor: Color,
+) {
+  val outerRadius = trackHeight / 2f
+  val innerRadius = 2.dp.toPx()
+
+  fun drawPiece(
+    startX: Float,
+    endX: Float,
+    color: Color,
+    leftRadius: Float,
+    rightRadius: Float,
+  ) {
+    if (endX - startX < 0.5f) return
+    val path = Path().apply {
+      addRoundRect(
+        androidx.compose.ui.geometry.RoundRect(
+          left = startX,
+          top = centerY - outerRadius,
+          right = endX,
+          bottom = centerY + outerRadius,
+          topLeftCornerRadius = CornerRadius(leftRadius),
+          bottomLeftCornerRadius = CornerRadius(leftRadius),
+          topRightCornerRadius = CornerRadius(rightRadius),
+          bottomRightCornerRadius = CornerRadius(rightRadius),
+        )
+      )
+    }
+    drawPath(path, color)
+  }
+
+  segments.forEach { segment ->
+    val leftRadius = if (segment.start <= 0.5f) outerRadius else innerRadius
+    val rightRadius = if (segment.end >= size.width - 0.5f) outerRadius else innerRadius
+
+    when {
+      segment.end <= playedPx ->
+        drawPiece(segment.start, segment.end, playedColor, leftRadius, rightRadius)
+      segment.start >= bufferedPx ->
+        drawPiece(segment.start, segment.end, unplayedColor, leftRadius, rightRadius)
+      segment.end <= bufferedPx -> {
+        if (segment.start >= playedPx) {
+          drawPiece(segment.start, segment.end, bufferedColor, leftRadius, rightRadius)
+        } else {
+          drawPiece(segment.start, playedPx, playedColor, leftRadius, 0f)
+          drawPiece(playedPx, segment.end, bufferedColor, 0f, rightRadius)
+        }
+      }
+      segment.start < playedPx && segment.end > bufferedPx -> {
+        drawPiece(segment.start, playedPx, playedColor, leftRadius, 0f)
+        drawPiece(playedPx, bufferedPx, bufferedColor, 0f, 0f)
+        drawPiece(bufferedPx, segment.end, unplayedColor, 0f, rightRadius)
+      }
+      segment.start < bufferedPx && segment.end > bufferedPx -> {
+        drawPiece(segment.start, bufferedPx, bufferedColor, leftRadius, 0f)
+        drawPiece(bufferedPx, segment.end, unplayedColor, 0f, rightRadius)
+      }
+      else -> drawPiece(segment.start, segment.end, unplayedColor, leftRadius, rightRadius)
+    }
+  }
+}
+
+private fun normalizeSeekerSegments(
+  chapters: List<Segment>,
+  duration: Float,
+): List<Segment> {
+  if (duration <= 0f) return emptyList()
+
+  val validChapters = chapters
+    .asSequence()
+    .filter { chapter -> chapter.start.isFinite() && chapter.start in 0f..duration }
+    .sortedBy(Segment::start)
+    .distinctBy(Segment::start)
+    .toList()
+
+  return when {
+    validChapters.isEmpty() -> emptyList()
+    validChapters.first().start == 0f -> validChapters
+    else -> listOf(Segment.Unspecified) + validChapters
+  }
 }
 
 @Composable
 fun SeekbarWithTimers(
   position: Float,
   duration: Float,
+  committedPosition: Float = position,
   onValueChange: (Float) -> Unit,
   onValueChangeFinished: (Float) -> Unit,
   timersInverted: Pair<Boolean, Boolean>,
@@ -165,6 +272,7 @@ fun SeekbarWithTimers(
     ) {
       SeekbarContent(
         position = if (isUserInteracting) userPosition else animatedPosition.value,
+        committedPosition = committedPosition,
         duration = duration,
         chapters = chapters,
         skipSegments = skipSegments,
@@ -226,6 +334,7 @@ fun SeekbarWithTimers(
 
       SeekbarContent(
         position = if (isUserInteracting) userPosition else animatedPosition.value,
+        committedPosition = committedPosition,
         duration = duration,
         chapters = chapters,
         skipSegments = skipSegments,
@@ -261,6 +370,7 @@ fun SeekbarWithTimers(
 @Composable
 private fun SeekbarContent(
   position: Float,
+  committedPosition: Float,
   duration: Float,
   chapters: ImmutableList<Segment>,
   skipSegments: ImmutableList<SkipSegment>,
@@ -280,11 +390,29 @@ private fun SeekbarContent(
   modifier: Modifier = Modifier
 ) {
   val touchAreaHeight = if (isPortrait) 64.dp else 52.dp
+  val seekerState = rememberSeekerState()
+  val seekerInteractionSource = remember { MutableInteractionSource() }
+  val isSeekerPressed by seekerInteractionSource.collectIsPressedAsState()
+  val isSeekerDragged by seekerInteractionSource.collectIsDraggedAsState()
+  val isVisuallyInteracting = isUserInteracting || isSeekerPressed || isSeekerDragged
+  val safeDuration = duration.takeIf { it.isFinite() && it > 0f } ?: 0f
+  val seekerRange = 0f..safeDuration.coerceAtLeast(0.1f)
+  val safeCommittedPosition = committedPosition
+    .takeIf { it.isFinite() }
+    ?.coerceIn(seekerRange)
+    ?: seekerRange.start
+  val safeThumbPosition = position
+    .takeIf { it.isFinite() }
+    ?.coerceIn(seekerRange)
+    ?: safeCommittedPosition
+  val seekerSegments = remember(chapters, safeDuration) {
+    normalizeSeekerSegments(chapters, safeDuration)
+  }
   val overlayTrackHeight =
     when (seekbarStyle) {
       SeekbarStyle.Slim ->
         when {
-          isUserInteracting -> 15.dp
+          isVisuallyInteracting -> 15.dp
           paused -> 6.dp
           else -> 8.dp
         }
@@ -336,65 +464,6 @@ private fun SeekbarContent(
     modifier = modifier,
     contentAlignment = Alignment.Center,
   ) {
-      // Invisible expanded touch area
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(touchAreaHeight)
-          .pointerInput(Unit) {
-            detectTapGestures(
-              onTap = { offset ->
-                val newPosition = (offset.x / size.width) * duration
-                onUserInteractionChange(true)
-                val targetPos = newPosition.coerceIn(0f, duration)
-                latestInteractionPosition = targetPos
-                onUserPositionChange(targetPos)
-                onValueChange(targetPos)
-                scope.launch {
-                  animatedPosition.snapTo(targetPos)
-                  onUserInteractionChange(false)
-                  onValueChangeFinished(targetPos)
-                }
-              }
-            )
-          }
-          .pointerInput(Unit) {
-            detectDragGestures(
-              onDragStart = {
-                latestInteractionPosition = position.coerceIn(0f, duration)
-                onUserInteractionChange(true)
-              },
-              onDragEnd = {
-                val targetPos = latestInteractionPosition.coerceIn(0f, duration)
-                scope.launch {
-                  delay(50)
-                  animatedPosition.snapTo(targetPos)
-                  onUserPositionChange(targetPos)
-                  onValueChangeFinished(targetPos)
-                  onUserInteractionChange(false)
-                }
-              },
-              onDragCancel = {
-                val targetPos = latestInteractionPosition.coerceIn(0f, duration)
-                scope.launch {
-                  delay(50)
-                  animatedPosition.snapTo(targetPos)
-                  onUserPositionChange(targetPos)
-                  onValueChangeFinished(targetPos)
-                  onUserInteractionChange(false)
-                }
-              },
-            ) { change, _ ->
-              change.consume()
-              val newPosition = (change.position.x / size.width) * duration
-              val targetPos = newPosition.coerceIn(0f, duration)
-              latestInteractionPosition = targetPos
-              onUserPositionChange(targetPos)
-              onValueChange(targetPos)
-            }
-          }
-      )
-
       // Visual seekbar (smaller, centered)
       Box(
         modifier = Modifier
@@ -409,23 +478,9 @@ private fun SeekbarContent(
               duration = duration,
               chapters = chapters,
               isPaused = paused,
-              isScrubbing = isUserInteracting,
+              isScrubbing = isVisuallyInteracting,
               seekbarStyle = SeekbarStyle.Standard,
-              onSeek = { newPosition ->
-                onUserInteractionChange(true)
-                latestInteractionPosition = newPosition.coerceIn(0f, duration)
-                onUserPositionChange(newPosition)
-                onValueChange(newPosition)
-              },
-              onSeekFinished = {
-                val targetPos = latestInteractionPosition.coerceIn(0f, duration)
-                scope.launch {
-                  animatedPosition.snapTo(targetPos)
-                  onUserPositionChange(targetPos)
-                  onValueChangeFinished(targetPos)
-                  onUserInteractionChange(false)
-                }
-              },
+              interactionSource = seekerInteractionSource,
               loopStart = loopStart,
               loopEnd = loopEnd,
               bufferDuration = bufferDuration,
@@ -437,7 +492,7 @@ private fun SeekbarContent(
               duration = duration,
               chapters = chapters,
               isPaused = paused,
-              isScrubbing = isUserInteracting,
+              isScrubbing = isVisuallyInteracting,
               useWavySeekbar = true,
               seekbarStyle = SeekbarStyle.Wavy,
               onSeek = { }, // Touch handled by parent
@@ -453,23 +508,9 @@ private fun SeekbarContent(
               duration = duration,
               chapters = chapters,
               isPaused = paused,
-              isScrubbing = isUserInteracting,
+              isScrubbing = isVisuallyInteracting,
               seekbarStyle = SeekbarStyle.Thick,
-              onSeek = { newPosition ->
-                onUserInteractionChange(true)
-                latestInteractionPosition = newPosition.coerceIn(0f, duration)
-                onUserPositionChange(newPosition)
-                onValueChange(newPosition)
-              },
-              onSeekFinished = {
-                val targetPos = latestInteractionPosition.coerceIn(0f, duration)
-                scope.launch {
-                  animatedPosition.snapTo(targetPos)
-                  onUserPositionChange(targetPos)
-                  onValueChangeFinished(targetPos)
-                  onUserInteractionChange(false)
-                }
-              },
+              interactionSource = seekerInteractionSource,
               loopStart = loopStart,
               loopEnd = loopEnd,
               bufferDuration = bufferDuration,
@@ -481,7 +522,7 @@ private fun SeekbarContent(
               duration    = duration,
               chapters    = chapters,
               isPaused    = paused,
-              isScrubbing = isUserInteracting,
+              isScrubbing = isVisuallyInteracting,
               loopStart   = loopStart,
               loopEnd     = loopEnd,
               bufferDuration = bufferDuration,
@@ -525,6 +566,57 @@ private fun SeekbarContent(
           }
         }
       }
+
+      Seeker(
+        state = seekerState,
+        value = safeCommittedPosition,
+        thumbValue = safeThumbPosition,
+        range = seekerRange,
+        progressStartPosition = (safeCommittedPosition / seekerRange.endInclusive).coerceIn(0f, 1f),
+        readAheadValue = normalizedReadAheadValue(
+          bufferPosition = bufferDuration,
+          playedPosition = safeCommittedPosition,
+          duration = safeDuration,
+        ).coerceIn(seekerRange),
+        segments = seekerSegments,
+        enabled = safeDuration > 0f,
+        interactionSource = seekerInteractionSource,
+        colors = SeekerDefaults.seekerColors(
+          progressColor = MaterialTheme.colorScheme.primary,
+          trackColor = MaterialTheme.colorScheme.primary,
+          disabledProgressColor = MaterialTheme.colorScheme.primary,
+          disabledTrackColor = MaterialTheme.colorScheme.primary,
+          thumbColor = MaterialTheme.colorScheme.primary,
+          disabledThumbColor = MaterialTheme.colorScheme.primary,
+          readAheadColor = MaterialTheme.colorScheme.primary,
+        ),
+        dimensions = SeekerDefaults.seekerDimensions(
+          trackHeight = 0.dp,
+          progressHeight = 0.dp,
+          thumbRadius = 0.dp,
+          gap = 0.dp,
+        ),
+        onValueChange = { newPosition ->
+          val targetPosition = newPosition.coerceIn(0f, safeDuration)
+          onUserInteractionChange(true)
+          latestInteractionPosition = targetPosition
+          onUserPositionChange(targetPosition)
+          onValueChange(targetPosition)
+        },
+        onValueChangeFinished = {
+          val targetPosition = latestInteractionPosition.coerceIn(0f, safeDuration)
+          scope.launch {
+            animatedPosition.snapTo(targetPosition)
+            onUserPositionChange(targetPosition)
+            onValueChangeFinished(targetPosition)
+            onUserInteractionChange(false)
+          }
+        },
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(touchAreaHeight)
+          .graphicsLayer(alpha = 0f),
+      )
   }
 }
 
@@ -997,78 +1089,28 @@ private fun SlimSeekbar(
         val centerY       = size.height / 2f
         val height        = trackHeight.toPx()
         val outerRadius   = height / 2f      // full pill for track ends
-        val innerRadius   = 2.dp.toPx()      // slight rounding for inner chapter edges
         val gapHalf       = chapterGapHalfDp.toPx()
 
-        // Chapter split positions
-        val chapterXs = if (duration > 0f) {
-            chapters
-                .map { (it.start / duration).coerceIn(0f, 1f) * totalWidth }
-                .filter { it > gapHalf && it < totalWidth - gapHalf }
-                .sorted()
-        } else emptyList()
-
-        // Build segment list from chapter gaps
-        val segments = mutableListOf<Pair<Float, Float>>()
-        var segCursor = 0f
-        for (chX in chapterXs) {
-            val gS = chX - gapHalf
-            val gE = chX + gapHalf
-            if (gS > segCursor) segments.add(segCursor to gS)
-            segCursor = gE
-        }
-        if (segCursor < totalWidth) segments.add(segCursor to totalWidth)
+        val segments = seekbarTrackSegments(
+            chapterStarts = chapters.map(Segment::start),
+            duration = duration,
+            trackWidth = totalWidth,
+            chapterGapHalf = gapHalf,
+        )
 
         val bufferPx =
             bufferedEndPx(bufferDuration, duration, totalWidth, playedPx)
 
-        // Draw a rect segment with independent left/right corner radii
-        fun seg(startX: Float, endX: Float, color: Color, leftR: Float, rightR: Float) {
-            if (endX - startX < 0.5f) return
-            val path = Path()
-            path.addRoundRect(
-                androidx.compose.ui.geometry.RoundRect(
-                    left   = startX,
-                    top    = centerY - outerRadius,
-                    right  = endX,
-                    bottom = centerY + outerRadius,
-                    topLeftCornerRadius     = CornerRadius(leftR),
-                    bottomLeftCornerRadius  = CornerRadius(leftR),
-                    topRightCornerRadius    = CornerRadius(rightR),
-                    bottomRightCornerRadius = CornerRadius(rightR),
-                )
-            )
-            drawPath(path, color)
-        }
-
-        for ((sS, sE) in segments) {
-            // Outer track ends = full pill, inner chapter edges = slight rounding
-            val lR = if (sS <= 0.5f)              outerRadius else innerRadius
-            val rR = if (sE >= totalWidth - 0.5f) outerRadius else innerRadius
-
-            when {
-                sE <= playedPx -> seg(sS, sE, playedColor,   lR, rR)
-                sS >= bufferPx -> seg(sS, sE, unplayedColor, lR, rR)
-                sE <= bufferPx -> {
-                    if (sS >= playedPx) {
-                        seg(sS, sE, primaryColor.copy(alpha = 0.55f), lR, rR)
-                    } else {
-                        seg(sS, playedPx, playedColor,   lR, 0f)
-                        seg(playedPx, sE, primaryColor.copy(alpha = 0.55f), 0f, rR)
-                    }
-                }
-                sS < playedPx && sE > bufferPx -> {
-                    seg(sS, playedPx, playedColor,   lR, 0f)
-                    seg(playedPx, bufferPx, primaryColor.copy(alpha = 0.55f), 0f, 0f)
-                    seg(bufferPx, sE, unplayedColor, 0f, rR)
-                }
-                sS < bufferPx && sE > bufferPx -> {
-                    seg(sS, bufferPx, primaryColor.copy(alpha = 0.55f), lR, 0f)
-                    seg(bufferPx, sE, unplayedColor, 0f, rR)
-                }
-                else -> seg(sS, sE, unplayedColor, lR, rR)
-            }
-        }
+        drawSeekbarTrackSegments(
+            segments = segments,
+            playedPx = playedPx,
+            bufferedPx = bufferPx,
+            centerY = centerY,
+            trackHeight = height,
+            playedColor = playedColor,
+            bufferedColor = primaryColor.copy(alpha = 0.55f),
+            unplayedColor = unplayedColor,
+        )
 
         // A-B loop markers
         if (loopStart != null || loopEnd != null) {
@@ -1267,17 +1309,14 @@ fun StandardSeekbar(
     chapters: ImmutableList<Segment>,
     isPaused: Boolean = false,
     isScrubbing: Boolean = false,
-    useWavySeekbar: Boolean = false,
     seekbarStyle: SeekbarStyle = SeekbarStyle.Standard,
-    onSeek: (Float) -> Unit,
-    onSeekFinished: () -> Unit,
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     loopStart: Float? = null,
     loopEnd: Float? = null,
     bufferDuration: Float? = null,
     modifier: Modifier = Modifier,
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val isDragged by interactionSource.collectIsDraggedAsState()
     val isThumbInteracting = isPressed || isDragged || isScrubbing
@@ -1291,7 +1330,6 @@ fun StandardSeekbar(
         scope.launch {
             val shouldFlatten = isPaused || isScrubbing
             val targetHeight = if (shouldFlatten) 0.7f else 1f // Slightly less dramatic for standard seekbar
-            val animationDuration = if (shouldFlatten) 550 else 800
             val startDelay = if (shouldFlatten) 0L else 60L
 
             kotlinx.coroutines.delay(startDelay)
@@ -1322,195 +1360,84 @@ fun StandardSeekbar(
         label = "standard_seekbar_thumb_width"
     )
     val thumbHeight = if (isThick) 16.dp else 24.dp
-    val thumbShape = if (isThick) RoundedCornerShape(thumbWidth / 2) else CircleShape
+    val chapterGapHalfDp by animateDpAsState(
+        targetValue = if (isThumbInteracting) 2.dp else 1.5.dp,
+        animationSpec = spring(
+            dampingRatio = AppMotion.Spatial.Standard.dampingRatio,
+            stiffness = AppMotion.Spatial.Standard.stiffness,
+        ),
+        label = "standard_chapter_gap",
+    )
 
-    Slider(
-        value = position,
-        onValueChange = onSeek,
-        onValueChangeFinished = onSeekFinished,
-        valueRange = 0f..duration.coerceAtLeast(0.1f),
-        modifier = modifier.fillMaxWidth(),
-        interactionSource = interactionSource,
-        track = { sliderState ->
-            val disabledAlpha = 0.3f
+    Canvas(modifier = modifier.fillMaxWidth().height(thumbHeight)) {
+        val safeDuration = duration.takeIf { it.isFinite() && it > 0f } ?: 0f
+        val playedFraction = if (safeDuration > 0f) {
+            position.takeIf { it.isFinite() }?.div(safeDuration)?.coerceIn(0f, 1f) ?: 0f
+        } else {
+            0f
+        }
+        val playedPx = size.width * playedFraction
+        val bufferPx = bufferedEndPx(bufferDuration, safeDuration, size.width, playedPx)
+        val trackHeight = trackHeightDp.toPx()
+        val centerY = size.height / 2f
+        val thumbWidthPx = thumbWidth.toPx()
+        val thumbHeightPx = thumbHeight.toPx()
+        val thumbGapHalf = (thumbWidthPx + if (isThick) 8.dp.toPx() else 10.dp.toPx()) / 2f
+        val thumbGapStart = (playedPx - thumbGapHalf).coerceIn(0f, size.width)
+        val thumbGapEnd = (playedPx + thumbGapHalf).coerceIn(0f, size.width)
+        val segments = seekbarTrackSegments(
+            chapterStarts = chapters.map(Segment::start),
+            duration = safeDuration,
+            trackWidth = size.width,
+            chapterGapHalf = chapterGapHalfDp.toPx(),
+            extraGaps = listOf(thumbGapStart to thumbGapEnd),
+        )
 
-            Canvas(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(trackHeightDp)
-                    .clip(RoundedCornerShape(percent = 50)),
-            ) {
-                val min = sliderState.valueRange.start
-                val max = sliderState.valueRange.endInclusive
-                val range = (max - min).takeIf { it > 0f } ?: 1f
+        drawSeekbarTrackSegments(
+            segments = segments,
+            playedPx = playedPx,
+            bufferedPx = bufferPx,
+            centerY = centerY,
+            trackHeight = trackHeight,
+            playedColor = primaryColor,
+            bufferedColor = primaryColor.copy(alpha = 0.55f),
+            unplayedColor = primaryColor.copy(alpha = 0.3f),
+        )
 
-                val playedFraction = ((sliderState.value - min) / range).coerceIn(0f, 1f)
+        if ((loopStart != null || loopEnd != null) && safeDuration > 0f) {
+            val loopColor = Color(0xFFFFB300)
+            val markerWidth = 2.dp.toPx()
+            val trackTop = centerY - trackHeight / 2f
+            val trackBottom = centerY + trackHeight / 2f
 
-                val playedPx = size.width * playedFraction
-                val bufferPx =
-                    bufferedEndPx(bufferDuration, duration, size.width, playedPx)
-                val trackHeight = size.height
-                
-                // Radius for the outer ends of the seekbar
-                val outerRadius = trackHeight / 2f
-                
-                // MODIFIED: For Thick style, inner corners now match the outer rounding
-                val innerRadius = if (isThick) outerRadius else 2.dp.toPx()
-                
-                val thumbTrackGapSize = when {
-                    else -> thumbWidth.toPx() + if (isThick) 8.dp.toPx() else 10.dp.toPx()
-                }
-                val gapHalf = thumbTrackGapSize / 2f
-                val chapterGapHalf = 1.dp.toPx()
-                
-                val thumbGapStart = (playedPx - gapHalf).coerceIn(0f, size.width)
-                val thumbGapEnd = (playedPx + gapHalf).coerceIn(0f, size.width)
-                
-                val chapterGaps = chapters
-                    .map { (it.start / duration).coerceIn(0f, 1f) * size.width }
-                    .filter { it > 0f && it < size.width }
-                    .map { x -> (x - chapterGapHalf) to (x + chapterGapHalf) }
-                
-                fun drawSegment(startX: Float, endX: Float, color: Color) {
-                    if (endX - startX < 0.5f) return
-                    
-                    val path = Path()
-                    val isOuterLeft = startX <= 0.5f
-                    val isInnerLeft = kotlin.math.abs(startX - thumbGapEnd) < 0.5f
-                    
-                    val cornerRadiusLeft = when {
-                        isOuterLeft -> androidx.compose.ui.geometry.CornerRadius(outerRadius)
-                        isInnerLeft -> androidx.compose.ui.geometry.CornerRadius(innerRadius)
-                        else -> androidx.compose.ui.geometry.CornerRadius.Zero
-                    }
-
-                    val isOuterRight = endX >= size.width - 0.5f
-                    val isInnerRight = kotlin.math.abs(endX - thumbGapStart) < 0.5f
-
-                    val cornerRadiusRight = when {
-                        isOuterRight -> androidx.compose.ui.geometry.CornerRadius(outerRadius)
-                        isInnerRight -> androidx.compose.ui.geometry.CornerRadius(innerRadius)
-                        else -> androidx.compose.ui.geometry.CornerRadius.Zero
-                    }
-                    
-                    path.addRoundRect(
-                        androidx.compose.ui.geometry.RoundRect(
-                            left = startX,
-                            top = 0f,
-                            right = endX,
-                            bottom = trackHeight,
-                            topLeftCornerRadius = cornerRadiusLeft,
-                            bottomLeftCornerRadius = cornerRadiusLeft,
-                            topRightCornerRadius = cornerRadiusRight,
-                            bottomRightCornerRadius = cornerRadiusRight
-                        )
-                    )
-                    drawPath(path, color)
-                }
-                
-                fun drawRangeWithGaps(
-                    rangeStart: Float, 
-                    rangeEnd: Float, 
-                    gaps: List<Pair<Float, Float>>, 
-                    color: Color
-                ) {
-                    if (rangeEnd <= rangeStart) return
-                    val relevantGaps = gaps
-                        .filter { (gStart, gEnd) -> gEnd > rangeStart && gStart < rangeEnd }
-                        .sortedBy { it.first }
-                    
-                    var currentPos = rangeStart
-                    for ((gStart, gEnd) in relevantGaps) {
-                        val segmentEnd = gStart.coerceAtMost(rangeEnd)
-                        if (segmentEnd > currentPos) {
-                            drawSegment(currentPos, segmentEnd, color)
-                        }
-                        currentPos = gEnd.coerceAtLeast(currentPos)
-                    }
-                    if (currentPos < rangeEnd) {
-                        drawSegment(currentPos, rangeEnd, color)
-                    }
-                }
-                
-                val trackClipPath = Path().apply {
-                    addRoundRect(
-                        androidx.compose.ui.geometry.RoundRect(
-                            left = 0f,
-                            top = 0f,
-                            right = size.width,
-                            bottom = size.height,
-                            cornerRadius = CornerRadius(outerRadius)
-                        )
-                    )
-                }
-
-                clipPath(trackClipPath) {
-                    // 1. Unplayed Background
-                    drawRangeWithGaps(thumbGapEnd, size.width, chapterGaps, primaryColor.copy(alpha = disabledAlpha))
-
-                    // 2. Buffered range ahead of current position
-                    val bufferRangeStart = maxOf(playedPx, thumbGapEnd)
-                    if (bufferPx > bufferRangeStart) {
-                        drawRangeWithGaps(bufferRangeStart, bufferPx, chapterGaps, primaryColor.copy(alpha = 0.55f))
-                    }
-                    
-                    // 3. Played
-                    if (thumbGapStart > 0) {
-                        drawRangeWithGaps(0f, thumbGapStart, chapterGaps, primaryColor)
-                    }
-                }
-
-                // 3. A-B Loop Indicators
-                if (loopStart != null || loopEnd != null) {
-                    val loopColor = Color(0xFFFFB300) // Amber/Gold color for loop
-                    val markerWidth = 2.dp.toPx()
-                    
-                    // Draw loop start marker
-                    if (loopStart != null) {
-                        val startPx = (loopStart / duration).coerceIn(0f, 1f) * size.width
-                        drawLine(
-                            color = loopColor,
-                            start = Offset(startPx, 0f),
-                            end = Offset(startPx, size.height),
-                            strokeWidth = markerWidth
-                        )
-                    }
-
-                    // Draw loop end marker
-                    if (loopEnd != null) {
-                        val endPx = (loopEnd / duration).coerceIn(0f, 1f) * size.width
-                        drawLine(
-                            color = loopColor,
-                            start = Offset(endPx, 0f),
-                            end = Offset(endPx, size.height),
-                            strokeWidth = markerWidth
-                        )
-                    }
-
-                    // Draw connected segment if both are set
-                    if (loopStart != null && loopEnd != null) {
-                        val minPx = (minOf(loopStart, loopEnd) / duration).coerceIn(0f, 1f) * size.width
-                        val maxPx = (maxOf(loopStart, loopEnd) / duration).coerceIn(0f, 1f) * size.width
-                        
-                        // Draw a semi-transparent overlay between A and B
-                        drawRect(
-                            color = loopColor.copy(alpha = 0.3f),
-                            topLeft = Offset(minPx, 0f),
-                            size = Size(maxPx - minPx, size.height)
-                        )
-                    }
-                }
+            loopStart?.let { start ->
+                val startPx = (start / safeDuration).coerceIn(0f, 1f) * size.width
+                drawLine(loopColor, Offset(startPx, trackTop), Offset(startPx, trackBottom), markerWidth)
             }
-        },
-            thumb = {
-                Box(
-                    modifier = Modifier
-                        .width(thumbWidth)
-                        .height(thumbHeight)
-                        .background(primaryColor, thumbShape)
+            loopEnd?.let { end ->
+                val endPx = (end / safeDuration).coerceIn(0f, 1f) * size.width
+                drawLine(loopColor, Offset(endPx, trackTop), Offset(endPx, trackBottom), markerWidth)
+            }
+            if (loopStart != null && loopEnd != null) {
+                val minPx = (minOf(loopStart, loopEnd) / safeDuration).coerceIn(0f, 1f) * size.width
+                val maxPx = (maxOf(loopStart, loopEnd) / safeDuration).coerceIn(0f, 1f) * size.width
+                drawRect(
+                    color = loopColor.copy(alpha = 0.3f),
+                    topLeft = Offset(minPx, trackTop),
+                    size = Size(maxPx - minPx, trackHeight),
                 )
             }
+        }
+
+        val thumbLeft = (playedPx - thumbWidthPx / 2f)
+            .coerceIn(0f, (size.width - thumbWidthPx).coerceAtLeast(0f))
+        drawRoundRect(
+            color = primaryColor,
+            topLeft = Offset(thumbLeft, centerY - thumbHeightPx / 2f),
+            size = Size(thumbWidthPx, thumbHeightPx),
+            cornerRadius = CornerRadius(thumbWidthPx / 2f),
         )
+    }
     }
 
 @Preview(name = "Seekbar - Wavy (default)")

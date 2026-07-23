@@ -76,18 +76,8 @@ android {
     }
   }
 
-  signingConfigs {
-    create("debugKeystore") {
-      storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
-    }
-  }
-
   buildTypes {
     named("release") {
-      signingConfig = signingConfigs.getByName("debugKeystore")
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(
@@ -172,12 +162,6 @@ androidComponents {
       output.versionCode.set(
         (output.versionCode.orNull ?: 0) * 10 + (abiCodes[abi] ?: 0)
       )
-
-      val variantName = variant.name // e.g. "standardDebug"
-      val buildTypeName = if (variantName.endsWith("Debug")) "debug" else if (variantName.endsWith("Release")) "release" else variantName
-      val baseName = "mpvRx-CN-$buildTypeName"
-      val abiSuffix = if (abi != null) "-$abi" else ""
-      output.outputFileName = "$baseName$abiSuffix.apk"
     }
   }
 }

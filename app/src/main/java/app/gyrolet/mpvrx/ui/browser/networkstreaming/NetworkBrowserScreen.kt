@@ -7,19 +7,28 @@ import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -31,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.gyrolet.mpvrx.domain.network.NetworkConnection
@@ -77,6 +87,8 @@ data class NetworkBrowserScreen(
     val connection by viewModel.connection.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val sortMode by viewModel.sortMode.collectAsState()
+    val showSortDialog = remember { mutableStateOf(false) }
 
     // UI State
     val isRefreshing = remember { mutableStateOf(false) }
@@ -105,7 +117,7 @@ data class NetworkBrowserScreen(
           totalCount = 0,
           onBackClick = { backstack.popSafely() },
           onCancelSelection = {},
-          onSortClick = null,
+          onSortClick = { showSortDialog.value = true },
           onSearchClick = null,
           onSettingsClick = {
             backstack.add(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
@@ -142,6 +154,17 @@ data class NetworkBrowserScreen(
           viewModel.openMedia(video)
         },
         modifier = Modifier.padding(padding),
+      )
+    }
+
+    if (showSortDialog.value) {
+      NetworkFileSortDialog(
+        currentMode = sortMode,
+        onSelect = { mode ->
+          viewModel.setSortMode(mode)
+          showSortDialog.value = false
+        },
+        onDismiss = { showSortDialog.value = false },
       )
     }
   }
@@ -332,5 +355,52 @@ private fun NetworkFile.isM3uFile(): Boolean {
       "audio/x-mpegurl",
       "audio/mpegurl",
     )
+}
+
+@Composable
+private fun NetworkFileSortDialog(
+  currentMode: NetworkBrowserViewModel.NetworkFileSort,
+  onSelect: (NetworkBrowserViewModel.NetworkFileSort) -> Unit,
+  onDismiss: () -> Unit,
+) {
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = {
+      Text(
+        stringResource(R.string.ui_sort_by),
+        fontWeight = FontWeight.Bold,
+      )
+    },
+    text = {
+      Column {
+        listOf(
+          NetworkBrowserViewModel.NetworkFileSort.NAME_AZ to stringResource(R.string.ui_sort_name_az),
+          NetworkBrowserViewModel.NetworkFileSort.NAME_ZA to stringResource(R.string.ui_sort_name_za),
+          NetworkBrowserViewModel.NetworkFileSort.TIME_NEWEST to stringResource(R.string.ui_sort_time_newest),
+          NetworkBrowserViewModel.NetworkFileSort.TIME_OLDEST to stringResource(R.string.ui_sort_time_oldest),
+        ).forEach { (mode, label) ->
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clickable { onSelect(mode) }
+              .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            RadioButton(
+              selected = currentMode == mode,
+              onClick = { onSelect(mode) },
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+          }
+        }
+      }
+    },
+    confirmButton = {
+      TextButton(onClick = onDismiss) {
+        Text(stringResource(R.string.generic_cancel))
+      }
+    },
+  )
 }
 

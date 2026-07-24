@@ -1487,4 +1487,10 @@
   <string name="syncplay_connect">Connect</string>
   <string name="syncplay_connecting">Connecting…</string>
   <string name="syncplay_player_status">Syncplay: %1$s (%2$d users)</string>
+  <string name="ui_sort">Sort</string>
+  <string name="ui_sort_by">Sort by</string>
+  <string name="ui_sort_name_az">Name (A → Z)</string>
+  <string name="ui_sort_name_za">Name (Z → A)</string>
+  <string name="ui_sort_time_newest">Time (newest first)</string>
+  <string name="ui_sort_time_oldest">Time (oldest first)</string>
 </resources>

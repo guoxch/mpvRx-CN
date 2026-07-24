@@ -1,5 +1,6 @@
 import com.android.build.api.variant.FilterConfiguration
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 val enableX86 = project.findProperty("enableX86") != "false"
 val x86Abis = if (enableX86) listOf("x86", "x86_64") else emptyList()
@@ -76,8 +77,24 @@ android {
     }
   }
 
+  signingConfigs {
+    create("release") {
+      val props = Properties()
+      rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { props.load(it) }
+      storeFile = props.getProperty("RELEASE_STORE_FILE")?.let { rootProject.file(it) }
+      storePassword = props.getProperty("RELEASE_STORE_PASSWORD")
+      keyAlias = props.getProperty("RELEASE_KEY_ALIAS")
+      keyPassword = props.getProperty("RELEASE_KEY_PASSWORD")
+    }
+  }
+
   buildTypes {
     named("release") {
+      signingConfig = if (signingConfigs.getByName("release").storeFile?.exists() == true) {
+        signingConfigs.getByName("release")
+      } else {
+        signingConfigs.getByName("debug")
+      }
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(

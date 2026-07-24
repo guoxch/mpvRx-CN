@@ -40,6 +40,44 @@ class NetworkBrowserViewModel(
   private val repository: NetworkRepository by inject()
   private val playlistRepository: PlaylistRepository by inject()
 
+  // Sort state
+  enum class NetworkFileSort(val key: String) {
+    NAME_AZ("name_az"),
+    NAME_ZA("name_za"),
+    TIME_NEWEST("time_newest"),
+    TIME_OLDEST("time_oldest"),
+  }
+
+  private val _sortMode = MutableStateFlow(NetworkFileSort.NAME_AZ)
+  val sortMode: StateFlow<NetworkFileSort> = _sortMode.asStateFlow()
+
+  fun setSortMode(mode: NetworkFileSort) {
+    _sortMode.value = mode
+    applySort()
+  }
+
+  private fun applySort() {
+    val current = _files.value
+    if (current.isEmpty()) return
+    _files.value = sortFileList(current)
+  }
+
+  private fun sortFileList(list: List<NetworkFile>): List<NetworkFile> {
+    val mode = _sortMode.value
+    return list.sortedWith(
+      compareBy<NetworkFile> { !it.isDirectory }.thenBy {
+        when (mode) {
+          NetworkFileSort.NAME_AZ -> it.name.lowercase()
+          NetworkFileSort.NAME_ZA -> it.name.lowercase()
+          NetworkFileSort.TIME_NEWEST -> -it.lastModified
+          NetworkFileSort.TIME_OLDEST -> it.lastModified
+        }
+      }.let { comparator ->
+        if (mode == NetworkFileSort.NAME_ZA) comparator.reversed() else comparator
+      },
+    )
+  }
+
   private val _files = MutableStateFlow<List<NetworkFile>>(emptyList())
   val files: StateFlow<List<NetworkFile>> = _files.asStateFlow()
 
@@ -70,10 +108,7 @@ class NetworkBrowserViewModel(
 
         repository.listFiles(connection, currentPath)
           .onSuccess { fileList ->
-            _files.value = fileList.sortedWith(
-              compareBy<NetworkFile> { !it.isDirectory }
-                .thenBy { it.name.lowercase() },
-            )
+            _files.value = sortFileList(fileList)
           }
           .onFailure { e ->
             _error.value = e.message ?: "未知错误"

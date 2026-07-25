@@ -833,7 +833,7 @@ fun GestureHandler(
         }
       }
       .pointerInput(pinchToZoomGesture, pinchToZoomSubtitles, panAndZoomEnabled, areControlsLocked, isVerticalGestureActive) {
-        if (!pinchToZoomGesture || areControlsLocked || isVerticalGestureActive) return@pointerInput
+        if ((!pinchToZoomGesture && !pinchToZoomSubtitles) || areControlsLocked || isVerticalGestureActive) return@pointerInput
 
         awaitEachGesture {
           var zoom = 0f
@@ -894,6 +894,8 @@ fun GestureHandler(
                 } else if (pinchToZoomGesture) {
                   isSubZoomMode = false
                   zoom = viewModel.videoZoom.value
+                } else {
+                  isSubZoomMode = false
                 }
               } else {
                 if (isSubZoomMode) {
@@ -1028,7 +1030,7 @@ fun GestureHandler(
         swipeSubtitlesToSeekDialog,
         isSwipeSubtitlesInverted,
       ) {
-        if (!horizontalSwipeToSeek || areControlsLocked || isVerticalGestureActive) return@pointerInput
+        if ((!horizontalSwipeToSeek && !swipeSubtitlesToSeekDialog) || areControlsLocked || isVerticalGestureActive) return@pointerInput
 
         awaitEachGesture {
           val down = awaitFirstDown(requireUnconsumed = false)
@@ -1086,6 +1088,7 @@ fun GestureHandler(
                   // Only activate if this is clearly a horizontal gesture
                   // and not conflicting with other gestures
                   if (gestureType == null && 
+                      horizontalSwipeToSeek &&
                       !isSubtitleTouch &&
                       abs(deltaX) > 30f && 
                       abs(deltaX) > abs(deltaY) * 2f && // Must be strongly horizontal

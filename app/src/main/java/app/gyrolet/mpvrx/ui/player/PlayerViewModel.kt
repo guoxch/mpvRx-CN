@@ -3903,6 +3903,7 @@ class PlayerViewModel(
         duration = durationStr,
         resolution = resolutionStr,
         isAudio = isAudio,
+        tvgLogo = activity.getPlaylistItemTvgLogo(index) ?: "",
       )
     }
   }
@@ -4110,6 +4111,11 @@ class PlayerViewModel(
   fun playPlaylistItem(index: Int) {
     val activity = host as? PlayerActivity ?: return
     activity.playPlaylistItem(index)
+  }
+
+  fun reorderPlaylistItem(from: Int, to: Int) {
+    val activity = host as? PlayerActivity ?: return
+    activity.movePlaylistItem(from, to)
   }
 
   /**

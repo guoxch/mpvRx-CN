@@ -2581,6 +2581,9 @@ class PlayerActivity :
     return extractFileNameFromUri(uri)
   }
 
+  internal fun getPlaylistItemTvgLogo(index: Int): String? =
+    playlistItems.getOrNull(index)?.tvgLogo
+
   private fun getPlaylistItemByIndex(index: Int): PlaylistItemEntity? = playlistItems.getOrNull(index)
 
   private fun getPlaylistItemByUri(uri: Uri): PlaylistItemEntity? {
@@ -4662,6 +4665,51 @@ class PlayerActivity :
       shuffledIndices = emptyList()
       shuffledPosition = 0
     }
+  }
+
+  internal fun movePlaylistItem(from: Int, to: Int) {
+    if (from == to) return
+    if (from !in playlist.indices || to !in playlist.indices) return
+    if (isM3uPlaylist) return
+
+    val mutablePlaylist = playlist.toMutableList()
+    val movedUri = mutablePlaylist.removeAt(from)
+    mutablePlaylist.add(to, movedUri)
+    playlist = mutablePlaylist
+
+    if (playlistItems.isNotEmpty() && from in playlistItems.indices && to in playlistItems.indices) {
+      val mutableItems = playlistItems.toMutableList()
+      val movedItem = mutableItems.removeAt(from)
+      mutableItems.add(to, movedItem)
+      playlistItems = mutableItems
+
+      playlistEntity?.let { entity ->
+        if (!isM3uPlaylist) {
+          val newOrder = playlistItems.map { it.id }
+          lifecycleScope.launch(Dispatchers.IO) {
+            playlistRepository.reorderPlaylistItems(entity.id, newOrder)
+          }
+        }
+      }
+    }
+
+    playlistIndex = if (from == playlistIndex) {
+      to
+    } else {
+      if (from < playlistIndex && to >= playlistIndex) {
+        playlistIndex - 1
+      } else if (from > playlistIndex && to <= playlistIndex) {
+        playlistIndex + 1
+      } else {
+        playlistIndex
+      }
+    }
+
+    if (viewModel.shuffleEnabled.value) {
+      generateShuffledIndices()
+    }
+
+    viewModel.refreshPlaylistItems()
   }
 
   /**

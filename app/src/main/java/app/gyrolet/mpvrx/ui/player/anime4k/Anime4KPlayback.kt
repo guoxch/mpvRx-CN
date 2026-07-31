@@ -1,3 +1,10 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.ui.player.anime4k
 
 import android.content.Context
@@ -15,12 +22,13 @@ internal data class Anime4KSelection(
 internal fun selectThermalSafeAnime4K(
   mode: Anime4KManager.Mode,
   quality: Anime4KManager.Quality,
+  enableIn4k: Boolean = false,
 ): Anime4KSelection {
   val width = MPVLib.getPropertyInt("video-params/w") ?: 0
   val height = MPVLib.getPropertyInt("video-params/h") ?: 0
   val pixels = width.toLong() * height.toLong()
 
-  if (pixels >= 3840L * 2160L) {
+  if (!enableIn4k && pixels >= 3840L * 2160L) {
     return Anime4KSelection(
       mode = Anime4KManager.Mode.OFF,
       quality = Anime4KManager.DEFAULT_QUALITY,
@@ -38,8 +46,9 @@ internal fun selectRuntimeStableAnime4K(
   mode: Anime4KManager.Mode,
   quality: Anime4KManager.Quality,
   context: Context? = null,
+  enableIn4k: Boolean = false,
 ): Anime4KSelection {
-  val staticSelection = selectThermalSafeAnime4K(mode, quality)
+  val staticSelection = selectThermalSafeAnime4K(mode, quality, enableIn4k)
   if (staticSelection.mode == Anime4KManager.Mode.OFF) {
     return staticSelection
   }
@@ -137,12 +146,16 @@ private inline fun withPreservedVideoGeometry(block: () -> Unit) {
 
 private fun captureVideoGeometry(): VideoGeometrySnapshot =
   VideoGeometrySnapshot(
-    doubles = VIDEO_GEOMETRY_DOUBLE_PROPS.mapNotNull { prop ->
-      MPVLib.getPropertyDouble(prop)?.let { prop to it }
-    }.toMap(),
-    strings = VIDEO_GEOMETRY_STRING_PROPS.mapNotNull { prop ->
-      MPVLib.getPropertyString(prop)?.takeIf { it.isNotBlank() }?.let { prop to it }
-    }.toMap(),
+    doubles =
+      VIDEO_GEOMETRY_DOUBLE_PROPS
+        .mapNotNull { prop ->
+          MPVLib.getPropertyDouble(prop)?.let { prop to it }
+        }.toMap(),
+    strings =
+      VIDEO_GEOMETRY_STRING_PROPS
+        .mapNotNull { prop ->
+          MPVLib.getPropertyString(prop)?.takeIf { it.isNotBlank() }?.let { prop to it }
+        }.toMap(),
   )
 
 private fun restoreVideoGeometry(snapshot: VideoGeometrySnapshot) {
@@ -154,28 +167,31 @@ private fun restoreVideoGeometry(snapshot: VideoGeometrySnapshot) {
   }
 }
 
-private val VIDEO_GEOMETRY_DOUBLE_PROPS = listOf(
-  "video-zoom",
-  "video-pan-x",
-  "video-pan-y",
-  "video-align-x",
-  "video-align-y",
-  "video-aspect-override",
-  "panscan",
-  "brightness",
-  "contrast",
-  "saturation",
-  "gamma",
-  "hue",
-  "sharpen",
-)
+private val VIDEO_GEOMETRY_DOUBLE_PROPS =
+  listOf(
+    "video-zoom",
+    "video-pan-x",
+    "video-pan-y",
+    "video-align-x",
+    "video-align-y",
+    "video-aspect-override",
+    "panscan",
+    "brightness",
+    "contrast",
+    "saturation",
+    "gamma",
+    "hue",
+    "sharpen",
+  )
 
-private val VIDEO_GEOMETRY_STRING_PROPS = listOf(
-  "video-unscaled",
-)
+private val VIDEO_GEOMETRY_STRING_PROPS =
+  listOf(
+    "video-unscaled",
+  )
 
 private fun currentShaderList(): List<String> =
-  MPVLib.getPropertyString("glsl-shaders")
+  MPVLib
+    .getPropertyString("glsl-shaders")
     ?.split(":")
     ?.map { it.trim() }
     ?.filter { it.isNotEmpty() }

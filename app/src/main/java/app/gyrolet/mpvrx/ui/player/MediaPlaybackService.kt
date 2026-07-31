@@ -1,3 +1,10 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 @file:Suppress("DEPRECATION")
 
 package app.gyrolet.mpvrx.ui.player
@@ -41,10 +48,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.drop
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.util.Locale
@@ -134,6 +142,7 @@ class MediaPlaybackService :
   private val serviceScope = CoroutineScope(SupervisorJob() + notificationDispatcher)
   private var playbackStateSaveJob: Job? = null
   private var mpvAccessReleased = false
+  private var usesAudioBackgroundPlayback = false
 
   inner class MediaPlaybackBinder : Binder() {
     fun getService() = this@MediaPlaybackService
@@ -153,7 +162,12 @@ class MediaPlaybackService :
     setupMediaSession()
 
     serviceScope.launch {
-      audioPreferences.backgroundPlayback.changes().drop(1).collect { enabled ->
+      combine(
+        audioPreferences.backgroundPlayback.changes(),
+        audioPreferences.audioBackgroundPlayback.changes(),
+      ) { videoEnabled, audioEnabled ->
+        if (usesAudioBackgroundPlayback) audioEnabled else videoEnabled
+      }.drop(1).collect { enabled ->
         if (!enabled) {
           Log.d(TAG, "Background playback disabled; stopping service and pausing playback")
           MPVLib.setPropertyBoolean("pause", true)
@@ -196,6 +210,7 @@ class MediaPlaybackService :
       val artist = it.getStringExtra("media_artist")
       val uri = it.getStringExtra("media_uri")
       val identifier = it.getStringExtra("media_identifier")
+      usesAudioBackgroundPlayback = it.getBooleanExtra("audio_background_playback", false)
 
       if (!title.isNullOrBlank()) {
         mediaTitle = title
@@ -342,7 +357,8 @@ class MediaPlaybackService :
   }
 
   private fun currentNotificationStyle(): NotificationStyle =
-    advancedPreferences.notificationStyle.get()
+    advancedPreferences.notificationStyle
+      .get()
       .takeIf { it.isSupportedOn(Build.VERSION.SDK_INT) }
       ?: NotificationStyle.Media
 
@@ -416,7 +432,8 @@ class MediaPlaybackService :
 
   private fun buildContentIntent(): PendingIntent =
     PendingIntent.getActivity(
-      this, 0,
+      this,
+      0,
       Intent(this, PlayerActivity::class.java).apply {
         action = ACTION_OPEN_PLAYER
         mediaUri?.let { putExtra("uri", it) }
@@ -436,7 +453,10 @@ class MediaPlaybackService :
       PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
-  private fun buildTransportIntent(action: String, requestCode: Int): PendingIntent =
+  private fun buildTransportIntent(
+    action: String,
+    requestCode: Int,
+  ): PendingIntent =
     PendingIntent.getActivity(
       this,
       requestCode,
@@ -447,26 +467,34 @@ class MediaPlaybackService :
       PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
-  private fun prevAction() = NotificationCompat.Action(
-    Icons.Platform.Previous, "Previous",
-    buildTransportIntent(ACTION_NOTIFICATION_PREVIOUS, 1001),
-  )
+  private fun prevAction() =
+    NotificationCompat.Action(
+      Icons.Platform.Previous,
+      "Previous",
+      buildTransportIntent(ACTION_NOTIFICATION_PREVIOUS, 1001),
+    )
 
-  private fun playPauseAction() = NotificationCompat.Action(
-    if (paused) Icons.Platform.Play else Icons.Platform.Pause,
-    if (paused) "Play" else "Pause",
-    MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE),
-  )
+  private fun playPauseAction() =
+    NotificationCompat.Action(
+      if (paused) Icons.Platform.Play else Icons.Platform.Pause,
+      if (paused) "Play" else "Pause",
+      MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY_PAUSE),
+    )
 
-  private fun nextAction() = NotificationCompat.Action(
-    Icons.Platform.Next, "Next",
-    buildTransportIntent(ACTION_NOTIFICATION_NEXT, 1002),
-  )
+  private fun nextAction() =
+    NotificationCompat.Action(
+      Icons.Platform.Next,
+      "Next",
+      buildTransportIntent(ACTION_NOTIFICATION_NEXT, 1002),
+    )
 
   private fun chapterContentText(): String {
-    val chapterName = if (currentChapterIndex >= 0) {
-      chapters.getOrNull(currentChapterIndex)?.title?.takeIf { it.isNotBlank() }
-    } else null
+    val chapterName =
+      if (currentChapterIndex >= 0) {
+        chapters.getOrNull(currentChapterIndex)?.title?.takeIf { it.isNotBlank() }
+      } else {
+        null
+      }
     return chapterName ?: mediaArtist.ifBlank { getString(R.string.notification_playing) }
   }
 
@@ -499,7 +527,10 @@ class MediaPlaybackService :
     if (bitmap.isRecycled) return null
     return try {
       val scaled = Bitmap.createScaledBitmap(bitmap, 24, 24, true)
-      var r = 0L; var g = 0L; var b = 0L; var count = 0
+      var r = 0L
+      var g = 0L
+      var b = 0L
+      var count = 0
       for (x in 0 until scaled.width) {
         for (y in 0 until scaled.height) {
           val pixel = scaled.getPixel(x, y)
@@ -512,7 +543,9 @@ class MediaPlaybackService :
       if (scaled != bitmap) scaled.recycle()
       if (count == 0) return null
       Color.rgb((r / count).toInt(), (g / count).toInt(), (b / count).toInt())
-    } catch (_: Exception) { null }
+    } catch (_: Exception) {
+      null
+    }
   }
 
   /**
@@ -536,43 +569,48 @@ class MediaPlaybackService :
         val startMs = (sorted[i].time * 1000).toLong()
         val endMs = if (i + 1 < sorted.size) (sorted[i + 1].time * 1000).toLong() else totalMs
         val segmentSize = (endMs - startMs).toInt().coerceAtLeast(1)
-        val color = when {
-          i < currentChapterIndex  -> accentColorDone
-          i == currentChapterIndex -> liveAccentColor
-          else                     -> accentColorDim
-        }
+        val color =
+          when {
+            i < currentChapterIndex -> accentColorDone
+            i == currentChapterIndex -> liveAccentColor
+            else -> accentColorDim
+          }
         style.addProgressSegment(
           NotificationCompat.ProgressStyle.Segment(segmentSize).setColor(color),
         )
       }
     } else {
       style.addProgressSegment(
-        NotificationCompat.ProgressStyle.Segment(totalMs.toInt())
+        NotificationCompat.ProgressStyle
+          .Segment(totalMs.toInt())
           .setColor(liveAccentColor),
       )
     }
 
     val timeText = playbackTimeText()
 
-    val builder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-      .setSmallIcon(R.drawable.ic_launcher_monochrome)
-      .setContentTitle(mediaTitle.ifBlank { "Unknown Video" })
-      .setContentText(chapterContentText())
-      .setSubText(chapterLabel())
-      .setLargeIcon(thumbnail)
-      .setContentIntent(buildContentIntent())
-      .setOngoing(!paused)
-      .setAutoCancel(false)
-      .setSilent(true)
-      .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
-      .setColor(systemSurfaceAccent)
-      .setColorized(false)
-      .setPriority(NotificationCompat.PRIORITY_LOW)
-      .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-      .setOnlyAlertOnce(true)
-      .addAction(prevAction())
-      .addAction(playPauseAction())
-      .addAction(nextAction())
+    val builder =
+      NotificationCompat
+        .Builder(this, NOTIFICATION_CHANNEL_ID)
+        .setSmallIcon(R.drawable.ic_launcher_monochrome)
+        .setContentTitle(mediaTitle.ifBlank { "Unknown Video" })
+        .setContentText(chapterContentText())
+        .setSubText(chapterLabel())
+        .setLargeIcon(thumbnail)
+        .setContentIntent(buildContentIntent())
+        .setOngoing(!paused)
+        .setRequestPromotedOngoing(true)
+        .setAutoCancel(false)
+        .setSilent(true)
+        .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
+        .setColor(systemSurfaceAccent)
+        .setColorized(false)
+        .setPriority(NotificationCompat.PRIORITY_LOW)
+        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        .setOnlyAlertOnce(true)
+        .addAction(prevAction())
+        .addAction(playPauseAction())
+        .addAction(nextAction())
 
     // Set ProgressStyle — this sets the visual style to segmented progress
     builder.setWhen(System.currentTimeMillis() + remainingMs)
@@ -601,6 +639,7 @@ class MediaPlaybackService :
       .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
       .setOnlyAlertOnce(true)
       .setOngoing(!paused)
+      .setRequestPromotedOngoing(true)
       .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
       .setColor(DEFAULT_ACCENT_COLOR)
       .setColorized(false)
@@ -612,8 +651,7 @@ class MediaPlaybackService :
           .MediaStyle()
           .setMediaSession(mediaSession.sessionToken)
           .setShowActionsInCompactView(0, 1, 2),
-      )
-      .setProgress(totalMs.toInt(), currentMs.toInt(), false)
+      ).setProgress(totalMs.toInt(), currentMs.toInt(), false)
       .setPriority(NotificationCompat.PRIORITY_LOW)
       .build()
   }
@@ -643,8 +681,11 @@ class MediaPlaybackService :
     val h = t / 3600
     val m = (t % 3600) / 60
     val s = t % 60
-    return if (h > 0) String.format(Locale.US, "%d:%02d:%02d", h, m, s)
-    else String.format(Locale.US, "%02d:%02d", m, s)
+    return if (h > 0) {
+      String.format(Locale.US, "%d:%02d:%02d", h, m, s)
+    } else {
+      String.format(Locale.US, "%02d:%02d", m, s)
+    }
   }
 
   // ==================== MPV Event Observers ====================
@@ -727,7 +768,10 @@ class MediaPlaybackService :
     value: MPVNode,
   ) {}
 
-  override fun event(eventId: Int, data: MPVNode) {
+  override fun event(
+    eventId: Int,
+    data: MPVNode,
+  ) {
     if (eventId == MPVLib.MpvEvent.MPV_EVENT_SHUTDOWN) {
       Log.d(TAG, "MPV shutdown event received, stopping service")
       savePlaybackStateBlocking()
@@ -814,17 +858,21 @@ class MediaPlaybackService :
       sid = readMpvTrackId("sid", oldState?.sid ?: -1),
       secondarySid = readMpvTrackId("secondary-sid", oldState?.secondarySid ?: -1),
       subDelayMs =
-        (readMpvDouble(
-          "sub-delay",
-          (oldState?.subDelay ?: 0) / PLAYBACK_STATE_MILLISECONDS_TO_SECONDS.toDouble(),
-        ) * PLAYBACK_STATE_MILLISECONDS_TO_SECONDS).toInt(),
+        (
+          readMpvDouble(
+            "sub-delay",
+            (oldState?.subDelay ?: 0) / PLAYBACK_STATE_MILLISECONDS_TO_SECONDS.toDouble(),
+          ) * PLAYBACK_STATE_MILLISECONDS_TO_SECONDS
+        ).toInt(),
       subSpeed = readMpvDouble("sub-speed", oldState?.subSpeed ?: DEFAULT_PLAYBACK_STATE_SUB_SPEED),
       aid = readMpvTrackId("aid", oldState?.aid ?: -1),
       audioDelayMs =
-        (readMpvDouble(
-          "audio-delay",
-          (oldState?.audioDelay ?: 0) / PLAYBACK_STATE_MILLISECONDS_TO_SECONDS.toDouble(),
-        ) * PLAYBACK_STATE_MILLISECONDS_TO_SECONDS).toInt(),
+        (
+          readMpvDouble(
+            "audio-delay",
+            (oldState?.audioDelay ?: 0) / PLAYBACK_STATE_MILLISECONDS_TO_SECONDS.toDouble(),
+          ) * PLAYBACK_STATE_MILLISECONDS_TO_SECONDS
+        ).toInt(),
       externalSubtitles = oldState?.externalSubtitles.orEmpty(),
     )
   }
@@ -938,4 +986,3 @@ class MediaPlaybackService :
     super.onTaskRemoved(rootIntent)
   }
 }
-

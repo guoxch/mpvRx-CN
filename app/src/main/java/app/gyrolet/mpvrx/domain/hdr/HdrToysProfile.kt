@@ -1,3 +1,10 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.domain.hdr
 
 enum class HdrToysProfile(
@@ -11,37 +18,41 @@ enum class HdrToysProfile(
     configSection = "bt.2100-pq",
     targetPrim = "bt.2020",
     targetTrc = "pq",
-    shaderPaths = listOf(
-      "hdr-toys/utils/clip_both.glsl",
-      "hdr-toys/transfer-function/pq_inv.glsl",
-      "hdr-toys/tone-mapping/astra.glsl",
-      "hdr-toys/gamut-mapping/bottosson.glsl",
-      "hdr-toys/transfer-function/bt1886.glsl",
-    ),
+    shaderPaths =
+      listOf(
+        "hdr-toys/utils/clip_both.glsl",
+        "hdr-toys/transfer-function/pq_inv.glsl",
+        "hdr-toys/tone-mapping/astra.glsl",
+        "hdr-toys/gamut-mapping/bottosson.glsl",
+        "hdr-toys/transfer-function/bt1886.glsl",
+      ),
     shaderOptions = listOf("auto_exposure_limit_postive" to "1.02"),
   ),
   BT_2100_HLG(
     configSection = "bt.2100-hlg",
     targetPrim = "bt.2020",
     targetTrc = "hlg",
-    shaderPaths = listOf(
-      "hdr-toys/utils/clip_both.glsl",
-      "hdr-toys/transfer-function/hlg_inv.glsl",
-      "hdr-toys/tone-mapping/astra.glsl",
-      "hdr-toys/gamut-mapping/bottosson.glsl",
-      "hdr-toys/transfer-function/bt1886.glsl",
-    ),
+    shaderPaths =
+      listOf(
+        "hdr-toys/utils/clip_both.glsl",
+        "hdr-toys/transfer-function/hlg_inv.glsl",
+        "hdr-toys/tone-mapping/astra.glsl",
+        "hdr-toys/gamut-mapping/bottosson.glsl",
+        "hdr-toys/transfer-function/bt1886.glsl",
+      ),
   ),
   BT_2020(
     configSection = "bt.2020",
     targetPrim = "bt.2020",
     targetTrc = "bt.1886",
-    shaderPaths = listOf(
-      "hdr-toys/transfer-function/bt1886_inv.glsl",
-      "hdr-toys/gamut-mapping/bottosson.glsl",
-      "hdr-toys/transfer-function/bt1886.glsl",
-    ),
-  );
+    shaderPaths =
+      listOf(
+        "hdr-toys/transfer-function/bt1886_inv.glsl",
+        "hdr-toys/gamut-mapping/bottosson.glsl",
+        "hdr-toys/transfer-function/bt1886.glsl",
+      ),
+  ),
+  ;
 
   /** Comma-separated key=value string passed to mpv's glsl-shader-opts. */
   val shaderOptionsValue: String
@@ -55,13 +66,15 @@ enum class HdrToysProfile(
     private const val MPV_SHADER_PREFIX = "~~/shaders/"
 
     /** Deduplicated set of relative shader paths across all profiles. */
-    val allShaderPaths: Set<String> = entries
-      .flatMap { it.shaderPaths }
-      .toSet()
+    val allShaderPaths: Set<String> =
+      entries
+        .flatMap { it.shaderPaths }
+        .toSet()
 
     /** Deduplicated set of absolute mpv shader paths across all profiles. */
-    val allMpvShaderPaths: Set<String> = allShaderPaths
-      .map { path -> "$MPV_SHADER_PREFIX$path" }
-      .toSet()
+    val allMpvShaderPaths: Set<String> =
+      allShaderPaths
+        .map { path -> "$MPV_SHADER_PREFIX$path" }
+        .toSet()
   }
 }

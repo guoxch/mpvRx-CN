@@ -1,3 +1,10 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.ui.browser.dialogs
 
 import androidx.lifecycle.ViewModel
@@ -20,7 +27,9 @@ data class PlaylistOption(
   val itemCount: Int,
 )
 
-class AddToPlaylistViewModel : ViewModel(), KoinComponent {
+class AddToPlaylistViewModel :
+  ViewModel(),
+  KoinComponent {
   private val repository: PlaylistRepository by inject()
 
   private val _playlistOptions = MutableStateFlow<List<PlaylistOption>>(emptyList())
@@ -29,24 +38,31 @@ class AddToPlaylistViewModel : ViewModel(), KoinComponent {
   init {
     viewModelScope.launch(Dispatchers.IO) {
       repository.observeAllPlaylists().collectLatest { playlists ->
-        _playlistOptions.value = playlists
-          .sortedBy { it.name.lowercase() }
-          .map { playlist ->
-            PlaylistOption(
-              playlist = playlist,
-              itemCount = repository.getPlaylistItems(playlist.id).size,
-            )
-          }
+        _playlistOptions.value =
+          playlists
+            .sortedBy { it.name.lowercase() }
+            .map { playlist ->
+              PlaylistOption(
+                playlist = playlist,
+                itemCount = repository.getPlaylistItems(playlist.id).size,
+              )
+            }
       }
     }
   }
 
-  suspend fun createAndAdd(name: String, videos: List<Video>) = withContext(Dispatchers.IO) {
+  suspend fun createAndAdd(
+    name: String,
+    videos: List<Video>,
+  ) = withContext(Dispatchers.IO) {
     val playlistId = repository.createPlaylist(name).toInt()
     repository.addItemsToPlaylist(playlistId, videos.asPlaylistItems())
   }
 
-  suspend fun addToPlaylist(playlistId: Int, videos: List<Video>) = withContext(Dispatchers.IO) {
+  suspend fun addToPlaylist(
+    playlistId: Int,
+    videos: List<Video>,
+  ) = withContext(Dispatchers.IO) {
     repository.addItemsToPlaylist(playlistId, videos.asPlaylistItems())
   }
 

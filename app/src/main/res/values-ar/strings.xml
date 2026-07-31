@@ -262,6 +262,7 @@
   <string name="toast_subtitles_cleared">تم مسح الترجمات المنزلة</string>
   <string name="pref_audio">الصوت</string>
   <string name="pref_audio_summary">اللغات المفضلة وقنوات الصوت وتصحيح النغمة</string>
+  <string name="pref_audio_orientation_title">اتجاه مشغل الصوت</string>
   <string name="pref_audio_pitch_correction_title">تفعيل تصحيح نغمة الصوت</string>
   <string name="pref_audio_pitch_correction_summary">يمنع ارتفاع نغمة الصوت عند السرعات العالية وانخفاضها عند السرعات البطيئة</string>
   <string name="pref_audio_volume_normalization_title">توحيد مستوى الصوت</string>
@@ -271,6 +272,7 @@
   <string name="pref_audio_visualizer_style_title">نمط المؤثر المرئي</string>
   <string name="pref_audio_visualizer_style_blob">كتلة</string>
   <string name="pref_audio_visualizer_style_galaxy">مجرة</string>
+  <string name="pref_audio_visualizer_style_cuboid">مكعباني</string>
   <string name="pref_audio_visualizer_galaxy_credit">مستوحى من عمل Zain Raza على CodePen</string>
   <string name="pref_audio_channels">قنوات الصوت</string>
   <string name="pref_audio_channels_auto">تلقائي</string>
@@ -326,6 +328,8 @@
   <string name="anime4k_quality_fast">سريع</string>
   <string name="anime4k_quality_balanced">متوازن</string>
   <string name="anime4k_quality_high">عالٍ</string>
+  <string name="pref_anime4k_in_4k_title">التفعيل في فيديوهات 4K</string>
+  <string name="pref_anime4k_in_4k_summary">السماح بتحسين Anime4K لفيديوهات 4K و8K (قد يزيد من حمولة GPU أو الاختناق الحراري)</string>
   <string name="pref_anime4k_darken_title">تغميق خطوط Anime4K</string>
   <string name="pref_anime4k_darken_summary">يضيف تغميق الخطوط بعد مرشح رفع الدقة الرئيسي.</string>
   <string name="pref_anime4k_thin_title">ترقيق خطوط Anime4K</string>
@@ -453,6 +457,10 @@
   </plurals>
   <!-- Background Playback -->
   <string name="background_playback_title">التشغيل في الخلفية</string>
+  <string name="pref_audio_background_playback_title">التشغيل في الخلفية (مشغل الصوت)</string>
+  <string name="pref_audio_background_playback_summary">مواصلة تشغيل الصوت عند مغادرة مشغل الصوت أو إيقاف الشاشة</string>
+  <string name="pref_video_background_playback_title">التشغيل في الخلفية (مشغل الفيديو)</string>
+  <string name="pref_video_background_playback_summary">مواصلة تشغيل صوت الفيديو عند مغادرة مشغل الفيديو أو إيقاف الشاشة</string>
   <string name="deselect_all">إلغاء تحديد الكل</string>
   <string name="select_all">تحديد الكل</string>
   <string name="invert_selection">عكس التحديد</string>
@@ -487,6 +495,7 @@
   <string name="notification_chapter_counter">الفصل %1$d من %2$d</string>
   <string name="notification_permission_denied">يلزم إذن الإشعارات لعناصر تحكم التشغيل في الخلفية.</string>
   <string name="notification_permission_disabled">الإشعارات معطّلة لـ mpvRx. فعّلها لإظهار عناصر تحكم التشغيل.</string>
+  <string name="notification_disabled_in_advanced_settings">قم بتمكين الإشعارات من الإعدادات المتقدمة لاستخدام التشغيل في الخلفية.</string>
   <string name="pref_advanced_notification_style">نمط الإشعار</string>
   <!-- Media Info Activity -->
   <string name="pref_player_use_precise_seeking">استخدام تقديم دقيق</string>
@@ -1457,4 +1466,39 @@
   <string name="syncplay_connect">اتصال</string>
   <string name="syncplay_connecting">جارٍ الاتصال…</string>
   <string name="syncplay_player_status">Syncplay: %1$s (%2$d مستخدمين)</string>
+  <!-- Additional synchronized strings -->
+  <string name="app_name">mpvRx</string>
+  <string name="github_repo_url">https://github.com/Riteshp2001/mpvRx</string>
+  <string name="hdr_mode_bt2020">BT.2020</string>
+  <string name="hdr_mode_bt2100_hlg">BT.2100 HLG</string>
+  <string name="hdr_mode_bt2100_pq">BT.2100 PQ</string>
+  <string name="hdr_mode_hlg_short">HLG</string>
+  <string name="hdr_mode_pq_short">PQ</string>
+  <string name="player_sheets_chapter_title_substitute_audio">صوت #%d</string>
+  <string name="player_sheets_chapter_title_substitute_subtitle">ترجمة #%d</string>
+  <string name="player_sheets_frame_navigation_snapshot_saved">تم الحفظ في Pictures/mpvSnaps</string>
+  <string name="player_sheets_track_lang_wo_title">#%1$d: %2$s</string>
+  <string name="player_sheets_track_title_w_lang">#%1$d: %2$s (%3$s)</string>
+  <string name="player_sheets_track_title_wo_lang">#%1$d: %2$s</string>
+  <string name="pref_about_donate_kofi_url">https://ko-fi.com/adityanarvekar</string>
+  <string name="pref_about_donate_paypal_url">https://paypal.me/aadinarvekar</string>
+  <string name="pref_about_donate_upi_id">aadiinarvekar@upi</string>
+  <string name="ui_24fps">24fps</string>
+  <string name="ui_30fps">30fps</string>
+  <string name="ui_60fps">60fps</string>
+  <string name="ui_all_or_en_ja">all or en.*,ja</string>
+  <string name="ui_av1">AV1</string>
+  <string name="ui_extractor_args_2">extractor-args=\"youtube:player_client=android,web\"\ngeo-bypass=</string>
+  <string name="ui_h_264">H.264</string>
+  <string name="ui_h_265">H.265</string>
+  <string name="ui_hf">hf_...</string>
+  <string name="ui_mozilla_5_0">Mozilla/5.0 ...</string>
+  <string name="ui_mp4_mkv_webm">mp4, mkv, webm</string>
+  <string name="ui_res_fps_hdr_12_vcodec_vp9_2">res,fps,hdr:12,vcodec:vp9.2</string>
+  <string name="ui_socks5_127_0_0_1_1080">socks5://127.0.0.1:1080</string>
+  <string name="ui_sponsor">sponsor</string>
+  <string name="ui_sponsor_selfpromo">sponsor,selfpromo</string>
+  <string name="ui_storage_emulated_0_download_cookies_txt">/storage/emulated/0/Download/cookies.txt</string>
+  <string name="ui_youtube_player_client_android_web">youtube:player_client=android,web</string>
+  <string name="volume_slider_absolute_value">%d</string>
 </resources>

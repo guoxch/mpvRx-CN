@@ -1,3 +1,10 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.ui.icons
 
 import androidx.annotation.DrawableRes
@@ -13,7 +20,9 @@ object Icons {
     val AccountTree by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Account_tree) }
     val Add by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Add) }
     val AddCircle by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Add_circle) }
-    val AlignVerticalCenter by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Align_vertical_center) }
+    val AlignVerticalCenter by lazy(LazyThreadSafetyMode.NONE) {
+      AppIcon(MaterialSymbols.RoundedFilled.Align_vertical_center)
+    }
     val Article by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Article) }
     val ArrowBack by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.West) }
     val ArrowBackClassic by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Arrow_back) }
@@ -65,16 +74,25 @@ object Icons {
     val Download by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Download) }
     val DragHandle by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Drag_handle) }
     val DriveFileMove by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Drive_file_move) }
-    val DriveFileMoveOutline by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Drive_file_move_outline) }
-    val DriveFileRenameOutline by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Drive_file_rename_outline) }
-    val DriveFolderUpload by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Drive_folder_upload) }
+    val DriveFileMoveOutline by lazy(LazyThreadSafetyMode.NONE) {
+      AppIcon(MaterialSymbols.RoundedFilled.Drive_file_move_outline)
+    }
+    val DriveFileRenameOutline by lazy(LazyThreadSafetyMode.NONE) {
+      AppIcon(MaterialSymbols.RoundedFilled.Drive_file_rename_outline)
+    }
+    val DriveFolderUpload by lazy(
+      LazyThreadSafetyMode.NONE,
+    ) { AppIcon(MaterialSymbols.RoundedFilled.Drive_folder_upload) }
     val Edit by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Edit) }
     val EditOff by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Edit_off) }
+    val Equalizer by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Equalizer) }
     val ExpandLess by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Expand_less) }
     val ExpandMore by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Expand_more) }
     val FastForward by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Fast_forward) }
     val FastRewind by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Fast_rewind) }
-    val FeaturedPlayList by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Featured_play_list) }
+    val FeaturedPlayList by lazy(
+      LazyThreadSafetyMode.NONE,
+    ) { AppIcon(MaterialSymbols.RoundedFilled.Featured_play_list) }
     val FileDownload by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.File_download) }
     val FileOpen by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.File_open) }
     val FileUpload by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.File_upload) }
@@ -83,14 +101,22 @@ object Icons {
     val Folder by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Folder) }
     val FolderOff by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Folder_off) }
     val FolderOpen by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Folder_open) }
-    val FormatAlignCenter by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Format_align_center) }
-    val FormatAlignJustify by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Format_align_justify) }
+    val FormatAlignCenter by lazy(
+      LazyThreadSafetyMode.NONE,
+    ) { AppIcon(MaterialSymbols.RoundedFilled.Format_align_center) }
+    val FormatAlignJustify by lazy(LazyThreadSafetyMode.NONE) {
+      AppIcon(MaterialSymbols.RoundedFilled.Format_align_justify)
+    }
     val FormatAlignLeft by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Format_align_left) }
-    val FormatAlignRight by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Format_align_right) }
+    val FormatAlignRight by lazy(
+      LazyThreadSafetyMode.NONE,
+    ) { AppIcon(MaterialSymbols.RoundedFilled.Format_align_right) }
     val FormatBold by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Format_bold) }
     val FormatClear by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Format_clear) }
     val FormatColorFill by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Format_color_fill) }
-    val FormatColorReset by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Format_color_reset) }
+    val FormatColorReset by lazy(
+      LazyThreadSafetyMode.NONE,
+    ) { AppIcon(MaterialSymbols.RoundedFilled.Format_color_reset) }
     val FormatColorText by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Format_color_text) }
     val FormatItalic by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Format_italic) }
     val FormatSize by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Format_size) }
@@ -107,9 +133,15 @@ object Icons {
     val Home by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Home) }
     val Info by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Info) }
     val InsertDriveFile by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Description) }
-    val KeyboardArrowDown by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Keyboard_arrow_down) }
-    val KeyboardArrowLeft by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Keyboard_arrow_left) }
-    val KeyboardArrowRight by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Keyboard_arrow_right) }
+    val KeyboardArrowDown by lazy(
+      LazyThreadSafetyMode.NONE,
+    ) { AppIcon(MaterialSymbols.RoundedFilled.Keyboard_arrow_down) }
+    val KeyboardArrowLeft by lazy(
+      LazyThreadSafetyMode.NONE,
+    ) { AppIcon(MaterialSymbols.RoundedFilled.Keyboard_arrow_left) }
+    val KeyboardArrowRight by lazy(LazyThreadSafetyMode.NONE) {
+      AppIcon(MaterialSymbols.RoundedFilled.Keyboard_arrow_right)
+    }
     val KeyboardArrowUp by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Keyboard_arrow_up) }
     val Language by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Language) }
     val Link by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Link) }
@@ -127,11 +159,17 @@ object Icons {
     val Opacity by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Opacity) }
     val Palette by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Palette) }
     val Pause by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Pause) }
-    val PictureInPictureAlt by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Picture_in_picture_alt) }
+    val PictureInPictureAlt by lazy(LazyThreadSafetyMode.NONE) {
+      AppIcon(MaterialSymbols.RoundedFilled.Picture_in_picture_alt)
+    }
     val PlayArrow by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Play_arrow) }
     val PlayCircle by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Play_circle) }
-    val PlaylistAddCheck by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Playlist_add_check) }
-    val PlaylistAddCircle by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Playlist_add_circle) }
+    val PlaylistAddCheck by lazy(
+      LazyThreadSafetyMode.NONE,
+    ) { AppIcon(MaterialSymbols.RoundedFilled.Playlist_add_check) }
+    val PlaylistAddCircle by lazy(
+      LazyThreadSafetyMode.NONE,
+    ) { AppIcon(MaterialSymbols.RoundedFilled.Playlist_add_circle) }
     val SmartDisplay by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Smart_display) }
     val Videocam by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Videocam) }
     val PlaylistAdd by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Playlist_add) }
@@ -157,7 +195,9 @@ object Icons {
     val Shuffle by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Shuffle) }
     val ShuffleOn by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Shuffle_on) }
     val SortByAlpha by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Sort_by_alpha) }
-    val SignalWifiStatusbarConnectedNoInternet4 by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Signal_wifi_statusbar_not_connected) }
+    val SignalWifiStatusbarConnectedNoInternet4 by lazy(LazyThreadSafetyMode.NONE) {
+      AppIcon(MaterialSymbols.RoundedFilled.Signal_wifi_statusbar_not_connected)
+    }
     val SkipNext by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Skip_next) }
     val SkipPrevious by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Skip_previous) }
     val Slideshow by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Slideshow) }
@@ -256,6 +296,7 @@ object Icons {
     val DriveFolderUpload get() = Shared.DriveFolderUpload
     val Edit get() = Shared.Edit
     val EditOff get() = Shared.EditOff
+    val Equalizer get() = Shared.Equalizer
     val ExpandLess get() = Shared.ExpandLess
     val ExpandMore get() = Shared.ExpandMore
     val FastForward get() = Shared.FastForward
@@ -378,6 +419,7 @@ object Icons {
     val ZoomIn get() = Shared.ZoomIn
     val ZoomOutMap get() = Shared.ZoomOutMap
   }
+
   object Alternatives {
     val AdvancedSettings get() = Shared.Code
   }
@@ -385,10 +427,15 @@ object Icons {
   /** Material Symbols for Android platform APIs that require drawable resource IDs. */
   object Platform {
     @DrawableRes val FastRewind = MaterialSymbolsR.drawable.materialsymbols_ic_fast_rewind_rounded_filled
+
     @DrawableRes val FastForward = MaterialSymbolsR.drawable.materialsymbols_ic_fast_forward_rounded_filled
+
     @DrawableRes val Previous = MaterialSymbolsR.drawable.materialsymbols_ic_skip_previous_rounded_filled
+
     @DrawableRes val Play = MaterialSymbolsR.drawable.materialsymbols_ic_play_arrow_rounded_filled
+
     @DrawableRes val Pause = MaterialSymbolsR.drawable.materialsymbols_ic_pause_rounded_filled
+
     @DrawableRes val Next = MaterialSymbolsR.drawable.materialsymbols_ic_skip_next_rounded_filled
   }
 }

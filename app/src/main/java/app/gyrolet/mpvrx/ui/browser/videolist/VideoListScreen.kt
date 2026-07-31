@@ -1,23 +1,17 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.ui.browser.videolist
-
-import androidx.compose.ui.res.stringResource
-import app.gyrolet.mpvrx.R
-
-
-import app.gyrolet.mpvrx.ui.icons.Icon
-import app.gyrolet.mpvrx.ui.icons.Icons
 
 import android.content.Intent
 import android.os.Environment
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
-import app.gyrolet.mpvrx.utils.media.OpenDocumentTreeContract
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import app.gyrolet.mpvrx.ui.theme.AppMotion
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -30,8 +24,6 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -51,8 +43,8 @@ import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -67,27 +59,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.gyrolet.mpvrx.BuildConfig
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.domain.thumbnail.ThumbnailRepository
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
-import app.gyrolet.mpvrx.preferences.FolderViewMode
 import app.gyrolet.mpvrx.preferences.GesturePreferences
 import app.gyrolet.mpvrx.preferences.MediaLayoutMode
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
-import app.gyrolet.mpvrx.preferences.SortOrder
-import app.gyrolet.mpvrx.preferences.VideoSortType
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.presentation.Screen
 import app.gyrolet.mpvrx.presentation.components.pullrefresh.PullRefreshBox
-import app.gyrolet.mpvrx.BuildConfig
+import app.gyrolet.mpvrx.ui.browser.cards.SwipeableVideoActions
 import app.gyrolet.mpvrx.ui.browser.cards.VideoCard
 import app.gyrolet.mpvrx.ui.browser.cards.VideoCardUiConfig
-import app.gyrolet.mpvrx.ui.browser.cards.SwipeableVideoActions
 import app.gyrolet.mpvrx.ui.browser.components.BrowserBottomBar
 import app.gyrolet.mpvrx.ui.browser.components.BrowserTopBar
 import app.gyrolet.mpvrx.ui.browser.components.ExpressiveScrollBar
@@ -104,12 +95,16 @@ import app.gyrolet.mpvrx.ui.browser.fab.FabScrollHelper
 import app.gyrolet.mpvrx.ui.browser.selection.SelectionManager
 import app.gyrolet.mpvrx.ui.browser.selection.rememberSelectionManager
 import app.gyrolet.mpvrx.ui.browser.states.EmptyState
+import app.gyrolet.mpvrx.ui.icons.Icon
+import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.theme.AppMotion
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
 import app.gyrolet.mpvrx.ui.utils.popSafely
 import app.gyrolet.mpvrx.utils.clipboard.SafeClipboard
 import app.gyrolet.mpvrx.utils.history.RecentlyPlayedOps
 import app.gyrolet.mpvrx.utils.media.CopyPasteOps
 import app.gyrolet.mpvrx.utils.media.MediaUtils
+import app.gyrolet.mpvrx.utils.media.OpenDocumentTreeContract
 import app.gyrolet.mpvrx.utils.sort.SortUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -255,8 +250,8 @@ data class VideoListScreen(
       }
     }
 
-    // Update NavigationBarState when selection mode changes
-    LaunchedEffect(selectionManager.isInSelectionMode) {
+    // Update NavigationBarState synchronously when selection mode changes
+    SideEffect {
       navBarState.updateSelectionState(
         inSelectionMode = selectionManager.isInSelectionMode,
         onlyVideos = true,
@@ -302,9 +297,12 @@ data class VideoListScreen(
           },
           onCancelSelection = { selectionManager.clear() },
           onSortClick = { sortDialogOpen.value = true },
-          onSettingsClick = if (isDualPane) null else {
-            { backstack.add(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen) }
-          },
+          onSettingsClick =
+            if (isDualPane) {
+              null
+            } else {
+              { backstack.add(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen) }
+            },
           isSingleSelection = selectionManager.isSingleSelection,
           onInfoClick = {
             if (selectionManager.isSingleSelection) {
@@ -329,9 +327,12 @@ data class VideoListScreen(
           onSelectAll = { selectionManager.selectAll() },
           onInvertSelection = { selectionManager.invertSelection() },
           onDeselectAll = { selectionManager.clear() },
-          onAddToPlaylistClick = if (!BuildConfig.ENABLE_UPDATE_FEATURE) {
-            { addToPlaylistDialogOpen.value = true }
-          } else null,
+          onAddToPlaylistClick =
+            if (!BuildConfig.ENABLE_UPDATE_FEATURE) {
+              { addToPlaylistDialogOpen.value = true }
+            } else {
+              null
+            },
         )
       },
       floatingActionButton = {
@@ -339,24 +340,39 @@ data class VideoListScreen(
         if (sortedVideosWithInfo.isNotEmpty()) {
           TooltipBox(
             positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-            tooltip = { PlainTooltip { Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_play_recently_played_or_first_video)) } },
+            tooltip = {
+              PlainTooltip {
+                Text(
+                  androidx.compose.ui.res.stringResource(
+                    app.gyrolet.mpvrx.R.string.ui_play_recently_played_or_first_video,
+                  ),
+                )
+              }
+            },
             state = rememberTooltipState(),
           ) {
             FloatingActionButton(
-              modifier = Modifier
-                .windowInsetsPadding(WindowInsets.systemBars)
-                .padding(bottom = navigationBarHeight)
-                .animateFloatingActionButton(
-                  visible = !selectionManager.isInSelectionMode && isFabVisible.value,
-                  alignment = Alignment.BottomEnd,
-                ),
+              modifier =
+                Modifier
+                  .windowInsetsPadding(WindowInsets.systemBars)
+                  .padding(bottom = navigationBarHeight)
+                  .animateFloatingActionButton(
+                    visible = !selectionManager.isInSelectionMode && isFabVisible.value,
+                    alignment = Alignment.BottomEnd,
+                  ),
               onClick = {
                 coroutineScope.launch {
-                  val folderPath = sortedVideosWithInfo.firstOrNull()?.video?.path?.let { File(it).parent } ?: ""
+                  val folderPath =
+                    sortedVideosWithInfo
+                      .firstOrNull()
+                      ?.video
+                      ?.path
+                      ?.let { File(it).parent } ?: ""
                   val recentlyPlayedVideos = RecentlyPlayedOps.getRecentlyPlayed(limit = 100)
-                  val lastPlayedInFolder = recentlyPlayedVideos.firstOrNull {
-                    File(it.filePath).parent == folderPath
-                  }
+                  val lastPlayedInFolder =
+                    recentlyPlayedVideos.firstOrNull {
+                      File(it.filePath).parent == folderPath
+                    }
 
                   if (lastPlayedInFolder != null) {
                     MediaUtils.playFile(lastPlayedInFolder.filePath, context, "recently_played_button")
@@ -366,14 +382,20 @@ data class VideoListScreen(
                 }
               },
             ) {
-              Icon(Icons.RoundedFilled.PlayArrow, contentDescription = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_play_recently_played_or_first_video))
+              Icon(
+                Icons.RoundedFilled.PlayArrow,
+                contentDescription =
+                  androidx.compose.ui.res.stringResource(
+                    app.gyrolet.mpvrx.R.string.ui_play_recently_played_or_first_video,
+                  ),
+              )
             }
           }
         }
-      }
+      },
     ) { padding ->
       val autoScrollToLastPlayed by browserPreferences.autoScrollToLastPlayed.collectAsState()
-      
+
       Box(modifier = Modifier.fillMaxSize()) {
         VideoListContent(
           folderId = bucketId,
@@ -404,12 +426,12 @@ data class VideoListScreen(
           showFloatingBottomBar = showFloatingBottomBar,
           mediaLayoutMode = mediaLayoutMode,
         )
-        
+
         // Floating Material 3 Button Group overlay with animation
         // Play Store gating is intentionally bypassed here.
         if (showFloatingBottomBar) {
           BrowserBottomBar(
-            isSelectionMode = true,
+            isSelectionMode = selectionManager.isInSelectionMode,
             onCopyClick = {
               operationType.value = CopyPasteOps.OperationType.Copy
               if (CopyPasteOps.canUseDirectFileOperations()) {
@@ -430,11 +452,12 @@ data class VideoListScreen(
             onRenameClick = { renameDialogOpen.value = true },
             onDeleteClick = { deleteDialogOpen.value = true },
             onAddToPlaylistClick = { addToPlaylistDialogOpen.value = true },
-            showDownscale = selectionManager.getSelectedItems().singleOrNull()?.isAudio == false,
+            showDownscale = selectionManager.getSelectedItems().let { items -> items.isNotEmpty() && items.none { it.isAudio } },
             showRename = selectionManager.selectedCount > 0,
-            modifier = Modifier
-              .align(Alignment.BottomCenter)
-              .padding(bottom = if (navBarState.shouldHideNavigationBar) 0.dp else navigationBarHeight)
+            modifier =
+              Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 0.dp),
           )
         }
       }
@@ -504,7 +527,11 @@ data class VideoListScreen(
       }
 
       swipeRenameVideo?.let { video ->
-        val extension = video.displayName.substringAfterLast('.', "").takeIf { it.isNotBlank() }?.let { ".$it" }
+        val extension =
+          video.displayName
+            .substringAfterLast('.', "")
+            .takeIf { it.isNotBlank() }
+            ?.let { ".$it" }
         RenameDialog(
           isOpen = true,
           onDismiss = { swipeRenameVideo = null },
@@ -607,7 +634,10 @@ data class VideoListScreen(
         androidx.compose.material3.AlertDialog(
           onDismissRequest = { showPrivateSpaceCompletionDialog.value = false },
           title = {
-            Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_moved_to_private_space),
+            Text(
+              text =
+                androidx.compose.ui.res
+                  .stringResource(app.gyrolet.mpvrx.R.string.ui_moved_to_private_space),
               style = MaterialTheme.typography.headlineSmall,
             )
           },
@@ -623,7 +653,10 @@ data class VideoListScreen(
             androidx.compose.material3.Button(
               onClick = { showPrivateSpaceCompletionDialog.value = false },
             ) {
-              Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_close))
+              Text(
+                androidx.compose.ui.res
+                  .stringResource(app.gyrolet.mpvrx.R.string.ui_close),
+              )
             }
           },
         )
@@ -670,9 +703,14 @@ internal fun VideoListContent(
   val appearancePreferences = koinInject<AppearancePreferences>()
   val configuration = androidx.compose.ui.platform.LocalConfiguration.current
   val isTablet = configuration.smallestScreenWidthDp >= 600
-  val bottomPadding = if (showFloatingBottomBar) {
-    if (isTablet) 108.dp else 88.dp
-  } else 16.dp
+  val density = LocalDensity.current
+  val navigationBarHeight = app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight.current
+  val bottomPadding =
+    if (showFloatingBottomBar) {
+      if (isTablet) 108.dp else 88.dp
+    } else {
+      navigationBarHeight
+    }
   val tapThumbnailToSelect by gesturePreferences.tapThumbnailToSelect.collectAsState()
   val showSubtitleIndicator by browserPreferences.showSubtitleIndicator.collectAsState()
   val showVideoThumbnails by browserPreferences.showVideoThumbnails.collectAsState()
@@ -690,8 +728,6 @@ internal fun VideoListContent(
   val manualGridColumnsEnabled by browserPreferences.manualGridColumnsEnabled.collectAsState()
   val videoGridColumnsPortrait by browserPreferences.videoGridColumnsPortrait.collectAsState()
   val videoGridColumnsLandscape by browserPreferences.videoGridColumnsLandscape.collectAsState()
-  val density = LocalDensity.current
-  val navigationBarHeight = app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight.current
   val aspect = 16f / 9f
 
   val videoCardUiConfig =
@@ -728,9 +764,11 @@ internal fun VideoListContent(
   when {
     isLoading && videosWithInfo.isEmpty() -> {
       Box(
-        modifier = modifier
-          .fillMaxSize()
-          .padding(bottom = 80.dp), // Account for bottom navigation bar
+        modifier =
+          modifier
+            .fillMaxSize()
+            .padding(bottom = 80.dp),
+        // Account for bottom navigation bar
         contentAlignment = Alignment.Center,
       ) {
         CircularProgressIndicator(
@@ -760,20 +798,22 @@ internal fun VideoListContent(
         val contentHorizontalPadding = 8.dp
         val itemSpacing = 4.dp
         val usableWidth = maxWidth - (contentHorizontalPadding * 2) - itemSpacing
-        val videoGridColumns = if (manualGridColumnsEnabled) {
-          videoGridColumnsPref.coerceAtLeast(1)
-        } else {
-          val videoMinWidth = 130.dp
-          (usableWidth / videoMinWidth).toInt().coerceAtLeast(1)
-        }
+        val videoGridColumns =
+          if (manualGridColumnsEnabled) {
+            videoGridColumnsPref.coerceAtLeast(1)
+          } else {
+            val videoMinWidth = 130.dp
+            (usableWidth / videoMinWidth).toInt().coerceAtLeast(1)
+          }
 
         // Must match the thumbnail size logic inside `VideoCard` for this screen,
         // otherwise the cache keys won't line up and the UI won't receive updates.
-        val thumbWidthDp = if (mediaLayoutMode == MediaLayoutMode.GRID) {
-          (usableWidth / videoGridColumns)
-        } else {
-          128.dp
-        }
+        val thumbWidthDp =
+          if (mediaLayoutMode == MediaLayoutMode.GRID) {
+            (usableWidth / videoGridColumns)
+          } else {
+            128.dp
+          }
         val thumbWidthPx = with(density) { thumbWidthDp.roundToPx() }
         val thumbHeightPx = (thumbWidthPx / aspect).roundToInt()
 
@@ -791,25 +831,40 @@ internal fun VideoListContent(
             }
           }
 
-        val listState = rememberLazyListState(
+        val listState =
+          rememberLazyListState(
             initialFirstVisibleItemIndex = initialScrollIndex,
-        )
+          )
 
-        val gridState = rememberLazyGridState(
+        val gridState =
+          rememberLazyGridState(
             initialFirstVisibleItemIndex = initialScrollIndex,
-        )
+          )
         var isScrollbarDragging by remember { mutableStateOf(false) }
 
         val latestVideosWithInfo by rememberUpdatedState(videosWithInfo)
-        val thumbnailListKey = remember(videosWithInfo) {
-          buildString {
-            append(videosWithInfo.size)
-            append('|')
-            append(videosWithInfo.firstOrNull()?.video?.path.orEmpty())
-            append('|')
-            append(videosWithInfo.lastOrNull()?.video?.path.orEmpty())
+        val thumbnailListKey =
+          remember(videosWithInfo) {
+            buildString {
+              append(videosWithInfo.size)
+              append('|')
+              append(
+                videosWithInfo
+                  .firstOrNull()
+                  ?.video
+                  ?.path
+                  .orEmpty(),
+              )
+              append('|')
+              append(
+                videosWithInfo
+                  .lastOrNull()
+                  ?.video
+                  ?.path
+                  .orEmpty(),
+              )
+            }
           }
-        }
 
         LaunchedEffect(
           folderId,
@@ -859,13 +914,11 @@ internal fun VideoListContent(
                 columns = videoGridColumns,
               )
             }
-          }
-            .distinctUntilChanged()
+          }.distinctUntilChanged()
             .map { indices ->
               val currentVideos = latestVideosWithInfo
               indices.mapNotNull { index -> currentVideos.getOrNull(index)?.video }
-            }
-            .collectLatest { visibleVideos ->
+            }.collectLatest { visibleVideos ->
               // Ignore transient viewports while a fling/jump is still replacing composed cards.
               delay(THUMBNAIL_SCROLL_SETTLE_MILLIS)
               thumbnailRepository.startFolderThumbnailGeneration(
@@ -884,17 +937,18 @@ internal fun VideoListContent(
           expanded = false,
           onExpandedChange = {},
         )
-        
+
         val coroutineScope = rememberCoroutineScope()
 
         val hasEnoughItems = videosWithInfo.size > 10
 
         val scrollbarAlpha by androidx.compose.animation.core.animateFloatAsState(
           targetValue = if (hasEnoughItems) 1f else 0f,
-          animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = app.gyrolet.mpvrx.ui.theme.AppMotion.Effect.Alpha.dampingRatio,
-            stiffness = app.gyrolet.mpvrx.ui.theme.AppMotion.Effect.Alpha.stiffness,
-          ),
+          animationSpec =
+            androidx.compose.animation.core.spring(
+              dampingRatio = app.gyrolet.mpvrx.ui.theme.AppMotion.Effect.Alpha.dampingRatio,
+              stiffness = app.gyrolet.mpvrx.ui.theme.AppMotion.Effect.Alpha.stiffness,
+            ),
           label = "scrollbarAlpha",
         )
 
@@ -904,28 +958,28 @@ internal fun VideoListContent(
           listState = listState,
           modifier = Modifier.fillMaxSize(),
         ) {
-
-          val columns = when (mediaLayoutMode) {
-            MediaLayoutMode.LIST -> 1
-            MediaLayoutMode.GRID -> videoGridColumns
-          }
+          val columns =
+            when (mediaLayoutMode) {
+              MediaLayoutMode.LIST -> 1
+              MediaLayoutMode.GRID -> videoGridColumns
+            }
 
           if (mediaLayoutMode == MediaLayoutMode.GRID) {
             Box(
               modifier =
                 Modifier
-                  .fillMaxSize()
-                  .padding(bottom = if (selectionManager.isInSelectionMode) 0.dp else navigationBarHeight),
+                  .fillMaxSize(),
             ) {
               LazyVerticalGrid(
                 columns = GridCells.Fixed(columns),
                 state = gridState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                  start = 8.dp,
-                  end = 8.dp,
-                  bottom = bottomPadding,
-                ),
+                contentPadding =
+                  PaddingValues(
+                    start = 8.dp,
+                    end = 8.dp,
+                    bottom = bottomPadding,
+                  ),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
               ) {
@@ -953,11 +1007,12 @@ internal fun VideoListContent(
                       isWatched = videoWithInfo.isWatched,
                       onClick = { onVideoClick(videoWithInfo.video) },
                       onLongClick = { onVideoLongClick(videoWithInfo.video) },
-                      onThumbClick = if (tapThumbnailToSelect) {
-                        { selectionManager.toggle(videoWithInfo.video) }
-                      } else {
-                        { onVideoClick(videoWithInfo.video) }
-                      },
+                      onThumbClick =
+                        if (tapThumbnailToSelect) {
+                          { selectionManager.toggle(videoWithInfo.video) }
+                        } else {
+                          { onVideoClick(videoWithInfo.video) }
+                        },
                       isGridMode = true,
                       gridColumns = columns,
                       thumbnailWidthPx = thumbWidthPx,
@@ -981,7 +1036,7 @@ internal fun VideoListContent(
                   modifier =
                     Modifier
                       .align(Alignment.CenterEnd)
-                      .padding(vertical = 6.dp)
+                      .padding(end = 2.dp, top = 6.dp, bottom = navigationBarHeight + 6.dp)
                       .graphicsLayer { alpha = scrollbarAlpha },
                 )
               }
@@ -990,17 +1045,17 @@ internal fun VideoListContent(
             Box(
               modifier =
                 Modifier
-                  .fillMaxSize()
-                  .padding(bottom = if (selectionManager.isInSelectionMode) 0.dp else navigationBarHeight),
+                  .fillMaxSize(),
             ) {
               LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                  start = 8.dp,
-                  end = 8.dp,
-                  bottom = bottomPadding,
-                ),
+                contentPadding =
+                  PaddingValues(
+                    start = 8.dp,
+                    end = 8.dp,
+                    bottom = bottomPadding,
+                  ),
               ) {
                 items(
                   count = videosWithInfo.size,
@@ -1026,11 +1081,12 @@ internal fun VideoListContent(
                       isWatched = videoWithInfo.isWatched,
                       onClick = { onVideoClick(videoWithInfo.video) },
                       onLongClick = { onVideoLongClick(videoWithInfo.video) },
-                      onThumbClick = if (tapThumbnailToSelect) {
-                        { selectionManager.toggle(videoWithInfo.video) }
-                      } else {
-                        { onVideoClick(videoWithInfo.video) }
-                      },
+                      onThumbClick =
+                        if (tapThumbnailToSelect) {
+                          { selectionManager.toggle(videoWithInfo.video) }
+                        } else {
+                          { onVideoClick(videoWithInfo.video) }
+                        },
                       isGridMode = false,
                       showSubtitleIndicator = showSubtitleIndicator,
                       allowThumbnailGeneration = false,
@@ -1051,7 +1107,7 @@ internal fun VideoListContent(
                   modifier =
                     Modifier
                       .align(Alignment.CenterEnd)
-                      .padding(vertical = 6.dp)
+                      .padding(end = 2.dp, top = 6.dp, bottom = navigationBarHeight + 6.dp)
                       .graphicsLayer { alpha = scrollbarAlpha },
                 )
               }
@@ -1087,7 +1143,3 @@ private fun visibleVideoWindow(
 }
 
 private const val THUMBNAIL_SCROLL_SETTLE_MILLIS = 100L
-
-
-
-

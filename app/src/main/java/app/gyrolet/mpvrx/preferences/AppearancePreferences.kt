@@ -1,12 +1,17 @@
-package app.gyrolet.mpvrx.preferences
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
 
-import androidx.compose.ui.semantics.Role
+package app.gyrolet.mpvrx.preferences
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import app.gyrolet.mpvrx.preferences.preference.PreferenceStore
@@ -72,13 +78,13 @@ class AppearancePreferences(
   val bottomLeftControls =
     preferenceStore.getString(
       "bottom_left_controls",
-      "BACKGROUND_PLAYBACK,LOCK_CONTROLS,SCREEN_ROTATION,PLAYBACK_SPEED,REPEAT_MODE,SHUFFLE,AB_LOOP,DELETE_VIDEO",
+      "BACKGROUND_PLAYBACK,LOCK_CONTROLS,SCREEN_ROTATION,PLAYBACK_SPEED,REPEAT_MODE,SHUFFLE,AB_LOOP",
     )
 
   val portraitBottomControls =
     preferenceStore.getString(
       "portrait_bottom_controls",
-      "CAST,SCREEN_ROTATION,DECODER,AUDIO_TRACK,SUBTITLES,BOOKMARKS_CHAPTERS,PLAYBACK_SPEED,BACKGROUND_PLAYBACK,REPEAT_MODE,SHUFFLE,VIDEO_ZOOM,FRAME_NAVIGATION,ASPECT_RATIO,PICTURE_IN_PICTURE,LOCK_CONTROLS,MORE_OPTIONS,DELETE_VIDEO",
+      "CAST,SCREEN_ROTATION,DECODER,AUDIO_TRACK,SUBTITLES,BOOKMARKS_CHAPTERS,PLAYBACK_SPEED,BACKGROUND_PLAYBACK,REPEAT_MODE,SHUFFLE,VIDEO_ZOOM,FRAME_NAVIGATION,ASPECT_RATIO,PICTURE_IN_PICTURE,LOCK_CONTROLS,MORE_OPTIONS",
     )
 
   private val castButtonMigrationComplete =
@@ -123,7 +129,9 @@ class AppearancePreferences(
       .toList()
 }
 
-enum class PortraitPlaybackControlsPosition(val displayName: String) {
+enum class PortraitPlaybackControlsPosition(
+  val displayName: String,
+) {
   Center("屏幕中央"),
   BelowSeekbar("进度条和控件之间"),
 }
@@ -136,9 +144,10 @@ fun MultiChoiceSegmentedButton(
   modifier: Modifier = Modifier,
 ) {
   Row(
-    modifier = modifier
-      .fillMaxWidth()
-      .padding(MaterialTheme.spacing.medium),
+    modifier =
+      modifier
+        .fillMaxWidth()
+        .padding(MaterialTheme.spacing.medium),
     horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
   ) {
     choices.forEachIndexed { index, choice ->
@@ -146,26 +155,28 @@ fun MultiChoiceSegmentedButton(
       ToggleButton(
         checked = selectedIndices.contains(index),
         onCheckedChange = { onClick(index, buttonCenter) },
-        modifier = Modifier
-          .weight(1f)
-          .defaultMinSize(minHeight = MaterialTheme.spacing.extraLarge)
-          .onGloballyPositioned { buttonCenter = it.boundsInWindow().center }
-          .semantics { role = Role.RadioButton },
-        colors = ToggleButtonDefaults.toggleButtonColors(
-          checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-          checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-          containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-          contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-        ),
-        shapes = when (index) {
-          0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-          choices.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-          else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-        },
+        modifier =
+          Modifier
+            .weight(1f)
+            .defaultMinSize(minHeight = MaterialTheme.spacing.extraLarge)
+            .onGloballyPositioned { buttonCenter = it.boundsInWindow().center }
+            .semantics { role = Role.RadioButton },
+        colors =
+          ToggleButtonDefaults.toggleButtonColors(
+            checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+            contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+          ),
+        shapes =
+          when (index) {
+            0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+            choices.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+            else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+          },
       ) {
         Text(text = choice)
       }
     }
   }
 }
-

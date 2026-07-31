@@ -1,3 +1,10 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.data.network.client
 
 import android.net.Uri
@@ -31,7 +38,10 @@ interface NetworkClient {
   /**
    * Get input stream for a file
    */
-  suspend fun getFileStream(path: String, offset: Long = 0L): Result<InputStream>
+  suspend fun getFileStream(
+    path: String,
+    offset: Long = 0L,
+  ): Result<InputStream>
 
   /**
    * Get file size when the protocol can expose it cheaply.
@@ -44,4 +54,3 @@ interface NetworkClient {
    */
   suspend fun getFileUri(path: String): Result<Uri>
 }
-

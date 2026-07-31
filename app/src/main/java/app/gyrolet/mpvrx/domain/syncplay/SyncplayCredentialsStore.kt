@@ -1,3 +1,10 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.domain.syncplay
 
 import android.content.Context
@@ -20,23 +27,29 @@ data class SyncplayCredentials(
   }
 }
 
-class SyncplayCredentialsStore(context: Context) {
+class SyncplayCredentialsStore(
+  context: Context,
+) {
   private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
   fun load(): SyncplayCredentials =
     SyncplayCredentials(
-      host = preferences.getString(KEY_HOST, SyncplayCredentials.DEFAULT_HOST)
-        ?: SyncplayCredentials.DEFAULT_HOST,
+      host =
+        preferences.getString(KEY_HOST, SyncplayCredentials.DEFAULT_HOST)
+          ?: SyncplayCredentials.DEFAULT_HOST,
       port = preferences.getInt(KEY_PORT, SyncplayCredentials.DEFAULT_PORT),
-      username = preferences.getString(KEY_USERNAME, SyncplayCredentials.DEFAULT_USERNAME)
-        ?: SyncplayCredentials.DEFAULT_USERNAME,
-      room = preferences.getString(KEY_ROOM, SyncplayCredentials.DEFAULT_ROOM)
-        ?: SyncplayCredentials.DEFAULT_ROOM,
+      username =
+        preferences.getString(KEY_USERNAME, SyncplayCredentials.DEFAULT_USERNAME)
+          ?: SyncplayCredentials.DEFAULT_USERNAME,
+      room =
+        preferences.getString(KEY_ROOM, SyncplayCredentials.DEFAULT_ROOM)
+          ?: SyncplayCredentials.DEFAULT_ROOM,
       password = preferences.getString(KEY_PASSWORD, "").orEmpty(),
     )
 
   fun save(credentials: SyncplayCredentials) {
-    preferences.edit()
+    preferences
+      .edit()
       .putString(KEY_HOST, credentials.host)
       .putInt(KEY_PORT, credentials.port)
       .putString(KEY_USERNAME, credentials.username)

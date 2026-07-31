@@ -1,34 +1,26 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.ui.browser.networkstreaming
 
-import androidx.compose.ui.res.stringResource
-import app.gyrolet.mpvrx.R
-
-import app.gyrolet.mpvrx.ui.icons.Icon
-import app.gyrolet.mpvrx.ui.icons.Icons
-
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -40,9 +32,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.network.NetworkConnection
 import app.gyrolet.mpvrx.domain.network.NetworkFile
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
@@ -55,6 +48,7 @@ import app.gyrolet.mpvrx.ui.browser.components.ExpressiveScrollBar
 import app.gyrolet.mpvrx.ui.browser.components.fastScrollGlyph
 import app.gyrolet.mpvrx.ui.browser.playlist.PlaylistDetailScreen
 import app.gyrolet.mpvrx.ui.browser.states.EmptyState
+import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.preferences.PreferencesScreen
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
 import app.gyrolet.mpvrx.ui.utils.popSafely
@@ -87,8 +81,6 @@ data class NetworkBrowserScreen(
     val connection by viewModel.connection.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
-    val sortMode by viewModel.sortMode.collectAsState()
-    val showSortDialog = remember { mutableStateOf(false) }
 
     // UI State
     val isRefreshing = remember { mutableStateOf(false) }
@@ -117,7 +109,7 @@ data class NetworkBrowserScreen(
           totalCount = 0,
           onBackClick = { backstack.popSafely() },
           onCancelSelection = {},
-          onSortClick = { showSortDialog.value = true },
+          onSortClick = null,
           onSearchClick = null,
           onSettingsClick = {
             backstack.add(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
@@ -156,17 +148,6 @@ data class NetworkBrowserScreen(
         modifier = Modifier.padding(padding),
       )
     }
-
-    if (showSortDialog.value) {
-      NetworkFileSortDialog(
-        currentMode = sortMode,
-        onSelect = { mode ->
-          viewModel.setSortMode(mode)
-          showSortDialog.value = false
-        },
-        onDismiss = { showSortDialog.value = false },
-      )
-    }
   }
 }
 
@@ -185,9 +166,11 @@ private fun NetworkBrowserContent(
   when {
     isLoading -> {
       Box(
-        modifier = modifier
-          .fillMaxSize()
-          .padding(bottom = 80.dp), // Account for bottom navigation bar
+        modifier =
+          modifier
+            .fillMaxSize()
+            .padding(bottom = 80.dp),
+        // Account for bottom navigation bar
         contentAlignment = Alignment.Center,
       ) {
         CircularProgressIndicator(
@@ -237,10 +220,11 @@ private fun NetworkBrowserContent(
       // Animate scrollbar alpha
       val scrollbarAlpha by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (hasEnoughItems) 1f else 0f,
-        animationSpec = androidx.compose.animation.core.spring(
-          dampingRatio = app.gyrolet.mpvrx.ui.theme.AppMotion.Effect.Alpha.dampingRatio,
-          stiffness = app.gyrolet.mpvrx.ui.theme.AppMotion.Effect.Alpha.stiffness,
-        ),
+        animationSpec =
+          androidx.compose.animation.core.spring(
+            dampingRatio = app.gyrolet.mpvrx.ui.theme.AppMotion.Effect.Alpha.dampingRatio,
+            stiffness = app.gyrolet.mpvrx.ui.theme.AppMotion.Effect.Alpha.stiffness,
+          ),
         label = "scrollbarAlpha",
       )
 
@@ -250,38 +234,44 @@ private fun NetworkBrowserContent(
         listState = networkListState,
         modifier = modifier.fillMaxSize(),
       ) {
-        val scrollbarLabels = remember(folders, videos) {
-          buildList<String?> {
-            if (folders.isNotEmpty()) {
-              add(null)
-              addAll(folders.map { it.name })
-            }
-            if (videos.isNotEmpty()) {
-              add(null)
-              addAll(videos.map { it.name })
+        val scrollbarLabels =
+          remember(folders, videos) {
+            buildList<String?> {
+              if (folders.isNotEmpty()) {
+                add(null)
+                addAll(folders.map { it.name })
+              }
+              if (videos.isNotEmpty()) {
+                add(null)
+                addAll(videos.map { it.name })
+              }
             }
           }
-        }
         val navigationBarHeight = app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight.current
         Box(
-          modifier = Modifier
-            .fillMaxSize()
-            .padding(bottom = navigationBarHeight)
+          modifier =
+            Modifier
+              .fillMaxSize()
+              .padding(bottom = navigationBarHeight),
         ) {
           LazyColumn(
             state = networkListState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-              start = 8.dp,
-              end = 8.dp,
-              top = 8.dp,
-              bottom = navigationBarHeight
-            ),
+            contentPadding =
+              PaddingValues(
+                start = 8.dp,
+                end = 8.dp,
+                top = 8.dp,
+                bottom = navigationBarHeight,
+              ),
           ) {
             // Folders section
             if (folders.isNotEmpty()) {
               item {
-                Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.pref_folders_title),
+                Text(
+                  text =
+                    androidx.compose.ui.res
+                      .stringResource(app.gyrolet.mpvrx.R.string.pref_folders_title),
                   style = MaterialTheme.typography.titleMedium,
                   color = MaterialTheme.colorScheme.primary,
                   modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
@@ -302,7 +292,10 @@ private fun NetworkBrowserContent(
             // Videos section
             if (videos.isNotEmpty()) {
               item {
-                Text(text = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_videos),
+                Text(
+                  text =
+                    androidx.compose.ui.res
+                      .stringResource(app.gyrolet.mpvrx.R.string.ui_videos),
                   style = MaterialTheme.typography.titleMedium,
                   color = MaterialTheme.colorScheme.primary,
                   modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp),
@@ -330,10 +323,11 @@ private fun NetworkBrowserContent(
               dragLabelProvider = { index: Int ->
                 fastScrollGlyph(scrollbarLabels.getOrNull(index))
               },
-              modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 4.dp)
-                .graphicsLayer { alpha = scrollbarAlpha },
+              modifier =
+                Modifier
+                  .align(Alignment.CenterEnd)
+                  .padding(end = 4.dp)
+                  .graphicsLayer { alpha = scrollbarAlpha },
             )
           }
         }
@@ -349,58 +343,11 @@ private fun NetworkFile.isM3uFile(): Boolean {
     lowerName.endsWith(".m3u8") ||
     lowerPath.endsWith(".m3u") ||
     lowerPath.endsWith(".m3u8") ||
-    mimeType in setOf(
+    mimeType in
+    setOf(
       "application/x-mpegurl",
       "application/vnd.apple.mpegurl",
       "audio/x-mpegurl",
       "audio/mpegurl",
     )
 }
-
-@Composable
-private fun NetworkFileSortDialog(
-  currentMode: NetworkBrowserViewModel.NetworkFileSort,
-  onSelect: (NetworkBrowserViewModel.NetworkFileSort) -> Unit,
-  onDismiss: () -> Unit,
-) {
-  AlertDialog(
-    onDismissRequest = onDismiss,
-    title = {
-      Text(
-        stringResource(R.string.ui_sort_by),
-        fontWeight = FontWeight.Bold,
-      )
-    },
-    text = {
-      Column {
-        listOf(
-          NetworkBrowserViewModel.NetworkFileSort.NAME_AZ to stringResource(R.string.ui_sort_name_az),
-          NetworkBrowserViewModel.NetworkFileSort.NAME_ZA to stringResource(R.string.ui_sort_name_za),
-          NetworkBrowserViewModel.NetworkFileSort.TIME_NEWEST to stringResource(R.string.ui_sort_time_newest),
-          NetworkBrowserViewModel.NetworkFileSort.TIME_OLDEST to stringResource(R.string.ui_sort_time_oldest),
-        ).forEach { (mode, label) ->
-          Row(
-            modifier = Modifier
-              .fillMaxWidth()
-              .clickable { onSelect(mode) }
-              .padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-          ) {
-            RadioButton(
-              selected = currentMode == mode,
-              onClick = { onSelect(mode) },
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(text = label, style = MaterialTheme.typography.bodyLarge)
-          }
-        }
-      }
-    },
-    confirmButton = {
-      TextButton(onClick = onDismiss) {
-        Text(stringResource(R.string.generic_cancel))
-      }
-    },
-  )
-}
-

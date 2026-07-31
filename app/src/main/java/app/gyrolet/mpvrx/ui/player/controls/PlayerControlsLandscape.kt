@@ -1,7 +1,11 @@
-package app.gyrolet.mpvrx.ui.player.controls
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
 
-import app.gyrolet.mpvrx.ui.icons.Icon
-import app.gyrolet.mpvrx.ui.icons.Icons
+package app.gyrolet.mpvrx.ui.player.controls
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -26,13 +30,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.PlayerButton
+import app.gyrolet.mpvrx.ui.icons.Icon
+import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.player.Panels
 import app.gyrolet.mpvrx.ui.player.PlayerActivity
 import app.gyrolet.mpvrx.ui.player.PlayerViewModel
@@ -166,11 +172,12 @@ fun TopLeftPlayerControlsLandscape(
           tint = MaterialTheme.colorScheme.tertiary,
         )
         Text(
-          text = stringResource(
-            R.string.syncplay_player_status,
-            syncplayState.room.orEmpty(),
-            syncplayState.users.size,
-          ),
+          text =
+            stringResource(
+              R.string.syncplay_player_status,
+              syncplayState.room.orEmpty(),
+              syncplayState.users.size,
+            ),
           style = MaterialTheme.typography.labelSmall,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis,
@@ -196,11 +203,12 @@ fun TopLeftPlayerControlsLandscape(
           tint = MaterialTheme.colorScheme.tertiary,
         )
         Text(
-          text = if (isRealtimeSubsActive) {
-            "Real-time subs: ${realtimeSubsLanguage.ifBlank { "?" }} ${translationStatus.ifBlank { "" }}"
-          } else {
-            "Translating ${translatingTrackName.ifBlank { "subs" }} ${translationStatus.ifBlank { "" }}"
-          },
+          text =
+            if (isRealtimeSubsActive) {
+              "Real-time subs: ${realtimeSubsLanguage.ifBlank { "?" }} ${translationStatus.ifBlank { "" }}"
+            } else {
+              "Translating ${translatingTrackName.ifBlank { "subs" }} ${translationStatus.ifBlank { "" }}"
+            },
           style = MaterialTheme.typography.labelSmall,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis,
@@ -348,7 +356,3 @@ fun BottomLeftPlayerControlsLandscape(
     }
   }
 }
-
-
-
-

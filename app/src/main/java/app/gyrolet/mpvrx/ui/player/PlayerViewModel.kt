@@ -918,6 +918,16 @@ class PlayerViewModel(
   private val _shuffleEnabled = MutableStateFlow(false)
   val shuffleEnabled: StateFlow<Boolean> = _shuffleEnabled.asStateFlow()
 
+  // "阅后即焚" — auto-delete network files after playback
+  private val _autoDeleteAfterPlay = MutableStateFlow(playerPreferences.burnAfterReading.get())
+  val autoDeleteAfterPlay: StateFlow<Boolean> = _autoDeleteAfterPlay.asStateFlow()
+
+  fun toggleAutoDeleteAfterPlay() {
+    val newValue = !_autoDeleteAfterPlay.value
+    _autoDeleteAfterPlay.value = newValue
+    playerPreferences.burnAfterReading.set(newValue)
+  }
+
   // A-B Loop state — combined for atomic updates
   data class ABLoopState(
     val a: Double? = null,

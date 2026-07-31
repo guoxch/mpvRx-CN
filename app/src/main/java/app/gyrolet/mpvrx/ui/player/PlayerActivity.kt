@@ -220,6 +220,7 @@ class PlayerActivity :
    * Manager for file operations.
    */
   private val fileManager: FileManager by inject()
+  private val networkRepository: app.gyrolet.mpvrx.repository.NetworkRepository by inject()
 
   /**
    * Track selector for automatic audio/subtitle selection
@@ -2902,8 +2903,11 @@ class PlayerActivity :
     }
     if (isAdvancingAtEof) return
 
+    val burnedIdx = playlistIndex
+
     val repeatMode = viewModel.repeatMode.value
     if (repeatMode == RepeatMode.ONE) {
+      burnAfterReadingIfEnabled(burnedIdx)
       restartCurrentAtEof()
       return
     }
@@ -2925,6 +2929,7 @@ class PlayerActivity :
       } else {
         finishAtEofIfRequested()
       }
+      burnAfterReadingIfEnabled(burnedIdx)
       return
     }
 
@@ -2948,6 +2953,7 @@ class PlayerActivity :
                 repeatAll -> restartCurrentAtEof()
                 else -> finishAtEofIfRequested()
               }
+              burnAfterReadingIfEnabled(burnedIdx)
             }
           }
         return
@@ -2955,12 +2961,58 @@ class PlayerActivity :
     }
 
     if (repeatAll) restartCurrentAtEof() else finishAtEofIfRequested()
+    burnAfterReadingIfEnabled(burnedIdx)
   }
 
   private fun restartCurrentAtEof() {
     isAdvancingAtEof = false
     MPVLib.command("seek", "0", "absolute")
     viewModel.unpause()
+  }
+
+  private fun burnAfterReadingIfEnabled(burnedIdx: Int) {
+    if (!viewModel.autoDeleteAfterPlay.value) return
+    val uri = intent.data ?: return
+    if (!HttpUtils.isNetworkStream(uri)) return
+    val networkFilePath =
+      networkPlaylistPaths.getOrNull(burnedIdx)?.takeIf { it.isNotBlank() }
+        ?: intent.getStringExtra("network_file_path") ?: return
+    val connId =
+      if (networkPlaylistConnectionId != -1L) networkPlaylistConnectionId
+      else intent.getLongExtra("network_connection_id", -1L)
+    if (connId == -1L) return
+    lifecycleScope.launch(Dispatchers.IO) {
+      val conn = networkRepository.getConnectionById(connId) ?: return@launch
+      suspend fun doDelete() = networkRepository.deleteFile(conn, networkFilePath)
+      var result = doDelete()
+      if (result.isFailure) {
+        result = networkRepository.connect(conn).fold(
+          onSuccess = { doDelete() },
+          onFailure = { Result.failure(it) },
+        )
+      }
+      withContext(Dispatchers.Main) {
+        result.fold(
+          onSuccess = {
+            Toast.makeText(this@PlayerActivity, "已删除: ${networkFilePath.substringAfterLast("/")}", Toast.LENGTH_SHORT).show()
+            removeFromPlaylist(burnedIdx)
+          },
+          onFailure = { Toast.makeText(this@PlayerActivity, "删除失败: ${it.message}", Toast.LENGTH_LONG).show() },
+        )
+      }
+    }
+  }
+
+  private fun removeFromPlaylist(idx: Int) {
+    if (idx < 0 || idx >= playlist.size) return
+    playlist = playlist.toMutableList().apply { removeAt(idx) }
+    playlistItems = playlistItems.toMutableList().apply { if (idx < size) removeAt(idx) }
+    networkPlaylistPaths = networkPlaylistPaths.toMutableList().apply { if (idx < size) removeAt(idx) }
+    networkPlaylistTitles = networkPlaylistTitles.toMutableList().apply { if (idx < size) removeAt(idx) }
+    // If the deleted item was before the current one, adjust playlistIndex
+    if (idx < playlistIndex) playlistIndex--
+    if (playlistIndex >= playlist.size) playlistIndex = (playlist.size - 1).coerceAtLeast(0)
+    viewModel.refreshPlaylistItems()
   }
 
   private fun finishAtEofIfRequested() {

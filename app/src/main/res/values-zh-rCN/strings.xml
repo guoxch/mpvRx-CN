@@ -1526,4 +1526,7 @@
   <string name="ui_storage_emulated_0_download_cookies_txt">/storage/emulated/0/Download/cookies.txt</string>
   <string name="ui_youtube_player_client_android_web">youtube:player_client=android,web</string>
   <string name="volume_slider_absolute_value">%d</string>
+  <string name="burn_after_reading">阅后即焚</string>
+  <string name="burn_after_reading_desc">播放结束后自动删除网络视频文件</string>
+  <string name="burn_after_reading_deleted">文件已删除: %s</string>
 </resources>

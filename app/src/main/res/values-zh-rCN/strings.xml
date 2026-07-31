@@ -984,6 +984,7 @@
   <string name="ui_error_loading_directory">加载目录时出错</string>
   <string name="ui_error_loading_files">加载文件时出错</string>
   <string name="ui_empty_folder">空文件夹</string>
+  <string name="ui_empty_folder_message">此文件夹不包含任何文件或目录</string>
   <string name="ui_scanning_for_videos">正在扫描视频…</string>
   <string name="ui_no_video_folders_found">未找到视频文件夹</string>
   <string name="ui_no_videos_in_folder">此文件夹中没有视频</string>
@@ -1383,6 +1384,13 @@
   <string name="ui_advanced_configurations">高级配置</string>
   <string name="ui_custom_http_agent_proxy_extractor_args_sponsorblock_and_raw_opti">自定义 HTTP 代理标识、代理服务器、提取器参数、SponsorBlock 和原始选项</string>
   <string name="ui_format_sort">格式排序</string>
+  <string name="ui_sort_by">排序方式</string>
+  <string name="ui_sort_name_az">名称（A → Z）</string>
+  <string name="ui_sort_name_za">名称（Z → A）</string>
+  <string name="ui_sort_time_newest">时间（最新优先）</string>
+  <string name="ui_sort_time_oldest">时间（最旧优先）</string>
+  <string name="ui_sort_size_largest">大小（最大优先）</string>
+  <string name="ui_sort_size_smallest">大小（最小优先）</string>
   <string name="ui_passed_to_yt_dlp_as_format_sort_for_advanced_ranking">作为 format-sort 传递给 yt-dlp，以进行高级排序。</string>
   <string name="ui_merge_output_format">合并输出格式</string>
   <string name="ui_custom_user_agent_override">自定义 User-Agent 覆盖</string>

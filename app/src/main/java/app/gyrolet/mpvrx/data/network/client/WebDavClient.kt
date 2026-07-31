@@ -18,7 +18,10 @@ import kotlinx.coroutines.withContext
 import okhttp3.Credentials
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.MediaType.Companion.toMediaType
 import java.io.InputStream
+import java.net.URLEncoder
 
 class WebDavClient(
   private val connection: NetworkConnection,
@@ -41,6 +44,10 @@ class WebDavClient(
     val basePath = connection.path.trim('/')
     val cleanPath = relativePath.trim('/')
 
+    // URL-encode each path segment to handle special chars like [ ] 中文
+    fun encodePath(path: String) = path.split('/')
+      .joinToString("/") { URLEncoder.encode(it, "UTF-8").replace("+", "%20") }
+
     // If relativePath is "/" or empty, it means we're at the root of the connection
     // In that case, just use the basePath (connection.path)
     return when {
@@ -48,11 +55,11 @@ class WebDavClient(
         if (basePath.isEmpty()) {
           "$protocol://${connection.host}:${connection.port}/"
         } else {
-          "$protocol://${connection.host}:${connection.port}/$basePath/"
+          "$protocol://${connection.host}:${connection.port}/${encodePath(basePath)}/"
         }
       }
-      basePath.isEmpty() -> "$protocol://${connection.host}:${connection.port}/$cleanPath"
-      else -> "$protocol://${connection.host}:${connection.port}/$basePath/$cleanPath"
+      basePath.isEmpty() -> "$protocol://${connection.host}:${connection.port}/${encodePath(cleanPath)}"
+      else -> "$protocol://${connection.host}:${connection.port}/${encodePath(basePath)}/${encodePath(cleanPath)}"
     }
   }
 
@@ -83,6 +90,30 @@ class WebDavClient(
       sardine = null
     }
   }
+
+  override suspend fun deleteFile(path: String): Result<Unit> =
+    withContext(Dispatchers.IO) {
+      try {
+        val url = buildUrl(path)
+        val request = Request.Builder()
+          .url(url)
+          .apply {
+            if (!connection.isAnonymous) {
+              addHeader("Authorization", Credentials.basic(connection.username, connection.password))
+            }
+          }
+          .delete()
+          .build()
+        val response = OkHttpClient().newCall(request).execute()
+        if (response.isSuccessful) {
+          Result.success(Unit)
+        } else {
+          Result.failure(Exception("删除失败: HTTP ${response.code}"))
+        }
+      } catch (e: Exception) {
+        Result.failure(e)
+      }
+    }
 
   override fun isConnected(): Boolean = sardine != null
 
@@ -118,11 +149,79 @@ class WebDavClient(
               )
             }
 
-        Result.success(files)
+        // Fallback: if Sardine returns nothing, try raw PROPFIND
+        // Sardine's XML parser may drop entries with [ ] in filenames
+        val result = if (files.isEmpty()) rawPropfindFiles(path, url) else files
+        Result.success(result)
       } catch (e: Exception) {
         Result.failure(e)
       }
     }
+
+  /**
+   * Raw PROPFIND fallback — bypasses Sardine's XML parser to handle [ ] in filenames
+   */
+  private fun rawPropfindFiles(path: String, url: String): List<NetworkFile> {
+    return try {
+      val xmlBody = """<?xml version="1.0" encoding="utf-8"?>
+        |<D:propfind xmlns:D="DAV:">
+        |  <D:prop>
+        |    <D:displayname/>
+        |    <D:getcontentlength/>
+        |    <D:getlastmodified/>
+        |    <D:getcontenttype/>
+        |    <D:resourcetype/>
+        |  </D:prop>
+        |</D:propfind>""".trimMargin()
+
+      val request = Request.Builder()
+        .url(url)
+        .addHeader("Depth", "1")
+        .apply {
+          if (!connection.isAnonymous) {
+            addHeader(
+              "Authorization",
+              Credentials.basic(connection.username, connection.password),
+            )
+          }
+        }
+        .method("PROPFIND", xmlBody.toRequestBody("application/xml".toMediaType()))
+        .build()
+
+      val response = OkHttpClient().newCall(request).execute()
+      val body = response.body?.string() ?: return emptyList()
+
+      // Regex-based extraction — avoids XML parser issues with special chars
+      val responseBlocks = body.split("<D:response>").drop(1)
+      val dirName = path.trim('/').substringAfterLast('/')
+
+      responseBlocks.mapNotNull { block ->
+        val href = Regex("<D:href>(.*?)</D:href>").find(block)?.groupValues?.get(1) ?: return@mapNotNull null
+        val name = Regex("<D:displayname>(.*?)</D:displayname>").find(block)?.groupValues?.get(1)
+          ?: href.substringAfterLast('/').trim('/')
+        val isDir = block.contains("<D:collection/>")
+        val size = Regex("<D:getcontentlength>(\\d+)</D:getcontentlength>").find(block)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+        val mime = Regex("<D:getcontenttype>(.*?)</D:getcontenttype>").find(block)?.groupValues?.get(1)
+
+        // Skip self directory entry
+        if (name.isEmpty() || name == dirName) return@mapNotNull null
+
+        val filePath = if (path.isEmpty() || path == "/") name
+        else "${path.trimEnd('/')}/$name"
+
+        NetworkFile(
+          name = name,
+          path = filePath,
+          isDirectory = isDir,
+          size = size,
+          lastModified = 0,
+          mimeType = if (!isDir) mime?.takeIf { it.isNotBlank() } ?: getMimeType(name) else null,
+        )
+      }
+    } catch (e: Exception) {
+      emptyList()
+    }
+  }
 
   /**
    * Get file size for a specific file path
@@ -280,7 +379,7 @@ class WebDavClient(
   private fun getMimeType(fileName: String): String? {
     val extension = fileName.substringAfterLast('.', "").lowercase()
     return when (extension) {
-      "mp4", "m4v" -> "video/mp4"
+      "mp4", "m4v", "m4s" -> "video/mp4"
       "mkv" -> "video/x-matroska"
       "avi" -> "video/x-msvideo"
       "mov" -> "video/quicktime"
@@ -289,7 +388,7 @@ class WebDavClient(
       "webm" -> "video/webm"
       "mpeg", "mpg" -> "video/mpeg"
       "3gp" -> "video/3gpp"
-      "ts" -> "video/mp2t"
+      "ts", "m2ts" -> "video/mp2t"
       else -> null
     }
   }

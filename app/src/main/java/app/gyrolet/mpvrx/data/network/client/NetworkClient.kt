@@ -53,4 +53,11 @@ interface NetworkClient {
    * Get file URI for playback
    */
   suspend fun getFileUri(path: String): Result<Uri>
+
+  /**
+   * Delete a file at the given path.
+   * Default: unsupported. Override in clients that support it (e.g. WebDAV).
+   */
+  suspend fun deleteFile(path: String): Result<Unit> =
+    Result.failure(UnsupportedOperationException("Delete is not supported by this client"))
 }

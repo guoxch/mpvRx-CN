@@ -590,23 +590,27 @@ class PlayerActivity :
         }
       }
 
-      currentPlayableUri = playableUri
-      isReady = false
-      viewModel.onVideoLoadStarted()
-      val originalUri = extractUriFromIntent(intent)
-      val shouldExpandM3u =
-        M3uPlaybackPolicy.shouldExpandInApp(
-          playableUri = playableUri,
-          originalUri = originalUri?.toString(),
-          fileName = fileName,
-          mimeType = intent.type,
-          hasExistingPlaylist = playlist.isNotEmpty(),
-          hasPlaylistId = playlistId != null,
-        )
-      if (shouldExpandM3u) {
-        startMediaLoad(playableUri, originalUri?.toString(), expandM3u = true)
+      if (isSameMediaActive(playableUri, intent)) {
+        reattachActiveMediaSession()
       } else {
-        startMediaLoad(playableUri)
+        currentPlayableUri = playableUri
+        isReady = false
+        viewModel.onVideoLoadStarted()
+        val originalUri = extractUriFromIntent(intent)
+        val shouldExpandM3u =
+          M3uPlaybackPolicy.shouldExpandInApp(
+            playableUri = playableUri,
+            originalUri = originalUri?.toString(),
+            fileName = fileName,
+            mimeType = intent.type,
+            hasExistingPlaylist = playlist.isNotEmpty(),
+            hasPlaylistId = playlistId != null,
+          )
+        if (shouldExpandM3u) {
+          startMediaLoad(playableUri, originalUri?.toString(), expandM3u = true)
+        } else {
+          startMediaLoad(playableUri)
+        }
       }
     }
     setupCastPlayback()
@@ -3915,21 +3919,12 @@ class PlayerActivity :
         return
       }
       MediaPlaybackService.ACTION_OPEN_PLAYER -> {
-        isBackgroundPlaybackSessionActive = false
-        pendingBackgroundTransition = false
-        isReady = true
-        viewModel.onVideoLoadCompleted()
-        endBackgroundPlayback()
+        reattachActiveMediaSession()
         return
       }
     }
 
-    isBackgroundPlaybackSessionActive = false
-    pendingBackgroundTransition = false
     handledPipDismissal = false
-    if (serviceBound || mediaPlaybackService != null || MediaPlaybackService.isRunning()) {
-      endBackgroundPlayback()
-    }
 
     // Check if this intent has playlist information
     val hasPlaylistExtras =
@@ -3993,7 +3988,7 @@ class PlayerActivity :
     if (fileName.isBlank()) {
       fileName = intent.data?.lastPathSegment ?: "Unknown Video"
     }
-    mediaIdentifier = getMediaIdentifier(intent, fileName)
+    val newMediaId = getMediaIdentifier(intent, fileName)
 
     // Set HTTP headers (including referer) BEFORE loading the new file
     setHttpHeadersFromExtras(intent.extras)
@@ -4006,6 +4001,18 @@ class PlayerActivity :
         if (!File(ytdlDir, "yt-dlp").exists()) {
           viewModel.showToast(getString(R.string.toast_need_ytdl))
         }
+      }
+
+      if (isSameMediaActive(uri, intent)) {
+        reattachActiveMediaSession()
+        return
+      }
+
+      mediaIdentifier = newMediaId
+      isBackgroundPlaybackSessionActive = false
+      pendingBackgroundTransition = false
+      if (serviceBound || mediaPlaybackService != null || MediaPlaybackService.isRunning()) {
+        endBackgroundPlayback()
       }
 
       currentPlayableUri = uri
@@ -5733,17 +5740,64 @@ class PlayerActivity :
   }
 
   /**
+   * Checks if the target media URI/identifier matches the media currently playing in MPV/background service.
+   */
+  private fun isSameMediaActive(playableUri: String, targetIntent: Intent): Boolean {
+    val activeUri = currentPlayableUri
+    if (!mpvInitialized || activeUri.isNullOrBlank()) return false
+    val isBgActive = isBackgroundPlaybackSessionActive || MediaPlaybackService.isRunning()
+    if (!isBgActive && !isReady) return false
+
+    val targetFileName = getFileName(targetIntent).ifBlank { targetIntent.data?.lastPathSegment.orEmpty() }
+    val targetMediaId = getMediaIdentifier(targetIntent, targetFileName)
+
+    if (targetMediaId.isNotBlank() && mediaIdentifier.isNotBlank() && targetMediaId == mediaIdentifier) {
+      return true
+    }
+    if (playableUri.isNotBlank() && playableUri == activeUri) {
+      return true
+    }
+    val activePath = runCatching { android.net.Uri.parse(activeUri).path.orEmpty().ifBlank { activeUri } }.getOrDefault(activeUri)
+    val targetPath = runCatching { android.net.Uri.parse(playableUri).path.orEmpty().ifBlank { playableUri } }.getOrDefault(playableUri)
+    if (activePath.isNotBlank() && activePath == targetPath) {
+      return true
+    }
+    return false
+  }
+
+  /**
+   * Re-attaches to the currently active media session without reloading the file or pausing playback.
+   */
+  private fun reattachActiveMediaSession() {
+    Log.d(TAG, "Re-attaching to already active media session without reloading file")
+    enableVideoAfterBackground()
+    if (MediaPlaybackService.isRunning()) {
+      endBackgroundPlayback()
+    }
+    isBackgroundPlaybackSessionActive = false
+    pendingBackgroundTransition = false
+    isReady = true
+    requestAudioFocus()
+    MPVLib.setPropertyBoolean("pause", false)
+    viewModel.onVideoLoadCompleted()
+  }
+
+  /**
    * Disables video decoding to save battery when moving to background playback.
    */
   private fun disableVideoForBackground() {
     if (!isReady || fileName.isBlank()) return
 
-    val currentVid = MPVLib.getPropertyInt("vid") ?: -1
-    if (currentVid > 0) {
-      lastVid = currentVid
+    val currentVidString = runCatching { MPVLib.getPropertyString("vid") }.getOrNull() ?: ""
+    if (currentVidString != "no") {
+      val currentVidInt = runCatching { MPVLib.getPropertyInt("vid") }.getOrNull() ?: 1
+      lastVid = if (currentVidInt > 0) currentVidInt else 1
       MPVLib.setPropertyString("vid", "no")
       isInBackgroundPlayback = true
       Log.d(TAG, "Video disabled for background playback (saved vid: $lastVid)")
+    } else {
+      isInBackgroundPlayback = true
+      if (lastVid <= 0) lastVid = 1
     }
   }
 
@@ -5759,10 +5813,11 @@ class PlayerActivity :
     val wereInBackground = isInBackgroundPlayback
     isInBackgroundPlayback = false
 
-    if (wereInBackground && lastVid > 0) {
+    val vidToRestore = if (lastVid > 0) lastVid else 1
+    if (wereInBackground || lastVid > 0) {
       if (!viewModel.isAudioOnly.value && !isCurrentMediaKnownAudio()) {
-        Log.d(TAG, "Restoring video after background playback (vid: $lastVid)")
-        MPVLib.setPropertyInt("vid", lastVid)
+        Log.d(TAG, "Restoring video after background playback (vid: $vidToRestore)")
+        MPVLib.setPropertyInt("vid", vidToRestore)
       } else {
         Log.d(TAG, "Skipping video track restoration because media is in audio-only mode")
       }

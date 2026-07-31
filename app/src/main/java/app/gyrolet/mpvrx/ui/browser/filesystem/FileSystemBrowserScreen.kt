@@ -553,7 +553,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
               if (isAtRoot) {
                 stringResource(app.gyrolet.mpvrx.R.string.app_name)
               } else {
-                breadcrumbs.lastOrNull()?.name ?: "Tree View"
+                breadcrumbs.lastOrNull()?.name ?: "目录树视图"
               },
             isInSelectionMode = isInSelectionMode,
             selectedCount = selectedCount,

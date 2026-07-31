@@ -131,7 +131,7 @@ class MediaInfoActivity : AppCompatActivity() {
     var error by remember { mutableStateOf<String?>(null) }
     var textContent by remember { mutableStateOf<String?>(null) }
     var fullMediaInfoText by remember { mutableStateOf<String?>(null) }
-    var fileName by remember { mutableStateOf("Media File") }
+    var fileName by remember { mutableStateOf("媒体文件") }
     var fileUri by remember { mutableStateOf<Uri?>(null) }
     var mediaInfo by remember { mutableStateOf<MediaInfoOps.MediaInfoData?>(null) }
 
@@ -455,9 +455,9 @@ class MediaInfoActivity : AppCompatActivity() {
               subtitleSections.size,
               menuSections.firstOrNull()?.properties?.size ?: 0,
             )
-          InfoTab.VIDEO -> StreamTabContent(videoSections, "Video Stream")
-          InfoTab.AUDIO -> StreamTabContent(audioSections, "Audio Stream")
-          InfoTab.SUBTITLES -> StreamTabContent(subtitleSections, "Subtitle Track")
+          InfoTab.VIDEO -> StreamTabContent(videoSections, "视频流")
+          InfoTab.AUDIO -> StreamTabContent(audioSections, "音频流")
+          InfoTab.SUBTITLES -> StreamTabContent(subtitleSections, "字幕轨道")
           InfoTab.CHAPTERS -> ChaptersTabContent(menuSections)
         }
       }

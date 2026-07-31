@@ -28,7 +28,7 @@ enum class AmbientVisualMode(
   val label: String,
 ) {
   GLOW("Glow"),
-  FRAME_EXTEND("Frame Extend"),
+  FRAME_EXTEND("画面延伸"),
   YOUTUBE("YouTube"),
 }
 

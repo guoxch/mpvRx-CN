@@ -211,7 +211,7 @@ fun AudioPlayerControls(
     artist: String?,
   ): String {
     val titleWithoutExt = title.stripAudioExtension()
-    if (!artist.isNullOrBlank() && artist != "Unknown Artist") {
+    if (!artist.isNullOrBlank() && artist != "未知艺术家") {
       val prefixes = listOf("$artist - ", "$artist – ", "$artist — ", "$artist- ", "$artist : ")
       for (prefix in prefixes) {
         if (titleWithoutExt.startsWith(prefix, ignoreCase = true)) {
@@ -230,7 +230,7 @@ fun AudioPlayerControls(
 
   var lastValidTitle by remember {
     mutableStateOf(
-      mediaTitle?.takeIf { it.isNotBlank() }?.stripAudioExtension() ?: "Audio Track",
+      mediaTitle?.takeIf { it.isNotBlank() }?.stripAudioExtension() ?: "音轨",
     )
   }
   LaunchedEffect(mediaTitle) {
@@ -272,7 +272,7 @@ fun AudioPlayerControls(
     remember(rawArtist, rawArtistAlt, rawAlbumArtist, rawPerformer, retrievedArtist) {
       sequenceOf(rawArtist, rawArtistAlt, rawAlbumArtist, rawPerformer, retrievedArtist)
         .filterNotNull()
-        .firstOrNull { it.isNotBlank() } ?: "Unknown Artist"
+        .firstOrNull { it.isNotBlank() } ?: "未知艺术家"
     }
 
   val audioPreferences = koinInject<AudioPreferences>()
@@ -546,7 +546,7 @@ fun AudioPlayerControls(
 
         // 3. Track Info | A-B Loop Control
         val playlistInfo = viewModel.getPlaylistInfo()
-        val trackText = if (playlistInfo != null) "Track $playlistInfo" else "Audio Media"
+        val trackText = if (playlistInfo != null) "Track $playlistInfo" else "音频媒体"
 
         Row(
           verticalAlignment = Alignment.CenterVertically,

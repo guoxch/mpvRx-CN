@@ -593,7 +593,7 @@ class MediaPlaybackService :
       NotificationCompat
         .Builder(this, NOTIFICATION_CHANNEL_ID)
         .setSmallIcon(R.drawable.ic_launcher_monochrome)
-        .setContentTitle(mediaTitle.ifBlank { "Unknown Video" })
+        .setContentTitle(mediaTitle.ifBlank { getString(R.string.player_unknown_video) })
         .setContentText(chapterContentText())
         .setSubText(chapterLabel())
         .setLargeIcon(thumbnail)
@@ -630,7 +630,7 @@ class MediaPlaybackService :
 
     return NotificationCompat
       .Builder(this, NOTIFICATION_CHANNEL_ID)
-      .setContentTitle(mediaTitle.ifBlank { "Unknown Video" })
+      .setContentTitle(mediaTitle.ifBlank { getString(R.string.player_unknown_video) })
       .setContentText(chapterContentText())
       .setSubText(playbackTimeText())
       .setSmallIcon(R.drawable.ic_launcher_monochrome)

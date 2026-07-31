@@ -1,11 +1,17 @@
-package app.gyrolet.mpvrx.ui.theme
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
 
-import androidx.compose.ui.unit.Dp
+package app.gyrolet.mpvrx.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 data class Spacing(
@@ -26,4 +32,3 @@ val MaterialTheme.spacing
   @Composable
   @ReadOnlyComposable
   get() = LocalSpacing.current
-

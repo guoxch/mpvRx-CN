@@ -1,6 +1,11 @@
-package app.gyrolet.mpvrx.ui.browser.selection
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
 
-import app.gyrolet.mpvrx.R
+package app.gyrolet.mpvrx.ui.browser.selection
 
 import android.content.Context
 import android.content.Intent
@@ -14,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.ui.player.PlayerActivity
 import app.gyrolet.mpvrx.utils.media.MediaUtils
@@ -130,12 +136,30 @@ class SelectionManager<T, ID>(
       runCatching {
         val (deleted, failed) = onDeleteItems(selected, deleteFiles)
         if (deleted > 0) {
-          Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.ui_deleted_successfully), Toast.LENGTH_SHORT).show()
+          Toast
+            .makeText(
+              context,
+              context.getString(app.gyrolet.mpvrx.R.string.ui_deleted_successfully),
+              Toast.LENGTH_SHORT,
+            ).show()
         } else if (failed > 0) {
-          Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.ui_failed_to_delete), Toast.LENGTH_SHORT).show()
+          Toast
+            .makeText(
+              context,
+              context.getString(app.gyrolet.mpvrx.R.string.ui_failed_to_delete),
+              Toast.LENGTH_SHORT,
+            ).show()
         }
       }.onFailure {
-        Toast.makeText(context, context.getString(R.string.toast_failed_to_delete_reason, it.message ?: context.getString(R.string.generic_unknown_error)), Toast.LENGTH_SHORT).show()
+        Toast
+          .makeText(
+            context,
+            context.getString(
+              R.string.toast_failed_to_delete_reason,
+              it.message ?: context.getString(R.string.generic_unknown_error),
+            ),
+            Toast.LENGTH_SHORT,
+          ).show()
       }
       clear()
       onOperationComplete()
@@ -153,13 +177,35 @@ class SelectionManager<T, ID>(
     scope.launch {
       runCatching {
         val result = onRenameItem(item, newName)
-        result.onSuccess {
-          Toast.makeText(context, context.getString(app.gyrolet.mpvrx.R.string.ui_renamed_successfully), Toast.LENGTH_SHORT).show()
-        }.onFailure { error ->
-          Toast.makeText(context, context.getString(R.string.toast_failed_to_rename_reason, error.message ?: context.getString(R.string.generic_unknown_error)), Toast.LENGTH_SHORT).show()
-        }
+        result
+          .onSuccess {
+            Toast
+              .makeText(
+                context,
+                context.getString(app.gyrolet.mpvrx.R.string.ui_renamed_successfully),
+                Toast.LENGTH_SHORT,
+              ).show()
+          }.onFailure { error ->
+            Toast
+              .makeText(
+                context,
+                context.getString(
+                  R.string.toast_failed_to_rename_reason,
+                  error.message ?: context.getString(R.string.generic_unknown_error),
+                ),
+                Toast.LENGTH_SHORT,
+              ).show()
+          }
       }.onFailure {
-        Toast.makeText(context, context.getString(R.string.toast_failed_to_rename_reason, it.message ?: context.getString(R.string.generic_unknown_error)), Toast.LENGTH_SHORT).show()
+        Toast
+          .makeText(
+            context,
+            context.getString(
+              R.string.toast_failed_to_rename_reason,
+              it.message ?: context.getString(R.string.generic_unknown_error),
+            ),
+            Toast.LENGTH_SHORT,
+          ).show()
       }
       clear()
       onOperationComplete()
@@ -188,10 +234,20 @@ class SelectionManager<T, ID>(
         }
       }
       if (successCount > 0) {
-        Toast.makeText(context, context.resources.getQuantityString(R.plurals.toast_renamed_items, successCount, successCount), Toast.LENGTH_SHORT).show()
+        Toast
+          .makeText(
+            context,
+            context.resources.getQuantityString(R.plurals.toast_renamed_items, successCount, successCount),
+            Toast.LENGTH_SHORT,
+          ).show()
       }
       if (failureCount > 0) {
-        Toast.makeText(context, context.resources.getQuantityString(R.plurals.toast_failed_to_rename_items, failureCount, failureCount), Toast.LENGTH_SHORT).show()
+        Toast
+          .makeText(
+            context,
+            context.resources.getQuantityString(R.plurals.toast_failed_to_rename_items, failureCount, failureCount),
+            Toast.LENGTH_SHORT,
+          ).show()
       }
       clear()
       onOperationComplete()
@@ -285,4 +341,3 @@ fun <T, ID> rememberSelectionManager(
     )
   }
 }
-

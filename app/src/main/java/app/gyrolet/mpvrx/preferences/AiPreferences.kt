@@ -1,18 +1,25 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.preferences
 
 import app.gyrolet.mpvrx.preferences.preference.Preference
 import app.gyrolet.mpvrx.preferences.preference.PreferenceStore
 import app.gyrolet.mpvrx.preferences.preference.getEnum
 
-enum class AiProvider(val displayName: String) {
+enum class AiProvider(
+  val displayName: String,
+) {
   OPENCODE("OpenCode"),
   GROQ("Groq"),
   OPENAI("OpenAI"),
   ANTHROPIC("Anthropic"),
   OPENROUTER("OpenRouter"),
   TOGETHER("Together"),
-  DEEPSEEK("DeepSeek"),
-  SILICONFLOW("SiliconFlow"),
   LOCAL("离线模型"),
 }
 
@@ -29,8 +36,6 @@ class AiPreferences(
   val anthropicApiKey = preferenceStore.getString("ai_anthropic_api_key", "")
   val openrouterApiKey = preferenceStore.getString("ai_openrouter_api_key", "")
   val togetherApiKey = preferenceStore.getString("ai_together_api_key", "")
-  val deepseekApiKey = preferenceStore.getString("ai_deepseek_api_key", "")
-  val siliconflowApiKey = preferenceStore.getString("ai_siliconflow_api_key", "")
 
   val selectedModel = preferenceStore.getString("ai_selected_model", "")
 
@@ -42,8 +47,6 @@ class AiPreferences(
   private val anthropicSelectedModel = preferenceStore.getString("ai_selected_model_anthropic", "")
   private val openRouterSelectedModel = preferenceStore.getString("ai_selected_model_openrouter", "")
   private val togetherSelectedModel = preferenceStore.getString("ai_selected_model_together", "")
-  private val deepseekSelectedModel = preferenceStore.getString("ai_selected_model_deepseek", "")
-  private val siliconflowSelectedModel = preferenceStore.getString("ai_selected_model_siliconflow", "")
 
   private val openCodeAvailableModels = preferenceStore.getString("ai_available_models_opencode", "[]")
   private val groqAvailableModels = preferenceStore.getString("ai_available_models_groq", "[]")
@@ -51,8 +54,6 @@ class AiPreferences(
   private val anthropicAvailableModels = preferenceStore.getString("ai_available_models_anthropic", "[]")
   private val openRouterAvailableModels = preferenceStore.getString("ai_available_models_openrouter", "[]")
   private val togetherAvailableModels = preferenceStore.getString("ai_available_models_together", "[]")
-  private val deepseekAvailableModels = preferenceStore.getString("ai_available_models_deepseek", "[]")
-  private val siliconflowAvailableModels = preferenceStore.getString("ai_available_models_siliconflow", "[]")
 
   val localModelId = preferenceStore.getString("ai_local_model_id", "")
   val localModelPath = preferenceStore.getString("ai_local_model_path", "")
@@ -60,7 +61,6 @@ class AiPreferences(
   val localModelDownloadProgress = preferenceStore.getFloat("ai_local_model_download_progress", 0f)
   val localModelBenchmarks = preferenceStore.getString("ai_local_model_benchmarks", "[]")
   val huggingfaceToken = preferenceStore.getString("ai_huggingface_token", "")
-  val showThinking = preferenceStore.getBoolean("ai_show_thinking", false)
 
   val subtitleGenerationOutputFormat = preferenceStore.getString("ai_subtitle_generation_output_format", "srt")
 
@@ -103,27 +103,25 @@ class AiPreferences(
     }
   }
 
-  fun selectedModelFor(provider: AiProvider): Preference<String> = when (provider) {
-    AiProvider.OPENCODE -> openCodeSelectedModel
-    AiProvider.GROQ -> groqSelectedModel
-    AiProvider.OPENAI -> openAiSelectedModel
-    AiProvider.ANTHROPIC -> anthropicSelectedModel
-    AiProvider.OPENROUTER -> openRouterSelectedModel
-    AiProvider.TOGETHER -> togetherSelectedModel
-    AiProvider.DEEPSEEK -> deepseekSelectedModel
-    AiProvider.SILICONFLOW -> siliconflowSelectedModel
-    AiProvider.LOCAL -> localModelId
-  }
+  fun selectedModelFor(provider: AiProvider): Preference<String> =
+    when (provider) {
+      AiProvider.OPENCODE -> openCodeSelectedModel
+      AiProvider.GROQ -> groqSelectedModel
+      AiProvider.OPENAI -> openAiSelectedModel
+      AiProvider.ANTHROPIC -> anthropicSelectedModel
+      AiProvider.OPENROUTER -> openRouterSelectedModel
+      AiProvider.TOGETHER -> togetherSelectedModel
+      AiProvider.LOCAL -> localModelId
+    }
 
-  fun availableModelsFor(provider: AiProvider): Preference<String> = when (provider) {
-    AiProvider.OPENCODE -> openCodeAvailableModels
-    AiProvider.GROQ -> groqAvailableModels
-    AiProvider.OPENAI -> openAiAvailableModels
-    AiProvider.ANTHROPIC -> anthropicAvailableModels
-    AiProvider.OPENROUTER -> openRouterAvailableModels
-    AiProvider.TOGETHER -> togetherAvailableModels
-    AiProvider.DEEPSEEK -> deepseekAvailableModels
-    AiProvider.SILICONFLOW -> siliconflowAvailableModels
-    AiProvider.LOCAL -> availableModels
-  }
+  fun availableModelsFor(provider: AiProvider): Preference<String> =
+    when (provider) {
+      AiProvider.OPENCODE -> openCodeAvailableModels
+      AiProvider.GROQ -> groqAvailableModels
+      AiProvider.OPENAI -> openAiAvailableModels
+      AiProvider.ANTHROPIC -> anthropicAvailableModels
+      AiProvider.OPENROUTER -> openRouterAvailableModels
+      AiProvider.TOGETHER -> togetherAvailableModels
+      AiProvider.LOCAL -> availableModels
+    }
 }

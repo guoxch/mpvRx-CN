@@ -1,13 +1,20 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.preferences
 
 import app.gyrolet.mpvrx.preferences.preference.PreferenceStore
 import app.gyrolet.mpvrx.preferences.preference.getEnum
+import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlAudioPreference
+import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlAudioQuality
 import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlCodecPreference
 import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlContainerPreference
 import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlHdrPreference
 import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlPlaylistMode
-import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlAudioPreference
-import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlAudioQuality
 
 class YtdlPreferences(
   preferenceStore: PreferenceStore,

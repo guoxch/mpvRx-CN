@@ -1,7 +1,11 @@
-package app.gyrolet.mpvrx.ui.player.controls.components.panels.components
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
 
-import app.gyrolet.mpvrx.ui.icons.Icon
-import app.gyrolet.mpvrx.ui.icons.Icons
+package app.gyrolet.mpvrx.ui.player.controls.components.panels.components
 
 import android.content.res.Configuration.ORIENTATION_PORTRAIT
 import androidx.activity.compose.BackHandler
@@ -39,6 +43,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
+import app.gyrolet.mpvrx.ui.icons.Icon
+import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.player.controls.CARDS_MAX_WIDTH
 import app.gyrolet.mpvrx.ui.theme.spacing
 
@@ -102,8 +108,7 @@ fun MultiCardPanel(
             .constrainAs(settingsCards) {
               top.linkTo(parent.top)
               end.linkTo(parent.end, 32.dp)
-            }
-            .verticalScroll(rememberScrollState()),
+            }.verticalScroll(rememberScrollState()),
       ) {
         Spacer(Modifier.height(MaterialTheme.spacing.medium))
         Row(
@@ -128,7 +133,3 @@ fun MultiCardPanel(
     }
   }
 }
-
-
-
-

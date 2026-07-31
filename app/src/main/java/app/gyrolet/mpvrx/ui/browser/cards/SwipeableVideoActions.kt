@@ -1,3 +1,10 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.ui.browser.cards
 
 import androidx.compose.animation.core.animate
@@ -63,20 +70,24 @@ fun SwipeableVideoActions(
   var offsetX by remember(itemKey) { mutableFloatStateOf(0f) }
   var settleJob by remember(itemKey) { androidx.compose.runtime.mutableStateOf<Job?>(null) }
 
-  fun settle(target: Float, action: (() -> Unit)? = null) {
+  fun settle(
+    target: Float,
+    action: (() -> Unit)? = null,
+  ) {
     settleJob?.cancel()
     action?.invoke()
     if (reduceMotion) {
       offsetX = target
       return
     }
-    settleJob = scope.launch {
-      animate(
-        initialValue = offsetX,
-        targetValue = target,
-        animationSpec = AppMotion.Spatial.StandardDefault,
-      ) { value, _ -> offsetX = value }
-    }
+    settleJob =
+      scope.launch {
+        animate(
+          initialValue = offsetX,
+          targetValue = target,
+          animationSpec = AppMotion.Spatial.StandardDefault,
+        ) { value, _ -> offsetX = value }
+      }
   }
 
   LaunchedEffect(enabled) {

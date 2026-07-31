@@ -1,8 +1,15 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.preferences
 
+import app.gyrolet.mpvrx.preferences.preference.Preference
 import app.gyrolet.mpvrx.preferences.preference.PreferenceStore
 import app.gyrolet.mpvrx.preferences.preference.getEnum
-import app.gyrolet.mpvrx.preferences.preference.Preference
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -30,7 +37,11 @@ class BrowserPreferences(
   private val isTablet = context.resources.configuration.smallestScreenWidthDp >= 600
   val maxColumns = if (isTablet) 8 else 4
 
-  private val _folderGridColumnsPortrait = preferenceStore.getInt("folder_grid_columns_portrait", if (isTablet) 4 else 3)
+  private val _folderGridColumnsPortrait =
+    preferenceStore.getInt(
+      "folder_grid_columns_portrait",
+      if (isTablet) 4 else 3,
+    )
   private val _folderGridColumnsLandscape = preferenceStore.getInt("folder_grid_columns_landscape", 5)
 
   private val _videoGridColumnsPortrait = preferenceStore.getInt("video_grid_columns_portrait", if (isTablet) 4 else 2)
@@ -51,6 +62,7 @@ class BrowserPreferences(
   val thumbnailQuality = preferenceStore.getEnum("thumbnail_quality", ThumbnailQuality.High)
   val thumbnailFramePosition = preferenceStore.getFloat("thumbnail_frame_position", 33f)
   val showSizeChip = preferenceStore.getBoolean("show_size_chip", true)
+
   // Metadata-dependent chips (disabled by default for better performance)
   val showResolutionChip = preferenceStore.getBoolean("show_resolution_chip", false)
   val showFramerateInResolution = preferenceStore.getBoolean("show_framerate_in_resolution", false)
@@ -65,6 +77,7 @@ class BrowserPreferences(
 
   // Visibility preferences for folder card chips
   val showTotalVideosChip = preferenceStore.getBoolean("show_total_videos_chip", true)
+
   // Metadata-dependent chips (disabled by default for better performance)
   val showTotalDurationChip = preferenceStore.getBoolean("show_total_duration_chip", false)
   val showTotalSizeChip = preferenceStore.getBoolean("show_total_size_chip", true)
@@ -115,10 +128,10 @@ enum class FolderSortType {
   val displayName: String
     get() =
       when (this) {
-        Title -> "标题"
-        Date -> "日期"
-        Size -> "大小"
-        VideoCount -> "数量"
+        Title -> "Title"
+        Date -> "Date"
+        Size -> "Size"
+        VideoCount -> "Count"
       }
 }
 
@@ -135,10 +148,10 @@ enum class VideoSortType {
   val displayName: String
     get() =
       when (this) {
-        Title -> "标题"
-        Duration -> "时长"
-        Date -> "日期"
-        Size -> "大小"
+        Title -> "Title"
+        Duration -> "Duration"
+        Date -> "Date"
+        Size -> "Size"
       }
 }
 
@@ -154,9 +167,9 @@ enum class FolderViewMode {
   val displayName: String
     get() =
       when (this) {
-        AlbumView -> "文件夹视图"
-        FileManager -> "树视图"
-        MediaLibrary -> "媒体库"
+        AlbumView -> "Folder View"
+        FileManager -> "Tree View"
+        MediaLibrary -> "Media Library"
       }
 }
 
@@ -170,7 +183,7 @@ enum class TreeFlattenDepth(
   Three(3, "3 levels"),
   Four(4, "4 levels"),
   Five(5, "5 levels"),
-  Unlimited(-1, "无限制"),
+  Unlimited(-1, "Unlimited"),
 }
 
 enum class MinimumAudioDuration(
@@ -188,11 +201,12 @@ enum class MediaLayoutMode {
   GRID,
   ;
 
-  val displayName:  String
-    get() = when (this) {
-      LIST -> "列表"
-      GRID -> "网格"
-    }
+  val displayName: String
+    get() =
+      when (this) {
+        LIST -> "List"
+        GRID -> "Grid"
+      }
 }
 
 enum class MediaLibraryType {
@@ -210,10 +224,10 @@ enum class ThumbnailMode {
   val displayName: String
     get() =
       when (this) {
-        Smart -> "智能（内置 + 33%）"
-        FirstFrame -> "首帧"
-        FrameAtPosition -> "指定位置帧"
-        EmbeddedThumbnail -> "内置缩略图"
+        Smart -> "Smart (embedded + 33%)"
+        FirstFrame -> "First frame"
+        FrameAtPosition -> "Frame position"
+        EmbeddedThumbnail -> "Embedded thumbnail"
       }
 }
 
@@ -231,14 +245,18 @@ internal class CoercedPreference(
   private val maxVal: Int,
 ) : Preference<Int> {
   override fun key(): String = delegate.key()
+
   override fun get(): Int = delegate.get().coerceIn(1, maxVal)
+
   override fun set(value: Int) = delegate.set(value.coerceIn(1, maxVal))
+
   override fun isSet(): Boolean = delegate.isSet()
+
   override fun delete() = delegate.delete()
+
   override fun defaultValue(): Int = delegate.defaultValue().coerceIn(1, maxVal)
 
-  override fun changes(): Flow<Int> =
-    delegate.changes().map { it.coerceIn(1, maxVal) }
+  override fun changes(): Flow<Int> = delegate.changes().map { it.coerceIn(1, maxVal) }
 
   override fun stateIn(scope: kotlinx.coroutines.CoroutineScope): StateFlow<Int> =
     changes().stateIn(scope, SharingStarted.Eagerly, get())

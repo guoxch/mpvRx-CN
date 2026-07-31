@@ -1,10 +1,15 @@
-package app.gyrolet.mpvrx.ui.theme
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.ui.unit.Dp
+package app.gyrolet.mpvrx.ui.theme
 
 import android.animation.ValueAnimator
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
@@ -12,6 +17,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -21,7 +27,9 @@ import androidx.compose.ui.unit.dp
  * When reduce-motion is true, all animations use non-bouncing standard specs.
  */
 @Stable
-data class MotionPolicy(val reduceMotion: Boolean = false)
+data class MotionPolicy(
+  val reduceMotion: Boolean = false,
+)
 
 val LocalMotionPolicy = staticCompositionLocalOf { MotionPolicy() }
 
@@ -57,10 +65,11 @@ object AppMotion {
   val ReducedDp: SpringSpec<Dp> = noBounce(stiffness = Spring.StiffnessMedium)
 
   /** IntSize-specific spring for expandVertically/shrinkVertically animations. */
-  val IntSizeSpring: SpringSpec<IntSize> = spring(
-    dampingRatio = Spring.DampingRatioLowBouncy,
-    stiffness = Spring.StiffnessMediumLow,
-  )
+  val IntSizeSpring: SpringSpec<IntSize> =
+    spring(
+      dampingRatio = Spring.DampingRatioLowBouncy,
+      stiffness = Spring.StiffnessMediumLow,
+    )
 
   /** Spatial animations — can overshoot for expressive feel. */
   object Spatial {

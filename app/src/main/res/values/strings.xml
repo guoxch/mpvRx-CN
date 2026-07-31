@@ -254,6 +254,7 @@
   <string name="toast_subtitles_cleared">Subtitle downloads cleared</string>
   <string name="pref_audio">Audio</string>
   <string name="pref_audio_summary">Preferred languages, audio channels, pitch correction</string>
+  <string name="pref_audio_orientation_title">Audio player orientation</string>
   <string name="pref_audio_pitch_correction_title">Enable audio pitch correction</string>
   <string name="pref_audio_pitch_correction_summary">Prevents the audio from becoming high-pitched at faster speeds and low-pitched at slower speeds</string>
   <string name="pref_audio_volume_normalization_title">Volume normalization</string>
@@ -263,6 +264,7 @@
   <string name="pref_audio_visualizer_style_title">Visualizer style</string>
   <string name="pref_audio_visualizer_style_blob">Blob</string>
   <string name="pref_audio_visualizer_style_galaxy">Galaxy</string>
+  <string name="pref_audio_visualizer_style_cuboid">Cuboid</string>
   <string name="pref_audio_visualizer_galaxy_credit">Inspired by Zain Raza on CodePen</string>
   <string name="pref_audio_channels">Audio channels</string>
   <string name="pref_audio_channels_auto">Auto</string>
@@ -318,6 +320,8 @@
   <string name="anime4k_quality_fast">Fast</string>
   <string name="anime4k_quality_balanced">Balanced</string>
   <string name="anime4k_quality_high">High</string>
+  <string name="pref_anime4k_in_4k_title">Enable in 4K Videos</string>
+  <string name="pref_anime4k_in_4k_summary">Allow Anime4K upscaling for 4K and 8K videos (may increase GPU load and thermal throttling)</string>
   <string name="pref_anime4k_darken_title">Anime4K darken lines</string>
   <string name="pref_anime4k_darken_summary">Adds line darkening after the main upscaler.</string>
   <string name="pref_anime4k_thin_title">Anime4K thin lines</string>
@@ -339,9 +343,9 @@
   <string name="player_sheets_add_ext_sub">Add external subtitles</string>
   <string name="player_sheets_add_ext_audio">Add external audio tracks</string>
   <string name="player_sheets_tracks_off">Off</string>
-  <string name="player_sheets_track_title_w_lang" translatable="false">#%d: %s (%s)</string>
-  <string name="player_sheets_track_title_wo_lang" translatable="false">#%d: %s</string>
-  <string name="player_sheets_track_lang_wo_title" translatable="false">#%d: %s</string>
+  <string name="player_sheets_track_title_w_lang" translatable="false">#%1$d: %2$s (%3$s)</string>
+  <string name="player_sheets_track_title_wo_lang" translatable="false">#%1$d: %2$s</string>
+  <string name="player_sheets_track_lang_wo_title" translatable="false">#%1$d: %2$s</string>
   <string name="player_sheets_chapter_title_substitute_subtitle" translatable="false">Subtitle #%d</string>
   <string name="player_sheets_chapter_title_substitute_audio" translatable="false">Audio #%d</string>
   <string name="player_sheets_off">Off</string>
@@ -456,6 +460,10 @@
   </plurals>
   <!-- Background Playback -->
   <string name="background_playback_title">Background playback</string>
+  <string name="pref_audio_background_playback_title">Audio Player Background Playback</string>
+  <string name="pref_audio_background_playback_summary">Keep audio playing when leaving the audio player or turning off screen</string>
+  <string name="pref_video_background_playback_title">Video Player Background Playback</string>
+  <string name="pref_video_background_playback_summary">Keep video audio playing when leaving the video player or turning off screen</string>
   <string name="deselect_all">Deselect All</string>
   <string name="select_all">Select All</string>
   <string name="invert_selection">Invert Selection</string>
@@ -490,6 +498,7 @@
   <string name="notification_chapter_counter">Chapter %1$d of %2$d</string>
   <string name="notification_permission_denied">Notification permission is required for background playback controls.</string>
   <string name="notification_permission_disabled">Notifications are disabled for mpvRx. Enable them to show playback controls.</string>
+  <string name="notification_disabled_in_advanced_settings">Enable notifications in Advanced Settings to use background playback.</string>
   <string name="pref_advanced_notification_style">Notification style</string>
   <!-- Media Info Activity -->
   <string name="pref_player_use_precise_seeking">Use precise seeking</string>

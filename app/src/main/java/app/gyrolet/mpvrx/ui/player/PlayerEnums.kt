@@ -1,3 +1,10 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.ui.player
 
 import androidx.annotation.StringRes
@@ -103,6 +110,8 @@ enum class Sheets {
   Playlist,
   AmbientConfig,
   FrameNavigation,
+  Equalizer,
+  AudioProperties,
 }
 
 enum class Panels {
@@ -375,7 +384,9 @@ enum class DebandSettings(
 }
 
 /** Controls whether the playback service shows a notification, and which style it uses. */
-enum class NotificationStyle(val displayName: String) {
+enum class NotificationStyle(
+  val displayName: String,
+) {
   /** Do not show any playback notification. */
   None("No Notification"),
 
@@ -393,4 +404,3 @@ enum class NotificationStyle(val displayName: String) {
       None, Media -> true
     }
 }
-

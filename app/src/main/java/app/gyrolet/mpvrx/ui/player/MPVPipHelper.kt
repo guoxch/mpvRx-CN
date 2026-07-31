@@ -1,3 +1,10 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.ui.player
 
 import android.app.PendingIntent
@@ -30,6 +37,7 @@ private const val PIP_FORWARD = 4
 class MPVPipHelper(
   private val activity: AppCompatActivity,
   private val mpvView: MPVView,
+  private val isAudioPlayer: () -> Boolean = { false },
 ) : KoinComponent {
   private val playerPreferences: PlayerPreferences by inject()
   private var pipReceiver: BroadcastReceiver? = null
@@ -96,10 +104,11 @@ class MPVPipHelper(
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-          setAutoEnterEnabled(playerPreferences.autoPiPOnNavigation.get())
+          val autoPipAllowed = playerPreferences.autoPiPOnNavigation.get() && !isAudioPlayer()
+          setAutoEnterEnabled(autoPipAllowed)
           // Video surfaces can resize continuously, so let Android morph the
           // full-screen frame into and out of PiP instead of cross-fading it.
-          setSeamlessResizeEnabled(true)
+          setSeamlessResizeEnabled(!isAudioPlayer())
         }
 
         setActions(createPipActions())
@@ -180,6 +189,10 @@ class MPVPipHelper(
   }
 
   fun enterPipMode() {
+    if (isAudioPlayer()) {
+      Log.d("MPVPipHelper", "PiP mode is disabled for audio playback")
+      return
+    }
     runCatching {
       activity.enterPictureInPictureMode(buildPipParams())
     }.onFailure {
@@ -191,4 +204,3 @@ class MPVPipHelper(
     unregisterPipReceiver()
   }
 }
-

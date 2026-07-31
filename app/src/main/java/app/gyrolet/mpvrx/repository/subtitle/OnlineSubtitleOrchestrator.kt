@@ -1,3 +1,10 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.repository.subtitle
 
 import android.net.Uri
@@ -20,9 +27,10 @@ class OnlineSubtitleOrchestrator(
   ): Result<List<OnlineSubtitle>> =
     when (mode) {
       OnlineSubtitleSearchMode.WYZIE ->
-        wyzieProvider.searchIncrementally(request) { results ->
-          onResults(results.scopeToEpisode(request))
-        }.map { it.scopeToEpisode(request) }
+        wyzieProvider
+          .searchIncrementally(request) { results ->
+            onResults(results.scopeToEpisode(request))
+          }.map { it.scopeToEpisode(request) }
       OnlineSubtitleSearchMode.SUBHUB -> subtitleHubProvider.searchIncrementally(subtitleHubRequest, onResults)
       OnlineSubtitleSearchMode.HYBRID ->
         searchHybrid(
@@ -57,7 +65,11 @@ class OnlineSubtitleOrchestrator(
     coroutineScope {
       val resultLock = Mutex()
       val providerResults = mutableMapOf<SubtitleProvider, List<OnlineSubtitle>>()
-      suspend fun publish(provider: SubtitleProvider, results: List<OnlineSubtitle>) {
+
+      suspend fun publish(
+        provider: SubtitleProvider,
+        results: List<OnlineSubtitle>,
+      ) {
         resultLock.withLock {
           providerResults[provider] = results
           onResults(normalize(providerResults.values.flatten()))
@@ -67,21 +79,30 @@ class OnlineSubtitleOrchestrator(
       val jobs =
         buildList {
           if (includeWyzie) {
-            add(async {
-              wyzieProvider.searchIncrementally(wyzieRequest) { results ->
-                publish(SubtitleProvider.WYZIE, results.scopeToEpisode(wyzieRequest))
-              }.map { it.scopeToEpisode(wyzieRequest) }
-            })
+            add(
+              async {
+                wyzieProvider
+                  .searchIncrementally(wyzieRequest) { results ->
+                    publish(SubtitleProvider.WYZIE, results.scopeToEpisode(wyzieRequest))
+                  }.map { it.scopeToEpisode(wyzieRequest) }
+              },
+            )
           }
           if (includeSubtitleHub) {
-            add(async {
-              subtitleHubProvider.searchIncrementally(subtitleHubRequest) { results ->
-                publish(SubtitleProvider.MPVRX_SUBTITLE_HUB, results)
-              }
-            })
+            add(
+              async {
+                subtitleHubProvider.searchIncrementally(subtitleHubRequest) { results ->
+                  publish(SubtitleProvider.MPVRX_SUBTITLE_HUB, results)
+                }
+              },
+            )
           }
         }
-      if (jobs.isEmpty()) return@coroutineScope Result.failure(IllegalStateException("No subtitle providers are available"))
+      if (jobs.isEmpty()) {
+        return@coroutineScope Result.failure(
+          IllegalStateException("No subtitle providers are available"),
+        )
+      }
 
       val results = jobs.map { it.await() }
       val collected = results.flatMap { it.getOrElse { emptyList() } }
@@ -107,8 +128,7 @@ class OnlineSubtitleOrchestrator(
         subtitle.url.lowercase().ifBlank {
           "${subtitle.provider}:${subtitle.id}:${subtitle.displayName}:${subtitle.language}"
         }
-      }
-      .sortedWith(
+      }.sortedWith(
         compareByDescending<OnlineSubtitle> { it.isHashMatch }
           .thenBy { providerOrder[it.provider] ?: Int.MAX_VALUE }
           .thenByDescending { it.downloadCount ?: 0 }

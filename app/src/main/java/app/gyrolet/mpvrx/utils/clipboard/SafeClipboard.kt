@@ -1,3 +1,10 @@
+/*
+ * SPDX-License-Identifier: CC-BY-NC-4.0
+ *
+ * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
+ * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ */
+
 package app.gyrolet.mpvrx.utils.clipboard
 
 import android.content.ClipData
@@ -33,8 +40,9 @@ object SafeClipboard {
     text: CharSequence,
     showToast: Boolean = true,
   ): CopyResult {
-    val clipboard = context.getSystemService(ClipboardManager::class.java)
-      ?: error("Clipboard service unavailable")
+    val clipboard =
+      context.getSystemService(ClipboardManager::class.java)
+        ?: error("Clipboard service unavailable")
     val first = truncateUtf8(text.toString(), MAX_CLIPBOARD_BYTES)
     return try {
       clipboard.setPrimaryClip(ClipData.newPlainText(label, first.text))
@@ -121,7 +129,10 @@ object SafeClipboard {
       context.getString(R.string.copied_to_clipboard)
     }
 
-  private fun showToast(context: Context, message: String) {
+  private fun showToast(
+    context: Context,
+    message: String,
+  ) {
     Handler(Looper.getMainLooper()).post {
       Toast.makeText(context.applicationContext, message, Toast.LENGTH_SHORT).show()
     }

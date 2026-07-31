@@ -84,9 +84,9 @@ enum class MPVProfile(
   Fast("Fast", "fast"),
   Default("Default", "default"),
   HighQuality("高质量", "high-quality"),
-  GpuHQ("GPU HQ", "gpu-hq"),
+  GpuHQ("GPU 高质量", "gpu-hq"),
   LowLatency("低延迟", "low-latency"),
-  SwFast("SW Fast", "sw-fast"),
+  SwFast("软件快速", "sw-fast"),
   ;
 
   override fun toString(): String = displayName

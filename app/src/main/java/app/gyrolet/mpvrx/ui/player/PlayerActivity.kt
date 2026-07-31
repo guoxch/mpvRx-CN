@@ -314,6 +314,7 @@ class PlayerActivity :
    * Used for windowed loading to prevent ANR with large playlists.
    */
   private var playlistWindowOffset: Int = 0
+  private var originalDisplayModeId: Int = -1
 
   /**
    * Total count of items in the full playlist (when using windowed loading).
@@ -518,6 +519,7 @@ class PlayerActivity :
     setupVideoTransformObserver()
     setupAudioPlayerViewObserver()
     setupMediaSession()
+    lockMaxResolution()
     // Note: screenStateReceiver is now registered in onStart() and
     // unregistered in onStop(), matching the noisyReceiver pattern.
     // Previously it was registered here in onCreate and stayed registered
@@ -1100,6 +1102,7 @@ class PlayerActivity :
       Log.e(TAG, "Error during onDestroy", e)
     }
 
+    restoreDisplayResolution()
     super.onDestroy()
 
     // The core remains alive throughout Android/ViewModel/window cleanup. Only after super returns
@@ -2962,6 +2965,21 @@ class PlayerActivity :
 
     if (repeatAll) restartCurrentAtEof() else finishAtEofIfRequested()
     burnAfterReadingIfEnabled(burnedIdx)
+  }
+
+  private fun lockMaxResolution() {
+    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return
+    val display = windowManager.defaultDisplay
+    originalDisplayModeId = display.mode.modeId
+    val target = display.supportedModes.maxByOrNull { it.physicalWidth * it.physicalHeight } ?: return
+    if (target.physicalWidth >= 2780 && target.physicalHeight >= 1264) {
+      window.attributes.preferredDisplayModeId = target.modeId
+    }
+  }
+
+  private fun restoreDisplayResolution() {
+    if (originalDisplayModeId == -1) return
+    window.attributes.preferredDisplayModeId = originalDisplayModeId
   }
 
   private fun restartCurrentAtEof() {

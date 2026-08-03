@@ -1,8 +1,10 @@
 /*
- * SPDX-License-Identifier: CC-BY-NC-4.0
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
- * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  */
 
 package app.gyrolet.mpvrx.ui.player
@@ -1009,11 +1011,11 @@ class PlayerViewModel(
   private val _frameExtendGlowMix = MutableStateFlow(playerPreferences.ambientExtendGlowMix.get())
   val frameExtendGlowMix: StateFlow<Float> = _frameExtendGlowMix.asStateFlow()
 
-  private var lastAmbientScaleX = -1.0
-  private var lastAmbientScaleY = -1.0
+  @Volatile private var lastAmbientScaleX = -1.0
+  @Volatile private var lastAmbientScaleY = -1.0
   private var ambientDebounceJob: kotlinx.coroutines.Job? = null
   private var ambientShaderSeq = 0
-  private var ambientShaderFile: java.io.File? = null
+  @Volatile private var ambientShaderFile: java.io.File? = null
 
   /**
    * Caches the [AmbientShaderSpec] that was last compiled into a GLSL file.
@@ -1024,8 +1026,11 @@ class PlayerViewModel(
    * Using the spec data class (instead of the raw GLSL String) as the cache
    * key avoids allocating the multi-KB shader string and running
    * buildSpiralTapTable trig math before the early-return guard fires.
+   *
+   * @Volatile: written on renderPrepDispatcher (background), read and nulled on
+   * the main thread in disableAmbientShader() / restartAmbientIfActive().
    */
-  private var lastCompiledSpec: AmbientShaderSpec? = null
+  @Volatile private var lastCompiledSpec: AmbientShaderSpec? = null
 
   /**
    * Latest device thermal headroom reading ([0f] = at thermal limit, [1f] = cool).
@@ -4166,6 +4171,7 @@ class PlayerViewModel(
 
   fun setVideoZoom(zoom: Float) {
     _videoZoom.value = zoom
+    runCatching { MPVLib.setPropertyDouble("video-zoom", zoom.toDouble()) }
   }
 
   // Video pan (for pan & zoom feature)
@@ -5029,7 +5035,7 @@ class PlayerViewModel(
     playerPreferences.isAmbientEnabled.set(_isAmbientEnabled.value)
     if (_isAmbientEnabled.value) {
       lastAmbientScaleX = -1.0 // Force rewrite
-      updateAmbientStretch()
+      scheduleAmbientUpdate(0)
       playerUpdate.value = PlayerUpdates.ShowText(host.context.getString(R.string.player_ambience_on))
     } else {
       disableAmbientShader()
@@ -5323,7 +5329,7 @@ class PlayerViewModel(
     }
   }
 
-  fun updateAmbientStretch() {
+  suspend fun updateAmbientStretch() {
     if (!_isAmbientEnabled.value) return
 
     runCatching {
@@ -5427,7 +5433,17 @@ class PlayerViewModel(
       // compiled shader — incrementing seq guarantees a fresh compile every time.
       val shaderCode = AmbientShaderBuilder.build(spec)
       val newFile = File(host.context.cacheDir, "ambient_${++ambientShaderSeq}.glsl")
-      newFile.writeText(shaderCode)
+      // Blocking file write — dispatched to IO pool to avoid stalling renderPrepDispatcher.
+      // Catch CancellationException here: IO is not preemptible, so the write always
+      // completes fully even when the job is cancelled mid-flight. Without this guard,
+      // the file would be written but never tracked or deleted (disk leak on every
+      // superseded debounced update — fast slider drags, orientation flips, etc.).
+      try {
+        withContext(kotlinx.coroutines.Dispatchers.IO) { newFile.writeText(shaderCode) }
+      } catch (e: kotlinx.coroutines.CancellationException) {
+        newFile.delete() // Orphan cleanup — job cancelled after write completed.
+        throw e
+      }
       ambientShaderFile?.let { oldFile ->
         runCatching { MPVLib.command("change-list", "glsl-shaders", "remove", oldFile.absolutePath) }
         oldFile.delete()
@@ -5435,6 +5451,10 @@ class PlayerViewModel(
       MPVLib.command("change-list", "glsl-shaders", "append", newFile.absolutePath)
       ambientShaderFile = newFile
     }.onFailure { e ->
+      // runCatching catches Throwable including CancellationException — rethrow it so
+      // structured concurrency is not broken and debounce cancellation does not log
+      // spurious "Failed to update ambient stretch" stack traces that would mask real errors.
+      if (e is kotlinx.coroutines.CancellationException) throw e
       Log.e(TAG, "Failed to update ambient stretch", e)
     }
   }

@@ -1,8 +1,10 @@
 /*
- * SPDX-License-Identifier: CC-BY-NC-4.0
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
- * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  */
 
 package app.gyrolet.mpvrx.ui.preferences
@@ -664,7 +666,7 @@ object SubtitlesPreferencesScreen : Screen {
                                 modifier = Modifier.padding(vertical = 8.dp),
                               )
                             }
-                            items(freeItems.size) { index ->
+                            items(freeItems.size, key = { freeItems[it].key }) { index ->
                               val item = freeItems[index]
                               val checked = !wyzieSources.contains("all") && wyzieSources.contains(item.key)
                               Row(
@@ -726,7 +728,7 @@ object SubtitlesPreferencesScreen : Screen {
                                 modifier = Modifier.padding(vertical = 8.dp),
                               )
                             }
-                            items(paidItems.size) { index ->
+                            items(paidItems.size, key = { paidItems[it].key }) { index ->
                               val item = paidItems[index]
                               val checked = !wyzieSources.contains("all") && wyzieSources.contains(item.key)
                               val isAvailable = item.available

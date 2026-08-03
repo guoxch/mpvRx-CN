@@ -299,6 +299,20 @@ object AudioPreferencesScreen : Screen {
               )
 
               PreferenceDivider()
+              val drcEnabled by preferences.drcEnabled.collectAsState()
+              SwitchPreference(
+                value = drcEnabled,
+                onValueChange = { preferences.drcEnabled.set(it) },
+                title = { Text(stringResource(R.string.pref_audio_drc_title)) },
+                summary = {
+                  Text(
+                    stringResource(R.string.pref_audio_drc_summary),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+
+              PreferenceDivider()
               val audioBackgroundPlayback by preferences.audioBackgroundPlayback.collectAsState()
               SwitchPreference(
                 value = audioBackgroundPlayback,
@@ -316,29 +330,6 @@ object AudioPreferencesScreen : Screen {
                 summary = {
                   Text(
                     stringResource(R.string.pref_audio_background_playback_summary),
-                    color = MaterialTheme.colorScheme.outline,
-                  )
-                },
-              )
-
-              PreferenceDivider()
-              val videoBackgroundPlayback by preferences.backgroundPlayback.collectAsState()
-              SwitchPreference(
-                value = videoBackgroundPlayback,
-                onValueChange = { enabled ->
-                  preferences.backgroundPlayback.set(enabled)
-                  if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-                      PackageManager.PERMISSION_GRANTED
-                    ) {
-                      notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    }
-                  }
-                },
-                title = { Text(stringResource(R.string.pref_video_background_playback_title)) },
-                summary = {
-                  Text(
-                    stringResource(R.string.pref_video_background_playback_summary),
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },

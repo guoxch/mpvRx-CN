@@ -41,6 +41,8 @@ import app.gyrolet.mpvrx.preferences.BrowserPreferences
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.utils.media.PlaybackStateEvents
+import app.gyrolet.mpvrx.utils.media.resolveSeekMode
+import app.gyrolet.mpvrx.utils.storage.FileTypeUtils
 import `is`.xyz.mpv.MPVLib
 import `is`.xyz.mpv.MPVNode
 import kotlinx.coroutines.CoroutineScope
@@ -169,8 +171,7 @@ class MediaPlaybackService :
         if (usesAudioBackgroundPlayback) audioEnabled else videoEnabled
       }.drop(1).collect { enabled ->
         if (!enabled) {
-          Log.d(TAG, "Background playback disabled; stopping service and pausing playback")
-          MPVLib.setPropertyBoolean("pause", true)
+          Log.d(TAG, "Background playback disabled; stopping service")
           stopForegroundNotification()
           stopSelf()
         }
@@ -213,7 +214,7 @@ class MediaPlaybackService :
       usesAudioBackgroundPlayback = it.getBooleanExtra("audio_background_playback", false)
 
       if (!title.isNullOrBlank()) {
-        mediaTitle = title
+        mediaTitle = FileTypeUtils.stripExtension(title)
         mediaArtist = artist ?: ""
         Log.d(TAG, "Media info from intent: $mediaTitle")
       }
@@ -227,7 +228,7 @@ class MediaPlaybackService :
 
     // Fallback: Read current state from MPV if not provided via intent
     if (mediaTitle.isBlank()) {
-      mediaTitle = MPVLib.getPropertyString("media-title") ?: ""
+      mediaTitle = FileTypeUtils.stripExtension(MPVLib.getPropertyString("media-title") ?: "")
       mediaArtist = MPVLib.getPropertyString("metadata/artist") ?: ""
     }
 
@@ -284,7 +285,7 @@ class MediaPlaybackService :
   ) {
     serviceScope.launch {
       MediaPlaybackService.thumbnail = thumbnail
-      mediaTitle = title
+      mediaTitle = FileTypeUtils.stripExtension(title)
       mediaArtist = artist
       uri?.let { mediaUri = it }
       identifier?.takeIf { it.isNotBlank() }?.let { mediaIdentifier = it }
@@ -323,17 +324,13 @@ class MediaPlaybackService :
 
             override fun onSkipToNext() {
               Log.d(TAG, "onSkipToNext called")
-              val duration = MPVLib.getPropertyInt("duration") ?: 0
-              val shouldUsePreciseSeeking = playerPreferences.usePreciseSeeking.get() || duration < 120
-              val seekMode = if (shouldUsePreciseSeeking) "relative+exact" else "relative+keyframes"
+              val seekMode = resolveSeekMode(playerPreferences)
               MPVLib.command("seek", "10", seekMode)
             }
 
             override fun onSkipToPrevious() {
               Log.d(TAG, "onSkipToPrevious called")
-              val duration = MPVLib.getPropertyInt("duration") ?: 0
-              val shouldUsePreciseSeeking = playerPreferences.usePreciseSeeking.get() || duration < 120
-              val seekMode = if (shouldUsePreciseSeeking) "relative+exact" else "relative+keyframes"
+              val seekMode = resolveSeekMode(playerPreferences)
               MPVLib.command("seek", "-10", seekMode)
             }
 

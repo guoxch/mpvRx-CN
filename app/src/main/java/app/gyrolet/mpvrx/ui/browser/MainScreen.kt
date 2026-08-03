@@ -62,12 +62,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
+import kotlin.math.abs
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
@@ -193,10 +198,15 @@ object MainScreen : Screen {
       selectedTab = tab
     }
 
+    val pagerPositionFloatProvider = remember(pagerState) {
+      { pagerState.currentPage + pagerState.currentPageOffsetFraction }
+    }
+
     val mainNavBar = @Composable { modifier: Modifier ->
       TelegramPillNavigationBar(
         visibleTabs = visibleTabs,
         selectedTab = selectedTab,
+        pagerPositionFloatProvider = pagerPositionFloatProvider,
         onTabSelected = onTabSelected,
         modifier = modifier,
       )
@@ -263,6 +273,7 @@ LaunchedEffect(visibleTabs) {
           HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
+            userScrollEnabled = !isPermissionDenied,
           ) { page ->
             CompositionLocalProvider(
               LocalNavigationBarHeight provides fabBottomPadding,
@@ -322,6 +333,7 @@ LaunchedEffect(visibleTabs) {
               TelegramPillNavigationBar(
                 visibleTabs = visibleTabs,
                 selectedTab = selectedTab,
+                pagerPositionFloatProvider = pagerPositionFloatProvider,
                 onTabSelected = onTabSelected,
                 modifier = Modifier.fillMaxWidth(),
               )
@@ -337,6 +349,7 @@ LaunchedEffect(visibleTabs) {
 private fun TelegramPillNavigationBar(
   visibleTabs: List<MainScreen.MainTab>,
   selectedTab: MainScreen.MainTab,
+  pagerPositionFloatProvider: () -> Float,
   onTabSelected: (MainScreen.MainTab) -> Unit,
   modifier: Modifier = Modifier,
 ) {
@@ -345,21 +358,30 @@ private fun TelegramPillNavigationBar(
       visibleTabs.indexOf(selectedTab).coerceAtLeast(0)
     }
 
+  val pagerPositionFloat = pagerPositionFloatProvider()
+  val targetIndex =
+    if (visibleTabs.isNotEmpty()) {
+      pagerPositionFloat.coerceIn(0f, (visibleTabs.size - 1).coerceAtLeast(0).toFloat())
+    } else {
+      selectedIndex.toFloat()
+    }
+
   val smoothSpring =
     remember {
       spring<Float>(
-        dampingRatio = 0.82f,
-        stiffness = 300f,
+        dampingRatio = 0.85f,
+        stiffness = 500f,
       )
     }
 
   val animatedIndex by animateFloatAsState(
-    targetValue = selectedIndex.toFloat(),
+    targetValue = targetIndex,
     animationSpec = smoothSpring,
     label = "pill_slide",
   )
 
   val density = LocalDensity.current
+  val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
   BoxWithConstraints(modifier = modifier) {
     val totalWidth = maxWidth
@@ -395,7 +417,7 @@ private fun TelegramPillNavigationBar(
                 .width(itemWidth)
                 .height(56.dp)
                 .graphicsLayer {
-                  translationX = itemWidthPx * animatedIndex
+                  translationX = if (isRtl) -itemWidthPx * animatedIndex else itemWidthPx * animatedIndex
                 }.clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primaryContainer),
           )
@@ -407,25 +429,18 @@ private fun TelegramPillNavigationBar(
           horizontalArrangement = Arrangement.SpaceEvenly,
           verticalAlignment = Alignment.CenterVertically,
         ) {
-          visibleTabs.forEach { tab ->
-            val selected = selectedTab == tab
+          visibleTabs.forEachIndexed { index, tab ->
+            val distanceFromPill = abs(animatedIndex - index)
+            val progress = (1f - distanceFromPill).coerceIn(0f, 1f)
 
-            val contentColor by animateColorAsState(
-              targetValue =
-                if (selected) {
-                  MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                  MaterialTheme.colorScheme.onSurfaceVariant
-                },
-              animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-              label = "pill_fg",
-            )
+            val contentColor =
+              lerp(
+                MaterialTheme.colorScheme.onSurfaceVariant,
+                MaterialTheme.colorScheme.onPrimaryContainer,
+                progress,
+              )
 
-            val iconScale by animateFloatAsState(
-              targetValue = if (selected) 1.10f else 1.0f,
-              animationSpec = smoothSpring,
-              label = "icon_scale",
-            )
+            val iconScale = lerp(1.0f, 1.10f, progress)
 
             Box(
               modifier =
@@ -493,7 +508,7 @@ private fun TelegramPillNavigationBar(
                       MainScreen.MainTab.NETWORK -> "Network"
                     },
                   style = MaterialTheme.typography.labelSmall,
-                  fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                  fontWeight = if (progress > 0.5f) FontWeight.Bold else FontWeight.Medium,
                   color = contentColor,
                   maxLines = 1,
                   overflow = TextOverflow.Ellipsis,

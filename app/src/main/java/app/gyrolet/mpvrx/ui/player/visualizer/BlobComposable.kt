@@ -60,6 +60,20 @@ internal fun GalaxyOverlay(
   factory = { ctx, features, p -> GalaxyVisualizerView(ctx, features, p) },
 )
 
+@Composable
+internal fun ParticleOverlay(
+  modifier: Modifier = Modifier,
+  isPlaying: Boolean = false,
+  palette: VisualizerPalette,
+  isSheetOpen: Boolean = false,
+) = VisualizerOverlay(
+  modifier = modifier,
+  isPlaying = isPlaying,
+  palette = palette,
+  isSheetOpen = isSheetOpen,
+  factory = { ctx, features, p -> ParticleVisualizerView(ctx, features, p) },
+)
+
 internal interface PaletteConsumer {
   fun updatePalette(value: VisualizerPalette)
 }

@@ -72,6 +72,7 @@ import app.gyrolet.mpvrx.domain.anime4k.Anime4KManager
 import app.gyrolet.mpvrx.domain.playbackstate.repository.PlaybackStateRepository
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
+import app.gyrolet.mpvrx.preferences.AudioChannels
 import app.gyrolet.mpvrx.preferences.AudioPlayerOrientation
 import app.gyrolet.mpvrx.preferences.AudioPreferences
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
@@ -90,6 +91,8 @@ import app.gyrolet.mpvrx.ui.theme.MpvrxTheme
 import app.gyrolet.mpvrx.utils.history.RecentlyPlayedOps
 import app.gyrolet.mpvrx.utils.media.HttpUtils
 import app.gyrolet.mpvrx.utils.media.JellyfinSessionReporter
+import app.gyrolet.mpvrx.utils.media.fileExtension
+import app.gyrolet.mpvrx.utils.media.resolveSeekMode
 import app.gyrolet.mpvrx.utils.media.M3UParseResult
 import app.gyrolet.mpvrx.utils.media.M3UParser
 import app.gyrolet.mpvrx.utils.media.PlaybackStateEvents
@@ -169,6 +172,21 @@ class PlayerActivity :
    */
   private val playerObserver by lazy { PlayerObserver(this) }
 
+  /**
+   * True when the current playback session was launched from the Secure Folder. Files hidden
+   * there should never leave a trail in Recents/playback-history, regardless of how playback
+   * later navigates (single file, auto-playlist, etc.).
+   *
+   * `PlayerActivity` is `singleTask`, so opening a new file while the player is already running
+   * goes through `onNewIntent` (not `onCreate`) and reuses this same instance. This is a `var`
+   * set explicitly in `onCreate` and recomputed from the current intent in `onNewIntent`
+   * whenever genuinely new media is loaded — not a `by lazy` computed once and cached for the
+   * activity's whole lifetime — so a stale value from an earlier, non-secure session can't
+   * survive into a later secure-folder one (or vice versa). Defaults to `false` here since
+   * `intent` isn't safely readable this early (before `onCreate`/`attach`).
+   */
+  private var isSecureFolderLaunch = false
+
   // ==================== Dependency Injection ====================
 
   /**
@@ -241,13 +259,8 @@ class PlayerActivity :
     val extension =
       sequenceOf(fileName, currentPlayableUri)
         .filterNotNull()
-        .map { value ->
-          value
-            .substringBefore('?')
-            .substringBefore('#')
-            .substringAfterLast('.', "")
-            .lowercase()
-        }.firstOrNull { it in FileTypeUtils.AUDIO_EXTENSIONS || it in FileTypeUtils.VIDEO_EXTENSIONS }
+        .map { it.fileExtension() }
+        .firstOrNull { it in FileTypeUtils.AUDIO_EXTENSIONS || it in FileTypeUtils.VIDEO_EXTENSIONS }
     if (extension != null) return extension in FileTypeUtils.AUDIO_EXTENSIONS
     return isKnownAudioLaunch(intent)
   }
@@ -358,6 +371,9 @@ class PlayerActivity :
   private var intentSubtitleJob: Job? = null
   private var mediaLoadJob: Job? = null
   private var eofAdvanceJob: Job? = null
+  // Keep the old video decoder detached until mpv has completed the replacement load.
+  // Reattaching it as part of `loadfile` can make the old and new outputs overlap.
+  private var restoreVideoTrackAfterFileLoad = false
 
   @Volatile private var isAdvancingAtEof = false
 
@@ -495,6 +511,8 @@ class PlayerActivity :
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
+    // Read from the actual launch intent now that it's safe to (see isSecureFolderLaunch kdoc).
+    isSecureFolderLaunch = intent.getStringExtra("launch_source") == "secure_folder"
     setContentView(binding.root)
     setupSystemBarsAutoHide()
     setupPipHelper()
@@ -730,11 +748,13 @@ class PlayerActivity :
         viewModel.panelShown,
         playerPreferences.autoPiPOnNavigation.changes(),
         audioPreferences.backgroundPlayback.changes(),
-      ) { sheetShown, panelShown, autoPipOnNavigation, backgroundPlaybackEnabled ->
+        audioPreferences.audioBackgroundPlayback.changes(),
+      ) { sheetShown, panelShown, autoPipOnNavigation, videoBackground, audioBackground ->
         sheetShown != Sheets.None ||
           panelShown != Panels.None ||
           autoPipOnNavigation ||
-          backgroundPlaybackEnabled
+          videoBackground ||
+          audioBackground
       }.distinctUntilChanged()
         .collect { callback.isEnabled = it }
     }
@@ -971,7 +991,11 @@ class PlayerActivity :
   private fun setupAudio() {
     audioPreferences.audioChannels.get().let {
       runCatching {
-        MPVLib.setPropertyString(it.property, it.value)
+        if (it == AudioChannels.ReverseStereo) {
+          MPVLib.setPropertyString(AudioChannels.AutoSafe.property, AudioChannels.AutoSafe.value)
+        } else {
+          MPVLib.setPropertyString(it.property, it.value)
+        }
       }.onFailure { e ->
         Log.e(TAG, "Error setting audio channels: ${it.property}=${it.value}", e)
       }
@@ -1383,6 +1407,16 @@ class PlayerActivity :
         val brightness = playerPreferences.defaultBrightness.get()
         if (brightness != BRIGHTNESS_NOT_SET) {
           viewModel.changeBrightnessTo(brightness)
+        }
+      } else {
+        // Re-sync from system brightness when remember-brightness is off
+        val systemBrightness = runCatching {
+          Settings.System
+            .getFloat(contentResolver, Settings.System.SCREEN_BRIGHTNESS)
+            .coerceIn(0f, 255f) / 255f
+        }.getOrNull()
+        if (systemBrightness != null) {
+          viewModel.changeBrightnessTo(systemBrightness)
         }
       }
 
@@ -2298,7 +2332,7 @@ class PlayerActivity :
   }
 
   private fun isBackgroundPlaybackEnabled(): Boolean =
-    if (viewModel.isAudioOnly.value) audioPreferences.audioBackgroundPlayback.get()
+    if (viewModel.isAudioOnly.value || isKnownAudioLaunch(intent)) audioPreferences.audioBackgroundPlayback.get()
     else audioPreferences.backgroundPlayback.get()
 
   private fun isDeviceScreenOffOrLocked(): Boolean {
@@ -3128,6 +3162,10 @@ class PlayerActivity :
         eofAdvanceJob = null
         isAdvancingAtEof = false
         isReady = true
+        if (restoreVideoTrackAfterFileLoad) {
+          restoreVideoTrackAfterFileLoad = false
+          MPVLib.setPropertyString("vid", "auto")
+        }
         if (playWhenFileLoaded) {
           playWhenFileLoaded = false
           requestAudioFocus()
@@ -3135,6 +3173,9 @@ class PlayerActivity :
         }
         viewModel.onVideoLoadCompleted()
         handleFileLoaded()
+        if (isBackgroundPlaybackEnabled()) {
+          startBackgroundPlayback(allowUserPrompt = false)
+        }
       }
 
       MPVLib.MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> {
@@ -3847,6 +3888,13 @@ class PlayerActivity :
           MPVLib.getPropertyInt("height") ?: MPVLib.getPropertyInt("video-params/h") ?: 0
         }.getOrDefault(0)
 
+      // Secure Folder playback should never surface in Recents/playback-history — that would
+      // defeat the point of hiding the file in the first place.
+      if (isSecureFolderLaunch) {
+        Log.d(TAG, "Skipping recently-played save for secure_folder launch: $filePath")
+        return@runCatching
+      }
+
       RecentlyPlayedOps.addRecentlyPlayed(
         filePath = filePath,
         fileName = fileName,
@@ -3919,12 +3967,33 @@ class PlayerActivity :
         return
       }
       MediaPlaybackService.ACTION_OPEN_PLAYER -> {
-        reattachActiveMediaSession()
+        isBackgroundPlaybackSessionActive = false
+        pendingBackgroundTransition = false
+        isReady = true
+        viewModel.onVideoLoadCompleted()
+        if (isBackgroundPlaybackEnabled()) {
+          if (!serviceBound || mediaPlaybackService == null) {
+            startBackgroundPlaybackInternal(bindToActivity = true)
+          }
+          syncBackgroundPlaybackService(updateThumbnail = true)
+        } else {
+          endBackgroundPlayback()
+        }
         return
       }
     }
 
     handledPipDismissal = false
+    if (!isBackgroundPlaybackEnabled() && (serviceBound || mediaPlaybackService != null || MediaPlaybackService.isRunning())) {
+      endBackgroundPlayback()
+    }
+
+    // Recompute from the new intent — this activity is singleTask, so opening a different file
+    // reuses this same instance via onNewIntent instead of a fresh onCreate. Doing this here
+    // (after the notification prev/next and background-resume branches already returned above)
+    // means it only changes when genuinely new media is being loaded, not on every onNewIntent
+    // call, so a stale true/false from the previous file never leaks into the next one.
+    isSecureFolderLaunch = intent.getStringExtra("launch_source") == "secure_folder"
 
     // Check if this intent has playlist information
     val hasPlaylistExtras =
@@ -4059,8 +4128,10 @@ class PlayerActivity :
           }
 
           withContext(Dispatchers.Main) { requestAudioFocus() }
-          val videoMode = if (disableVideoOnFallback) "no" else "auto"
-          MPVLib.command("loadfile", playableUri, "replace", "-1", "vid=$videoMode,pause=no")
+          // Tear down the outgoing video track before replacing the file.
+          restoreVideoTrackAfterFileLoad = !disableVideoOnFallback
+          MPVLib.setPropertyString("vid", "no")
+          MPVLib.command("loadfile", playableUri, "replace", "-1", "pause=no")
           MPVLib.setPropertyBoolean("pause", false)
         } catch (error: CancellationException) {
           throw error
@@ -4502,7 +4573,7 @@ class PlayerActivity :
         mediaPlaybackService = binder.getService()
         serviceBound = true
         Log.d(TAG, "Service connected")
-        syncBackgroundPlaybackService(updateThumbnail = false)
+        syncBackgroundPlaybackService(updateThumbnail = true)
       }
 
       override fun onServiceDisconnected(name: ComponentName?) {
@@ -4546,7 +4617,7 @@ class PlayerActivity :
     }
 
     pendingBackgroundPlaybackStart = false
-    return if (startBackgroundPlaybackInternal(bindToActivity = false)) {
+    return if (startBackgroundPlaybackInternal(bindToActivity = true)) {
       BackgroundPlaybackStartResult.Started
     } else {
       BackgroundPlaybackStartResult.Blocked
@@ -4576,7 +4647,7 @@ class PlayerActivity :
     // Pass media info via intent extras
     val intent =
       Intent(this, MediaPlaybackService::class.java).apply {
-        putExtra("media_title", fileName)
+        putExtra("media_title", FileTypeUtils.stripExtension(fileName))
         putExtra("media_artist", artist)
         putExtra("media_uri", currentPlayableUri)
         putExtra("media_identifier", mediaIdentifier)
@@ -5113,8 +5184,12 @@ class PlayerActivity :
   }
 
   private fun syncBackgroundPlaybackService(updateThumbnail: Boolean) {
+    if (mediaPlaybackService == null && isBackgroundPlaybackEnabled() && isReady && fileName.isNotBlank()) {
+      startBackgroundPlayback(allowUserPrompt = false)
+    }
     val service = mediaPlaybackService ?: return
-    val title = getPreferredCurrentTitle().ifBlank { fileName.ifBlank { getString(R.string.player_unknown_video) } }
+    val rawTitle = getPreferredCurrentTitle().ifBlank { fileName.ifBlank { getString(R.string.player_unknown_video) } }
+    val title = FileTypeUtils.stripExtension(rawTitle)
     val artist = runCatching { MPVLib.getPropertyString("metadata/artist") }.getOrNull() ?: ""
     val thumbnailKey = buildBackgroundThumbnailKey()
     val cachedThumbnail =
@@ -5141,8 +5216,30 @@ class PlayerActivity :
       lifecycleScope.launch {
         delay(150)
         val generatedThumbnail =
-          withContext(Dispatchers.Default) {
-            runCatching { MPVLib.grabThumbnail(480) }.getOrNull()
+          withContext(Dispatchers.IO) {
+            runCatching { MPVLib.grabThumbnail(480) }.getOrNull() ?: runCatching {
+              val uriStr = currentPlayableUri
+              if (!uriStr.isNullOrBlank()) {
+                val parsedUri = Uri.parse(uriStr)
+                val cleanPath =
+                  when {
+                    parsedUri.scheme == "file" -> parsedUri.path
+                    parsedUri.scheme == "content" -> null
+                    else -> uriStr
+                  }
+                val retriever = android.media.MediaMetadataRetriever()
+                if (cleanPath != null) {
+                  retriever.setDataSource(cleanPath)
+                } else {
+                  retriever.setDataSource(this@PlayerActivity, parsedUri)
+                }
+                val art = app.gyrolet.mpvrx.domain.thumbnail.EmbeddedArtworkResolver.decodeEmbeddedArtwork(cleanPath, retriever)
+                retriever.release()
+                art
+              } else {
+                null
+              }
+            }.getOrNull()
           }
 
         if (!mpvInitialized || player.isExiting || isFinishing) return@launch
@@ -5297,6 +5394,11 @@ class PlayerActivity :
         }.getOrDefault(0)
 
       val historyPlaylistId = playlistId?.takeUnless(::isAllVideosPlaylist)
+
+      if (isSecureFolderLaunch) {
+        Log.d(TAG, "Skipping recently-played save (playlist nav) for secure_folder launch: $filePath")
+        return@runCatching
+      }
 
       RecentlyPlayedOps.addRecentlyPlayed(
         filePath = filePath,

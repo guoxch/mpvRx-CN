@@ -24,6 +24,7 @@ class AudioPreferences(
   /** Audio-player-only background playback; video retains [backgroundPlayback]. */
   val audioBackgroundPlayback = preferenceStore.getBoolean("audio_player_background_playback", false)
   val volumeNormalization = preferenceStore.getBoolean("audio_volume_normalization", false)
+  val drcEnabled = preferenceStore.getBoolean("audio_drc_enabled", false)
   val audioBlobEnabled = preferenceStore.getBoolean("audio_blob_enabled", true)
   val audioVisualizerStyle = preferenceStore.getEnum("audio_visualizer_style", AudioVisualizerStyle.Blob)
   val audioOrientation = preferenceStore.getEnum("audio_player_orientation", AudioPlayerOrientation.Auto)
@@ -50,14 +51,18 @@ enum class AudioVisualizerStyle(
   Blob(R.string.pref_audio_visualizer_style_blob),
   Galaxy(R.string.pref_audio_visualizer_style_galaxy),
   Cuboid(R.string.pref_audio_visualizer_style_cuboid),
+  Particle(R.string.pref_audio_visualizer_style_particle),
 }
+
 
 enum class AudioChannels(
   @StringRes val title: Int,
   val property: String,
   val value: String,
 ) {
+  /** MPV "auto-safe" — downmix only when safe; avoids channel layout issues. */
   Auto(R.string.pref_audio_channels_auto, "audio-channels", "auto-safe"),
+  /** MPV "auto" — always downmix to stereo. */
   AutoSafe(R.string.pref_audio_channels_auto_safe, "audio-channels", "auto"),
   Mono(R.string.pref_audio_channels_mono, "audio-channels", "mono"),
   Stereo(R.string.pref_audio_channels_stereo, "audio-channels", "stereo"),

@@ -140,15 +140,12 @@ class MPVView(
     MPVLib.setOptionString("gpu-api", backend.gpuApi)
     MPVLib.setOptionString("gpu-context", backend.gpuContext)
 
+    val hdrScreenOutputEnabled = decoderPreferences.hdrScreenOutput.get()
     val hdrScreenMode =
-      decoderPreferences.hdrScreenMode.get().let { mode ->
-        if (mode == HdrScreenMode.OFF &&
-          decoderPreferences.hdrScreenOutput.get()
-        ) {
-          HdrScreenMode.defaultEnabledMode
-        } else {
-          mode
-        }
+      if (!hdrScreenOutputEnabled) {
+        HdrScreenMode.OFF
+      } else {
+        decoderPreferences.hdrScreenMode.get()
       }
     val hdrPipelineReady = true
     applyHdrScreenOutputOptions(
@@ -163,6 +160,11 @@ class MPVView(
       hwdecMode,
     )
     MPVLib.setOptionString("hwdec-codecs", "all")
+
+    // Enable direct rendering for hardware decoding (reduces memory copies)
+    MPVLib.setOptionString("vd-lavc-dr", "yes")
+    // Queue extra frames to absorb decode jitter on 4K content
+    MPVLib.setOptionString("vd-lavc-queue", "yes")
 
     if (decoderPreferences.useYUV420P.get()) {
       MPVLib.setOptionString("vf", "format=yuv420p")
@@ -202,6 +204,11 @@ class MPVView(
     MPVLib.setOptionString("hr-seek", if (preciseSeek) "yes" else "no")
     MPVLib.setOptionString("hr-seek-framedrop", if (preciseSeek) "no" else "yes")
 
+    // Use audio-based video sync for better frame pacing with 4K HDR content.
+    // This prevents timing jitter when the display refresh rate doesn't perfectly
+    // match the video frame rate (e.g., 24fps content on 60Hz display).
+    MPVLib.setOptionString("video-sync", "audio")
+
     // Anime4K shader initialization (MUST be in initOptions, not after file load!)
     applyAnime4KShaders(backend.vo, backend.gpuApi)
     // HDR Toys shaders (loaded after Anime4K so they append in the correct order)
@@ -229,25 +236,6 @@ class MPVView(
       if (it in 1..5) {
         MPVLib.command("script-binding", "stats/display-stats-toggle")
         MPVLib.command("script-binding", "stats/display-page-$it")
-      }
-    }
-    // applyUserMpvConf()
-  }
-
-  private fun applyUserMpvConf() {
-    val mpvConfFile = java.io.File(context.filesDir, "mpv.conf")
-    if (!mpvConfFile.exists()) return
-
-    val content = runCatching { mpvConfFile.readText() }.getOrNull() ?: return
-    for (line in content.lines()) {
-      val trimmed = line.trim()
-      if (trimmed.isEmpty() || trimmed.startsWith("#")) continue
-      val eqIndex = trimmed.indexOf('=')
-      if (eqIndex <= 0) continue
-      val key = trimmed.substring(0, eqIndex).trim()
-      val value = trimmed.substring(eqIndex + 1).trim()
-      if (key.isNotBlank() && value.isNotBlank()) {
-        runCatching { MPVLib.setOptionString(key, value) }
       }
     }
   }
@@ -383,11 +371,6 @@ class MPVView(
     MPVLib.setOptionString("volume-max", (audioPreferences.volumeBoostCap.get() + 100).toString())
     // Prevent automatic volume normalization when downmixing multi-channel audio
     MPVLib.setOptionString("audio-normalize-downmix", "no")
-
-    // Volume normalization using dynamic audio normalization filter
-    if (audioPreferences.volumeNormalization.get()) {
-      MPVLib.setOptionString("af", "dynaudnorm")
-    }
   }
 
   // Setup

@@ -18,6 +18,7 @@ import app.gyrolet.mpvrx.ui.player.PlayerActivity
 import app.gyrolet.mpvrx.ui.player.PlayerLookupHints
 import `is`.xyz.mpv.Utils
 import java.io.File
+import kotlin.math.pow
 
 data class PlaybackSubtitleTrack(
   val url: String,
@@ -295,5 +296,12 @@ object MediaUtils {
         if (uris.size == 1) context.getString(R.string.share_video) else context.getString(R.string.share_videos, uris.size),
       ),
     )
+  }
+
+  fun formatFileSize(bytes: Long): String {
+    if (bytes <= 0) return "0 B"
+    val units = arrayOf("B", "KB", "MB", "GB")
+    val digitGroups = (kotlin.math.ln(bytes.toDouble()) / kotlin.math.ln(1024.0)).toInt().coerceIn(0, units.size - 1)
+    return "${java.text.DecimalFormat("#,##0.#").format(bytes / 1024.0.pow(digitGroups))} ${units[digitGroups]}"
   }
 }

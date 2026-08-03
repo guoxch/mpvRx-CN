@@ -10,6 +10,7 @@ package app.gyrolet.mpvrx.ui.browser.folderlist
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -114,9 +115,9 @@ import app.gyrolet.mpvrx.ui.browser.states.PermissionDeniedState
 import app.gyrolet.mpvrx.ui.browser.videolist.VideoListScreen
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.securefolder.SecureFolderGateScreen
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
 import app.gyrolet.mpvrx.ui.utils.calculateResponsiveGridSpans
-import app.gyrolet.mpvrx.utils.clipboard.SafeClipboard
 import app.gyrolet.mpvrx.utils.history.RecentlyPlayedOps
 import app.gyrolet.mpvrx.utils.media.CopyPasteOps
 import app.gyrolet.mpvrx.utils.media.MediaSearchEngine
@@ -216,6 +217,13 @@ object FolderListScreen : Screen {
     val progressDialogOpen = rememberSaveable { mutableStateOf(false) }
     var renameDialogOpen by rememberSaveable { mutableStateOf(false) }
     val operationProgress by CopyPasteOps.operationProgress.collectAsState()
+
+    // Move-to-Secure-Folder state (moves every video inside the selected folders)
+    val secureFolderRepository = koinInject<app.gyrolet.mpvrx.database.repository.SecureFolderRepository>()
+    val secureFolderPreferences = koinInject<app.gyrolet.mpvrx.preferences.SecureFolderPreferences>()
+    val moveToSecureConfirmOpen = rememberSaveable { mutableStateOf(false) }
+    val moveToSecureProgressOpen = rememberSaveable { mutableStateOf(false) }
+    val secureFolderProgress by secureFolderRepository.progress.collectAsState()
 
     // Search state
     var searchQuery by rememberSaveable { mutableStateOf("") }
@@ -339,6 +347,35 @@ object FolderListScreen : Screen {
         onOperationComplete = { viewModel.refresh() },
       )
 
+    fun moveSelectedFoldersToSecureFolder() {
+      val selectedIds = selectionManager.getSelectedItems().map { it.bucketId }.toSet()
+      if (selectedIds.isEmpty()) return
+      moveToSecureProgressOpen.value = true
+      coroutineScope.launch {
+        val allVideos =
+          app.gyrolet.mpvrx.repository.MediaFileRepository
+            .getVideosForBuckets(context, selectedIds)
+        if (allVideos.isNotEmpty()) {
+          val result = secureFolderRepository.moveIn(context, allVideos)
+          result
+            .onSuccess { batch ->
+              val message =
+                if (batch.failedIds.isEmpty()) {
+                  context.getString(R.string.secure_folder_moved_success, batch.succeededIds.size)
+                } else {
+                  context.getString(R.string.secure_folder_moved_partial, batch.succeededIds.size, batch.failedIds.size)
+                }
+              Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            }.onFailure {
+              Toast.makeText(context, context.getString(R.string.secure_folder_move_failed), Toast.LENGTH_SHORT).show()
+            }
+        }
+        moveToSecureProgressOpen.value = false
+        selectionManager.clear()
+        viewModel.refresh()
+      }
+    }
+
     val treePickerLauncher =
       rememberLauncherForActivityResult(
         contract = OpenDocumentTreeContract(),
@@ -374,10 +411,14 @@ object FolderListScreen : Screen {
         onPermissionGranted = { viewModel.refresh() },
       )
 
+    var isPermissionSetupCompleted by androidx.compose.runtime.saveable.rememberSaveable {
+      androidx.compose.runtime.mutableStateOf(permissionState.status == PermissionStatus.Granted)
+    }
+
     // Update MainScreen about permission state
-    LaunchedEffect(permissionState.status) {
+    LaunchedEffect(permissionState.status, isPermissionSetupCompleted) {
       app.gyrolet.mpvrx.ui.browser.MainScreen.updatePermissionState(
-        isDenied = permissionState.status is PermissionStatus.Denied,
+        isDenied = !isPermissionSetupCompleted || permissionState.status is PermissionStatus.Denied,
       )
     }
 
@@ -514,6 +555,8 @@ object FolderListScreen : Screen {
               onSettingsClick = {
                 backstack.add(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
               },
+              onTitleDoubleTap = { backstack.add(SecureFolderGateScreen) },
+              onTitleLongPress = { backstack.add(SecureFolderGateScreen) },
               onRenameClick = null,
               isSingleSelection = selectionManager.isSingleSelection,
               onInfoClick = null,
@@ -526,12 +569,6 @@ object FolderListScreen : Screen {
                   if (allVideos.isNotEmpty()) {
                     MediaUtils.shareVideos(context, allVideos)
                   }
-                }
-              },
-              onCopyClick = {
-                val selectedPaths = selectionManager.getSelectedItems().map { it.path }.distinct()
-                if (selectedPaths.isNotEmpty()) {
-                  SafeClipboard.copyPlainText(context, "Selected folder paths", selectedPaths.joinToString("\n"))
                 }
               },
               onPlayClick = {
@@ -595,6 +632,15 @@ object FolderListScreen : Screen {
               onSelectAll = { selectionManager.selectAll() },
               onInvertSelection = { selectionManager.invertSelection() },
               onDeselectAll = { selectionManager.clear() },
+              onMoveToSecureClick = {
+                if (!secureFolderPreferences.isPinSet()) {
+                  backstack.add(SecureFolderGateScreen)
+                } else if (secureFolderPreferences.dontAskBeforeMove.get()) {
+                  moveSelectedFoldersToSecureFolder()
+                } else {
+                  moveToSecureConfirmOpen.value = true
+                }
+              },
             )
           }
         },
@@ -728,8 +774,7 @@ object FolderListScreen : Screen {
         },
       ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
-          when (permissionState.status) {
-            PermissionStatus.Granted -> {
+          if (isPermissionSetupCompleted && permissionState.status == PermissionStatus.Granted) {
               if (isSearching) {
                 // Show search results
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -822,14 +867,15 @@ object FolderListScreen : Screen {
                   selectedFolderBucketId = selectedFolderBucketId,
                 )
               }
-            }
-
-            is PermissionStatus.Denied -> {
-              PermissionDeniedState(
-                onRequestPermission = { permissionState.launchPermissionRequest() },
-                modifier = Modifier,
-              )
-            }
+          } else {
+            PermissionDeniedState(
+              onRequestPermission = { permissionState.launchPermissionRequest() },
+              onNext = {
+                isPermissionSetupCompleted = true
+                viewModel.refresh()
+              },
+              modifier = Modifier,
+            )
           }
 
           BrowserBottomBar(
@@ -977,6 +1023,26 @@ object FolderListScreen : Screen {
         },
       )
     }
+
+    // Move to Secure Folder — confirm (skippable via "don't ask again"), then progress
+    app.gyrolet.mpvrx.ui.securefolder.SecureConfirmDialog(
+      isOpen = moveToSecureConfirmOpen.value,
+      title = stringResource(R.string.secure_folder_move_folders_title, selectionManager.selectedCount),
+      subtitle = stringResource(R.string.secure_folder_move_folders_subtitle),
+      dontAskAgain = secureFolderPreferences.dontAskBeforeMove,
+      onConfirm = {
+        moveToSecureConfirmOpen.value = false
+        moveSelectedFoldersToSecureFolder()
+      },
+      onDismiss = { moveToSecureConfirmOpen.value = false },
+    )
+
+    app.gyrolet.mpvrx.ui.securefolder.SecureFolderProgressDialog(
+      isOpen = moveToSecureProgressOpen.value,
+      progress = secureFolderProgress,
+      label = stringResource(R.string.secure_folder_moving_progress),
+      onCancel = { secureFolderRepository.cancelOperation() },
+    )
 
     if (renameDialogOpen && selectionManager.isSingleSelection) {
       val folder = selectionManager.getSelectedItems().firstOrNull()

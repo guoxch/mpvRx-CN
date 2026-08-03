@@ -275,6 +275,7 @@ dependencies {
   implementation(libs.nanohttpd)
   implementation(libs.lazycolumnscrollbar)
   implementation(libs.reorderable)
+  implementation(libs.androidx.biometric)
 }
 
 // ---------------- Git helpers ----------------

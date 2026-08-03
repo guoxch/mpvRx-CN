@@ -230,6 +230,20 @@ class NetworkRepository(
     }
 
   /**
+   * Delete a file on a network share
+   */
+  suspend fun deleteFile(
+    connection: NetworkConnection,
+    path: String,
+  ): Result<Unit> =
+    try {
+      val client = activeClients[connection.id] ?: return Result.failure(Exception("Not connected"))
+      client.deleteFile(path)
+    } catch (e: Exception) {
+      Result.failure(e)
+    }
+
+  /**
    * Get an active client for a connection
    */
   fun getActiveClient(connectionId: Long): NetworkClient? = activeClients[connectionId]

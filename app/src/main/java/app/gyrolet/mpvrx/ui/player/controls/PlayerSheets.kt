@@ -276,6 +276,7 @@ fun PlayerSheets(
 
     Sheets.More -> {
       val anime4KUiState by viewModel.anime4KUiState.composeCollectAsState()
+      val autoDeleteAfterPlay by viewModel.autoDeleteAfterPlay.collectAsState()
       MoreSheet(
         remainingTime = sleepTimerTimeRemaining,
         onStartTimer = onStartSleepTimer,
@@ -285,6 +286,8 @@ fun PlayerSheets(
         onEnterEqualizerSheet = { onShowSheet(Sheets.Equalizer) },
         anime4KUiState = anime4KUiState,
         onAnime4KModeSelected = viewModel::selectAnime4KMode,
+        autoDeleteAfterPlay = autoDeleteAfterPlay,
+        onAutoDeleteToggle = { viewModel.toggleAutoDeleteAfterPlay() },
       )
     }
 

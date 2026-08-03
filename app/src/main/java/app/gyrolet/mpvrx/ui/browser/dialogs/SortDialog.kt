@@ -453,7 +453,7 @@ private fun GridColumnsNextSection(
   if (folderGridColumnSelector == null && videoGridColumnSelector == null) return
 
   HorizontalDivider(modifier = Modifier.padding(top = 10.dp))
-  DialogSectionTitle(text = "Grid Columns")
+  DialogSectionTitle(text = "网格列数")
 
   val haptic = LocalHapticFeedback.current
 

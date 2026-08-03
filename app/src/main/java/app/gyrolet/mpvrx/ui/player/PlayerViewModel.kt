@@ -39,7 +39,6 @@ import app.gyrolet.mpvrx.domain.hdr.HdrToysManager
 import app.gyrolet.mpvrx.domain.syncplay.SyncplayFile
 import app.gyrolet.mpvrx.domain.syncplay.SyncplayPlaybackState
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
-import app.gyrolet.mpvrx.preferences.AudioChannels
 import app.gyrolet.mpvrx.preferences.AudioPreferences
 import app.gyrolet.mpvrx.preferences.DecoderPreferences
 import app.gyrolet.mpvrx.preferences.GesturePreferences
@@ -74,7 +73,6 @@ import app.gyrolet.mpvrx.utils.media.ChecksumUtils
 import app.gyrolet.mpvrx.utils.media.MediaInfoParser
 import app.gyrolet.mpvrx.utils.media.ParsedMediaInfo
 import app.gyrolet.mpvrx.utils.media.SubtitleHashUtils
-import app.gyrolet.mpvrx.utils.media.fileExtension
 import app.gyrolet.mpvrx.utils.media.resolveSubtitleLookupDirectories
 import app.gyrolet.mpvrx.utils.storage.FileTypeUtils
 import `is`.xyz.mpv.MPVLib
@@ -529,7 +527,12 @@ class PlayerViewModel(
       val currentPath = path?.takeIf { it.isNotBlank() } ?: streamPath
       val isFileAudioExt =
         currentPath?.let { p ->
-          val ext = p.fileExtension()
+          val ext =
+            p
+              .substringBefore('?')
+              .substringBefore('#')
+              .substringAfterLast('.', "")
+              .lowercase()
           ext in FileTypeUtils.AUDIO_EXTENSIONS
         } ?: false
 
@@ -627,64 +630,29 @@ class PlayerViewModel(
     }
   }
 
-  private fun getCustomMpvAf(): String {
-    val confFile = File(host.context.filesDir, "mpv.conf")
-    val text = if (confFile.exists()) {
-      runCatching { confFile.readText() }.getOrDefault("")
-    } else {
-      advancedPreferences.mpvConf.get()
-    }
-    if (text.isBlank()) return ""
-    val afFilters = text.lines()
-      .map { it.trim() }
-      .filter { !it.startsWith("#") && (it.startsWith("af=") || it.startsWith("af =") || it.startsWith("af-add=") || it.startsWith("af-add =") || it.startsWith("af-append=") || it.startsWith("af-append =")) }
-      .map { line -> line.substringAfter("=").trim() }
-      .filter { it.isNotBlank() }
-    return afFilters.joinToString(",")
-  }
-
   private fun updateMpvAfProperty(state: EqualizerState) {
+    if (!state.isEnabled) {
+      MPVLib.setPropertyString("af", "")
+      return
+    }
+    val freqs = listOf(60, 230, 910, 3600, 14000)
     val filterList = mutableListOf<String>()
 
-    // 1. Preserve custom af filters from mpv.conf
-    val customAf = getCustomMpvAf()
-    if (customAf.isNotBlank()) {
-      filterList.add(customAf)
+    // Apply pre-amp attenuation for positive gains to prevent clipping distortion
+    val maxGain = state.bandGains.maxOrNull() ?: 0
+    if (maxGain > 0) {
+      filterList.add("volume=volume=${-maxGain}dB")
     }
 
-    // 2. Dynamic Range Compression (DRC) / Night Mode
-    if (audioPreferences.drcEnabled.get()) {
-      filterList.add("lavfi=[acompressor=threshold=-20dB:ratio=4:attack=5:release=50:makeup=2]")
-    }
-
-    // 3. Volume Normalization (dynaudnorm)
-    if (audioPreferences.volumeNormalization.get()) {
-      filterList.add("dynaudnorm")
-    }
-
-    // 4. Reverse Stereo filter
-    if (audioPreferences.audioChannels.get() == AudioChannels.ReverseStereo) {
-      filterList.add("pan=[stereo|c0=c1|c1=c0]")
-    }
-
-    // 5. Equalizer filters (if enabled)
-    if (state.isEnabled) {
-      val maxGain = state.bandGains.maxOrNull() ?: 0
-      if (maxGain > 0) {
-        filterList.add("volume=volume=${-maxGain}dB")
-      }
-      val freqs = listOf(60, 230, 910, 3600, 14000)
-      for (i in 0 until 5) {
-        val gain = state.bandGains.getOrElse(i) { 0 }
-        if (gain != 0) {
-          filterList.add("equalizer=f=${freqs[i]}:width_type=o:width=1.5:g=$gain")
-        }
-      }
-      if (state.volumeBoostDb > 0) {
-        filterList.add("volume=volume=${state.volumeBoostDb}dB")
+    for (i in 0 until 5) {
+      val gain = state.bandGains.getOrElse(i) { 0 }
+      if (gain != 0) {
+        filterList.add("equalizer=f=${freqs[i]}:width_type=o:width=1.5:g=$gain")
       }
     }
-
+    if (state.volumeBoostDb > 0) {
+      filterList.add("volume=volume=${state.volumeBoostDb}dB")
+    }
     val afString = filterList.joinToString(",")
     MPVLib.setPropertyString("af", afString)
   }
@@ -951,6 +919,16 @@ class PlayerViewModel(
 
   private val _shuffleEnabled = MutableStateFlow(false)
   val shuffleEnabled: StateFlow<Boolean> = _shuffleEnabled.asStateFlow()
+
+  // "阅后即焚" — auto-delete network files after playback
+  private val _autoDeleteAfterPlay = MutableStateFlow(playerPreferences.burnAfterReading.get())
+  val autoDeleteAfterPlay: StateFlow<Boolean> = _autoDeleteAfterPlay.asStateFlow()
+
+  fun toggleAutoDeleteAfterPlay() {
+    val newValue = !_autoDeleteAfterPlay.value
+    _autoDeleteAfterPlay.value = newValue
+    playerPreferences.burnAfterReading.set(newValue)
+  }
 
   // A-B Loop state — combined for atomic updates
   data class ABLoopState(
@@ -1288,17 +1266,6 @@ class PlayerViewModel(
         }.onFailure { e ->
           Log.e(TAG, "Error setting volume-max: $maxVol", e)
         }
-      }
-    }
-    // Observe audio effect changes to update mpv af filters
-    viewModelScope.launch(playbackStateDispatcher) {
-      combine(
-        audioPreferences.volumeNormalization.changes(),
-        audioPreferences.drcEnabled.changes(),
-        audioPreferences.audioChannels.changes(),
-      ) { _, _, _ -> }.collect {
-        if (!_isMpvCoreReady.value) return@collect
-        applyEqualizerMpvFilters(immediate = true)
       }
     }
 
@@ -4410,7 +4377,8 @@ class PlayerViewModel(
           .substringAfterLast('.', "")
           .lowercase() in FileTypeUtils.AUDIO_EXTENSIONS ||
           resolvedUri.toString().lowercase().contains("audio") ||
-          uri.toString().lowercase().contains("audio")
+          uri.toString().lowercase().contains("audio") ||
+          isAudioOnly.value
       val isCurrentlyPlaying = index == activity.playlistIndex
 
       // Try to get from cache first (synchronized access)
@@ -4918,8 +4886,7 @@ class PlayerViewModel(
   fun toggleHdrScreenOutput() {
     val nextMode =
       if (_hdrScreenMode.value == HdrScreenMode.OFF) {
-        val lastMode = decoderPreferences.lastHdrMode.get()
-        if (lastMode == HdrScreenMode.OFF) HdrScreenMode.defaultEnabledMode else lastMode
+        HdrScreenMode.defaultEnabledMode
       } else {
         HdrScreenMode.OFF
       }
@@ -4927,19 +4894,22 @@ class PlayerViewModel(
   }
 
   fun setHdrScreenMode(mode: HdrScreenMode) {
-    val pipelineReady = isHdrScreenOutputAvailable(mode)
+    val resolvedMode =
+      if (mode == HdrScreenMode.LINEAR && !isLinearHdrAvailable.value) {
+        HdrScreenMode.defaultEnabledMode
+      } else {
+        mode
+      }
+    val pipelineReady = isHdrScreenOutputAvailable(resolvedMode)
 
-    _hdrScreenMode.value = mode
-    _isHdrScreenOutputEnabled.value = pipelineReady && mode != HdrScreenMode.OFF
-    decoderPreferences.hdrScreenMode.set(mode)
-    decoderPreferences.hdrScreenOutput.set(mode != HdrScreenMode.OFF)
-    if (mode != HdrScreenMode.OFF) {
-      decoderPreferences.lastHdrMode.set(mode)
-    }
-    applyHdrScreenOutput(mode)
+    _hdrScreenMode.value = resolvedMode
+    _isHdrScreenOutputEnabled.value = pipelineReady && resolvedMode != HdrScreenMode.OFF
+    decoderPreferences.hdrScreenMode.set(resolvedMode)
+    decoderPreferences.hdrScreenOutput.set(resolvedMode != HdrScreenMode.OFF)
+    applyHdrScreenOutput(resolvedMode)
     playerUpdate.value =
       PlayerUpdates.ShowText(
-        host.context.getString(R.string.hdr_screen_output_update, host.context.getString(mode.shortTitleRes)),
+        host.context.getString(R.string.hdr_screen_output_update, host.context.getString(resolvedMode.shortTitleRes)),
       )
   }
 
@@ -4947,16 +4917,16 @@ class PlayerViewModel(
     mode != HdrScreenMode.LINEAR || isLinearHdrAvailable.value
 
   private fun initialHdrScreenMode(): HdrScreenMode {
-    if (!decoderPreferences.hdrScreenOutput.get()) {
-      return HdrScreenMode.OFF
-    }
     val savedMode = decoderPreferences.hdrScreenMode.get()
-    if (savedMode == HdrScreenMode.OFF) {
-      return HdrScreenMode.OFF
+    val resolvedMode =
+      if (savedMode == HdrScreenMode.LINEAR &&
+        !(decoderPreferences.gpuNext.get() && decoderPreferences.useVulkan.get())
+      ) HdrScreenMode.defaultEnabledMode else savedMode
+    return if (resolvedMode == HdrScreenMode.OFF && decoderPreferences.hdrScreenOutput.get()) {
+      HdrScreenMode.defaultEnabledMode
+    } else {
+      resolvedMode
     }
-    return if (savedMode == HdrScreenMode.LINEAR &&
-      !(decoderPreferences.gpuNext.get() && decoderPreferences.useVulkan.get())
-    ) HdrScreenMode.defaultEnabledMode else savedMode
   }
 
   private fun reconcileHdrModeWithRenderer() {

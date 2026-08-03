@@ -13,6 +13,7 @@ import android.text.format.DateUtils
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -29,6 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -73,6 +75,8 @@ fun MoreSheet(
   onEnterEqualizerSheet: (() -> Unit)? = null,
   anime4KUiState: Anime4KUiState,
   onAnime4KModeSelected: (Anime4KManager.Mode) -> Unit,
+  autoDeleteAfterPlay: Boolean = false,
+  onAutoDeleteToggle: ((Boolean) -> Unit)? = null,
   modifier: Modifier = Modifier,
 ) {
   val advancedPreferences = koinInject<AdvancedPreferences>()
@@ -247,6 +251,34 @@ fun MoreSheet(
             },
             selected = statisticsPage == page,
             leadingIcon = null,
+          )
+        }
+      }
+
+      // Burn-after-reading toggle
+      if (onAutoDeleteToggle != null) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onAutoDeleteToggle(!autoDeleteAfterPlay) }
+            .padding(vertical = 12.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = stringResource(R.string.burn_after_reading),
+              style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+              text = stringResource(R.string.burn_after_reading_desc),
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
+          Switch(
+            checked = autoDeleteAfterPlay,
+            onCheckedChange = onAutoDeleteToggle,
           )
         }
       }

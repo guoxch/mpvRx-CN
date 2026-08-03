@@ -1000,6 +1000,7 @@
   <string name="ui_error_loading_directory">Error loading directory</string>
   <string name="ui_error_loading_files">Error loading files</string>
   <string name="ui_empty_folder">Empty folder</string>
+  <string name="ui_empty_folder_message">This folder contains no files or directories</string>
   <string name="ui_scanning_for_videos">Scanning for videos…</string>
   <string name="ui_no_video_folders_found">No video folders found</string>
   <string name="ui_no_videos_in_folder">No videos in this folder</string>
@@ -1547,6 +1548,17 @@
   <string name="syncplay_connect">Connect</string>
   <string name="syncplay_connecting">Connecting…</string>
   <string name="syncplay_player_status">Syncplay: %1$s (%2$d users)</string>
+  <string name="ui_sort">Sort</string>
+  <string name="ui_sort_by">Sort by</string>
+  <string name="ui_sort_name_az">Name (A → Z)</string>
+  <string name="ui_sort_name_za">Name (Z → A)</string>
+  <string name="ui_sort_time_newest">Time (newest first)</string>
+  <string name="ui_sort_time_oldest">Time (oldest first)</string>
+  <string name="ui_sort_size_largest">Size (largest first)</string>
+  <string name="ui_sort_size_smallest">Size (smallest first)</string>
+  <string name="burn_after_reading">Burn After Reading</string>
+  <string name="burn_after_reading_desc">Auto-delete network video files after playback ends</string>
+  <string name="burn_after_reading_deleted">File deleted: %s</string>
 
   <!-- Secure Folder -->
   <string name="secure_folder_title">Secure Folder</string>

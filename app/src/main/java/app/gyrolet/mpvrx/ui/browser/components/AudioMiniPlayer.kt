@@ -64,7 +64,7 @@ fun AudioMiniPlayer(modifier: Modifier = Modifier) {
   val position by MPVLib.propInt["time-pos"].collectAsState()
 
   val isPlaying = paused == false
-  val title = rawMediaTitle?.takeIf { it.isNotBlank() } ?: "Audio Track"
+  val title = rawMediaTitle?.takeIf { it.isNotBlank() } ?: "音轨"
 
   val dur = duration?.toFloat() ?: 0f
   val pos = position?.toFloat() ?: 0f

@@ -10,6 +10,12 @@
 package app.gyrolet.mpvrx.ui.browser.networkstreaming
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +24,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -83,6 +93,9 @@ data class NetworkBrowserScreen(
     val connection by viewModel.connection.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val sortMode by viewModel.sortMode.collectAsState()
+    val showSortDialog = remember { mutableStateOf(false) }
+    val deleteTarget = remember { mutableStateOf<NetworkFile?>(null) }
 
     // UI State
     val isRefreshing = remember { mutableStateOf(false) }
@@ -111,7 +124,7 @@ data class NetworkBrowserScreen(
           totalCount = 0,
           onBackClick = { backstack.popSafely() },
           onCancelSelection = {},
-          onSortClick = null,
+          onSortClick = { showSortDialog.value = true },
           onSearchClick = null,
           onSettingsClick = {
             backstack.add(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
@@ -135,6 +148,7 @@ data class NetworkBrowserScreen(
         isRefreshing = isRefreshing,
         error = error,
         onRefresh = { viewModel.loadFiles() },
+        onDeleteClick = { deleteTarget.value = it },
         onFolderClick = { folder ->
           backstack.add(
             NetworkBrowserScreen(
@@ -150,6 +164,29 @@ data class NetworkBrowserScreen(
         modifier = Modifier.padding(padding),
       )
     }
+    if (showSortDialog.value) {
+      NetworkFileSortDialog(
+        currentMode = sortMode,
+        onSelect = { mode -> viewModel.setSortMode(mode); showSortDialog.value = false },
+        onDismiss = { showSortDialog.value = false },
+      )
+    }
+    deleteTarget.value?.let { file ->
+      AlertDialog(
+        onDismissRequest = { deleteTarget.value = null },
+        title = { Text("删除文件") },
+        text = { Text("确定要删除 \"${file.name}\" 吗？\n此操作不可撤销。") },
+        confirmButton = {
+          TextButton(onClick = {
+            viewModel.deleteFile(file)
+            deleteTarget.value = null
+          }) { Text("删除", color = MaterialTheme.colorScheme.error) }
+        },
+        dismissButton = {
+          TextButton(onClick = { deleteTarget.value = null }) { Text(stringResource(R.string.generic_cancel)) }
+        },
+      )
+    }
   }
 }
 
@@ -163,6 +200,7 @@ private fun NetworkBrowserContent(
   onRefresh: suspend () -> Unit,
   onFolderClick: (NetworkFile) -> Unit,
   onVideoClick: (NetworkFile) -> Unit,
+  onDeleteClick: (NetworkFile) -> Unit,
   modifier: Modifier = Modifier,
 ) {
   when {
@@ -203,7 +241,7 @@ private fun NetworkBrowserContent(
         EmptyState(
           icon = Icons.RoundedFilled.Folder,
           title = stringResource(R.string.ui_empty_folder),
-          message = "This folder contains no files or directories",
+          message = stringResource(R.string.ui_empty_folder_message),
         )
       }
     }
@@ -212,7 +250,7 @@ private fun NetworkBrowserContent(
       val folders = remember(files) { files.filter { it.isDirectory } }
       val videos =
         remember(files) {
-          files.filter { !it.isDirectory && (it.mimeType?.startsWith("video/") == true || it.isM3uFile()) }
+          files.filter { !it.isDirectory && (it.mimeType?.startsWith("video/") == true || it.isM3uFile() || it.name.isVideoExtension()) }
         }
       val networkListState = rememberLazyListState()
 
@@ -313,6 +351,7 @@ private fun NetworkBrowserContent(
                     file = video,
                     connection = conn,
                     onClick = { onVideoClick(video) },
+                    onLongClick = { onDeleteClick(video) },
                     modifier = Modifier,
                   )
                 }
@@ -352,4 +391,50 @@ private fun NetworkFile.isM3uFile(): Boolean {
       "audio/x-mpegurl",
       "audio/mpegurl",
     )
+}
+
+private fun String.isVideoExtension(): Boolean {
+  val ext = substringAfterLast('.', "").lowercase()
+  return ext in setOf(
+    "mp4", "m4v", "m4s", "mkv", "avi", "mov", "wmv", "flv", "webm",
+    "mpeg", "mpg", "3gp", "ts", "m2ts", "rmvb", "rm", "asf", "vob",
+    "ogv", "ogm", "f4v",
+  )
+}
+
+@Composable
+private fun NetworkFileSortDialog(
+  currentMode: NetworkBrowserViewModel.NetworkFileSort,
+  onSelect: (NetworkBrowserViewModel.NetworkFileSort) -> Unit,
+  onDismiss: () -> Unit,
+) {
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = { Text(stringResource(R.string.ui_sort_by), fontWeight = FontWeight.Bold) },
+    text = {
+      Column {
+        listOf(
+          NetworkBrowserViewModel.NetworkFileSort.NAME_AZ to stringResource(R.string.ui_sort_name_az),
+          NetworkBrowserViewModel.NetworkFileSort.NAME_ZA to stringResource(R.string.ui_sort_name_za),
+          NetworkBrowserViewModel.NetworkFileSort.TIME_NEWEST to stringResource(R.string.ui_sort_time_newest),
+          NetworkBrowserViewModel.NetworkFileSort.TIME_OLDEST to stringResource(R.string.ui_sort_time_oldest),
+          NetworkBrowserViewModel.NetworkFileSort.SIZE_LARGEST to stringResource(R.string.ui_sort_size_largest),
+          NetworkBrowserViewModel.NetworkFileSort.SIZE_SMALLEST to stringResource(R.string.ui_sort_size_smallest),
+        ).forEach { (mode, label) ->
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clickable { onSelect(mode) }
+              .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            RadioButton(selected = currentMode == mode, onClick = { onSelect(mode) })
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+          }
+        }
+      }
+    },
+    confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.generic_cancel)) } },
+  )
 }

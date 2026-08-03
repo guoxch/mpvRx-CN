@@ -240,6 +240,7 @@ class PlayerActivity :
    * Manager for file operations.
    */
   private val fileManager: FileManager by inject()
+  private val networkRepository: app.gyrolet.mpvrx.repository.NetworkRepository by inject()
 
   /**
    * Track selector for automatic audio/subtitle selection
@@ -328,6 +329,7 @@ class PlayerActivity :
    * Used for windowed loading to prevent ANR with large playlists.
    */
   private var playlistWindowOffset: Int = 0
+  private var originalDisplayModeId: Int = -1
 
   /**
    * Total count of items in the full playlist (when using windowed loading).
@@ -537,6 +539,7 @@ class PlayerActivity :
     setupVideoTransformObserver()
     setupAudioPlayerViewObserver()
     setupMediaSession()
+    lockMaxResolution()
     // Note: screenStateReceiver is now registered in onStart() and
     // unregistered in onStop(), matching the noisyReceiver pattern.
     // Previously it was registered here in onCreate and stayed registered
@@ -594,7 +597,7 @@ class PlayerActivity :
     // Extract fileName early so it's available when video loads
     fileName = getFileName(intent)
     if (fileName.isBlank()) {
-      fileName = intent.data?.lastPathSegment ?: "Unknown Video"
+      fileName = intent.data?.lastPathSegment ?: getString(R.string.player_unknown_video)
     }
     mediaIdentifier = getMediaIdentifier(intent, fileName)
 
@@ -1125,6 +1128,7 @@ class PlayerActivity :
       Log.e(TAG, "Error during onDestroy", e)
     }
 
+    restoreDisplayResolution()
     super.onDestroy()
 
     // The core remains alive throughout Android/ViewModel/window cleanup. Only after super returns
@@ -2617,7 +2621,7 @@ class PlayerActivity :
     // For HTTP/HTTPS URLs, extract from path (will be updated async via HTTP headers)
     if (HttpUtils.isNetworkStream(uri)) {
       // Get the last path segment and decode URL encoding
-      val path = uri.path ?: return uri.host ?: "Network Stream"
+      val path = uri.path ?: return uri.host ?: "网络流"
       val lastSegment = path.substringAfterLast("/")
 
       if (lastSegment.isNotBlank()) {
@@ -2627,7 +2631,7 @@ class PlayerActivity :
             .decode(lastSegment, "UTF-8")
             .substringBefore("?") // Remove query parameters
             .substringBefore("#") // Remove fragments (only for network streams)
-            .takeIf { it.isNotBlank() } ?: uri.host ?: "Network Stream"
+            .takeIf { it.isNotBlank() } ?: uri.host ?: "网络流"
         } catch (e: Exception) {
           lastSegment
             .substringBefore("?")
@@ -2636,11 +2640,11 @@ class PlayerActivity :
       }
 
       // If no filename in path, use hostname
-      return uri.host ?: "Network Stream"
+      return uri.host ?: "网络流"
     }
 
     // For file:// and content:// URIs - preserve # characters as they're part of the filename
-    val lastSegment = uri.lastPathSegment?.substringAfterLast("/") ?: uri.path ?: "Unknown Video"
+    val lastSegment = uri.lastPathSegment?.substringAfterLast("/") ?: uri.path ?: getString(R.string.player_unknown_video)
 
     // For local files, only decode URL encoding but preserve # characters
     return try {
@@ -2938,8 +2942,11 @@ class PlayerActivity :
     }
     if (isAdvancingAtEof) return
 
+    val burnedIdx = playlistIndex
+
     val repeatMode = viewModel.repeatMode.value
     if (repeatMode == RepeatMode.ONE) {
+      burnAfterReadingIfEnabled(burnedIdx)
       restartCurrentAtEof()
       return
     }
@@ -2961,6 +2968,7 @@ class PlayerActivity :
       } else {
         finishAtEofIfRequested()
       }
+      burnAfterReadingIfEnabled(burnedIdx)
       return
     }
 
@@ -2984,6 +2992,7 @@ class PlayerActivity :
                 repeatAll -> restartCurrentAtEof()
                 else -> finishAtEofIfRequested()
               }
+              burnAfterReadingIfEnabled(burnedIdx)
             }
           }
         return
@@ -2991,12 +3000,73 @@ class PlayerActivity :
     }
 
     if (repeatAll) restartCurrentAtEof() else finishAtEofIfRequested()
+    burnAfterReadingIfEnabled(burnedIdx)
+  }
+
+  private fun lockMaxResolution() {
+    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return
+    val display = windowManager.defaultDisplay
+    originalDisplayModeId = display.mode.modeId
+    val target = display.supportedModes.maxByOrNull { it.physicalWidth * it.physicalHeight } ?: return
+    if (target.physicalWidth >= 2780 && target.physicalHeight >= 1264) {
+      window.attributes.preferredDisplayModeId = target.modeId
+    }
+  }
+
+  private fun restoreDisplayResolution() {
+    if (originalDisplayModeId == -1) return
+    window.attributes.preferredDisplayModeId = originalDisplayModeId
   }
 
   private fun restartCurrentAtEof() {
     isAdvancingAtEof = false
     MPVLib.command("seek", "0", "absolute")
     viewModel.unpause()
+  }
+
+  private fun burnAfterReadingIfEnabled(burnedIdx: Int) {
+    if (!viewModel.autoDeleteAfterPlay.value) return
+    val uri = intent.data ?: return
+    if (!HttpUtils.isNetworkStream(uri)) return
+    val networkFilePath =
+      networkPlaylistPaths.getOrNull(burnedIdx)?.takeIf { it.isNotBlank() }
+        ?: intent.getStringExtra("network_file_path") ?: return
+    val connId =
+      if (networkPlaylistConnectionId != -1L) networkPlaylistConnectionId
+      else intent.getLongExtra("network_connection_id", -1L)
+    if (connId == -1L) return
+    lifecycleScope.launch(Dispatchers.IO) {
+      val conn = networkRepository.getConnectionById(connId) ?: return@launch
+      suspend fun doDelete() = networkRepository.deleteFile(conn, networkFilePath)
+      var result = doDelete()
+      if (result.isFailure) {
+        result = networkRepository.connect(conn).fold(
+          onSuccess = { doDelete() },
+          onFailure = { Result.failure(it) },
+        )
+      }
+      withContext(Dispatchers.Main) {
+        result.fold(
+          onSuccess = {
+            Toast.makeText(this@PlayerActivity, "已删除: ${networkFilePath.substringAfterLast("/")}", Toast.LENGTH_SHORT).show()
+            removeFromPlaylist(burnedIdx)
+          },
+          onFailure = { Toast.makeText(this@PlayerActivity, "删除失败: ${it.message}", Toast.LENGTH_LONG).show() },
+        )
+      }
+    }
+  }
+
+  private fun removeFromPlaylist(idx: Int) {
+    if (idx < 0 || idx >= playlist.size) return
+    playlist = playlist.toMutableList().apply { removeAt(idx) }
+    playlistItems = playlistItems.toMutableList().apply { if (idx < size) removeAt(idx) }
+    networkPlaylistPaths = networkPlaylistPaths.toMutableList().apply { if (idx < size) removeAt(idx) }
+    networkPlaylistTitles = networkPlaylistTitles.toMutableList().apply { if (idx < size) removeAt(idx) }
+    // If the deleted item was before the current one, adjust playlistIndex
+    if (idx < playlistIndex) playlistIndex--
+    if (playlistIndex >= playlist.size) playlistIndex = (playlist.size - 1).coerceAtLeast(0)
+    viewModel.refreshPlaylistItems()
   }
 
   private fun finishAtEofIfRequested() {
@@ -3203,7 +3273,7 @@ class PlayerActivity :
       fileName = getFileName(intent)
       // Ensure fileName is not blank - use a fallback if necessary
       if (fileName.isBlank()) {
-        fileName = intent.data?.lastPathSegment ?: "Unknown Video"
+        fileName = intent.data?.lastPathSegment ?: getString(R.string.player_unknown_video)
       }
       mediaIdentifier = getMediaIdentifier(intent, fileName)
     } else if (mediaIdentifier.isBlank()) {
@@ -4057,7 +4127,7 @@ class PlayerActivity :
     // Extract the new fileName before loading the file
     fileName = getFileName(intent)
     if (fileName.isBlank()) {
-      fileName = intent.data?.lastPathSegment ?: "Unknown Video"
+      fileName = intent.data?.lastPathSegment ?: getString(R.string.player_unknown_video)
     }
     val newMediaId = getMediaIdentifier(intent, fileName)
 
@@ -5294,7 +5364,7 @@ class PlayerActivity :
         ?.takeIf { !HttpUtils.isLikelyJunkTitle(it) }
         ?.let { return it }
     }
-    return fileName.ifBlank { "Unknown Video" }
+    return fileName.ifBlank { getString(R.string.player_unknown_video) }
   }
 
   /**

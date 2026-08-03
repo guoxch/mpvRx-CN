@@ -1,8 +1,10 @@
 /*
- * SPDX-License-Identifier: CC-BY-NC-4.0
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
- * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  */
 
 package app.gyrolet.mpvrx.data.network.proxy
@@ -19,6 +21,10 @@ import com.hierynomus.smbj.SmbConfig
 import com.hierynomus.smbj.auth.AuthenticationContext
 import com.hierynomus.smbj.share.DiskShare
 import fi.iki.elonen.NanoHTTPD
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.Credentials
 import okhttp3.OkHttpClient
@@ -34,6 +40,7 @@ import java.util.concurrent.TimeUnit
  * that don't support it natively
  */
 class NetworkStreamingProxy private constructor() : NanoHTTPD("127.0.0.1", 0) {
+  private val proxyScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
   companion object {
     private const val TAG = "NetworkStreamingProxy"
     private val sharedWebDavHttpClient: OkHttpClient by lazy { OkHttpClient() }
@@ -83,7 +90,7 @@ class NetworkStreamingProxy private constructor() : NanoHTTPD("127.0.0.1", 0) {
     mimeType: String = "video/mp4",
   ): String {
     activeStreams.remove(streamId)?.let { existing ->
-      runBlocking {
+      proxyScope.launch {
         runCatching { existing.client.disconnect() }
       }
     }
@@ -109,7 +116,7 @@ class NetworkStreamingProxy private constructor() : NanoHTTPD("127.0.0.1", 0) {
    */
   fun unregisterStream(streamId: String) {
     activeStreams.remove(streamId)?.let { streamInfo ->
-      runBlocking {
+      proxyScope.launch {
         try {
           streamInfo.client.disconnect()
         } catch (e: Exception) {

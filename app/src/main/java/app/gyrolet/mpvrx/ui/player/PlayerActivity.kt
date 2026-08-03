@@ -1,8 +1,10 @@
 /*
- * SPDX-License-Identifier: CC-BY-NC-4.0
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
- * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  */
 
 package app.gyrolet.mpvrx.ui.player
@@ -1207,7 +1209,7 @@ class PlayerActivity :
           addAction(Intent.ACTION_SCREEN_ON)
           addAction(Intent.ACTION_USER_PRESENT)
         }
-      registerReceiver(screenStateReceiver, filter)
+      ContextCompat.registerReceiver(this, screenStateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
       screenStateReceiverRegistered = true
     }.onFailure { e ->
       Log.e(TAG, "Error registering screen state receiver", e)
@@ -1395,7 +1397,7 @@ class PlayerActivity :
 
       if (!noisyReceiverRegistered) {
         val filter = IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
-        registerReceiver(noisyReceiver, filter)
+        ContextCompat.registerReceiver(this, noisyReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         noisyReceiverRegistered = true
       }
 
@@ -3629,7 +3631,7 @@ class PlayerActivity :
     }
 
     if (immediate) {
-      kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO + kotlinx.coroutines.NonCancellable, block = saveBlock)
+      lifecycleScope.launch(Dispatchers.IO + kotlinx.coroutines.NonCancellable, block = saveBlock)
     } else {
       // Launch new save job and track it
       savePlaybackStateJob = lifecycleScope.launch(Dispatchers.IO, block = saveBlock)
@@ -3669,7 +3671,7 @@ class PlayerActivity :
       currentPosition = readMpvIntSeconds("time-pos", viewModel.pos ?: 0),
       duration = readMpvIntSeconds("duration", viewModel.duration ?: 0),
       playbackSpeed = MPVLib.getPropertyDouble("speed") ?: DEFAULT_PLAYBACK_SPEED,
-      videoZoom = MPVLib.getPropertyDouble("video-zoom")?.toFloat() ?: 0f,
+      videoZoom = MPVLib.getPropertyDouble("video-zoom")?.toFloat() ?: viewModel.videoZoom.value,
       sid = player.sid,
       secondarySid = player.secondarySid,
       subDelayMs = ((MPVLib.getPropertyDouble("sub-delay") ?: 0.0) * MILLISECONDS_TO_SECONDS).toInt(),

@@ -1,8 +1,10 @@
 /*
- * SPDX-License-Identifier: CC-BY-NC-4.0
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
- * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  */
 
 package app.gyrolet.mpvrx.ui.player
@@ -251,8 +253,10 @@ private fun halton(
 }
 
 object AmbientShaderBuilder {
-  private val glowTapCache = HashMap<Int, String>()
-  private val frameGlowTapCache = HashMap<Int, String>()
+  // ConcurrentHashMap: updateAmbientStretch() can be invoked concurrently from
+  // renderPrepDispatcher, orientation callbacks, and thermal-monitor ticks.
+  private val glowTapCache = java.util.concurrent.ConcurrentHashMap<Int, String>()
+  private val frameGlowTapCache = java.util.concurrent.ConcurrentHashMap<Int, String>()
 
   private fun getGlowTaps(samples: Int): String =
     glowTapCache.getOrPut(samples) {
@@ -340,6 +344,7 @@ vec4 hook() {
 //!HOOK OUTPUT
 //!BIND HOOKED
 //!DESC True Ambient Mode
+precision mediump float;
 
 #define BLUR_SAMPLES     ${spec.blurSamples}
 #define MAX_RADIUS       ${spec.maxRadius}
@@ -355,10 +360,6 @@ vec4 hook() {
 
 const float PI  = 3.14159265358979;
 ${getGlowTaps(spec.blurSamples)}
-
-float rand(vec2 seed) {
-    return fract(sin(dot(seed, vec2(12.9898, 78.233))) * 43758.5453);
-}
 
 float luma(vec3 rgb) {
     return dot(rgb, vec3(0.2126, 0.7152, 0.0722));
@@ -388,7 +389,9 @@ vec4 hook() {
     float edge_dist = length(video_uv - edge_origin);
     float edge_fade = exp(-edge_dist * (3.0 / max(MAX_RADIUS, 0.001)));
 
-    float jitter = rand(uv * HOOKED_size) * (PI * 2.0);
+    // Interleaved Gradient Noise (Jimenez 2014) — no GPU sin() call,
+    // better spatial distribution than sin-hash, consistent with YouTube mode.
+    float jitter = fract(dot(floor(uv * HOOKED_size), vec2(0.75487766, 0.56984029))) * (PI * 2.0);
     float jitter_s = sin(jitter);
     float jitter_c = cos(jitter);
     vec2 aspect_fix = vec2(HOOKED_size.y / HOOKED_size.x, 1.0);
@@ -447,6 +450,7 @@ vec4 hook() {
 //!HOOK OUTPUT
 //!BIND HOOKED
 //!DESC Frame Extend Ambient Mode
+precision mediump float;
 
 #define EXTEND_STEPS      $extendSteps
 #define GLOW_SAMPLES      $glowSamples
@@ -465,16 +469,13 @@ vec4 hook() {
 const float PI = 3.14159265358979;
 ${getFrameGlowTaps(glowSamples)}
 
-float rand(vec2 seed) {
-    return fract(sin(dot(seed, vec2(12.9898, 78.233))) * 43758.5453);
-}
-
 float luma(vec3 rgb) {
     return dot(rgb, vec3(0.2126, 0.7152, 0.0722));
 }
 
+// IGN-based noise — no GPU sin(), better spatial distribution than sin-hash.
 float noise_value(vec2 uv) {
-    return rand(uv * HOOKED_size + vec2(11.0, 47.0)) - 0.5;
+    return fract(dot(floor(uv * HOOKED_size + vec2(11.0, 47.0)), vec2(0.75487766, 0.56984029))) - 0.5;
 }
 
 vec3 apply_dither(vec3 rgb, vec2 uv, float flatness) {
@@ -496,7 +497,8 @@ float edge_risk(vec2 edge_origin, vec3 edge, vec2 inward_dir, vec2 ortho_dir) {
 }
 
 vec3 sample_soft_glow(vec2 edge_origin, vec2 uv, float outside_norm) {
-    float jitter = rand(uv * HOOKED_size) * (PI * 2.0);
+    // IGN for tap rotation jitter — eliminates sin-hash GPU cost.
+    float jitter = fract(dot(floor(uv * HOOKED_size), vec2(0.75487766, 0.56984029))) * (PI * 2.0);
     float jitter_s = sin(jitter);
     float jitter_c = cos(jitter);
     float radius = mix(0.016, 0.095, outside_norm);

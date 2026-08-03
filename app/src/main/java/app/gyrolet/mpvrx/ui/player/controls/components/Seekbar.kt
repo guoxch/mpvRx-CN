@@ -1,8 +1,10 @@
 /*
- * SPDX-License-Identifier: CC-BY-NC-4.0
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
- * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  */
 
 package app.gyrolet.mpvrx.ui.player.controls.components
@@ -77,6 +79,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.preferences.SeekbarStyle
 import app.gyrolet.mpvrx.ui.player.SkipSegment
@@ -670,7 +673,7 @@ fun SeekThumbnailPreviewBubble(
       Column(
         modifier =
           Modifier
-            .offset(x = xOffset)
+            .offset { IntOffset(xOffset.roundToPx(), 0) }
             .width(previewWidth),
         horizontalAlignment = Alignment.CenterHorizontally,
       ) {

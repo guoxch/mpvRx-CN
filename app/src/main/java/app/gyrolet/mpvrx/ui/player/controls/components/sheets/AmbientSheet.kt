@@ -1,8 +1,10 @@
 /*
- * SPDX-License-Identifier: CC-BY-NC-4.0
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
- * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  */
 
 package app.gyrolet.mpvrx.ui.player.controls.components.sheets
@@ -80,88 +82,106 @@ fun AmbientSheet(
   val frameExtendGlowMix by viewModel.frameExtendGlowMix.collectAsState()
 
   val isFast =
-    when (ambientMode) {
-      AmbientVisualMode.GLOW ->
-        matchesGlowPreset(
-          preset = AmbientShaderPresets.glowFast,
-          blurSamples = blurSamples,
-          maxRadius = maxRadius,
-          glowIntensity = glowIntensity,
-          satBoost = satBoost,
-          vignetteStrength = vignetteStrength,
-          warmth = warmth,
-          fadeCurve = fadeCurve,
-          opacity = opacity,
-        )
-      AmbientVisualMode.FRAME_EXTEND ->
-        matchesFrameExtendPreset(
-          preset = AmbientShaderPresets.frameExtendFast,
-          sampleBudget = blurSamples,
-          extendStrength = frameExtendStrength,
-          detailProtection = frameExtendDetailProtection,
-          glowMix = frameExtendGlowMix,
-          ditherNoise = ditherNoise,
-          bezelDepth = bezelDepth,
-          vignetteStrength = vignetteStrength,
-          opacity = opacity,
-        )
-      AmbientVisualMode.YOUTUBE -> false
+    remember(
+      ambientMode, blurSamples, maxRadius, glowIntensity, satBoost, vignetteStrength,
+      warmth, fadeCurve, opacity, frameExtendStrength, frameExtendDetailProtection,
+      frameExtendGlowMix, ditherNoise, bezelDepth,
+    ) {
+      when (ambientMode) {
+        AmbientVisualMode.GLOW ->
+          matchesGlowPreset(
+            preset = AmbientShaderPresets.glowFast,
+            blurSamples = blurSamples,
+            maxRadius = maxRadius,
+            glowIntensity = glowIntensity,
+            satBoost = satBoost,
+            vignetteStrength = vignetteStrength,
+            warmth = warmth,
+            fadeCurve = fadeCurve,
+            opacity = opacity,
+          )
+        AmbientVisualMode.FRAME_EXTEND ->
+          matchesFrameExtendPreset(
+            preset = AmbientShaderPresets.frameExtendFast,
+            sampleBudget = blurSamples,
+            extendStrength = frameExtendStrength,
+            detailProtection = frameExtendDetailProtection,
+            glowMix = frameExtendGlowMix,
+            ditherNoise = ditherNoise,
+            bezelDepth = bezelDepth,
+            vignetteStrength = vignetteStrength,
+            opacity = opacity,
+          )
+        AmbientVisualMode.YOUTUBE -> false
+      }
     }
   val isBalanced =
-    when (ambientMode) {
-      AmbientVisualMode.GLOW ->
-        matchesGlowPreset(
-          preset = AmbientShaderPresets.glowBalanced,
-          blurSamples = blurSamples,
-          maxRadius = maxRadius,
-          glowIntensity = glowIntensity,
-          satBoost = satBoost,
-          vignetteStrength = vignetteStrength,
-          warmth = warmth,
-          fadeCurve = fadeCurve,
-          opacity = opacity,
-        )
-      AmbientVisualMode.FRAME_EXTEND ->
-        matchesFrameExtendPreset(
-          preset = AmbientShaderPresets.frameExtendBalanced,
-          sampleBudget = blurSamples,
-          extendStrength = frameExtendStrength,
-          detailProtection = frameExtendDetailProtection,
-          glowMix = frameExtendGlowMix,
-          ditherNoise = ditherNoise,
-          bezelDepth = bezelDepth,
-          vignetteStrength = vignetteStrength,
-          opacity = opacity,
-        )
-      AmbientVisualMode.YOUTUBE -> false
+    remember(
+      ambientMode, blurSamples, maxRadius, glowIntensity, satBoost, vignetteStrength,
+      warmth, fadeCurve, opacity, frameExtendStrength, frameExtendDetailProtection,
+      frameExtendGlowMix, ditherNoise, bezelDepth,
+    ) {
+      when (ambientMode) {
+        AmbientVisualMode.GLOW ->
+          matchesGlowPreset(
+            preset = AmbientShaderPresets.glowBalanced,
+            blurSamples = blurSamples,
+            maxRadius = maxRadius,
+            glowIntensity = glowIntensity,
+            satBoost = satBoost,
+            vignetteStrength = vignetteStrength,
+            warmth = warmth,
+            fadeCurve = fadeCurve,
+            opacity = opacity,
+          )
+        AmbientVisualMode.FRAME_EXTEND ->
+          matchesFrameExtendPreset(
+            preset = AmbientShaderPresets.frameExtendBalanced,
+            sampleBudget = blurSamples,
+            extendStrength = frameExtendStrength,
+            detailProtection = frameExtendDetailProtection,
+            glowMix = frameExtendGlowMix,
+            ditherNoise = ditherNoise,
+            bezelDepth = bezelDepth,
+            vignetteStrength = vignetteStrength,
+            opacity = opacity,
+          )
+        AmbientVisualMode.YOUTUBE -> false
+      }
     }
   val isHQ =
-    when (ambientMode) {
-      AmbientVisualMode.GLOW ->
-        matchesGlowPreset(
-          preset = AmbientShaderPresets.glowHighQuality,
-          blurSamples = blurSamples,
-          maxRadius = maxRadius,
-          glowIntensity = glowIntensity,
-          satBoost = satBoost,
-          vignetteStrength = vignetteStrength,
-          warmth = warmth,
-          fadeCurve = fadeCurve,
-          opacity = opacity,
-        )
-      AmbientVisualMode.FRAME_EXTEND ->
-        matchesFrameExtendPreset(
-          preset = AmbientShaderPresets.frameExtendHighQuality,
-          sampleBudget = blurSamples,
-          extendStrength = frameExtendStrength,
-          detailProtection = frameExtendDetailProtection,
-          glowMix = frameExtendGlowMix,
-          ditherNoise = ditherNoise,
-          bezelDepth = bezelDepth,
-          vignetteStrength = vignetteStrength,
-          opacity = opacity,
-        )
-      AmbientVisualMode.YOUTUBE -> false
+    remember(
+      ambientMode, blurSamples, maxRadius, glowIntensity, satBoost, vignetteStrength,
+      warmth, fadeCurve, opacity, frameExtendStrength, frameExtendDetailProtection,
+      frameExtendGlowMix, ditherNoise, bezelDepth,
+    ) {
+      when (ambientMode) {
+        AmbientVisualMode.GLOW ->
+          matchesGlowPreset(
+            preset = AmbientShaderPresets.glowHighQuality,
+            blurSamples = blurSamples,
+            maxRadius = maxRadius,
+            glowIntensity = glowIntensity,
+            satBoost = satBoost,
+            vignetteStrength = vignetteStrength,
+            warmth = warmth,
+            fadeCurve = fadeCurve,
+            opacity = opacity,
+          )
+        AmbientVisualMode.FRAME_EXTEND ->
+          matchesFrameExtendPreset(
+            preset = AmbientShaderPresets.frameExtendHighQuality,
+            sampleBudget = blurSamples,
+            extendStrength = frameExtendStrength,
+            detailProtection = frameExtendDetailProtection,
+            glowMix = frameExtendGlowMix,
+            ditherNoise = ditherNoise,
+            bezelDepth = bezelDepth,
+            vignetteStrength = vignetteStrength,
+            opacity = opacity,
+          )
+        AmbientVisualMode.YOUTUBE -> false
+      }
     }
   val configuration = LocalConfiguration.current
   val customMaxHeight =

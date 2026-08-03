@@ -1,8 +1,10 @@
 /*
- * SPDX-License-Identifier: CC-BY-NC-4.0
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  *
- * This work is licensed under Creative Commons Attribution-NonCommercial 4.0 International License.
- * To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  */
 
 package app.gyrolet.mpvrx.ui.player
@@ -154,6 +156,12 @@ class MPVView(
       boostSdrToHdr = decoderPreferences.boostSdrToHdr.get(),
     )
 
+    // Configure multithreaded libavcodec decoding across all CPU cores for smooth software fallback
+    val cpuCores = Runtime.getRuntime().availableProcessors().coerceIn(2, 16)
+    MPVLib.setOptionString("vd-lavc-threads", cpuCores.toString())
+    MPVLib.setOptionString("vd-lavc-fast", "yes")
+    MPVLib.setOptionString("sws-fast", "yes")
+
     // Set hwdec with fallback order: HW+ (mediacodec) -> HW (mediacodec-copy) -> SW (no)
     MPVLib.setOptionString(
       "hwdec",
@@ -161,8 +169,15 @@ class MPVView(
     )
     MPVLib.setOptionString("hwdec-codecs", "all")
 
-    // Enable direct rendering for hardware decoding (reduces memory copies)
-    MPVLib.setOptionString("vd-lavc-dr", "yes")
+    // Direct rendering & framedrop tuning:
+    // Enable direct rendering and vo framedrop only for hardware decoding to prevent CPU-GPU buffer stalls during SW decoding.
+    if (hwdecMode != "no") {
+      MPVLib.setOptionString("vd-lavc-dr", "yes")
+      MPVLib.setOptionString("framedrop", "vo")
+    } else {
+      MPVLib.setOptionString("vd-lavc-dr", "no")
+      MPVLib.setOptionString("framedrop", "no")
+    }
     // Queue extra frames to absorb decode jitter on 4K content
     MPVLib.setOptionString("vd-lavc-queue", "yes")
 
@@ -196,9 +211,6 @@ class MPVView(
     // This reduces thermal load and helps prevent jitter/rebuffering on long sessions.
     MPVLib.setOptionString("hls-bitrate", "no")
     MPVLib.setOptionString("http-allow-redirect", "yes")
-    // Drop only video-output-bound late frames when rendering cannot keep up.
-    // This prevents long-term jitter buildup without aggressively sacrificing smoothness.
-    MPVLib.setOptionString("framedrop", "vo")
 
     val preciseSeek = playerPreferences.usePreciseSeeking.get()
     MPVLib.setOptionString("hr-seek", if (preciseSeek) "yes" else "no")

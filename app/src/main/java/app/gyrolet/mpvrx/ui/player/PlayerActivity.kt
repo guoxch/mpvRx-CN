@@ -2826,6 +2826,7 @@ class PlayerActivity :
     super.onConfigurationChanged(newConfig)
     val isPortrait = newConfig.orientation == Configuration.ORIENTATION_PORTRAIT
     viewModel.onOrientationChanged(isPortrait)
+    binding.player.updateScriptOptsForOrientation(isPortrait)
     if (isReady) {
       handleConfigurationChange()
     }

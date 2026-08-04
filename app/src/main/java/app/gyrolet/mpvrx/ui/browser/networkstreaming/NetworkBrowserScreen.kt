@@ -265,7 +265,36 @@ data class NetworkBrowserScreen(
     if (showSortDialog.value) {
       NetworkFileSortDialog(
         currentMode = sortMode,
-        onSelect = { mode -> viewModel.setSortMode(mode); showSortDialog.value = false },
+        onSelect = { mode ->
+          viewModel.setSortMode(mode)
+          when (mode) {
+            NetworkBrowserViewModel.NetworkFileSort.NAME_AZ -> {
+              browserPreferences.networkSortType.set(NetworkSortType.Title)
+              browserPreferences.networkSortOrder.set(SortOrder.Ascending)
+            }
+            NetworkBrowserViewModel.NetworkFileSort.NAME_ZA -> {
+              browserPreferences.networkSortType.set(NetworkSortType.Title)
+              browserPreferences.networkSortOrder.set(SortOrder.Descending)
+            }
+            NetworkBrowserViewModel.NetworkFileSort.TIME_NEWEST -> {
+              browserPreferences.networkSortType.set(NetworkSortType.Date)
+              browserPreferences.networkSortOrder.set(SortOrder.Descending)
+            }
+            NetworkBrowserViewModel.NetworkFileSort.TIME_OLDEST -> {
+              browserPreferences.networkSortType.set(NetworkSortType.Date)
+              browserPreferences.networkSortOrder.set(SortOrder.Ascending)
+            }
+            NetworkBrowserViewModel.NetworkFileSort.SIZE_LARGEST -> {
+              browserPreferences.networkSortType.set(NetworkSortType.Size)
+              browserPreferences.networkSortOrder.set(SortOrder.Descending)
+            }
+            NetworkBrowserViewModel.NetworkFileSort.SIZE_SMALLEST -> {
+              browserPreferences.networkSortType.set(NetworkSortType.Size)
+              browserPreferences.networkSortOrder.set(SortOrder.Ascending)
+            }
+          }
+          showSortDialog.value = false
+        },
         onDismiss = { showSortDialog.value = false },
       )
     }
@@ -309,36 +338,10 @@ private fun NetworkBrowserContent(
   modifier: Modifier = Modifier,
 ) {
   val sortedFiles =
-    remember(files, networkSortType, networkSortOrder) {
+    remember(files) {
+      // files already sorted by ViewModel; just partition for display
       val (dirList, fileList) = files.partition { it.isDirectory }
-
-      val sortedDirs =
-        when (networkSortType) {
-          NetworkSortType.Title ->
-            if (networkSortOrder.isAscending) dirList.sortedBy { it.name.lowercase() }
-            else dirList.sortedByDescending { it.name.lowercase() }
-          NetworkSortType.Date ->
-            if (networkSortOrder.isAscending) dirList.sortedBy { it.lastModified }
-            else dirList.sortedByDescending { it.lastModified }
-          NetworkSortType.Size ->
-            if (networkSortOrder.isAscending) dirList.sortedBy { it.size }
-            else dirList.sortedByDescending { it.size }
-        }
-
-      val sortedMedia =
-        when (networkSortType) {
-          NetworkSortType.Title ->
-            if (networkSortOrder.isAscending) fileList.sortedBy { it.name.lowercase() }
-            else fileList.sortedByDescending { it.name.lowercase() }
-          NetworkSortType.Date ->
-            if (networkSortOrder.isAscending) fileList.sortedBy { it.lastModified }
-            else fileList.sortedByDescending { it.lastModified }
-          NetworkSortType.Size ->
-            if (networkSortOrder.isAscending) fileList.sortedBy { it.size }
-            else fileList.sortedByDescending { it.size }
-        }
-
-      sortedDirs + sortedMedia
+      dirList + fileList
     }
 
   val filteredFiles =

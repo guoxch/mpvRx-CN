@@ -46,6 +46,8 @@
   <string name="pref_appearance_category_navigation">Navigation</string>
   <string name="pref_nav_home_title">Show Home tab</string>
   <string name="pref_nav_home_summary">Show or hide Home in the bottom navigation bar</string>
+  <string name="pref_nav_music_title">Show Music tab</string>
+  <string name="pref_nav_music_summary">Show or hide Music in the bottom navigation bar</string>
   <string name="pref_nav_recents_title">Show Recents tab</string>
   <string name="pref_nav_recents_summary">Show or hide Recents in the bottom navigation bar</string>
   <string name="pref_nav_playlists_title">Show Playlists tab</string>
@@ -64,6 +66,7 @@
   <string name="pref_appearance_auto_scroll_summary">Automatically scroll to the last played video when opening video lists</string>
   <string name="pref_appearance_watched_threshold_title">Watched threshold</string>
   <string name="pref_appearance_watched_threshold_summary">Mark video as watched when playback reaches %d%%</string>
+  <string name="pref_appearance_watched_threshold_summary_infinite">Never auto-mark as watched (Infinitely)</string>
   <string name="pref_tree_flatten_depth_title">Tree path compression</string>
   <string name="pref_tree_flatten_depth_summary">%1$s skipped per navigation step for single-child folders</string>
   <string name="ytdl_audio_quality_title">yt-dlp audio quality</string>
@@ -257,7 +260,7 @@
   <string name="pref_subtitles_clear_downloads_confirmation">Are you sure you want to delete all downloaded subtitles? This action cannot be undone.</string>
   <string name="toast_subtitles_cleared">Subtitle downloads cleared</string>
   <string name="pref_audio">Audio</string>
-  <string name="pref_audio_summary">Preferred languages, audio channels, pitch correction</string>
+  <string name="pref_audio_summary">Ambient mode, visualizer style, audio channels, pitch correction</string>
   <string name="pref_audio_orientation_title">Audio player orientation</string>
   <string name="pref_audio_pitch_correction_title">Enable audio pitch correction</string>
   <string name="pref_audio_pitch_correction_summary">Prevents the audio from becoming high-pitched at faster speeds and low-pitched at slower speeds</string>
@@ -276,6 +279,8 @@
   <string name="pref_audio_visualizer_style_particle">Particles</string>
 
   <string name="pref_audio_visualizer_galaxy_credit">Inspired by Zain Raza on CodePen</string>
+  <string name="pref_audio_ambient_mode_title">Ambient Mode</string>
+  <string name="pref_audio_ambient_mode_summary">Display dynamic color gradients derived from album cover art in music player (disabled when visualizer is active)</string>
   <string name="pref_audio_channels">Audio channels</string>
   <string name="pref_audio_channels_auto">Auto</string>
   <string name="pref_audio_channels_auto_safe">Auto Safe</string>
@@ -379,7 +384,7 @@
   <string name="player_sheets_sub_override_ass">Override ASS/SSA subtitles</string>
   <string name="player_sheets_sub_override_ass_subtitle">Force override ASS/SSA subtitle formatting</string>
   <string name="player_sheets_sub_scale_by_window">Scale by window</string>
-  <string name="player_sheets_sub_scale_by_window_summary">Scale subtitles by window size and use video margins</string>
+  <string name="player_sheets_sub_scale_by_window_summary">Scale subtitle size with the window; keep subtitles inside the video\'s safe-area margins</string>
   <string name="player_sheets_sub_blend_with_video">Blend subtitles with video</string>
   <string name="player_sheets_sub_blend_with_video_summary">When ambient mode is on, draw subtitles with the video instead of over the ambient area</string>
   <string name="player_sheets_sub_scale">Scale</string>
@@ -1098,6 +1103,7 @@
   <string name="player_unknown_video">Unknown Video</string>
   <string name="ui_logcat">Logcat:</string>
   <string name="ui_home">Home</string>
+  <string name="ui_music">Music</string>
   <string name="ui_recents">Recents</string>
   <string name="ui_playlists">Playlists</string>
   <string name="ui_network">Network</string>
@@ -1214,6 +1220,12 @@
   <string name="ui_try_a_different_search_term">Try a different search term</string>
   <string name="ui_no_videos_in_playlist">No videos in playlist</string>
   <string name="ui_add_videos_to_get_started">Add videos to get started</string>
+  <string name="playlist_add_videos">Add videos</string>
+  <string name="playlist_add_videos_title">Select Videos to Add</string>
+  <string name="playlist_add_videos_button">Add %1$d to Playlist</string>
+  <string name="playlist_add_videos_empty_title">No videos found</string>
+  <string name="playlist_add_videos_empty_message">There are no videos available to add right now.</string>
+  <string name="playlist_add_videos_success">Added %1$d file(s) to playlist</string>
   <string name="ui_saved">Saved</string>
   <string name="ui_stream_url">Stream URL</string>
   <string name="ui_remove_from_playlist">Remove from Playlist</string>
@@ -1501,6 +1513,7 @@
   <string name="oss_androidx_constraintlayout_description">Flexible layout manager for Android interfaces.</string>
   <string name="oss_androidx_documentfile_description">Abstraction layer for document storage access.</string>
   <string name="oss_androidx_media_description">Android media session and playback APIs.</string>
+  <string name="oss_androidx_palette_description">Extracts dominant and vibrant color palettes from images.</string>
   <string name="oss_androidx_preference_description">UI and storage for app preference screens.</string>
   <string name="oss_androidx_profile_installer_description">Prefetches classes and methods for faster app startup.</string>
   <string name="oss_google_material_description">Material Design components and theming library.</string>
@@ -1607,6 +1620,11 @@
   <string name="secure_folder_sq_movie">What is your favorite movie?</string>
 
   <!-- Secure Folder Screen -->
+  <string name="secure_folder_add_files">Add files</string>
+  <string name="secure_folder_add_files_title">Select Files to Add</string>
+  <string name="secure_folder_add_files_button">Add %1$d to Secure Folder</string>
+  <string name="secure_folder_add_files_empty_title">No videos found</string>
+  <string name="secure_folder_add_files_empty_message">There are no videos available to add right now.</string>
   <string name="secure_folder_empty_title">Nothing hidden yet</string>
   <string name="secure_folder_empty_message">Files you move here won\'t show up anywhere else in the app.</string>
   <string name="secure_folder_restore_confirm_title">Restore %1$d item(s)?</string>

@@ -64,6 +64,7 @@
   <string name="pref_appearance_auto_scroll_summary">Beim Öffnen von Videolisten automatisch zum zuletzt abgespielten Video scrollen</string>
   <string name="pref_appearance_watched_threshold_title">Gesehen-Schwellenwert</string>
   <string name="pref_appearance_watched_threshold_summary">Video als gesehen markieren, wenn die Wiedergabe %d%% erreicht</string>
+  <string name="pref_appearance_watched_threshold_summary_infinite">Nie automatisch als gesehen markieren (Unendlich)</string>
   <string name="pref_tree_flatten_depth_title">Baumpfad-Komprimierung</string>
   <string name="pref_tree_flatten_depth_summary">%1$s pro Navigationsschritt bei Ordnern mit nur einem Unterordner übersprungen</string>
   <string name="ytdl_audio_quality_title">yt-dlp-Audioqualität</string>
@@ -278,6 +279,8 @@ Weiter: NEXT</string>
   <string name="pref_audio_visualizer_style_galaxy">Galaxie</string>
   <string name="pref_audio_visualizer_style_cuboid">Quader</string>
   <string name="pref_audio_visualizer_galaxy_credit">Inspiriert von Zain Raza auf CodePen</string>
+  <string name="pref_audio_ambient_mode_title">Ambient-Modus</string>
+  <string name="pref_audio_ambient_mode_summary">Dynamische Farbverläufe aus dem Album-Cover im Musikplayer anzeigen (deaktiviert, wenn der Visualizer aktiv ist)</string>
   <string name="pref_audio_channels">Audiokanäle</string>
   <string name="pref_audio_channels_auto">Automatisch</string>
   <string name="pref_audio_channels_auto_safe">Automatisch sicher</string>
@@ -374,7 +377,7 @@ Weiter: NEXT</string>
   <string name="player_sheets_sub_override_ass">ASS/SSA-Untertitel überschreiben</string>
   <string name="player_sheets_sub_override_ass_subtitle">Formatierung von ASS/SSA-Untertiteln zwangsweise überschreiben</string>
   <string name="player_sheets_sub_scale_by_window">An Fenster skalieren</string>
-  <string name="player_sheets_sub_scale_by_window_summary">Untertitel entsprechend der Fenstergröße skalieren und Videoränder verwenden</string>
+  <string name="player_sheets_sub_scale_by_window_summary">Skaliert die Untertitelgröße mit dem Fenster und platziert sie in den sicheren Rändern des Videos</string>
   <string name="player_sheets_sub_blend_with_video">Untertitel mit Video mischen</string>
   <string name="player_sheets_sub_blend_with_video_summary">Bei aktiviertem Umgebungsmodus Untertitel zusammen mit dem Video statt über dem Umgebungsbereich zeichnen</string>
   <string name="player_sheets_sub_scale">Skalierung</string>
@@ -1186,6 +1189,12 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="ui_try_a_different_search_term">Anderen Suchbegriff versuchen</string>
   <string name="ui_no_videos_in_playlist">Keine Videos in der Wiedergabeliste</string>
   <string name="ui_add_videos_to_get_started">Videos hinzufügen, um zu beginnen</string>
+  <string name="playlist_add_videos">Videos hinzufügen</string>
+  <string name="playlist_add_videos_title">Videos zum Hinzufügen auswählen</string>
+  <string name="playlist_add_videos_button">%1$d zur Wiedergabeliste hinzufügen</string>
+  <string name="playlist_add_videos_empty_title">Keine Videos gefunden</string>
+  <string name="playlist_add_videos_empty_message">Derzeit sind keine Videos zum Hinzufügen verfügbar.</string>
+  <string name="playlist_add_videos_success">%1$d Datei(en) zur Wiedergabeliste hinzugefügt</string>
   <string name="ui_saved">Gespeichert</string>
   <string name="ui_stream_url">Stream-URL</string>
   <string name="ui_remove_from_playlist">Aus Wiedergabeliste entfernen</string>
@@ -1465,6 +1474,7 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="oss_androidx_constraintlayout_description">Flexibler Layout-Manager für Android-Oberflächen.</string>
   <string name="oss_androidx_documentfile_description">Abstraktionsschicht für den Dokumentenspeicherzugriff.</string>
   <string name="oss_androidx_media_description">Android-APIs für Mediensitzungen und Wiedergabe.</string>
+  <string name="oss_androidx_palette_description">Extrahiert dominante und lebendige Farbpaletten aus Bildern.</string>
   <string name="oss_androidx_preference_description">UI und Speicherung für App-Einstellungsbildschirme.</string>
   <string name="oss_androidx_profile_installer_description">Lädt Klassen und Methoden vorab für einen schnelleren App-Start.</string>
   <string name="oss_google_material_description">Material-Design-Komponenten und Designbibliothek.</string>
@@ -1589,6 +1599,11 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="secure_folder_sq_city">In welcher Stadt wurden Sie geboren?</string>
   <string name="secure_folder_sq_nickname">Wie lautete Ihr Spitzname in der Kindheit?</string>
   <string name="secure_folder_sq_movie">Was ist Ihr Lieblingsfilm?</string>
+  <string name="secure_folder_add_files">Dateien hinzufügen</string>
+  <string name="secure_folder_add_files_title">Dateien zum Hinzufügen auswählen</string>
+  <string name="secure_folder_add_files_button">%1$d zum Sicheren Ordner hinzufügen</string>
+  <string name="secure_folder_add_files_empty_title">Keine Videos gefunden</string>
+  <string name="secure_folder_add_files_empty_message">Derzeit sind keine Videos zum Hinzufügen verfügbar.</string>
   <string name="secure_folder_empty_title">Noch nichts versteckt</string>
   <string name="secure_folder_empty_message">Dateien, die Sie hierher verschieben, werden nirgendwo sonst in der App angezeigt.</string>
   <string name="secure_folder_restore_confirm_title">%1$d Element(e) wiederherstellen?</string>
@@ -1660,4 +1675,7 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="pref_codecs_hardware_features">Hardware-Funktionen:</string>
   <string name="pref_codecs_min_resolution">Min. Auflösung: %s</string>
   <string name="pref_codecs_alignment">Pixelausrichtung: %1$dx%2$d</string>
+  <string name="ui_music">Music</string>
+  <string name="pref_nav_music_title">Show Music tab</string>
+  <string name="pref_nav_music_summary">Show or hide Music in the bottom navigation bar</string>
 </resources>

@@ -64,6 +64,7 @@
   <string name="pref_appearance_auto_scroll_summary">Rolar automaticamente até o último vídeo reproduzido ao abrir listas de vídeos</string>
   <string name="pref_appearance_watched_threshold_title">Limite de assistido</string>
   <string name="pref_appearance_watched_threshold_summary">Marcar o vídeo como assistido quando a reprodução atingir %d%%</string>
+  <string name="pref_appearance_watched_threshold_summary_infinite">Nunca marcar como assistido automaticamente (Infinitamente)</string>
   <string name="pref_tree_flatten_depth_title">Compressão do caminho em árvore</string>
   <string name="pref_tree_flatten_depth_summary">%1$s ignorado(s) por etapa de navegação em pastas com um único item filho</string>
   <string name="ytdl_audio_quality_title">Qualidade de áudio do yt-dlp</string>
@@ -278,6 +279,8 @@ Próximo: NEXT</string>
   <string name="pref_audio_visualizer_style_galaxy">Galáxia</string>
   <string name="pref_audio_visualizer_style_cuboid">Cuboide</string>
   <string name="pref_audio_visualizer_galaxy_credit">Inspirado por Zain Raza no CodePen</string>
+  <string name="pref_audio_ambient_mode_title">Modo ambiente</string>
+  <string name="pref_audio_ambient_mode_summary">Exibir gradientes de cores dinâmicos derivados da capa do álbum no reprodutor de música (desativado quando o visualizador está ativo)</string>
   <string name="pref_audio_channels">Canais de áudio</string>
   <string name="pref_audio_channels_auto">Automático</string>
   <string name="pref_audio_channels_auto_safe">Automático seguro</string>
@@ -374,7 +377,7 @@ Próximo: NEXT</string>
   <string name="player_sheets_sub_override_ass">Substituir legendas ASS/SSA</string>
   <string name="player_sheets_sub_override_ass_subtitle">Forçar substituição da formatação de legendas ASS/SSA</string>
   <string name="player_sheets_sub_scale_by_window">Dimensionar pela janela</string>
-  <string name="player_sheets_sub_scale_by_window_summary">Dimensionar legendas pelo tamanho da janela e usar as margens do vídeo</string>
+  <string name="player_sheets_sub_scale_by_window_summary">Dimensiona o tamanho da legenda com a janela e as posiciona nas margens seguras do vídeo</string>
   <string name="player_sheets_sub_blend_with_video">Misturar legendas com o vídeo</string>
   <string name="player_sheets_sub_blend_with_video_summary">Quando o modo ambiente estiver ativado, desenhar as legendas junto ao vídeo em vez de sobre a área ambiente</string>
   <string name="player_sheets_sub_scale">Escala</string>
@@ -1186,6 +1189,12 @@ Reinicie o aplicativo para que todas as alterações entrem em vigor.</string>
   <string name="ui_try_a_different_search_term">Tente outro termo de pesquisa</string>
   <string name="ui_no_videos_in_playlist">Não há vídeos na playlist</string>
   <string name="ui_add_videos_to_get_started">Adicione vídeos para começar</string>
+  <string name="playlist_add_videos">Adicionar vídeos</string>
+  <string name="playlist_add_videos_title">Selecionar vídeos para adicionar</string>
+  <string name="playlist_add_videos_button">Adicionar %1$d à Playlist</string>
+  <string name="playlist_add_videos_empty_title">Nenhum vídeo encontrado</string>
+  <string name="playlist_add_videos_empty_message">No momento não há vídeos disponíveis para adicionar.</string>
+  <string name="playlist_add_videos_success">%1$d vídeo(s) adicionado(s) à playlist</string>
   <string name="ui_saved">Salvo</string>
   <string name="ui_stream_url">URL da transmissão</string>
   <string name="ui_remove_from_playlist">Remover da playlist</string>
@@ -1465,6 +1474,7 @@ Reinicie o aplicativo para que todas as alterações entrem em vigor.</string>
   <string name="oss_androidx_constraintlayout_description">Gerenciador de layout flexível para interfaces Android.</string>
   <string name="oss_androidx_documentfile_description">Camada de abstração para acesso ao armazenamento de documentos.</string>
   <string name="oss_androidx_media_description">APIs do Android para sessão de mídia e reprodução.</string>
+  <string name="oss_androidx_palette_description">Extrai paletas de cores dominantes e vibrantes das imagens.</string>
   <string name="oss_androidx_preference_description">UI e armazenamento para telas de preferências do app.</string>
   <string name="oss_androidx_profile_installer_description">Pré-carrega classes e métodos para iniciar o app mais rapidamente.</string>
   <string name="oss_google_material_description">Componentes do Material Design e biblioteca de temas.</string>
@@ -1589,6 +1599,11 @@ Reinicie o aplicativo para que todas as alterações entrem em vigor.</string>
   <string name="secure_folder_sq_city">Em qual cidade você nasceu?</string>
   <string name="secure_folder_sq_nickname">Qual era o seu apelido de infância?</string>
   <string name="secure_folder_sq_movie">Qual é o seu filme favorito?</string>
+  <string name="secure_folder_add_files">Adicionar arquivos</string>
+  <string name="secure_folder_add_files_title">Selecionar arquivos para adicionar</string>
+  <string name="secure_folder_add_files_button">Adicionar %1$d à Pasta Segura</string>
+  <string name="secure_folder_add_files_empty_title">Nenhum vídeo encontrado</string>
+  <string name="secure_folder_add_files_empty_message">No momento não há vídeos disponíveis para adicionar.</string>
   <string name="secure_folder_empty_title">Nada oculto ainda</string>
   <string name="secure_folder_empty_message">Os arquivos movidos para cá não aparecerão em nenhum outro lugar do aplicativo.</string>
   <string name="secure_folder_restore_confirm_title">Restaurar %1$d item(ns)?</string>
@@ -1660,4 +1675,7 @@ Reinicie o aplicativo para que todas as alterações entrem em vigor.</string>
   <string name="pref_codecs_hardware_features">Recursos de Hardware:</string>
   <string name="pref_codecs_min_resolution">Resolução Mínima: %s</string>
   <string name="pref_codecs_alignment">Alinhamento de Pixels: %1$dx%2$d</string>
+  <string name="ui_music">Music</string>
+  <string name="pref_nav_music_title">Show Music tab</string>
+  <string name="pref_nav_music_summary">Show or hide Music in the bottom navigation bar</string>
 </resources>

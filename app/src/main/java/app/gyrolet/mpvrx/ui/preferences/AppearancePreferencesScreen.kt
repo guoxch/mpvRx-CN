@@ -473,25 +473,31 @@ object AppearancePreferencesScreen : Screen {
               PreferenceDivider()
 
               val watchedThreshold by browserPreferences.watchedThreshold.collectAsState()
+              val effectiveThreshold = watchedThreshold.coerceAtLeast(0)
+              val thresholdDisplayValue = if (effectiveThreshold == 0) 0f else effectiveThreshold.toFloat()
               SliderPreference(
-                value = watchedThreshold.toFloat(),
+                value = thresholdDisplayValue,
                 onValueChange = { browserPreferences.watchedThreshold.set(it.roundToInt()) },
-                sliderValue = watchedThreshold.toFloat(),
+                sliderValue = thresholdDisplayValue,
                 onSliderValueChange = { browserPreferences.watchedThreshold.set(it.roundToInt()) },
                 title = {
                   Text(
                     text = stringResource(id = R.string.pref_appearance_watched_threshold_title),
                   )
                 },
-                valueRange = 50f..100f,
-                valueSteps = 9,
+                valueRange = 0f..100f,
+                valueSteps = 20,
                 summary = {
                   Text(
                     text =
-                      stringResource(
-                        id = R.string.pref_appearance_watched_threshold_summary,
-                        watchedThreshold,
-                      ),
+                      if (effectiveThreshold == 0) {
+                        stringResource(R.string.pref_appearance_watched_threshold_summary_infinite)
+                      } else {
+                        stringResource(
+                          id = R.string.pref_appearance_watched_threshold_summary,
+                          effectiveThreshold,
+                        )
+                      },
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },
@@ -706,6 +712,7 @@ object AppearancePreferencesScreen : Screen {
           item {
             PreferenceCard {
               val showHomeTab by preferences.showHomeTab.collectAsState()
+              val showMusicTab by preferences.showMusicTab.collectAsState()
               val showRecentsTab by preferences.showRecentsTab.collectAsState()
               val showPlaylistsTab by preferences.showPlaylistsTab.collectAsState()
               val showNetworkTab by preferences.showNetworkTab.collectAsState()
@@ -717,6 +724,20 @@ object AppearancePreferencesScreen : Screen {
                 summary = {
                   Text(
                     text = stringResource(id = R.string.pref_nav_home_summary),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+
+              PreferenceDivider()
+
+              SwitchPreference(
+                value = showMusicTab,
+                onValueChange = preferences.showMusicTab::set,
+                title = { Text(text = stringResource(id = R.string.pref_nav_music_title)) },
+                summary = {
+                  Text(
+                    text = stringResource(id = R.string.pref_nav_music_summary),
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },

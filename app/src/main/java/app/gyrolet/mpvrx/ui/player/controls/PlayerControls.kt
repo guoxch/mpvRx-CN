@@ -78,8 +78,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -250,9 +252,9 @@ fun PlayerControls(
   val seekText = seekState.text
   val currentChapter by MPVLib.propInt["chapter"].collectAsState()
   val mpvDecoder by MPVLib.propString["hwdec-current"].collectAsState()
-  val decoder by remember { derivedStateOf { getDecoderFromValue(mpvDecoder ?: "auto") } }
-  val isSpeedNonOne by remember(playbackSpeed) {
-    derivedStateOf { abs((playbackSpeed ?: 1f) - 1f) > 0.001f }
+  val decoder = remember(mpvDecoder) { getDecoderFromValue(mpvDecoder ?: "auto") }
+  val isSpeedNonOne = remember(playbackSpeed) {
+    abs((playbackSpeed ?: 1f) - 1f) > 0.001f
   }
   val playerTimeToDisappear by playerPreferences.playerTimeToDisappear.collectAsState()
   val chapters by viewModel.chapters.collectAsState(persistentListOf())
@@ -269,23 +271,27 @@ fun PlayerControls(
   val abLoopA = abLoop.a
   val abLoopB = abLoop.b
 
-  val onOpenSheet: (Sheets) -> Unit = {
-    viewModel.sheetShown.update { _ -> it }
-    if (it == Sheets.None) {
-      viewModel.showControls()
-    } else {
-      viewModel.hideControls()
-      viewModel.panelShown.update { Panels.None }
+  val onOpenSheet: (Sheets) -> Unit = remember(viewModel) {
+    {
+      viewModel.sheetShown.update { _ -> it }
+      if (it == Sheets.None) {
+        viewModel.showControls()
+      } else {
+        viewModel.hideControls()
+        viewModel.panelShown.update { Panels.None }
+      }
     }
   }
 
-  val onOpenPanel: (Panels) -> Unit = {
-    viewModel.panelShown.update { _ -> it }
-    if (it == Panels.None) {
-      viewModel.showControls()
-    } else {
-      viewModel.hideControls()
-      viewModel.sheetShown.update { Sheets.None }
+  val onOpenPanel: (Panels) -> Unit = remember(viewModel) {
+    {
+      viewModel.panelShown.update { _ -> it }
+      if (it == Panels.None) {
+        viewModel.showControls()
+      } else {
+        viewModel.hideControls()
+        viewModel.sheetShown.update { Sheets.None }
+      }
     }
   }
 
@@ -445,7 +451,8 @@ fun PlayerControls(
         modifier =
           Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = -brightness))
+            .graphicsLayer { alpha = -brightness }
+            .background(Color.Black)
             .zIndex(0f),
       )
     }
@@ -472,9 +479,7 @@ fun PlayerControls(
         LocalLayoutDirection provides LayoutDirection.Ltr,
       ) {
         val configuration = LocalConfiguration.current
-        val isPortrait by remember(configuration) {
-          derivedStateOf { configuration.orientation == ORIENTATION_PORTRAIT }
-        }
+        val isPortrait = remember(configuration.orientation) { configuration.orientation == ORIENTATION_PORTRAIT }
         val density = LocalDensity.current
         var controlsLayoutHeightPx by remember { mutableStateOf(0) }
         var landscapeRightButtonsTopPx by remember { mutableStateOf<Int?>(null) }
@@ -486,10 +491,11 @@ fun PlayerControls(
             Modifier
               .fillMaxSize()
               .onSizeChanged { controlsLayoutHeightPx = it.height }
-              .background(
-                FullScreenScrimBrush,
-                alpha = transparentOverlay,
-              ).then(safeAreaInsetModifier)
+              .drawBehind {
+                if (transparentOverlay > 0f) {
+                  drawRect(FullScreenScrimBrush, alpha = transparentOverlay)
+                }
+              }.then(safeAreaInsetModifier)
               .then(navigationBarBottomInsetModifier),
         ) {
           val (topLeftControls, topRightControls) = createRefs()
@@ -523,11 +529,8 @@ fun PlayerControls(
           val currentZoom by viewModel.videoZoom.collectAsState()
 
           val rawMediaTitle by MPVLib.propString["media-title"].collectAsState()
-          val mediaTitle by remember(rawMediaTitle, activity) {
-            derivedStateOf {
-              rawMediaTitle?.takeIf { it.isNotBlank() }
-                ?: activity.getTitleForControls()
-            }
+          val mediaTitle = remember(rawMediaTitle, activity) {
+            rawMediaTitle?.takeIf { it.isNotBlank() } ?: activity.getTitleForControls()
           }
 
           // Slider display duration: 1000ms shown + 300ms exit animation = 1300ms total
@@ -705,8 +708,8 @@ fun PlayerControls(
 
           AnimatedVisibility(
             shouldShowPlayerUpdate,
-            enter = fadeIn(playerControlsEnterAnimationSpec()),
-            exit = fadeOut(playerControlsExitAnimationSpec()),
+            enter = buildControlsEnterV(controlsAnimStyle, reduceMotion, enterMs) { -it },
+            exit = buildControlsExitV(controlsAnimStyle, reduceMotion, exitMs) { -it },
             modifier =
               Modifier
                 .then(
@@ -901,12 +904,12 @@ fun PlayerControls(
 
           AnimatedVisibility(
             visible = showLandscapeLeftCustomButtons,
-            enter = fadeIn(),
-            exit = fadeOut(),
+            enter = buildControlsEnterH(controlsAnimStyle, reduceMotion, enterMs) { -it },
+            exit = buildControlsExitH(controlsAnimStyle, reduceMotion, exitMs) { -it },
             modifier =
               navigationStartPaddingModifier.constrainAs(customLeftButtonsRef) {
                 start.linkTo(parent.start, spacing.large)
-                bottom.linkTo(bottomRightControls.top, spacing.medium)
+                bottom.linkTo(bottomLeftControls.top, spacing.medium)
                 width = Dimension.preferredWrapContent
                 height = Dimension.wrapContent
               },
@@ -962,8 +965,8 @@ fun PlayerControls(
 
           AnimatedVisibility(
             visible = showLandscapeRightCustomButtons,
-            enter = fadeIn(),
-            exit = fadeOut(),
+            enter = buildControlsEnterH(controlsAnimStyle, reduceMotion, enterMs) { it },
+            exit = buildControlsExitH(controlsAnimStyle, reduceMotion, exitMs) { it },
             modifier =
               navigationEndPaddingModifier
                 .constrainAs(customRightButtonsRef) {
@@ -1026,8 +1029,8 @@ fun PlayerControls(
 
           AnimatedVisibility(
             visible = showPortraitCustomButtons,
-            enter = fadeIn(),
-            exit = fadeOut(),
+            enter = buildControlsEnterV(controlsAnimStyle, reduceMotion, enterMs) { it },
+            exit = buildControlsExitV(controlsAnimStyle, reduceMotion, exitMs) { it },
             modifier =
               navigationHorizontalPaddingModifier
                 .constrainAs(customButtonsPortraitRef) {
@@ -1091,8 +1094,8 @@ fun PlayerControls(
 
           AnimatedVisibility(
             visible = controlsShown && areControlsLocked,
-            enter = fadeIn(),
-            exit = fadeOut(),
+            enter = buildControlsEnterV(controlsAnimStyle, reduceMotion, enterMs) { it },
+            exit = buildControlsExitV(controlsAnimStyle, reduceMotion, exitMs) { it },
             modifier =
               Modifier
                 .constrainAs(unlockControlsButton) {
@@ -1113,8 +1116,8 @@ fun PlayerControls(
 
           AnimatedVisibility(
             visible = skipChipVisible,
-            enter = fadeIn(playerControlsEnterAnimationSpec()),
-            exit = fadeOut(playerControlsExitAnimationSpec()),
+            enter = buildControlsEnterH(controlsAnimStyle, reduceMotion, enterMs) { it },
+            exit = buildControlsExitH(controlsAnimStyle, reduceMotion, exitMs) { it },
             modifier =
               navigationEndPaddingModifier
                 .constrainAs(skipSegmentChip) {
@@ -1161,8 +1164,8 @@ fun PlayerControls(
 
           AnimatedVisibility(
             visible = controlsShown && !areControlsLocked && !areSlidersShown,
-            enter = fadeIn(playerControlsEnterAnimationSpec()),
-            exit = fadeOut(playerControlsExitAnimationSpec()),
+            enter = buildControlsEnterV(controlsAnimStyle, reduceMotion, enterMs) { 0 },
+            exit = buildControlsExitV(controlsAnimStyle, reduceMotion, exitMs) { 0 },
             modifier =
               Modifier.constrainAs(playerPauseButton) {
                 start.linkTo(parent.absoluteLeft)

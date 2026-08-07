@@ -14,8 +14,11 @@ import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -25,6 +28,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -33,6 +38,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -72,7 +78,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
+import androidx.palette.graphics.Palette
+import app.gyrolet.mpvrx.domain.media.model.Video
+import app.gyrolet.mpvrx.ui.browser.dialogs.AddToPlaylistDialog
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.PlaylistItem
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
@@ -81,6 +94,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
@@ -90,6 +106,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -97,6 +114,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.offset
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.thumbnail.EmbeddedArtworkResolver
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
@@ -133,7 +155,7 @@ import java.util.Locale
 @Composable
 private fun rememberAudioAlbumArt(pathOrUri: String?): Bitmap? {
   val context = LocalContext.current
-  var bitmap by remember(pathOrUri) { mutableStateOf<Bitmap?>(null) }
+  var bitmap by remember { mutableStateOf<Bitmap?>(null) }
   LaunchedEffect(pathOrUri) {
     if (pathOrUri.isNullOrBlank()) {
       bitmap = null
@@ -166,6 +188,35 @@ private fun rememberAudioAlbumArt(pathOrUri: String?): Bitmap? {
   return bitmap
 }
 
+@Composable
+private fun CoverArtCardImage(bitmap: Bitmap?) {
+  if (bitmap != null) {
+    Image(
+      bitmap = bitmap.asImageBitmap(),
+      contentDescription = null,
+      contentScale = ContentScale.Crop,
+      modifier = Modifier.fillMaxSize(),
+    )
+  } else {
+    Box(
+      modifier = Modifier.fillMaxSize(),
+      contentAlignment = Alignment.Center,
+    ) {
+      Icon(
+        imageVector = Icons.RoundedFilled.Audiotrack,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.size(64.dp),
+      )
+    }
+  }
+}
+
+private enum class CoverSwipeDirection {
+  NEXT,
+  PREV,
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AudioPlayerControls(
@@ -188,6 +239,7 @@ fun AudioPlayerControls(
 
   val audioCodec by MPVLib.propString["audio-codec-name"].collectAsState()
   val sampleRate by MPVLib.propInt["audio-params/samplerate"].collectAsState()
+  val playbackSpeed by MPVLib.propFloat["speed"].collectAsState()
 
   val isLosslessCodecOrExt =
     remember(audioCodec, mediaPath) {
@@ -309,9 +361,11 @@ fun AudioPlayerControls(
       }
     }
 
-  val isPlaying = paused == false
-  val currentPosSec = if (precisePosition > 0f) precisePosition else position?.toFloat() ?: 0f
-  val currentDurSec = if (preciseDuration > 0f) preciseDuration else duration?.toFloat() ?: 0f
+   val isPlaying = paused == false
+   val currentPosSec = if (precisePosition > 0f) precisePosition else position?.toFloat() ?: 0f
+   val currentDurSec = if (preciseDuration > 0f) preciseDuration else duration?.toFloat() ?: 0f
+   val currentVolumePercent by viewModel.currentVolumePercent.collectAsState()
+   val volumeScale = currentVolumePercent / 100f
 
   val repeatMode by viewModel.repeatMode.collectAsState()
   val shuffleEnabled by viewModel.shuffleEnabled.collectAsState()
@@ -323,6 +377,8 @@ fun AudioPlayerControls(
   val abLoop by viewModel.abLoopState.collectAsState()
   val abLoopA = abLoop.a
   val abLoopB = abLoop.b
+
+  var addToPlaylistDialogOpen by rememberSaveable { mutableStateOf(false) }
 
   val playerPreferences = koinInject<PlayerPreferences>()
   val seekbarStyle by appearancePreferences.seekbarStyle.collectAsState()
@@ -355,11 +411,91 @@ fun AudioPlayerControls(
   val isTablet = configuration.smallestScreenWidthDp >= 600
   val isTabletLandscape = !isPortrait && isTablet
 
+  val ambientModeEnabled by audioPreferences.audioAmbientMode.collectAsState()
+
+  val ambientColors by produceState<Pair<Color, Color>?>(
+    initialValue = null,
+    key1 = albumArtBitmap,
+    key2 = ambientModeEnabled,
+  ) {
+    if (!ambientModeEnabled || albumArtBitmap == null) {
+      value = null
+      return@produceState
+    }
+    withContext(Dispatchers.Default) {
+      runCatching {
+        val palette = Palette.from(albumArtBitmap).maximumColorCount(16).generate()
+        val vibrant = palette.getVibrantColor(
+          palette.getDominantColor(
+            palette.getMutedColor(0)
+          )
+        )
+        val darkVibrant = palette.getDarkVibrantColor(
+          palette.getDarkMutedColor(vibrant)
+        )
+        if (vibrant == 0 && darkVibrant == 0) return@runCatching null
+
+        val topColor = Color(if (vibrant != 0) vibrant else darkVibrant).copy(alpha = 0.50f)
+        val bottomColor = Color(if (darkVibrant != 0) darkVibrant else vibrant).copy(alpha = 0.30f)
+        Pair(topColor, bottomColor)
+      }.onSuccess { colors ->
+        value = colors
+      }.onFailure {
+        value = null
+      }
+    }
+  }
+
+  val targetTopColor = if (ambientModeEnabled && !showVisualizer) (ambientColors?.first ?: Color.Transparent) else Color.Transparent
+  val targetBottomColor = if (ambientModeEnabled && !showVisualizer) (ambientColors?.second ?: Color.Transparent) else Color.Transparent
+
+  val animatedAmbientTop: Color by animateColorAsState(
+    targetValue = targetTopColor,
+    animationSpec = tween(durationMillis = 800),
+    label = "ambient_top_color",
+  )
+
+  val animatedAmbientBottom: Color by animateColorAsState(
+    targetValue = targetBottomColor,
+    animationSpec = tween(durationMillis = 800),
+    label = "ambient_bottom_color",
+  )
+
   Box(
     modifier =
       modifier
         .fillMaxSize()
         .background(MaterialTheme.colorScheme.surface)
+        .drawWithCache {
+          if (ambientModeEnabled && !showVisualizer && (animatedAmbientTop != Color.Transparent || animatedAmbientBottom != Color.Transparent)) {
+            val topColor = animatedAmbientTop
+            val bottomColor = animatedAmbientBottom
+            val radialGradient = Brush.radialGradient(
+              colors = listOf(
+                topColor,
+                bottomColor,
+                Color.Transparent,
+              ),
+              center = Offset(size.width * 0.5f, size.height * 0.25f),
+              radius = size.width * 1.3f,
+            )
+            val linearGradient = Brush.verticalGradient(
+              colors = listOf(
+                topColor.copy(alpha = topColor.alpha * 0.65f),
+                bottomColor.copy(alpha = bottomColor.alpha * 0.35f),
+                Color.Transparent,
+              ),
+              startY = 0f,
+              endY = size.height * 0.80f,
+            )
+            onDrawBehind {
+              drawRect(radialGradient)
+              drawRect(linearGradient)
+            }
+          } else {
+            onDrawBehind {}
+          }
+        }
         .windowInsetsPadding(WindowInsets.safeDrawing)
         .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp),
   ) {
@@ -423,6 +559,30 @@ fun AudioPlayerControls(
       }
     }
 
+    val animatableOffsetX = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+    var activeCoverOverride by remember { mutableStateOf<Bitmap?>(null) }
+
+    LaunchedEffect(albumArtBitmap) {
+      if (albumArtBitmap != null) {
+        activeCoverOverride = null
+      }
+    }
+
+    val nextItem = remember(filteredPlaylist, mediaPath) {
+      val idx = filteredPlaylist.indexOfFirst { it.isPlaying || it.path == mediaPath || it.uri.toString() == mediaPath }
+      if (idx in 0 until filteredPlaylist.lastIndex) filteredPlaylist[idx + 1] else null
+    }
+
+    val prevItem = remember(filteredPlaylist, mediaPath) {
+      val idx = filteredPlaylist.indexOfFirst { it.isPlaying || it.path == mediaPath || it.uri.toString() == mediaPath }
+      if (idx > 0) filteredPlaylist[idx - 1] else null
+    }
+
+    val nextCoverBitmap = rememberAudioAlbumArt(nextItem?.let { it.path.ifBlank { it.uri.toString() } })
+    val prevCoverBitmap = rememberAudioAlbumArt(prevItem?.let { it.path.ifBlank { it.uri.toString() } })
+
     @OptIn(ExperimentalFoundationApi::class)
     val centerVisualizerView = @Composable { visualizerModifier: Modifier ->
       BoxWithConstraints(
@@ -437,6 +597,9 @@ fun AudioPlayerControls(
             ),
         contentAlignment = Alignment.Center,
       ) {
+        val containerWidthPx = constraints.maxWidth.toFloat()
+        val currentOffset = animatableOffsetX.value
+
         AnimatedContent(
           targetState = showVisualizer,
           transitionSpec = {
@@ -464,79 +627,147 @@ fun AudioPlayerControls(
               modifier = Modifier.fillMaxSize(),
               contentAlignment = Alignment.Center,
             ) {
-              when (audioVisualizerStyle) {
-                AudioVisualizerStyle.Galaxy ->
-                  GalaxyOverlay(
-                    isPlaying = isPlaying,
-                    palette = palette,
-                    isSheetOpen = isSheetOpen,
-                    modifier = Modifier.fillMaxSize(),
-                  )
-                AudioVisualizerStyle.Blob ->
-                  BlobOverlay(
-                    isPlaying = isPlaying,
-                    palette = palette,
-                    isSheetOpen = isSheetOpen,
-                    modifier = Modifier.fillMaxSize(),
-                  )
-                AudioVisualizerStyle.Cuboid ->
-                  CuboidOverlay(
-                    isPlaying = isPlaying,
-                    palette = palette,
-                    isSheetOpen = isSheetOpen,
-                    modifier = Modifier.fillMaxSize(),
-                  )
-                AudioVisualizerStyle.Particle ->
-                  ParticleOverlay(
-                    isPlaying = isPlaying,
-                    palette = palette,
-                    isSheetOpen = isSheetOpen,
-                    modifier = Modifier.fillMaxSize(),
-                  )
-              }
-
+               when (audioVisualizerStyle) {
+                 AudioVisualizerStyle.Galaxy ->
+                   GalaxyOverlay(
+                     isPlaying = isPlaying,
+                     palette = palette,
+                     isSheetOpen = isSheetOpen,
+                     volumeScale = volumeScale,
+                     modifier = Modifier.fillMaxSize(),
+                   )
+                 AudioVisualizerStyle.Blob ->
+                   BlobOverlay(
+                     isPlaying = isPlaying,
+                     palette = palette,
+                     isSheetOpen = isSheetOpen,
+                     volumeScale = volumeScale,
+                     modifier = Modifier.fillMaxSize(),
+                   )
+                 AudioVisualizerStyle.Cuboid ->
+                   CuboidOverlay(
+                     isPlaying = isPlaying,
+                     palette = palette,
+                     isSheetOpen = isSheetOpen,
+                     volumeScale = volumeScale,
+                     modifier = Modifier.fillMaxSize(),
+                   )
+                 AudioVisualizerStyle.Particle ->
+                   ParticleOverlay(
+                     isPlaying = isPlaying,
+                     palette = palette,
+                     isSheetOpen = isSheetOpen,
+                     volumeScale = volumeScale,
+                     modifier = Modifier.fillMaxSize(),
+                   )
+               }
             }
           } else {
             val coverShape = RoundedCornerShape(32.dp)
+            val density = LocalDensity.current
+            val gap = with(density) { 24.dp.toPx() }
+            val stride = containerWidthPx + gap
+
             Box(
-              modifier = Modifier.fillMaxSize(),
+              modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(showVisualizer, containerWidthPx) {
+                  if (showVisualizer || containerWidthPx <= 0f) return@pointerInput
+                  detectHorizontalDragGestures(
+                    onDragStart = {
+                      coroutineScope.launch { animatableOffsetX.snapTo(0f) }
+                    },
+                    onDragEnd = {
+                      val threshold = containerWidthPx * 0.25f
+                      val dragVal = animatableOffsetX.value
+                      coroutineScope.launch {
+                        if (dragVal < -threshold) {
+                          haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                          animatableOffsetX.animateTo(
+                            targetValue = -stride,
+                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.85f),
+                          )
+                          activeCoverOverride = nextCoverBitmap ?: albumArtBitmap
+                          animatableOffsetX.snapTo(0f)
+                          if (viewModel.hasPlaylistSupport()) {
+                            viewModel.playNext()
+                          } else {
+                            runCatching { MPVLib.command("playlist-next") }
+                          }
+                        } else if (dragVal > threshold) {
+                          haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                          animatableOffsetX.animateTo(
+                            targetValue = stride,
+                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.85f),
+                          )
+                          activeCoverOverride = prevCoverBitmap ?: albumArtBitmap
+                          animatableOffsetX.snapTo(0f)
+                          if (viewModel.hasPlaylistSupport()) {
+                            viewModel.playPrevious()
+                          } else {
+                            runCatching { MPVLib.command("playlist-prev") }
+                          }
+                        } else {
+                          animatableOffsetX.animateTo(
+                            targetValue = 0f,
+                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.85f),
+                          )
+                        }
+                      }
+                    },
+                    onDragCancel = {
+                      coroutineScope.launch {
+                        animatableOffsetX.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.85f))
+                      }
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                      change.consume()
+                      coroutineScope.launch {
+                        animatableOffsetX.snapTo(animatableOffsetX.value + dragAmount)
+                      }
+                    }
+                  )
+                },
               contentAlignment = Alignment.Center,
             ) {
-              Surface(
-                modifier =
-                  Modifier
+              // 1. Previous Cover Art Card (Visible when dragging right -> currentOffset > 0)
+              if (currentOffset > 0f) {
+                Surface(
+                  modifier = Modifier
                     .aspectRatio(1f)
+                    .offset { IntOffset((-stride + currentOffset).roundToInt(), 0) }
                     .clip(coverShape),
+                  shape = coverShape,
+                  color = Color.Transparent,
+                ) {
+                  CoverArtCardImage(bitmap = prevCoverBitmap)
+                }
+              }
+
+              // 2. Next Cover Art Card (Visible when dragging left -> currentOffset < 0)
+              if (currentOffset < 0f) {
+                Surface(
+                  modifier = Modifier
+                    .aspectRatio(1f)
+                    .offset { IntOffset((stride + currentOffset).roundToInt(), 0) }
+                    .clip(coverShape),
+                  shape = coverShape,
+                  color = Color.Transparent,
+                ) {
+                  CoverArtCardImage(bitmap = nextCoverBitmap)
+                }
+              }
+
+              // 3. Current Cover Art Card
+              Surface(
+                modifier = Modifier
+                  .aspectRatio(1f)
+                  .offset { IntOffset(currentOffset.roundToInt(), 0) }
+                  .clip(coverShape),
                 shape = coverShape,
                 color = Color.Transparent,
               ) {
-                Crossfade(
-                  targetState = albumArtBitmap,
-                  animationSpec = tween(300),
-                  label = "cover_crossfade",
-                  modifier = Modifier.fillMaxSize(),
-                ) { currentBitmap ->
-                  if (currentBitmap != null) {
-                    Image(
-                      bitmap = currentBitmap.asImageBitmap(),
-                      contentDescription = null,
-                      contentScale = ContentScale.Crop,
-                      modifier = Modifier.fillMaxSize(),
-                    )
-                  } else {
-                    Box(
-                      modifier = Modifier.fillMaxSize(),
-                      contentAlignment = Alignment.Center,
-                    ) {
-                      Icon(
-                        imageVector = Icons.RoundedFilled.Audiotrack,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(64.dp),
-                      )
-                    }
-                  }
-                }
+                CoverArtCardImage(bitmap = activeCoverOverride ?: albumArtBitmap)
               }
             }
           }
@@ -581,128 +812,176 @@ fun AudioPlayerControls(
         val trackText = if (playlistInfo != null) "Track $playlistInfo" else "音频媒体"
 
         Row(
+          modifier = Modifier.fillMaxWidth(),
           verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-          Text(
-            text = trackText,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-          )
-          Text(
-            text = "|",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-          )
-          AnimatedContent(
-            targetState = abLoop.isExpanded,
-            transitionSpec = {
-              (fadeIn(animationSpec = tween(200)) + expandHorizontally(animationSpec = tween(250)))
-                .togetherWith(fadeOut(animationSpec = tween(200)) + shrinkHorizontally(animationSpec = tween(250)))
-            },
-            label = "AudioABLoopExpand",
-          ) { expanded ->
-            if (expanded) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            Text(
+              text = trackText,
+              style = MaterialTheme.typography.labelLarge,
+              color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+              text = "|",
+              style = MaterialTheme.typography.labelLarge,
+              color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            )
+
+            // 4. Playback Speed (left of A-B Loop)
+            Surface(
+              shape = CircleShape,
+              color = MaterialTheme.colorScheme.surfaceVariant,
+              modifier =
+                Modifier
+                  .height(30.dp)
+                  .clip(CircleShape)
+                  .clickable(onClick = { onOpenSheet(Sheets.PlaybackSpeed) }),
+            ) {
               Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.padding(horizontal = 10.dp),
               ) {
-                Surface(
-                  shape = CircleShape,
-                  color =
-                    if (abLoopA !=
-                      null
-                    ) {
-                      MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                      MaterialTheme.colorScheme.surfaceVariant
-                    },
-                  modifier = Modifier.height(30.dp).clip(CircleShape).clickable(onClick = { viewModel.setLoopA() }),
-                ) {
-                  Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 10.dp)) {
-                    Text(
-                      text = if (abLoopA != null) formatSec(abLoopA.toLong()) else "A",
-                      style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                      color =
-                        if (abLoopA !=
-                          null
-                        ) {
-                          MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                          MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
-                  }
-                }
-                Surface(
-                  shape = CircleShape,
-                  color = MaterialTheme.colorScheme.surfaceVariant,
-                  modifier =
-                    Modifier.size(30.dp).clip(CircleShape).clickable(onClick = {
-                      viewModel.clearABLoop()
-                      viewModel.toggleABLoopExpanded()
-                    }),
-                ) {
-                  Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                      imageVector = Icons.RoundedFilled.Close,
-                      contentDescription = "Clear A-B Loop",
-                      tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                      modifier = Modifier.size(16.dp),
-                    )
-                  }
-                }
-                Surface(
-                  shape = CircleShape,
-                  color =
-                    if (abLoopB !=
-                      null
-                    ) {
-                      MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                      MaterialTheme.colorScheme.surfaceVariant
-                    },
-                  modifier = Modifier.height(30.dp).clip(CircleShape).clickable(onClick = { viewModel.setLoopB() }),
-                ) {
-                  Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 10.dp)) {
-                    Text(
-                      text = if (abLoopB != null) formatSec(abLoopB.toLong()) else "B",
-                      style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                      color =
-                        if (abLoopB !=
-                          null
-                        ) {
-                          MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                          MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
-                  }
-                }
-              }
-            } else {
-              Surface(
-                shape = CircleShape,
-                color = Color.Transparent,
-                modifier = Modifier.clip(CircleShape).clickable(onClick = viewModel::toggleABLoopExpanded),
-              ) {
-                AbLoopIcon(
-                  modifier = Modifier.size(30.dp),
-                  tint =
-                    if (abLoopA != null ||
-                      abLoopB != null
-                    ) {
-                      MaterialTheme.colorScheme.primary
-                    } else {
-                      MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                  isASet = abLoopA != null,
-                  isBSet = abLoopB != null,
+                Icon(
+                  imageVector = Icons.RoundedFilled.Speed,
+                  contentDescription = stringResource(R.string.ui_playback_speed),
+                  tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                  modifier = Modifier.size(16.dp),
+                )
+                Text(
+                  text = String.format("%.2fx", playbackSpeed ?: 1f),
+                  style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
               }
             }
+
+            AnimatedContent(
+              targetState = abLoop.isExpanded,
+              transitionSpec = {
+                (fadeIn(animationSpec = tween(200)) + expandHorizontally(animationSpec = tween(250)))
+                  .togetherWith(fadeOut(animationSpec = tween(200)) + shrinkHorizontally(animationSpec = tween(250)))
+              },
+              label = "AudioABLoopExpand",
+            ) { expanded ->
+              if (expanded) {
+                Row(
+                  horizontalArrangement = Arrangement.spacedBy(6.dp),
+                  verticalAlignment = Alignment.CenterVertically,
+                ) {
+                  Surface(
+                    shape = CircleShape,
+                    color =
+                      if (abLoopA !=
+                        null
+                      ) {
+                        MaterialTheme.colorScheme.primaryContainer
+                      } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                      },
+                    modifier = Modifier.height(30.dp).clip(CircleShape).clickable(onClick = { viewModel.setLoopA() }),
+                  ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 10.dp)) {
+                      Text(
+                        text = if (abLoopA != null) formatSec(abLoopA.toLong()) else "A",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color =
+                          if (abLoopA !=
+                            null
+                          ) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                          } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                          },
+                      )
+                    }
+                  }
+                  Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier =
+                      Modifier.size(30.dp).clip(CircleShape).clickable(onClick = {
+                        viewModel.clearABLoop()
+                        viewModel.toggleABLoopExpanded()
+                      }),
+                  ) {
+                    Box(contentAlignment = Alignment.Center) {
+                      Icon(
+                        imageVector = Icons.RoundedFilled.Close,
+                        contentDescription = "Clear A-B Loop",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                      )
+                    }
+                  }
+                  Surface(
+                    shape = CircleShape,
+                    color =
+                      if (abLoopB !=
+                        null
+                      ) {
+                        MaterialTheme.colorScheme.primaryContainer
+                      } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                      },
+                    modifier = Modifier.height(30.dp).clip(CircleShape).clickable(onClick = { viewModel.setLoopB() }),
+                  ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 10.dp)) {
+                      Text(
+                        text = if (abLoopB != null) formatSec(abLoopB.toLong()) else "B",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color =
+                          if (abLoopB !=
+                            null
+                          ) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                          } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                          },
+                      )
+                    }
+                  }
+                }
+              } else {
+                Surface(
+                  shape = CircleShape,
+                  color = Color.Transparent,
+                  modifier = Modifier.clip(CircleShape).clickable(onClick = viewModel::toggleABLoopExpanded),
+                ) {
+                  AbLoopIcon(
+                    modifier = Modifier.size(30.dp),
+                    tint =
+                      if (abLoopA != null ||
+                        abLoopB != null
+                      ) {
+                        MaterialTheme.colorScheme.primary
+                      } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                      },
+                    isASet = abLoopA != null,
+                    isBSet = abLoopB != null,
+                  )
+                }
+              }
+            }
+          }
+
+          ReactiveIconButton(
+            onClick = { addToPlaylistDialogOpen = true },
+            modifier = Modifier.size(40.dp),
+          ) {
+            Icon(
+              imageVector = Icons.RoundedFilled.PlaylistAdd,
+              contentDescription = stringResource(R.string.ui_add_to_playlist),
+              tint = MaterialTheme.colorScheme.onSurface,
+              modifier = Modifier.size(32.dp),
+            )
           }
         }
       }
@@ -1008,6 +1287,43 @@ fun AudioPlayerControls(
           bottomActionRow()
         }
       }
+    }
+
+    if (addToPlaylistDialogOpen && !mediaPath.isNullOrBlank()) {
+      val displayTitle = remember(lastValidTitle, displayArtist) {
+        cleanSongTitle(lastValidTitle, displayArtist)
+      }
+      val videoForPlaylist =
+        remember(mediaPath, displayTitle) {
+          Video(
+            id = mediaPath.hashCode().toLong(),
+            title = displayTitle,
+            displayName = displayTitle,
+            path = mediaPath,
+            uri = Uri.parse(mediaPath),
+            duration = duration?.toLong() ?: 0L,
+            durationFormatted = "",
+            size = 0L,
+            sizeFormatted = "",
+            dateModified = 0L,
+            dateAdded = 0L,
+            mimeType = "audio/*",
+            bucketId = "",
+            bucketDisplayName = "",
+            width = 0,
+            height = 0,
+            fps = 0f,
+            resolution = "",
+            isAudio = true,
+          )
+        }
+
+      AddToPlaylistDialog(
+        isOpen = true,
+        videos = listOf(videoForPlaylist),
+        onDismiss = { addToPlaylistDialogOpen = false },
+        onSuccess = { addToPlaylistDialogOpen = false },
+      )
     }
   }
 }

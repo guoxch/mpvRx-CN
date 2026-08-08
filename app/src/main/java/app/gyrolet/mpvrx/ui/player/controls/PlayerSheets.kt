@@ -458,5 +458,13 @@ fun PlayerSheets(
         onDismissRequest = onDismissRequest,
       )
     }
+
+    Sheets.Lyrics -> {
+      app.gyrolet.mpvrx.ui.player.controls.components.sheets.LyricsSheet(
+        viewModel = viewModel,
+        onDismiss = onDismissRequest,
+      )
+    }
   }
 }
+

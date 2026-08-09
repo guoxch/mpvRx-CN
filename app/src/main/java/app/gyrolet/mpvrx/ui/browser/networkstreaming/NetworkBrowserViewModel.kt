@@ -60,6 +60,7 @@ class NetworkBrowserViewModel(
   fun setSortMode(mode: NetworkFileSort) {
     _sortMode.value = mode
     applySort()
+    val firstFile = _files.value.firstOrNull { !it.isDirectory }?.name ?: "none"
   }
 
   private fun applySort() {

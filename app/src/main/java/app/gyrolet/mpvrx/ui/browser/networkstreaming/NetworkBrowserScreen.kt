@@ -145,6 +145,20 @@ data class NetworkBrowserScreen(
       }
     }
 
+    // Sync ViewModel sort from Preferences
+    LaunchedEffect(networkSortType, networkSortOrder) {
+      val mode = when {
+        networkSortType == NetworkSortType.Title && networkSortOrder.isAscending -> NetworkBrowserViewModel.NetworkFileSort.NAME_AZ
+        networkSortType == NetworkSortType.Title && !networkSortOrder.isAscending -> NetworkBrowserViewModel.NetworkFileSort.NAME_ZA
+        networkSortType == NetworkSortType.Date && networkSortOrder.isAscending -> NetworkBrowserViewModel.NetworkFileSort.TIME_OLDEST
+        networkSortType == NetworkSortType.Date && !networkSortOrder.isAscending -> NetworkBrowserViewModel.NetworkFileSort.TIME_NEWEST
+        networkSortType == NetworkSortType.Size && networkSortOrder.isAscending -> NetworkBrowserViewModel.NetworkFileSort.SIZE_SMALLEST
+        networkSortType == NetworkSortType.Size && !networkSortOrder.isAscending -> NetworkBrowserViewModel.NetworkFileSort.SIZE_LARGEST
+        else -> null
+      }
+      if (mode != null && mode != sortMode) viewModel.setSortMode(mode)
+    }
+
     BackHandler {
       if (isSearching) {
         isSearching = false
@@ -266,7 +280,6 @@ data class NetworkBrowserScreen(
       NetworkFileSortDialog(
         currentMode = sortMode,
         onSelect = { mode ->
-          viewModel.setSortMode(mode)
           when (mode) {
             NetworkBrowserViewModel.NetworkFileSort.NAME_AZ -> {
               browserPreferences.networkSortType.set(NetworkSortType.Title)
@@ -337,12 +350,8 @@ private fun NetworkBrowserContent(
   onDeleteClick: (NetworkFile) -> Unit,
   modifier: Modifier = Modifier,
 ) {
-  val sortedFiles =
-    remember(files) {
-      // files already sorted by ViewModel; just partition for display
-      val (dirList, fileList) = files.partition { it.isDirectory }
-      dirList + fileList
-    }
+  val (dirList, fileList) = files.partition { it.isDirectory }
+  val sortedFiles = dirList + fileList
 
   val filteredFiles =
     remember(sortedFiles, searchQuery) {

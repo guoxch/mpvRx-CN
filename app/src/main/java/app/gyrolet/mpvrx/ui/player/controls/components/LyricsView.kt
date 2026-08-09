@@ -4,6 +4,8 @@
 
 package app.gyrolet.mpvrx.ui.player.controls.components
 
+import app.gyrolet.mpvrx.ui.player.PlaybackSession
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -56,7 +58,6 @@ import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.lyrics.LyricsSourceType
 import app.gyrolet.mpvrx.domain.lyrics.SyncedLine
 import app.gyrolet.mpvrx.ui.player.PlayerViewModel
-import `is`.xyz.mpv.MPVLib
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -104,8 +105,8 @@ fun LyricsView(
     ) {
       // Optional Header
       if (showTitleHeader) {
-        val mediaTitle by MPVLib.propString["media-title"].collectAsState()
-        val artistName by MPVLib.propString["metadata/by-key/Artist"].collectAsState()
+        val mediaTitle by PlaybackSession.propString["media-title"].collectAsState()
+        val artistName by PlaybackSession.propString["metadata/by-key/Artist"].collectAsState()
         val displayTitle = mediaTitle?.takeIf { it.isNotBlank() } ?: "Current Track"
         val displayArtist = artistName?.takeIf { it.isNotBlank() } ?: ""
 
@@ -261,7 +262,7 @@ fun LyricsView(
                       onTap?.invoke()
                       if (!isLyricsFullscreen) {
                         val targetSeconds = line.time / 1000f
-                        MPVLib.command("seek", targetSeconds.toString(), "absolute+exact")
+                        PlaybackSession.command("seek", targetSeconds.toString(), "absolute+exact")
                       }
                     }
                     .padding(vertical = 4.dp, horizontal = 6.dp),
@@ -312,7 +313,7 @@ fun LyricsView(
                   }
 
                   // Render Translation if present (Smaller font size, highlighted together with original when active)
-                  if (hasTranslation && transText != null) {
+                  if (hasTranslation) {
                     val translationColor by animateColorAsState(
                       targetValue = if (isActiveLine) activeColor.copy(alpha = 0.85f) else inactiveColor.copy(alpha = 0.70f),
                       animationSpec = tween(durationMillis = 250),
@@ -320,7 +321,7 @@ fun LyricsView(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                      text = transText,
+                      text = transText.orEmpty(),
                       color = translationColor,
                       fontSize = if (isActiveLine) 16.sp else 14.sp,
                       fontWeight = FontWeight.Bold,

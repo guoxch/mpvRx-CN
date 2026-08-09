@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -33,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -54,16 +56,21 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.gyrolet.mpvrx.R
+import app.gyrolet.mpvrx.database.entities.NetworkStreamEntryEntity
 import app.gyrolet.mpvrx.domain.network.NetworkConnection
+import app.gyrolet.mpvrx.domain.torrent.formatTorrentBytes
+import app.gyrolet.mpvrx.domain.torrent.normalizeTorrentSource
 import app.gyrolet.mpvrx.presentation.Screen
 import app.gyrolet.mpvrx.ui.browser.cards.NetworkConnectionCard
 import app.gyrolet.mpvrx.ui.browser.components.BrowserTopBar
@@ -86,6 +93,8 @@ object NetworkStreamingScreen : Screen {
       viewModel(factory = NetworkStreamingViewModel.factory(context.applicationContext as android.app.Application))
     val connections by viewModel.connections.collectAsState()
     val connectionStatuses by viewModel.connectionStatuses.collectAsState()
+    val recentLinks by viewModel.recentLinks.collectAsState()
+    val torrentGroups by viewModel.torrentGroups.collectAsState()
     var showAddSheet by remember { mutableStateOf(false) }
     var editingConnection by remember { mutableStateOf<NetworkConnection?>(null) }
     val navigationBarHeight = app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight.current
@@ -113,6 +122,38 @@ object NetworkStreamingScreen : Screen {
             it.name.contains(searchQuery, ignoreCase = true) ||
               it.host.contains(searchQuery, ignoreCase = true) ||
               it.protocol.displayName.contains(searchQuery, ignoreCase = true)
+          }
+        }
+      }
+
+    val filteredRecentLinks =
+      remember(recentLinks, searchQuery) {
+        recentLinks.filter { entry ->
+          searchQuery.isBlank() ||
+            entry.fileName.contains(searchQuery, ignoreCase = true) ||
+            entry.canonicalSourceUri.contains(searchQuery, ignoreCase = true)
+        }
+      }
+    val filteredTorrentGroups =
+      remember(torrentGroups, searchQuery) {
+        val query = searchQuery.trim()
+        torrentGroups.mapNotNull { group ->
+          if (query.isEmpty()) return@mapNotNull VisibleTorrentGroup(group, group.files)
+
+          val groupMatches =
+            group.title.contains(query, ignoreCase = true) ||
+              group.infoHash.orEmpty().contains(query, ignoreCase = true) ||
+              group.canonicalSourceUri.contains(query, ignoreCase = true)
+          val matchingFiles =
+            group.files.filter { entry ->
+              entry.fileName.contains(query, ignoreCase = true) ||
+                entry.filePath.orEmpty().contains(query, ignoreCase = true) ||
+                entry.fileIndex?.toString() == query
+            }
+          when {
+            groupMatches -> VisibleTorrentGroup(group, group.files)
+            matchingFiles.isNotEmpty() -> VisibleTorrentGroup(group, matchingFiles)
+            else -> null
           }
         }
       }
@@ -174,7 +215,7 @@ object NetworkStreamingScreen : Screen {
             title = stringResource(R.string.ui_network),
             isInSelectionMode = false,
             selectedCount = 0,
-            totalCount = connections.size,
+            totalCount = connections.size + recentLinks.size + torrentGroups.size,
             onBackClick = null, // No back button for network screen (root tab)
             onCancelSelection = { },
             onSortClick = null,
@@ -229,9 +270,32 @@ object NetworkStreamingScreen : Screen {
         item {
           StreamLinkSection(
             onPlayLink = { url ->
-              MediaUtils.playFile(url, context, "network_stream")
+              val playableSource = normalizeTorrentSource(url) ?: url
+              viewModel.recordSubmittedLink(playableSource)
+              MediaUtils.playFile(playableSource, context, "network_stream")
             },
           )
+        }
+
+        if (filteredRecentLinks.isNotEmpty()) {
+          item {
+            StreamEntrySectionHeader(stringResource(R.string.ui_recent_stream_links))
+          }
+          items(filteredRecentLinks, key = { "recent:${it.stableKey}" }) { entry ->
+            StreamEntryCard(
+              entry = entry,
+              onPlay = {
+                viewModel.recordSubmittedLink(entry.canonicalSourceUri)
+                MediaUtils.playFile(
+                  source = entry.canonicalSourceUri,
+                  context = context,
+                  launchSource = "network_recent",
+                  title = entry.fileName,
+                )
+              },
+              onDelete = { viewModel.deleteStreamEntry(entry.stableKey) },
+            )
+          }
         }
 
         // Syncplay
@@ -320,7 +384,11 @@ object NetworkStreamingScreen : Screen {
               }
             }
           }
-        } else if (filteredConnections.isEmpty()) {
+        } else if (
+          filteredConnections.isEmpty() &&
+          filteredRecentLinks.isEmpty() &&
+          filteredTorrentGroups.isEmpty()
+        ) {
           item {
             Card(
               modifier = Modifier.fillMaxWidth(),
@@ -391,6 +459,31 @@ object NetworkStreamingScreen : Screen {
             )
           }
         }
+
+        // Keep the torrent catalog at the bottom of the Network tab.
+        if (filteredTorrentGroups.isNotEmpty()) {
+          item {
+            StreamEntrySectionHeader(stringResource(R.string.ui_torrent_files))
+          }
+          items(filteredTorrentGroups, key = { "torrent-group:${it.group.id}" }) { result ->
+            TorrentGroupCard(
+              group = result.group,
+              visibleFiles = result.visibleFiles,
+              forceExpanded = searchQuery.isNotBlank(),
+              onPlay = { entry ->
+                MediaUtils.playFile(
+                  source = entry.canonicalSourceUri,
+                  context = context,
+                  launchSource = "network_torrent",
+                  title = entry.fileName,
+                  torrentFileIndex = entry.fileIndex,
+                )
+              },
+              onDeleteFile = viewModel::deleteStreamEntry,
+              onDeleteGroup = { viewModel.deleteTorrentGroup(result.group) },
+            )
+          }
+        }
       }
 
       // Add Connection Sheet
@@ -409,13 +502,260 @@ object NetworkStreamingScreen : Screen {
           connection = connection,
           isOpen = true,
           onDismiss = { editingConnection = null },
-          onSave = { updatedConnection ->
-            viewModel.updateConnection(updatedConnection)
+          onSave = { updatedConnection, clearPassword ->
+            viewModel.updateConnection(updatedConnection, clearPassword)
             editingConnection = null
           },
         )
       }
     }
+  }
+}
+
+private data class VisibleTorrentGroup(
+  val group: TorrentStreamGroup,
+  val visibleFiles: List<NetworkStreamEntryEntity>,
+)
+
+@Composable
+private fun StreamEntrySectionHeader(title: String) {
+  Spacer(modifier = Modifier.height(24.dp))
+  Text(
+    text = title,
+    style = MaterialTheme.typography.titleLarge,
+    fontWeight = FontWeight.Bold,
+    color = MaterialTheme.colorScheme.primary,
+    modifier = Modifier.padding(vertical = 8.dp),
+  )
+}
+
+@Composable
+private fun StreamEntryCard(
+  entry: NetworkStreamEntryEntity,
+  onPlay: () -> Unit,
+  onDelete: () -> Unit,
+) {
+  Card(
+    modifier =
+      Modifier
+        .fillMaxWidth()
+        .padding(bottom = 10.dp)
+        .clickable(onClick = onPlay),
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    shape = RoundedCornerShape(16.dp),
+  ) {
+    Row(
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+      Icon(
+        imageVector = if (entry.fileIndex == null) Icons.RoundedFilled.Link else Icons.RoundedFilled.CloudDownload,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary,
+      )
+      Column(modifier = Modifier.weight(1f)) {
+        Text(
+          text = entry.fileName,
+          style = MaterialTheme.typography.titleSmall,
+          fontWeight = FontWeight.SemiBold,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+          text = entry.filePath ?: entry.canonicalSourceUri,
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          maxLines = 2,
+          overflow = TextOverflow.Ellipsis,
+        )
+        if (entry.fileSize > 0L) {
+          Text(
+            text = formatTorrentBytes(entry.fileSize),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+        }
+      }
+      IconButton(onClick = onDelete) {
+        Icon(
+          imageVector = Icons.RoundedFilled.Delete,
+          contentDescription = stringResource(R.string.delete),
+        )
+      }
+      Icon(
+        imageVector = Icons.RoundedFilled.PlayArrow,
+        contentDescription = stringResource(R.string.ui_play),
+        modifier = Modifier.padding(end = 12.dp),
+      )
+    }
+  }
+}
+
+@Composable
+private fun TorrentGroupCard(
+  group: TorrentStreamGroup,
+  visibleFiles: List<NetworkStreamEntryEntity>,
+  forceExpanded: Boolean,
+  onPlay: (NetworkStreamEntryEntity) -> Unit,
+  onDeleteFile: (String) -> Unit,
+  onDeleteGroup: () -> Unit,
+) {
+  var expanded by rememberSaveable(group.id) { mutableStateOf(false) }
+  val showFiles = forceExpanded || expanded
+  val expansionDescription =
+    stringResource(
+      if (showFiles) R.string.ui_collapse_torrent_group else R.string.ui_expand_torrent_group,
+    )
+  val fileCountLabel =
+    pluralStringResource(
+      R.plurals.ui_torrent_group_file_count,
+      group.files.size,
+      group.files.size,
+    )
+
+  Card(
+    modifier =
+      Modifier
+        .fillMaxWidth()
+        .padding(bottom = 12.dp),
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    shape = RoundedCornerShape(18.dp),
+  ) {
+    Row(
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .clickable(enabled = !forceExpanded) { expanded = !expanded }
+          .padding(start = 16.dp, top = 14.dp, bottom = 14.dp, end = 4.dp),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+      Icon(
+        imageVector = Icons.RoundedFilled.Movie,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.size(28.dp),
+      )
+      Column(modifier = Modifier.weight(1f)) {
+        Text(
+          text = group.title,
+          style = MaterialTheme.typography.titleMedium,
+          fontWeight = FontWeight.SemiBold,
+          maxLines = 2,
+          overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+          text =
+            buildString {
+              append(fileCountLabel)
+              if (group.totalSize > 0L) {
+                append(" · ")
+                append(formatTorrentBytes(group.totalSize))
+              }
+            },
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+        )
+      }
+      IconButton(onClick = onDeleteGroup) {
+        Icon(
+          imageVector = Icons.RoundedFilled.Delete,
+          contentDescription = stringResource(R.string.ui_delete_torrent_group),
+        )
+      }
+      IconButton(
+        onClick = { expanded = !expanded },
+        enabled = !forceExpanded,
+      ) {
+        Icon(
+          imageVector = if (showFiles) Icons.RoundedFilled.ExpandLess else Icons.RoundedFilled.ExpandMore,
+          contentDescription = expansionDescription,
+        )
+      }
+    }
+
+    if (showFiles) {
+      HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+      visibleFiles.forEachIndexed { index, entry ->
+        TorrentFileRow(
+          entry = entry,
+          onPlay = { onPlay(entry) },
+          onDelete = { onDeleteFile(entry.stableKey) },
+        )
+        if (index < visibleFiles.lastIndex) {
+          HorizontalDivider(
+            modifier = Modifier.padding(start = 56.dp),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+          )
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun TorrentFileRow(
+  entry: NetworkStreamEntryEntity,
+  onPlay: () -> Unit,
+  onDelete: () -> Unit,
+) {
+  Row(
+    modifier =
+      Modifier
+        .fillMaxWidth()
+        .clickable(onClick = onPlay)
+        .padding(start = 16.dp, top = 11.dp, bottom = 11.dp, end = 4.dp),
+    verticalAlignment = Alignment.CenterVertically,
+    horizontalArrangement = Arrangement.spacedBy(12.dp),
+  ) {
+    Icon(
+      imageVector = Icons.RoundedFilled.CloudDownload,
+      contentDescription = null,
+      tint = MaterialTheme.colorScheme.onSurfaceVariant,
+      modifier = Modifier.size(22.dp),
+    )
+    Column(modifier = Modifier.weight(1f)) {
+      Text(
+        text = entry.fileName,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Medium,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+      )
+      entry.filePath?.takeIf { it != entry.fileName }?.let { path ->
+        Text(
+          text = path,
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis,
+        )
+      }
+      if (entry.fileSize > 0L) {
+        Text(
+          text = formatTorrentBytes(entry.fileSize),
+          style = MaterialTheme.typography.labelSmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
+    }
+    IconButton(onClick = onDelete) {
+      Icon(
+        imageVector = Icons.RoundedFilled.Delete,
+        contentDescription = stringResource(R.string.delete),
+      )
+    }
+    Icon(
+      imageVector = Icons.RoundedFilled.PlayArrow,
+      contentDescription = stringResource(R.string.ui_play),
+      modifier = Modifier.padding(end = 12.dp),
+    )
   }
 }
 

@@ -328,8 +328,7 @@ class NetworkBrowserViewModel(
         )
       Uri.parse(proxyUrl)
     } else {
-      NetworkStreamingProvider.setConnection(connectionId, connection)
-      NetworkStreamingProvider.getUri(application, connectionId, file.path)
+      Uri.parse(buildFallbackSourceUrl(connection, file.path))
     }
 
   private fun buildStableStreamId(file: NetworkFile): String {

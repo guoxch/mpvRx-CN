@@ -721,25 +721,6 @@ Reinicie o aplicativo para que todas as alterações entrem em vigor.</string>
   <string name="pref_ai_disabled_summary">Os recursos de IA estão desativados</string>
   <string name="pref_ai_provider_section">Provedor</string>
   <string name="pref_ai_provider_title">Provedor de IA</string>
-  <string name="pref_hf_setup_section">Configuração do Hugging Face</string>
-  <string name="pref_hf_token_title">Token do Hugging Face</string>
-  <string name="pref_hf_token_summary_error">Necessário para modelos restritos. Obtenha um em huggingface.co/settings/tokens</string>
-  <string name="pref_hf_token_summary_saved">Token salvo no dispositivo</string>
-  <string name="pref_hf_token_dialog_text">Cole seu token do Hugging Face</string>
-  <string name="pref_hf_token_placeholder">hf_…</string>
-  <string name="pref_offline_models_section">Modelos off-line</string>
-  <string name="pref_model_picker_header">Seletor de modelos focado em velocidade</string>
-  <string name="pref_model_picker_description">Os modelos são classificados pela velocidade percebida após o carregamento, pressão na RAM e qualidade da tradução de legendas.</string>
-  <string name="pref_filter_recommended">Recomendado</string>
-  <string name="pref_filter_fastest">Mais rápido</string>
-  <string name="pref_filter_best_translation">Melhor tradução</string>
-  <string name="pref_filter_downloaded">Baixado</string>
-  <string name="pref_model_download_success">Modelo baixado com sucesso</string>
-  <string name="pref_model_download_failed">Falha no download: %1$s</string>
-  <string name="pref_model_deleted">Modelo excluído</string>
-  <string name="pref_model_using">Usando %1$s</string>
-  <string name="pref_benchmark_saved">Benchmark salvo: %1$s</string>
-  <string name="pref_benchmark_failed">Falha no benchmark: %1$s</string>
   <string name="pref_api_config_section">Configuração da API</string>
   <string name="pref_api_key_saved">Chave de API salva no dispositivo</string>
   <string name="pref_hide_key">Ocultar chave</string>
@@ -841,7 +822,6 @@ Reinicie o aplicativo para que todas as alterações entrem em vigor.</string>
   <string name="search_translation_summary">Traduzir legendas externas com IA e idiomas de destino para tradução automática</string>
   <string name="search_custom_ai_prompts_title">Prompts de IA personalizados</string>
   <string name="search_custom_ai_prompts_summary">Substituir as instruções padrão para tarefas de renomeação, tradução e formatação</string>
-  <string name="search_offline_ai_models_title">Modelos de IA off-line</string>
   <string name="search_offline_ai_models_summary">Baixe e gerencie LLMs locais para recursos de IA totalmente off-line</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
@@ -1468,7 +1448,6 @@ Reinicie o aplicativo para que todas as alterações entrem em vigor.</string>
   <string name="oss_sora_editor_description">Editor de código poderoso e eficiente para Android com realce TextMate.</string>
   <string name="oss_media3_description">Bibliotecas de mídia do Android para reprodução e efeitos avançados.</string>
   <string name="oss_jsoup_description">Analisador HTML Java para raspagem da Web e extração de documentos.</string>
-  <string name="oss_llamatik_description">Ponte de inferência LLM local para executar modelos de IA no Android.</string>
   <string name="oss_androidx_core_ktx_description">Extensões Kotlin principais para APIs do framework Android.</string>
   <string name="oss_androidx_appcompat_description">Versões retrocompatíveis das APIs do framework Android.</string>
   <string name="oss_androidx_constraintlayout_description">Gerenciador de layout flexível para interfaces Android.</string>
@@ -1547,7 +1526,6 @@ Reinicie o aplicativo para que todas as alterações entrem em vigor.</string>
   <string name="ui_extractor_args_2">extractor-args=\"youtube:player_client=android,web\"\ngeo-bypass=</string>
   <string name="ui_h_264">H.264</string>
   <string name="ui_h_265">H.265</string>
-  <string name="ui_hf">hf_...</string>
   <string name="ui_mozilla_5_0">Mozilla/5.0 ...</string>
   <string name="ui_mp4_mkv_webm">mp4, mkv, webm</string>
   <string name="ui_res_fps_hdr_12_vcodec_vp9_2">res,fps,hdr:12,vcodec:vp9.2</string>
@@ -1683,4 +1661,38 @@ Reinicie o aplicativo para que todas as alterações entrem em vigor.</string>
   <string name="lyrics_source_embedded">Embutida</string>
   <string name="lyrics_source_online">Online</string>
   <string name="lyrics_source_local">Local (.lrc)</string>
+  <string name="pref_enable_p2p_streaming_title">Ativar streaming de torrents P2P</string>
+  <string name="pref_enable_p2p_streaming_summary">Transmitir mídias reproduzíveis de links magnet e arquivos de torrent</string>
+  <string name="pref_audio_drc_title">Compressão de faixa dinâmica (DRC)</string>
+  <string name="pref_audio_drc_summary">Comprimir a faixa dinâmica do áudio para realçar diálogos baixos e suavizar sons altos</string>
+  <string name="pref_audio_effects">Processamento de áudio</string>
+  <string name="toast_file_not_found">O arquivo não existe mais</string>
+  <string name="pref_audio_visualizer_style_particle">Partículas</string>
+  <string name="pref_section_p2p_streaming">Streaming P2P</string>
+  <string name="toast_torrent_streaming_disabled">Ative primeiro o streaming de torrents P2P nas configurações avançadas</string>
+  <string name="ui_recent_stream_links">Links recentes</string>
+  <string name="ui_torrent_files">Torrents</string>
+  <string name="ui_expand_torrent_group">Mostrar arquivos do torrent</string>
+  <string name="ui_collapse_torrent_group">Ocultar arquivos do torrent</string>
+  <string name="ui_delete_torrent_group">Remover torrent</string>
+  <string name="torrent_picker_back">Fechar torrent</string>
+  <string name="torrent_picker_choose_title">Escolha o que reproduzir</string>
+  <string name="torrent_picker_finding_details">Procurando capa e detalhes…</string>
+  <string name="torrent_picker_play_file">Reproduzir %1$s</string>
+  <string name="torrent_picker_preparing_title">Lendo torrent</string>
+  <string name="torrent_picker_preparing_description">Conectando-se a peers e procurando arquivos reproduzíveis…</string>
+  <string name="torrent_picker_error_title">Não foi possível abrir o torrent</string>
+  <string name="torrent_picker_retry">Tentar novamente</string>
+  <string name="torrent_picker_episode_label">Temporada %1$d • Episódio %2$d</string>
+  <string name="torrent_picker_single_episode_label">Episódio %1$d</string>
+  <string name="ui_new_password_keep_existing">Nova senha (em branco mantém a senha salva)</string>
+  <string name="ui_clear_saved_password">Limpar senha salva</string>
+  <plurals name="ui_torrent_group_file_count">
+    <item quantity="one">%1$d arquivo reproduzível</item>
+    <item quantity="other">%1$d arquivos reproduzíveis</item>
+  </plurals>
+  <plurals name="torrent_picker_playable_count">
+    <item quantity="one">%1$d arquivo reproduzível</item>
+    <item quantity="other">%1$d arquivos reproduzíveis</item>
+  </plurals>
 </resources>

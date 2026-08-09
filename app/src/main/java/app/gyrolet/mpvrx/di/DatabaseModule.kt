@@ -13,7 +13,10 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import app.gyrolet.mpvrx.data.network.credentials.AndroidNetworkCredentialKey
+import app.gyrolet.mpvrx.data.network.credentials.NetworkCredentialCipher
 import app.gyrolet.mpvrx.database.MpvRxDatabase
+import app.gyrolet.mpvrx.database.repository.NetworkStreamEntryRepository
 import app.gyrolet.mpvrx.database.repository.PlaybackStateRepositoryImpl
 import app.gyrolet.mpvrx.database.repository.PlaylistRepository
 import app.gyrolet.mpvrx.database.repository.RecentlyPlayedRepositoryImpl
@@ -583,6 +586,52 @@ val MIGRATION_10_11 =
     }
   }
 
+val MIGRATION_11_12 =
+  object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+      val cursor = db.query("PRAGMA table_info(PlaylistEntity)")
+      val columns = mutableSetOf<String>()
+      while (cursor.moveToNext()) {
+        columns.add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+      }
+      cursor.close()
+
+      if (!columns.contains("isAudio")) {
+        db.execSQL("ALTER TABLE `PlaylistEntity` ADD COLUMN `isAudio` INTEGER NOT NULL DEFAULT 0")
+      }
+    }
+  }
+
+val MIGRATION_12_13 =
+  object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+      db.execSQL(
+        """
+        CREATE TABLE IF NOT EXISTS `network_stream_entries` (
+          `stableKey` TEXT NOT NULL,
+          `entryType` TEXT NOT NULL,
+          `canonicalSourceUri` TEXT NOT NULL,
+          `infoHash` TEXT,
+          `fileIndex` INTEGER,
+          `filePath` TEXT,
+          `fileName` TEXT NOT NULL,
+          `fileSize` INTEGER NOT NULL,
+          `updatedAt` INTEGER NOT NULL,
+          PRIMARY KEY(`stableKey`)
+        )
+        """.trimIndent(),
+      )
+      db.execSQL(
+        "CREATE INDEX IF NOT EXISTS `index_network_stream_entries_entryType_updatedAt` " +
+          "ON `network_stream_entries` (`entryType`, `updatedAt`)",
+      )
+      db.execSQL(
+        "CREATE UNIQUE INDEX IF NOT EXISTS `index_network_stream_entries_infoHash_fileIndex` " +
+          "ON `network_stream_entries` (`infoHash`, `fileIndex`)",
+      )
+    }
+  }
+
 val DatabaseModule =
   module {
     single<Json> {
@@ -608,8 +657,9 @@ val DatabaseModule =
           MIGRATION_8_9,
           MIGRATION_9_10,
           MIGRATION_10_11,
-        ).fallbackToDestructiveMigration(true) // Fallback if migration fails (last resort)
-        .build()
+          MIGRATION_11_12,
+          MIGRATION_12_13,
+        ).build()
     }
 
     singleOf(::PlaybackStateRepositoryImpl).bind(PlaybackStateRepository::class)
@@ -634,8 +684,21 @@ val DatabaseModule =
     }
 
     single {
+      get<MpvRxDatabase>().networkStreamEntryDao()
+    }
+
+    single {
+      NetworkStreamEntryRepository(get())
+    }
+
+    single {
+      NetworkCredentialCipher(AndroidNetworkCredentialKey::getOrCreate)
+    }
+
+    single {
       app.gyrolet.mpvrx.repository.NetworkRepository(
         dao = get(),
+        credentialCipher = get(),
       )
     }
 

@@ -721,25 +721,6 @@
   <string name="pref_ai_disabled_summary">ميزات الذكاء الاصطناعي معطّلة</string>
   <string name="pref_ai_provider_section">المزوّد</string>
   <string name="pref_ai_provider_title">مزوّد الذكاء الاصطناعي</string>
-  <string name="pref_hf_setup_section">إعداد Hugging Face</string>
-  <string name="pref_hf_token_title">رمز Hugging Face</string>
-  <string name="pref_hf_token_summary_error">مطلوب للنماذج المقيّدة. احصل عليه من huggingface.co/settings/tokens</string>
-  <string name="pref_hf_token_summary_saved">تم حفظ الرمز على الجهاز</string>
-  <string name="pref_hf_token_dialog_text">الصق رمز Hugging Face</string>
-  <string name="pref_hf_token_placeholder">hf_…</string>
-  <string name="pref_offline_models_section">نماذج بلا اتصال</string>
-  <string name="pref_model_picker_header">منتقي النماذج حسب السرعة</string>
-  <string name="pref_model_picker_description">تُرتب النماذج حسب سرعتها بعد التحميل، وضغط RAM، وجودة ترجمة الترجمة النصية.</string>
-  <string name="pref_filter_recommended">موصى به</string>
-  <string name="pref_filter_fastest">الأسرع</string>
-  <string name="pref_filter_best_translation">أفضل ترجمة</string>
-  <string name="pref_filter_downloaded">تم التنزيل</string>
-  <string name="pref_model_download_success">تم تنزيل النموذج بنجاح</string>
-  <string name="pref_model_download_failed">فشل التنزيل: %1$s</string>
-  <string name="pref_model_deleted">تم حذف النموذج</string>
-  <string name="pref_model_using">يُستخدم %1$s</string>
-  <string name="pref_benchmark_saved">تم حفظ الاختبار المعياري: %1$s</string>
-  <string name="pref_benchmark_failed">فشل الاختبار المعياري: %1$s</string>
   <string name="pref_api_config_section">إعداد API</string>
   <string name="pref_api_key_saved">تم حفظ مفتاح API على الجهاز</string>
   <string name="pref_hide_key">إخفاء المفتاح</string>
@@ -841,7 +822,6 @@
   <string name="search_translation_summary">ترجمة الترجمات الخارجية بالذكاء الاصطناعي مع لغات هدف للترجمة التلقائية</string>
   <string name="search_custom_ai_prompts_title">مطالبات ذكاء اصطناعي مخصّصة</string>
   <string name="search_custom_ai_prompts_summary">تجاوز التعليمات الافتراضية لمهام إعادة التسمية والترجمة والتنسيق</string>
-  <string name="search_offline_ai_models_title">نماذج ذكاء اصطناعي دون اتصال</string>
   <string name="search_offline_ai_models_summary">تنزيل النماذج اللغوية المحلية وإدارتها لاستخدام ميزات الذكاء الاصطناعي دون اتصال بالكامل</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
@@ -1468,7 +1448,6 @@
   <string name="oss_sora_editor_description">محرر شفرة قوي وفعّال لـ Android مع تمييز TextMate.</string>
   <string name="oss_media3_description">مكتبات وسائط Android للتشغيل والتأثيرات المتقدمة.</string>
   <string name="oss_jsoup_description">محلّل HTML بلغة Java لاستخلاص الويب والمستندات.</string>
-  <string name="oss_llamatik_description">جسر استدلال LLM محلي لتشغيل نماذج الذكاء الاصطناعي على Android.</string>
   <string name="oss_androidx_core_ktx_description">ملحقات Kotlin الأساسية لواجهات Android.</string>
   <string name="oss_androidx_appcompat_description">إصدارات متوافقة مع الأنظمة القديمة من واجهات Android.</string>
   <string name="oss_androidx_constraintlayout_description">مدير تخطيط مرن لواجهات Android.</string>
@@ -1547,7 +1526,6 @@
   <string name="ui_extractor_args_2">extractor-args=\"youtube:player_client=android,web\"\ngeo-bypass=</string>
   <string name="ui_h_264">H.264</string>
   <string name="ui_h_265">H.265</string>
-  <string name="ui_hf">hf_...</string>
   <string name="ui_mozilla_5_0">Mozilla/5.0 ...</string>
   <string name="ui_mp4_mkv_webm">mp4, mkv, webm</string>
   <string name="ui_res_fps_hdr_12_vcodec_vp9_2">res,fps,hdr:12,vcodec:vp9.2</string>
@@ -1683,4 +1661,40 @@
   <string name="lyrics_source_embedded">مضمنة</string>
   <string name="lyrics_source_online">عبر الإنترنت</string>
   <string name="lyrics_source_local">محلي (.lrc)</string>
+
+  <!-- Missing strings aligned with default values/strings.xml -->
+  <string name="pref_enable_p2p_streaming_title">تفعيل بث التورنت P2P</string>
+  <string name="pref_enable_p2p_streaming_summary">بث الوسائط القابلة للتشغيل من روابط المغناطيس وملفات التورنت</string>
+  <string name="pref_audio_drc_title">ضغط المدى الديناميكي (DRC)</string>
+  <string name="pref_audio_drc_summary">ضغط النطاق الديناميكي للصوت لتعزيز الحوار الهادئ وتخفيف الأصوات العالية</string>
+  <string name="pref_audio_effects">معالجة الصوت</string>
+  <string name="toast_file_not_found">الملف لم يعد موجودًا</string>
+  <string name="pref_audio_visualizer_style_particle">جسيمات</string>
+  <string name="pref_section_p2p_streaming">بث P2P</string>
+  <string name="toast_torrent_streaming_disabled">فعّل بث التورنت P2P في الإعدادات المتقدمة أولاً</string>
+  <string name="ui_recent_stream_links">الروابط الأخيرة</string>
+  <string name="ui_torrent_files">تورنت</string>
+  <string name="ui_expand_torrent_group">إظهار ملفات التورنت</string>
+  <string name="ui_collapse_torrent_group">إخفاء ملفات التورنت</string>
+  <string name="ui_delete_torrent_group">إزالة التورنت</string>
+  <string name="torrent_picker_back">إغلاق التورنت</string>
+  <string name="torrent_picker_choose_title">اختر ما تريد تشغيله</string>
+  <string name="torrent_picker_finding_details">جارٍ البحث عن الغلاف والتفاصيل…</string>
+  <string name="torrent_picker_play_file">تشغيل %1$s</string>
+  <string name="torrent_picker_preparing_title">جارٍ قراءة التورنت</string>
+  <string name="torrent_picker_preparing_description">جارٍ الاتصال بالأقران والبحث عن ملفات قابلة للتشغيل…</string>
+  <string name="torrent_picker_error_title">تعذّر فتح التورنت</string>
+  <string name="torrent_picker_retry">إعادة المحاولة</string>
+  <string name="torrent_picker_episode_label">الموسم %1$d • الحلقة %2$d</string>
+  <string name="torrent_picker_single_episode_label">الحلقة %1$d</string>
+  <string name="ui_new_password_keep_existing">كلمة مرور جديدة (اتركها فارغة للإبقاء على كلمة المرور المحفوظة)</string>
+  <string name="ui_clear_saved_password">مسح كلمة المرور المحفوظة</string>
+  <plurals name="ui_torrent_group_file_count">
+    <item quantity="one">%1$d ملف قابل للتشغيل</item>
+    <item quantity="other">%1$d ملفات قابلة للتشغيل</item>
+  </plurals>
+  <plurals name="torrent_picker_playable_count">
+    <item quantity="one">%1$d ملف قابل للتشغيل</item>
+    <item quantity="other">%1$d ملفات قابلة للتشغيل</item>
+  </plurals>
 </resources>

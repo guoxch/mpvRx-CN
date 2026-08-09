@@ -9,6 +9,8 @@
 
 package app.gyrolet.mpvrx.ui.player.controls
 
+import app.gyrolet.mpvrx.ui.player.PlaybackSession
+
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -78,7 +80,6 @@ import app.gyrolet.mpvrx.ui.player.controls.components.CurrentChapter
 import app.gyrolet.mpvrx.ui.theme.controlColor
 import app.gyrolet.mpvrx.ui.theme.spacing
 import dev.vivvvek.seeker.Segment
-import `is`.xyz.mpv.MPVLib
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import kotlin.math.abs
@@ -1080,14 +1081,14 @@ fun RenderPlayerButton(
               indication = ripple(bounded = true),
               onClick = {
                 clickEvent()
-                if (MPVLib.getPropertyBoolean("user-data/mpv/console/open") == true) {
-                  MPVLib.command("script-message-to", "console", "disable")
+                if (PlaybackSession.getPropertyBoolean("user-data/mpv/console/open") == true) {
+                  PlaybackSession.command("script-message-to", "console", "disable")
                 }
                 if (statisticsPage == 6) {
                   advancedPreferences.enabledStatisticsPage.set(0)
                 } else {
                   if (statisticsPage in 1..5) {
-                    MPVLib.command("script-binding", "stats/display-stats-toggle")
+                    PlaybackSession.command("script-binding", "stats/display-stats-toggle")
                   }
                   advancedPreferences.enabledStatisticsPage.set(6)
                 }
@@ -1258,7 +1259,7 @@ private fun readNetworkBytesPerSecond(): Double {
   val directBytesPerSecond =
     listOf("demuxer-cache-speed", "cache-speed", "demuxer-speed")
       .asSequence()
-      .mapNotNull { name -> runCatching { MPVLib.getPropertyDouble(name) }.getOrNull() }
+      .mapNotNull { name -> runCatching { PlaybackSession.getPropertyDouble(name) }.getOrNull() }
       .firstOrNull { it > 0.0 }
 
   if (directBytesPerSecond != null) return directBytesPerSecond
@@ -1266,7 +1267,7 @@ private fun readNetworkBytesPerSecond(): Double {
   val bitratesBitsPerSecond =
     listOf("packet-video-bitrate", "video-bitrate", "audio-bitrate")
       .asSequence()
-      .mapNotNull { name -> runCatching { MPVLib.getPropertyDouble(name) }.getOrNull() }
+      .mapNotNull { name -> runCatching { PlaybackSession.getPropertyDouble(name) }.getOrNull() }
       .filter { it > 0.0 }
       .sum()
 

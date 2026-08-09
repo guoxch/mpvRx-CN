@@ -9,6 +9,8 @@
 
 package app.gyrolet.mpvrx.ui.player.controls
 
+import app.gyrolet.mpvrx.ui.player.PlaybackSession
+
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
@@ -43,7 +45,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -144,10 +145,8 @@ import app.gyrolet.mpvrx.ui.player.visualizer.CuboidOverlay
 import app.gyrolet.mpvrx.ui.player.visualizer.GalaxyOverlay
 import app.gyrolet.mpvrx.ui.player.visualizer.ParticleOverlay
 import app.gyrolet.mpvrx.ui.player.visualizer.VisualizerPalette
+import app.gyrolet.mpvrx.ui.player.visualizer.rememberAudioVisualizerFeatures
 
-import app.gyrolet.mpvrx.ui.theme.AppTheme
-import app.gyrolet.mpvrx.ui.theme.DarkMode
-import `is`.xyz.mpv.MPVLib
 import app.gyrolet.mpvrx.utils.media.fileExtension
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -231,9 +230,9 @@ fun AudioPlayerControls(
   onOpenPanel: (Panels) -> Unit,
   modifier: Modifier = Modifier,
 ) {
-  val paused by MPVLib.propBoolean["pause"].collectAsState()
-  val duration by MPVLib.propInt["duration"].collectAsState()
-  val position by MPVLib.propInt["time-pos"].collectAsState()
+  val paused by PlaybackSession.propBoolean["pause"].collectAsState()
+  val duration by PlaybackSession.propInt["duration"].collectAsState()
+  val position by PlaybackSession.propInt["time-pos"].collectAsState()
   val precisePosition by viewModel.precisePosition.collectAsState()
   val preciseDuration by viewModel.preciseDuration.collectAsState()
 
@@ -249,13 +248,13 @@ fun AudioPlayerControls(
     }
   }
 
-  val currentPath by MPVLib.propString["path"].collectAsState()
-  val currentStreamFilename by MPVLib.propString["stream-open-filename"].collectAsState()
+  val currentPath by PlaybackSession.propString["path"].collectAsState()
+  val currentStreamFilename by PlaybackSession.propString["stream-open-filename"].collectAsState()
   val mediaPath = currentPath?.takeIf { it.isNotBlank() } ?: currentStreamFilename
 
-  val audioCodec by MPVLib.propString["audio-codec-name"].collectAsState()
-  val sampleRate by MPVLib.propInt["audio-params/samplerate"].collectAsState()
-  val playbackSpeed by MPVLib.propFloat["speed"].collectAsState()
+  val audioCodec by PlaybackSession.propString["audio-codec-name"].collectAsState()
+  val sampleRate by PlaybackSession.propInt["audio-params/samplerate"].collectAsState()
+  val playbackSpeed by PlaybackSession.propFloat["speed"].collectAsState()
 
   val isLosslessCodecOrExt =
     remember(audioCodec, mediaPath) {
@@ -312,10 +311,10 @@ fun AudioPlayerControls(
   }
 
   val context = LocalContext.current
-  val rawArtist by MPVLib.propString["metadata/by-key/Artist"].collectAsState()
-  val rawArtistAlt by MPVLib.propString["metadata/artist"].collectAsState()
-  val rawAlbumArtist by MPVLib.propString["metadata/by-key/album_artist"].collectAsState()
-  val rawPerformer by MPVLib.propString["metadata/by-key/PERFORMER"].collectAsState()
+  val rawArtist by PlaybackSession.propString["metadata/by-key/Artist"].collectAsState()
+  val rawArtistAlt by PlaybackSession.propString["metadata/artist"].collectAsState()
+  val rawAlbumArtist by PlaybackSession.propString["metadata/by-key/album_artist"].collectAsState()
+  val rawPerformer by PlaybackSession.propString["metadata/by-key/PERFORMER"].collectAsState()
 
   var retrievedArtist by remember(mediaPath) { mutableStateOf<String?>(null) }
   LaunchedEffect(mediaPath) {
@@ -351,30 +350,15 @@ fun AudioPlayerControls(
   val appearancePreferences = koinInject<AppearancePreferences>()
   val audioVisualizerStyle by audioPreferences.audioVisualizerStyle.collectAsState()
   val backgroundPlaybackEnabled by audioPreferences.audioBackgroundPlayback.collectAsState()
-  val appTheme by appearancePreferences.appTheme.collectAsState()
-  val darkMode by appearancePreferences.darkMode.collectAsState()
-  val amoledMode by appearancePreferences.amoledMode.collectAsState()
-  val useDarkTheme =
-    when (darkMode) {
-      DarkMode.Dark -> true
-      DarkMode.Light -> false
-      DarkMode.System -> isSystemInDarkTheme()
-    }
   val colorScheme = MaterialTheme.colorScheme
   val palette =
-    remember(appTheme, useDarkTheme, amoledMode, colorScheme) {
-      if (appTheme == AppTheme.Dynamic) {
-        VisualizerPalette(
-          background = colorScheme.surface.toArgb(),
-          primary = colorScheme.primary.toArgb(),
-          secondary = colorScheme.secondary.toArgb(),
-          tertiary = colorScheme.tertiary.toArgb(),
-        )
-      } else {
-        appTheme
-          .toVisualizerPalette(useDarkTheme = useDarkTheme, amoledMode = amoledMode)
-          .copy(background = colorScheme.surface.toArgb())
-      }
+    remember(colorScheme) {
+      VisualizerPalette(
+        background = colorScheme.surface.toArgb(),
+        primary = colorScheme.primary.toArgb(),
+        secondary = colorScheme.secondary.toArgb(),
+        tertiary = colorScheme.tertiary.toArgb(),
+      )
     }
 
    val isPlaying = paused == false
@@ -382,6 +366,7 @@ fun AudioPlayerControls(
    val currentDurSec = if (preciseDuration > 0f) preciseDuration else duration?.toFloat() ?: 0f
    val currentVolumePercent by viewModel.currentVolumePercent.collectAsState()
    val volumeScale = currentVolumePercent / 100f
+   val visualizerFeatures = rememberAudioVisualizerFeatures(isPlaying, volumeScale)
 
   val repeatMode by viewModel.repeatMode.collectAsState()
   val shuffleEnabled by viewModel.shuffleEnabled.collectAsState()
@@ -413,13 +398,8 @@ fun AudioPlayerControls(
   val playlistItems by viewModel.playlistItems.collectAsState()
   val isAudioOnly by viewModel.isAudioOnly.collectAsState()
   val filteredPlaylist =
-    remember(playlistItems, isAudioOnly) {
-      val audioOnly = playlistItems.filter { it.isAudio }
-      if (audioOnly.isNotEmpty()) {
-        audioOnly
-      } else {
-        playlistItems
-      }
+    remember(playlistItems) {
+      playlistItems.filter { it.isAudio }
     }
 
   val configuration = LocalConfiguration.current
@@ -678,18 +658,18 @@ fun AudioPlayerControls(
                when (audioVisualizerStyle) {
                  AudioVisualizerStyle.Galaxy ->
                    GalaxyOverlay(
-                     isPlaying = isPlaying,
                      palette = palette,
                      isSheetOpen = isSheetOpen,
                      volumeScale = volumeScale,
+                     features = visualizerFeatures,
                      modifier = Modifier.fillMaxSize(),
                    )
                  AudioVisualizerStyle.Blob ->
                    BlobOverlay(
-                     isPlaying = isPlaying,
                      palette = palette,
                      isSheetOpen = isSheetOpen,
                      volumeScale = volumeScale,
+                     features = visualizerFeatures,
                      modifier = Modifier.fillMaxSize(),
                    )
                  AudioVisualizerStyle.Cuboid ->
@@ -698,14 +678,15 @@ fun AudioPlayerControls(
                      palette = palette,
                      isSheetOpen = isSheetOpen,
                      volumeScale = volumeScale,
+                     features = visualizerFeatures,
                      modifier = Modifier.fillMaxSize(),
                    )
                  AudioVisualizerStyle.Particle ->
                    ParticleOverlay(
-                     isPlaying = isPlaying,
                      palette = palette,
                      isSheetOpen = isSheetOpen,
                      volumeScale = volumeScale,
+                     features = visualizerFeatures,
                      modifier = Modifier.fillMaxSize(),
                    )
                }
@@ -740,7 +721,7 @@ fun AudioPlayerControls(
                           if (viewModel.hasPlaylistSupport()) {
                             viewModel.playNext()
                           } else {
-                            runCatching { MPVLib.command("playlist-next") }
+                            runCatching { PlaybackSession.command("playlist-next") }
                           }
                         } else if (dragVal > threshold) {
                           haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -753,7 +734,7 @@ fun AudioPlayerControls(
                           if (viewModel.hasPlaylistSupport()) {
                             viewModel.playPrevious()
                           } else {
-                            runCatching { MPVLib.command("playlist-prev") }
+                            runCatching { PlaybackSession.command("playlist-prev") }
                           }
                         } else {
                           animatableOffsetX.animateTo(
@@ -1041,7 +1022,7 @@ fun AudioPlayerControls(
         position = currentPosSec,
         committedPosition = currentPosSec,
         duration = currentDurSec.coerceAtLeast(1f),
-        onValueChange = { value -> viewModel.seekTo(value.toInt(), fast = true) },
+        onValueChange = { value -> viewModel.previewSeekTo(value.toInt()) },
         onValueChangeFinished = { targetPosition -> viewModel.seekTo(targetPosition.toInt(), fast = false) },
         timersInverted = Pair(false, invertDuration),
         durationTimerOnCLick = { playerPreferences.invertDuration.set(!invertDuration) },

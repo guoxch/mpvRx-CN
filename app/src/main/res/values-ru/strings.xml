@@ -721,25 +721,6 @@
   <string name="pref_ai_disabled_summary">Функции ИИ отключены</string>
   <string name="pref_ai_provider_section">Поставщик</string>
   <string name="pref_ai_provider_title">Поставщик ИИ</string>
-  <string name="pref_hf_setup_section">Настройка Hugging Face</string>
-  <string name="pref_hf_token_title">Токен Hugging Face</string>
-  <string name="pref_hf_token_summary_error">Требуется для закрытых моделей. Получите его на huggingface.co/settings/tokens</string>
-  <string name="pref_hf_token_summary_saved">Токен сохранён на устройстве</string>
-  <string name="pref_hf_token_dialog_text">Вставьте токен Hugging Face</string>
-  <string name="pref_hf_token_placeholder">hf_…</string>
-  <string name="pref_offline_models_section">Офлайн-модели</string>
-  <string name="pref_model_picker_header">Выбор модели с упором на скорость</string>
-  <string name="pref_model_picker_description">Модели ранжируются по скорости после загрузки, нагрузке на RAM и качеству перевода субтитров.</string>
-  <string name="pref_filter_recommended">Рекомендуемые</string>
-  <string name="pref_filter_fastest">Самые быстрые</string>
-  <string name="pref_filter_best_translation">Лучший перевод</string>
-  <string name="pref_filter_downloaded">Загруженные</string>
-  <string name="pref_model_download_success">Модель успешно загружена</string>
-  <string name="pref_model_download_failed">Ошибка загрузки: %1$s</string>
-  <string name="pref_model_deleted">Модель удалена</string>
-  <string name="pref_model_using">Используется %1$s</string>
-  <string name="pref_benchmark_saved">Тест производительности сохранён: %1$s</string>
-  <string name="pref_benchmark_failed">Ошибка теста производительности: %1$s</string>
   <string name="pref_api_config_section">Настройка API</string>
   <string name="pref_api_key_saved">Ключ API сохранён на устройстве</string>
   <string name="pref_hide_key">Скрыть ключ</string>
@@ -841,7 +822,6 @@
   <string name="search_translation_summary">Переводить внешние субтитры с помощью ИИ с выбором целевых языков автоперевода</string>
   <string name="search_custom_ai_prompts_title">Пользовательские промпты ИИ</string>
   <string name="search_custom_ai_prompts_summary">Переопределить стандартные инструкции для переименования, перевода и форматирования</string>
-  <string name="search_offline_ai_models_title">Офлайн-модели ИИ</string>
   <string name="search_offline_ai_models_summary">Загружайте и управляйте локальными LLM для полностью автономных функций ИИ</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
@@ -1468,7 +1448,6 @@
   <string name="oss_sora_editor_description">Мощный и эффективный редактор кода для Android с подсветкой TextMate.</string>
   <string name="oss_media3_description">Медиабиблиотеки Android для расширенного воспроизведения и эффектов.</string>
   <string name="oss_jsoup_description">Java-парсер HTML для веб-скрейпинга и извлечения документов.</string>
-  <string name="oss_llamatik_description">Локальный мост инференса LLM для запуска моделей ИИ на Android.</string>
   <string name="oss_androidx_core_ktx_description">Основные расширения Kotlin для API Android Framework.</string>
   <string name="oss_androidx_appcompat_description">Обратно совместимые версии API Android Framework.</string>
   <string name="oss_androidx_constraintlayout_description">Гибкий менеджер компоновки для интерфейсов Android.</string>
@@ -1547,7 +1526,6 @@
   <string name="ui_extractor_args_2">extractor-args=\"youtube:player_client=android,web\"\ngeo-bypass=</string>
   <string name="ui_h_264">H.264</string>
   <string name="ui_h_265">H.265</string>
-  <string name="ui_hf">hf_...</string>
   <string name="ui_mozilla_5_0">Mozilla/5.0 ...</string>
   <string name="ui_mp4_mkv_webm">mp4, mkv, webm</string>
   <string name="ui_res_fps_hdr_12_vcodec_vp9_2">res,fps,hdr:12,vcodec:vp9.2</string>
@@ -1683,4 +1661,38 @@
   <string name="lyrics_source_embedded">Встроенный</string>
   <string name="lyrics_source_online">Онлайн</string>
   <string name="lyrics_source_local">Локальный (.lrc)</string>
+  <string name="pref_enable_p2p_streaming_title">Включить P2P-стриминг торрентов</string>
+  <string name="pref_enable_p2p_streaming_summary">Стримить воспроизводимые медиа из magnet-ссылок и торрент-файлов</string>
+  <string name="pref_audio_drc_title">Сжатие динамического диапазона (DRC)</string>
+  <string name="pref_audio_drc_summary">Сжимать динамический диапазон звука, чтобы усилить тихие диалоги и приглушить громкие звуки</string>
+  <string name="pref_audio_effects">Обработка звука</string>
+  <string name="toast_file_not_found">Файл больше не существует</string>
+  <string name="pref_audio_visualizer_style_particle">Частицы</string>
+  <string name="pref_section_p2p_streaming">P2P-стриминг</string>
+  <string name="toast_torrent_streaming_disabled">Сначала включите P2P-стриминг торрентов в расширенных настройках</string>
+  <string name="ui_recent_stream_links">Недавние ссылки</string>
+  <string name="ui_torrent_files">Торренты</string>
+  <string name="ui_expand_torrent_group">Показать файлы торрента</string>
+  <string name="ui_collapse_torrent_group">Скрыть файлы торрента</string>
+  <string name="ui_delete_torrent_group">Удалить торрент</string>
+  <string name="torrent_picker_back">Закрыть торрент</string>
+  <string name="torrent_picker_choose_title">Выберите, что воспроизвести</string>
+  <string name="torrent_picker_finding_details">Поиск обложки и подробностей…</string>
+  <string name="torrent_picker_play_file">Воспроизвести %1$s</string>
+  <string name="torrent_picker_preparing_title">Чтение торрента</string>
+  <string name="torrent_picker_preparing_description">Подключение к пирам и поиск воспроизводимых файлов…</string>
+  <string name="torrent_picker_error_title">Не удалось открыть торрент</string>
+  <string name="torrent_picker_retry">Повторить</string>
+  <string name="torrent_picker_episode_label">Сезон %1$d • Серия %2$d</string>
+  <string name="torrent_picker_single_episode_label">Серия %1$d</string>
+  <string name="ui_new_password_keep_existing">Новый пароль (пусто — сохранить текущий пароль)</string>
+  <string name="ui_clear_saved_password">Очистить сохранённый пароль</string>
+  <plurals name="ui_torrent_group_file_count">
+    <item quantity="one">%1$d воспроизводимый файл</item>
+    <item quantity="other">%1$d воспроизводимых файлов</item>
+  </plurals>
+  <plurals name="torrent_picker_playable_count">
+    <item quantity="one">%1$d воспроизводимый файл</item>
+    <item quantity="other">%1$d воспроизводимых файлов</item>
+  </plurals>
 </resources>

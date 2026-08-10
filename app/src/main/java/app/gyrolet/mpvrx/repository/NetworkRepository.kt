@@ -290,9 +290,7 @@ class NetworkRepository(
 
   fun isConnected(connectionId: Long): Boolean = hasConnectedClient(connectionId)
 
-  /**
-   * Delete a file on a network share
-   */
+  /** Delete a file on a network share */
   suspend fun deleteFile(
     connection: NetworkConnection,
     path: String,

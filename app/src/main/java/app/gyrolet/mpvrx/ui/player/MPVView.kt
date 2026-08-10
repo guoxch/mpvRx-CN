@@ -94,7 +94,7 @@ class MPVView(
     holder.removeCallback(this)
     if (isSurfaceReady || PlaybackSession.state.value.surfaceAttached) {
       isSurfaceReady = false
-      PlaybackSession.unbindSurface()
+      PlaybackSession.unbindSurface(this)
     }
   }
 
@@ -211,10 +211,11 @@ class MPVView(
     )
     PlaybackSession.setOptionString("hwdec-codecs", "all")
 
-    // Enable direct rendering for hardware decoding (reduces memory copies)
-    PlaybackSession.setOptionString("vd-lavc-dr", "yes")
-    // Queue extra frames to absorb decode jitter on 4K content
-    PlaybackSession.setOptionString("vd-lavc-queue", "yes")
+    // These were forced on between the last known-good build (e3b1de8) and the first build
+    // reproducing the HEVC/Main10 frame-drop regression (84f21fc). Keep mpv's normal direct-
+    // rendering heuristic and disable the extra decoder-frame queue, matching mpv's defaults.
+    PlaybackSession.setOptionString("vd-lavc-dr", "auto")
+    PlaybackSession.setOptionString("vd-lavc-queue", "no")
 
     if (decoderPreferences.useYUV420P.get()) {
       PlaybackSession.setOptionString("vf", "format=yuv420p")
@@ -267,9 +268,6 @@ class MPVView(
     setupSubtitlesOptions()
     setupAudioOptions()
     YtdlpManager.setupMpvOptions(context, ytdlPreferences, subtitlesPreferences)
-
-    val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-    updateScriptOptsForOrientation(isPortrait)
   }
 
   override fun observeProperties() {
@@ -278,9 +276,6 @@ class MPVView(
 
   override fun postInitOptions() {
     applyOsdSafeAreaMargins()
-
-    val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-    updateScriptOptsForOrientation(isPortrait)
 
     when (decoderPreferences.debanding.get()) {
       Debanding.None -> {}
@@ -294,15 +289,6 @@ class MPVView(
         PlaybackSession.command("script-binding", "stats/display-page-$it")
       }
     }
-  }
-
-  fun updateScriptOptsForOrientation(isPortrait: Boolean) {
-    val statsFontSize = if (isPortrait) 5 else 8
-    val consoleFontSize = if (isPortrait) 8 else 12
-    MPVLib.setOptionString(
-      "script-opts-append",
-      "stats-font_size=$statsFontSize,console-font_size=$consoleFontSize",
-    )
   }
 
   fun applyOsdSafeAreaMargins(insets: WindowInsetsCompat? = null) {
@@ -364,7 +350,7 @@ class MPVView(
   }
 
   override fun surfaceCreated(holder: android.view.SurfaceHolder) {
-    isSurfaceReady = PlaybackSession.bindSurface(holder.surface, width, height)
+    isSurfaceReady = PlaybackSession.bindSurface(holder.surface, width, height, this)
     applyFrameRate()
     post {
       if (isSurfaceReady && holder.surface.isValid) {
@@ -375,7 +361,7 @@ class MPVView(
 
   override fun surfaceDestroyed(holder: android.view.SurfaceHolder) {
     isSurfaceReady = false
-    PlaybackSession.unbindSurface()
+    PlaybackSession.unbindSurface(this)
   }
 
   private fun applyFrameRate() {

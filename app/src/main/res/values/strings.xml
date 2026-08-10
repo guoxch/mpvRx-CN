@@ -117,6 +117,8 @@
   <string name="pref_autoplay_next_video_summary_disabled">Stay on current video when it ends</string>
   <string name="pref_auto_pip_title">Auto Picture-in-Picture</string>
   <string name="pref_auto_pip_summary">Automatically enter PIP mode when pressing home or back</string>
+  <string name="pref_enable_video_mini_player_title">Enable Video Mini Player</string>
+  <string name="pref_enable_video_mini_player_summary">Minimize video playback into a floating Mini Player when pressing Back</string>
   <string name="pref_player_keep_screen_on_when_paused_title">Keep screen on when paused</string>
   <string name="pref_player_keep_screen_on_when_paused_summary">Screen stays awake while video is paused</string>
   <string name="pref_player_keep_screen_on_when_paused_summary_disabled">Screen can turn off while video is paused</string>
@@ -1663,7 +1665,7 @@
 
   <!-- Errors & Operation Results -->
   <string name="secure_folder_error_incorrect_pin">Incorrect PIN</string>
-  <string name="secure_folder_error_pin_min_digits">PIN must be at least 4 digits</string>
+  <string name="secure_folder_error_pin_min_digits">PIN must be 4 digits</string>
   <string name="secure_folder_error_pins_dont_match">PINs don\'t match</string>
   <string name="secure_folder_error_answer_question">Please answer the security question</string>
   <string name="secure_folder_error_fill_both_fields">Please fill in both fields</string>

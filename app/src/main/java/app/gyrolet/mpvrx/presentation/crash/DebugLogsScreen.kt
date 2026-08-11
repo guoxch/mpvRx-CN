@@ -12,6 +12,11 @@ package app.gyrolet.mpvrx.presentation.crash
 import android.content.Context
 import android.content.Intent
 import android.os.Process
+import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -46,7 +52,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -60,100 +68,157 @@ import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.utils.clipboard.SafeClipboard
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.BufferedReader
 import java.io.File
-import java.io.InputStreamReader
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
 
 private const val DEBUG_LOG_POLL_INTERVAL_MS = 1_500L
-private const val DEBUG_LOG_ENTRY_LIMIT = 1_000
-
-private enum class DebugLogLevel(
-  val code: String,
-  val label: String,
-) {
-  Verbose("V", "Verbose"),
-  Debug("D", "Debug"),
-  Info("I", "Info"),
-  Warn("W", "Warn"),
-  Error("E", "Error"),
-}
-
-private data class DebugLogEntry(
-  val timeMillis: Long,
-  val timestamp: String,
-  val level: DebugLogLevel,
-  val tag: String,
-  val message: String,
-)
+private const val DEBUG_LOG_TAG = "MpvRxDebugLogs"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun DebugLogsScreen(onNavigateBack: () -> Unit) {
   val context = LocalContext.current
+  val scope = rememberCoroutineScope()
   val listState = rememberLazyListState()
+
   var query by remember { mutableStateOf("") }
   var selectedLevels by remember { mutableStateOf(DebugLogLevel.entries.toSet()) }
-  var entries by remember { mutableStateOf<List<DebugLogEntry>>(emptyList()) }
+  var liveEntries by remember { mutableStateOf<List<DebugLogEntry>>(emptyList()) }
+  var pausedEntries by remember { mutableStateOf<List<DebugLogEntry>?>(null) }
+  var expandedEntryIds by remember { mutableStateOf<Set<String>>(emptySet()) }
   var isPaused by remember { mutableStateOf(false) }
+  var autoScrollEnabled by remember { mutableStateOf(true) }
   var menuExpanded by remember { mutableStateOf(false) }
   var clearedAt by remember { mutableStateOf(0L) }
   var readError by remember { mutableStateOf<String?>(null) }
+  var hasLoadedOnce by remember { mutableStateOf(false) }
+  var readSource by remember { mutableStateOf("") }
 
-  LaunchedEffect(isPaused, clearedAt) {
+  // Generate one guaranteed app-side event before the first read. Besides being useful context,
+  // this makes it obvious when a vendor is preventing the app from reading its own logcat.
+  LaunchedEffect(Unit) {
+    Log.i(DEBUG_LOG_TAG, "Debug log viewer opened for pid=${Process.myPid()}")
+  }
+
+  // Keep collecting while the UI is paused. Pause freezes the visible snapshot, not collection,
+  // so resuming catches up immediately instead of losing everything emitted while paused.
+  LaunchedEffect(clearedAt) {
     while (isActive) {
-      if (!isPaused) {
-        val result = withContext(Dispatchers.IO) { runCatching { readAppLogcat() } }
-        result
-          .onSuccess { latest ->
-            entries = latest.filter { it.timeMillis >= clearedAt }
-            readError = null
-          }.onFailure { error ->
-            readError = error.message ?: "Unable to read app logs"
+      val result = withContext(Dispatchers.IO) { runCatching { DebugLogReader.readSnapshot() } }
+      result
+        .onSuccess { snapshot ->
+          val nextEntries = snapshot.entries.filter { it.timeMillis >= clearedAt }
+          // Some Android/vendor builds occasionally return an empty snapshot for one poll. Keep
+          // the last good snapshot instead of making the entire screen flash to an empty state.
+          if (nextEntries.isNotEmpty() || liveEntries.isEmpty()) {
+            liveEntries = nextEntries
           }
-      }
+          readSource = snapshot.source
+          readError = null
+          hasLoadedOnce = true
+        }.onFailure { error ->
+          readError = error.message ?: "Unable to read app logs"
+          hasLoadedOnce = true
+        }
       delay(DEBUG_LOG_POLL_INTERVAL_MS)
     }
   }
 
+  val sourceEntries = pausedEntries ?: liveEntries
+  val levelCounts =
+    remember(sourceEntries) {
+      DebugLogLevel.entries.associateWith { level -> sourceEntries.count { it.level == level } }
+    }
   val filteredEntries =
-    remember(entries, query, selectedLevels) {
+    remember(sourceEntries, query, selectedLevels) {
       val needle = query.trim()
-      entries.filter { entry ->
+      sourceEntries.filter { entry ->
         entry.level in selectedLevels &&
           (needle.isEmpty() ||
+            entry.level.label.contains(needle, ignoreCase = true) ||
             entry.tag.contains(needle, ignoreCase = true) ||
             entry.message.contains(needle, ignoreCase = true))
       }
     }
 
-  LaunchedEffect(filteredEntries.size, isPaused) {
-    if (!isPaused && filteredEntries.isNotEmpty()) {
+  val isAtLatest = filteredEntries.isEmpty() || !listState.canScrollForward
+  val showJumpToLatest = filteredEntries.isNotEmpty() && (!autoScrollEnabled || !isAtLatest)
+
+  // If the user scrolls away from the bottom, stop forcing them back down on every log update.
+  LaunchedEffect(listState) {
+    snapshotFlow { listState.isScrollInProgress to listState.canScrollForward }
+      .collectLatest { (scrolling, canScrollForward) ->
+        if (scrolling && canScrollForward) {
+          autoScrollEnabled = false
+        } else if (!canScrollForward) {
+          autoScrollEnabled = true
+        }
+      }
+  }
+
+  LaunchedEffect(filteredEntries.size, autoScrollEnabled, isPaused) {
+    if (!isPaused && autoScrollEnabled && filteredEntries.isNotEmpty()) {
       listState.scrollToItem(filteredEntries.lastIndex)
     }
   }
 
-  fun visibleText(): String = formatDebugLogs(filteredEntries)
+  fun visibleText(includeDeviceInfo: Boolean = false): String =
+    buildDebugLogText(
+      entries = filteredEntries,
+      includeDeviceInfo = includeDeviceInfo,
+    )
+
+  fun togglePause() {
+    if (isPaused) {
+      isPaused = false
+      pausedEntries = null
+    } else {
+      pausedEntries = liveEntries
+      isPaused = true
+    }
+  }
+
+  fun clearVisibleHistory() {
+    clearedAt = System.currentTimeMillis()
+    liveEntries = emptyList()
+    pausedEntries = if (isPaused) emptyList() else null
+    expandedEntryIds = emptySet()
+    autoScrollEnabled = true
+    readError = null
+  }
 
   Scaffold(
     topBar = {
       TopAppBar(
         title = {
           Column {
-            Text("Debug Logs", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+              text = "Debug Logs",
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis,
+            )
             Text(
               text =
-                if (query.isBlank() && selectedLevels.size == DebugLogLevel.entries.size) {
-                  "All"
-                } else {
-                  "${filteredEntries.size} visible"
+                buildString {
+                  append(if (isPaused) "Paused" else if (readError != null) "Retrying" else "Live")
+                  append(" • ")
+                  if (filteredEntries.size == sourceEntries.size) {
+                    append(sourceEntries.size)
+                    append(" logs")
+                  } else {
+                    append(filteredEntries.size)
+                    append(" of ")
+                    append(sourceEntries.size)
+                  }
+                  if (readSource == "pid-fallback") append(" • compatibility mode")
                 },
               style = MaterialTheme.typography.labelMedium,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis,
             )
           }
         },
@@ -163,7 +228,7 @@ internal fun DebugLogsScreen(onNavigateBack: () -> Unit) {
           }
         },
         actions = {
-          IconButton(onClick = { isPaused = !isPaused }) {
+          IconButton(onClick = ::togglePause) {
             Icon(
               imageVector = if (isPaused) Icons.RoundedFilled.PlayArrow else Icons.RoundedFilled.Pause,
               contentDescription = if (isPaused) "Resume logs" else "Pause logs",
@@ -183,7 +248,7 @@ internal fun DebugLogsScreen(onNavigateBack: () -> Unit) {
                 enabled = filteredEntries.isNotEmpty(),
                 onClick = {
                   menuExpanded = false
-                  shareDebugLogText(context, visibleText())
+                  shareDebugLogs(context, visibleText(includeDeviceInfo = true))
                 },
               )
               DropdownMenuItem(
@@ -192,7 +257,7 @@ internal fun DebugLogsScreen(onNavigateBack: () -> Unit) {
                 enabled = filteredEntries.isNotEmpty(),
                 onClick = {
                   menuExpanded = false
-                  exportDebugLogText(context, visibleText())
+                  exportDebugLogs(context, visibleText(includeDeviceInfo = true))
                 },
               )
               DropdownMenuItem(
@@ -209,12 +274,12 @@ internal fun DebugLogsScreen(onNavigateBack: () -> Unit) {
                 },
               )
               DropdownMenuItem(
-                text = { Text("Clear") },
+                text = { Text("Clear captured logs") },
                 leadingIcon = { Icon(Icons.RoundedFilled.Clear, contentDescription = null) },
+                enabled = sourceEntries.isNotEmpty(),
                 onClick = {
                   menuExpanded = false
-                  clearedAt = System.currentTimeMillis()
-                  entries = emptyList()
+                  clearVisibleHistory()
                 },
               )
             }
@@ -222,27 +287,43 @@ internal fun DebugLogsScreen(onNavigateBack: () -> Unit) {
         },
       )
     },
+    floatingActionButton = {
+      AnimatedVisibility(visible = showJumpToLatest) {
+        SmallFloatingActionButton(
+          onClick = {
+            autoScrollEnabled = true
+            scope.launch {
+              if (filteredEntries.isNotEmpty()) {
+                listState.animateScrollToItem(filteredEntries.lastIndex)
+              }
+            }
+          },
+        ) {
+          Icon(Icons.RoundedFilled.KeyboardArrowDown, contentDescription = "Jump to latest log")
+        }
+      }
+    },
   ) { innerPadding ->
     Column(
       modifier =
         Modifier
           .fillMaxSize()
-          .padding(innerPadding)
-          .padding(horizontal = 16.dp),
+          .padding(innerPadding),
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
       Column(
         modifier =
           Modifier
             .widthIn(max = 900.dp)
-            .fillMaxSize(),
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
       ) {
         OutlinedTextField(
           value = query,
           onValueChange = { query = it },
           modifier = Modifier.fillMaxWidth(),
           singleLine = true,
-          placeholder = { Text("Search") },
+          placeholder = { Text("Search tag or message") },
           leadingIcon = { Icon(Icons.RoundedFilled.Search, contentDescription = null) },
           trailingIcon = {
             if (query.isNotEmpty()) {
@@ -262,37 +343,105 @@ internal fun DebugLogsScreen(onNavigateBack: () -> Unit) {
               .horizontalScroll(rememberScrollState()),
           horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+          FilterChip(
+            selected = selectedLevels.size == DebugLogLevel.entries.size,
+            onClick = { selectedLevels = DebugLogLevel.entries.toSet() },
+            label = { Text("All ${sourceEntries.size}") },
+          )
           DebugLogLevel.entries.forEach { level ->
             FilterChip(
               selected = level in selectedLevels,
               onClick = {
                 selectedLevels =
-                  if (level in selectedLevels) selectedLevels - level else selectedLevels + level
+                  if (level in selectedLevels) {
+                    selectedLevels - level
+                  } else {
+                    selectedLevels + level
+                  }
               },
-              label = { Text(level.label) },
-              leadingIcon = { DebugLogLevelBadge(level) },
+              label = { Text("${level.label} ${levelCounts[level] ?: 0}") },
+              leadingIcon = { DebugLogLevelBadge(level, compact = true) },
+            )
+          }
+        }
+
+        AnimatedVisibility(visible = readError != null && sourceEntries.isNotEmpty()) {
+          Surface(
+            modifier =
+              Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.errorContainer,
+          ) {
+            Text(
+              text = "Logcat temporarily unavailable. Showing the last captured logs and retrying automatically.",
+              modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onErrorContainer,
             )
           }
         }
 
         when {
-          readError != null && entries.isEmpty() -> {
-            DebugLogMessageState(readError.orEmpty(), isError = true)
+          !hasLoadedOnce && sourceEntries.isEmpty() -> {
+            DebugLogMessageState(
+              title = "Loading logs…",
+              message = "Reading the current mpvRx process logcat.",
+            )
+          }
+          readError != null && sourceEntries.isEmpty() -> {
+            DebugLogMessageState(
+              title = "Unable to read logs",
+              message = "Android did not return the app logcat. mpvRx will keep retrying automatically.\n\n${readError.orEmpty()}",
+              isError = true,
+            )
           }
           filteredEntries.isEmpty() -> {
-            DebugLogMessageState(if (isPaused) "Logs paused" else "No matching logs")
+            val hasActiveFilter = query.isNotBlank() || selectedLevels.size != DebugLogLevel.entries.size
+            DebugLogMessageState(
+              title = if (hasActiveFilter) "No matching logs" else if (isPaused) "Logs paused" else "Waiting for logs…",
+              message =
+                if (hasActiveFilter) {
+                  "Try clearing the search or enabling more log levels."
+                } else if (isPaused) {
+                  "Resume to see the latest captured entries."
+                } else {
+                  "Use mpvRx normally and new app logs will appear here."
+                },
+            )
           }
           else -> {
             LazyColumn(
               state = listState,
               modifier = Modifier.fillMaxSize(),
-              contentPadding = PaddingValues(vertical = 10.dp),
+              contentPadding = PaddingValues(top = 10.dp, bottom = 88.dp),
               verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-              // Do not provide a content key here: Android can emit multiple identical log lines
-              // in the same millisecond, and index identity correctly preserves those duplicates.
-              items(filteredEntries) { entry ->
-                DebugLogEntryCard(entry)
+              items(
+                items = filteredEntries,
+                key = { entry -> entry.id },
+                contentType = { entry -> entry.level },
+              ) { entry ->
+                DebugLogEntryCard(
+                  entry = entry,
+                  expanded = entry.id in expandedEntryIds,
+                  onToggleExpanded = {
+                    expandedEntryIds =
+                      if (entry.id in expandedEntryIds) {
+                        expandedEntryIds - entry.id
+                      } else {
+                        expandedEntryIds + entry.id
+                      }
+                  },
+                  onCopy = {
+                    SafeClipboard.copyPlainText(
+                      context = context,
+                      label = "mpvrx_log_entry",
+                      text = formatDebugLogEntry(entry),
+                    )
+                  },
+                )
               }
             }
           }
@@ -304,26 +453,51 @@ internal fun DebugLogsScreen(onNavigateBack: () -> Unit) {
 
 @Composable
 private fun DebugLogMessageState(
-  text: String,
+  title: String,
+  message: String,
   isError: Boolean = false,
 ) {
   Box(
     modifier = Modifier.fillMaxSize(),
     contentAlignment = Alignment.Center,
   ) {
-    Text(
-      text = text,
-      color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-      style = MaterialTheme.typography.bodyMedium,
-    )
+    Column(
+      modifier = Modifier.padding(32.dp),
+      horizontalAlignment = Alignment.CenterHorizontally,
+      verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+      Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+      )
+      Text(
+        text = message,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+    }
   }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun DebugLogEntryCard(entry: DebugLogEntry) {
+private fun DebugLogEntryCard(
+  entry: DebugLogEntry,
+  expanded: Boolean,
+  onToggleExpanded: () -> Unit,
+  onCopy: () -> Unit,
+) {
   val levelColor = debugLogLevelColor(entry.level)
   Surface(
-    modifier = Modifier.fillMaxWidth(),
+    modifier =
+      Modifier
+        .fillMaxWidth()
+        .animateContentSize()
+        .combinedClickable(
+          onClick = onToggleExpanded,
+          onLongClick = onCopy,
+        ),
     shape = RoundedCornerShape(18.dp),
     color = MaterialTheme.colorScheme.surfaceContainerLow,
   ) {
@@ -345,6 +519,7 @@ private fun DebugLogEntryCard(entry: DebugLogEntry) {
         if (entry.tag.isNotBlank()) {
           Text(
             text = entry.tag,
+            modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
             color = levelColor,
@@ -353,27 +528,50 @@ private fun DebugLogEntryCard(entry: DebugLogEntry) {
           )
         }
       }
+
       Text(
         text = entry.message,
         style = MaterialTheme.typography.bodyMedium,
         fontFamily = FontFamily.Monospace,
         color = levelColor,
+        maxLines = if (expanded) Int.MAX_VALUE else 4,
+        overflow = TextOverflow.Ellipsis,
       )
+
+      if (expanded && entry.pid != null) {
+        Text(
+          text = buildString {
+            append("pid ")
+            append(entry.pid)
+            entry.tid?.let {
+              append(" • tid ")
+              append(it)
+            }
+            append(" • long-press to copy")
+          },
+          style = MaterialTheme.typography.labelSmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
     }
   }
 }
 
 @Composable
-private fun DebugLogLevelBadge(level: DebugLogLevel) {
+private fun DebugLogLevelBadge(
+  level: DebugLogLevel,
+  compact: Boolean = false,
+) {
+  val size = if (compact) 22.dp else 28.dp
   Surface(
-    modifier = Modifier.size(28.dp),
-    shape = RoundedCornerShape(8.dp),
+    modifier = Modifier.size(size),
+    shape = RoundedCornerShape(if (compact) 6.dp else 8.dp),
     color = debugLogLevelColor(level),
   ) {
     Box(contentAlignment = Alignment.Center) {
       Text(
         text = level.code,
-        style = MaterialTheme.typography.labelMedium,
+        style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.surface,
       )
@@ -391,81 +589,51 @@ private fun debugLogLevelColor(level: DebugLogLevel) =
     DebugLogLevel.Error -> MaterialTheme.colorScheme.error
   }
 
-private fun readAppLogcat(): List<DebugLogEntry> {
-  val logcatProcess =
-    ProcessBuilder(
-      "logcat",
-      "--pid=${Process.myPid()}",
-      "-v",
-      "time",
-      "-t",
-      DEBUG_LOG_ENTRY_LIMIT.toString(),
-    ).redirectErrorStream(true)
-      .start()
-
-  return try {
-    val entries = ArrayList<DebugLogEntry>(DEBUG_LOG_ENTRY_LIMIT)
-    BufferedReader(InputStreamReader(logcatProcess.inputStream)).use { reader ->
-      reader.forEachLine { line ->
-        parseDebugLogLine(line)?.let(entries::add)
+private fun formatDebugLogEntry(entry: DebugLogEntry): String =
+  buildString {
+    append(entry.timestamp)
+    entry.pid?.let { pid ->
+      append(' ')
+      append(pid)
+      entry.tid?.let { tid ->
+        append('/')
+        append(tid)
       }
     }
-    val exitCode = logcatProcess.waitFor()
-    if (exitCode != 0) error("logcat exited with code $exitCode")
-    entries
-  } finally {
-    logcatProcess.destroy()
+    append(' ')
+    append(entry.level.code)
+    append('/')
+    append(entry.tag.ifBlank { "unknown" })
+    append(": ")
+    append(entry.message)
   }
-}
 
-private fun parseDebugLogLine(line: String): DebugLogEntry? {
-  val classicPattern =
-    Regex("""^(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+([VDIWEF])/([^\(]+)\(\s*\d+\):\s?(.*)$""")
-  val threadTimePattern =
-    Regex("""^(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\s+([VDIWEF])\s+([^:]+):\s?(.*)$""")
-  val match = classicPattern.matchEntire(line) ?: threadTimePattern.matchEntire(line) ?: return null
-  val timestamp = match.groupValues[1]
-  val level =
-    when (match.groupValues[2]) {
-      "V" -> DebugLogLevel.Verbose
-      "D" -> DebugLogLevel.Debug
-      "I" -> DebugLogLevel.Info
-      "W" -> DebugLogLevel.Warn
-      "E", "F" -> DebugLogLevel.Error
-      else -> return null
+private fun buildDebugLogText(
+  entries: List<DebugLogEntry>,
+  includeDeviceInfo: Boolean,
+): String {
+  if (entries.isEmpty()) return ""
+  return buildString {
+    if (includeDeviceInfo) {
+      appendLine(CrashActivity.collectDeviceInfo())
+      appendLine()
+      appendLine("Logcat:")
     }
-  val timeMillis = parseDebugLogTimestamp(timestamp) ?: return null
-  return DebugLogEntry(
-    timeMillis = timeMillis,
-    timestamp = timestamp.substringAfter(' '),
-    level = level,
-    tag = match.groupValues[3].trim(),
-    message = match.groupValues[4],
-  )
+    entries.forEach { entry -> appendLine(formatDebugLogEntry(entry)) }
+  }.trimEnd()
 }
 
-private fun parseDebugLogTimestamp(timestamp: String): Long? =
-  runCatching {
-    val formatter = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US)
-    val parsed = formatter.parse(timestamp) ?: return@runCatching null
-    Calendar
-      .getInstance()
-      .apply {
-        time = parsed
-        set(Calendar.YEAR, Calendar.getInstance().get(Calendar.YEAR))
-      }.timeInMillis
-  }.getOrNull()
-
-private fun formatDebugLogs(entries: List<DebugLogEntry>): String =
-  entries.joinToString(separator = "\n") { entry ->
-    "${entry.timestamp} ${entry.level.code}/${entry.tag}: ${entry.message}"
-  }
-
-private fun shareDebugLogText(
+private fun shareDebugLogs(
   context: Context,
   text: String,
 ) {
   if (text.isBlank()) return
+  val byteCount = text.toByteArray(Charsets.UTF_8).size
+  if (byteCount > 256 * 1024) {
+    exportDebugLogs(context, text, chooserTitle = "Share debug logs")
+    return
+  }
+
   context.startActivity(
     Intent.createChooser(
       Intent(Intent.ACTION_SEND).apply {
@@ -477,22 +645,33 @@ private fun shareDebugLogText(
   )
 }
 
-private fun exportDebugLogText(
+private fun exportDebugLogs(
   context: Context,
   text: String,
+  chooserTitle: String = "Export debug logs",
 ) {
   if (text.isBlank()) return
-  val file = File(context.cacheDir, "mpvrx-debug-${System.currentTimeMillis()}.txt")
+
+  val exportDirectory = File(context.cacheDir, "shared_logs").apply { mkdirs() }
+  val file = File(exportDirectory, "mpvrx-debug-${System.currentTimeMillis()}.txt")
   file.writeText(text)
+
+  exportDirectory
+    .listFiles { candidate -> candidate.isFile && candidate.name.startsWith("mpvrx-debug-") }
+    ?.sortedByDescending(File::lastModified)
+    ?.drop(5)
+    ?.forEach { candidate -> candidate.delete() }
+
   val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
   context.startActivity(
     Intent.createChooser(
       Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
+        clipData = android.content.ClipData.newRawUri(file.name, uri)
         putExtra(Intent.EXTRA_STREAM, uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
       },
-      "Export debug logs",
+      chooserTitle,
     ),
   )
 }

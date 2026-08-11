@@ -115,6 +115,8 @@
   <string name="pref_autoplay_next_video_summary_disabled">Оставаться на текущем видео после его завершения</string>
   <string name="pref_auto_pip_title">Автоматический режим «Картинка в картинке»</string>
   <string name="pref_auto_pip_summary">Автоматически переходить в режим PIP при нажатии «Домой» или «Назад»</string>
+  <string name="pref_enable_video_mini_player_title">Включить видео мини-плеер</string>
+  <string name="pref_enable_video_mini_player_summary">Сворачивать воспроизведение видео в плавающий мини-плеер при нажатии «Назад»</string>
   <string name="pref_player_keep_screen_on_when_paused_title">Не выключать экран во время паузы</string>
   <string name="pref_player_keep_screen_on_when_paused_summary">Экран остаётся включённым, пока видео приостановлено</string>
   <string name="pref_player_keep_screen_on_when_paused_summary_disabled">Экран может выключаться, пока видео приостановлено</string>
@@ -1565,6 +1567,8 @@
   <string name="secure_folder_verify">Проверить</string>
   <string name="secure_folder_next">Далее</string>
   <string name="secure_folder_save">Сохранить</string>
+  <string name="secure_folder_pin_changed">PIN-код успешно изменён</string>
+  <string name="secure_folder_security_question_changed">Контрольный вопрос обновлён</string>
   <string name="secure_folder_use_fingerprint">Использовать отпечаток пальца</string>
   <string name="secure_folder_enable_fingerprint">Включить отпечаток пальца</string>
   <string name="secure_folder_disable_fingerprint">Отключить отпечаток пальца</string>

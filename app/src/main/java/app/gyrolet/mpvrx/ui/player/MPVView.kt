@@ -17,8 +17,10 @@ import android.util.Log
 import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import androidx.core.view.WindowInsetsCompat
+import app.gyrolet.mpvrx.BuildConfig
 import app.gyrolet.mpvrx.domain.anime4k.Anime4KManager
 import app.gyrolet.mpvrx.domain.hdr.HdrToysManager
+import app.gyrolet.mpvrx.network.AndroidCookieJar
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.AudioPreferences
 import app.gyrolet.mpvrx.preferences.DecoderPreferences
@@ -32,7 +34,7 @@ import app.gyrolet.mpvrx.ui.player.anime4k.clearAnime4KShaders
 import app.gyrolet.mpvrx.ui.player.anime4k.selectRuntimeStableAnime4K
 import app.gyrolet.mpvrx.ui.player.controls.components.panels.toColorHexString
 import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlpManager
-import app.gyrolet.mpvrx.ui.preferences.VulkanUtils
+import app.gyrolet.mpvrx.utils.device.VulkanCapabilities
 import `is`.xyz.mpv.BaseMPVView
 import `is`.xyz.mpv.KeyMapping
 import `is`.xyz.mpv.MPVLib
@@ -77,7 +79,7 @@ class MPVView(
         context = context.applicationContext,
         configDir = configDir,
         cacheDir = cacheDir,
-        rendererConfigurationKey = requestedBackend.configurationKey,
+        coreConfigurationKey = requestedBackend.configurationKey,
         initOptions = ::initOptions,
         postInitOptions = ::postInitOptions,
         observeProperties = ::observeProperties,
@@ -179,7 +181,7 @@ class MPVView(
     PlaybackSession.setOptionString("profile", profile)
     val backend = selectRenderBackend()
     val useVulkan = backend.gpuApi == "vulkan"
-    val hwdecMode = preferredHwdecMode()
+    val hwdecMode = preferredHwdecMode(useVulkan)
     PlaybackSession.setVideoOutput(backend.vo)
     PlaybackSession.setOptionString("gpu-api", backend.gpuApi)
     PlaybackSession.setOptionString("gpu-context", backend.gpuContext)
@@ -204,7 +206,7 @@ class MPVView(
       boostSdrToHdr = decoderPreferences.boostSdrToHdr.get(),
     )
 
-    // Set hwdec with fallback order: HW+ (mediacodec) -> HW (mediacodec-copy) -> SW (no)
+    // Fongmi can map direct MediaCodec frames into Vulkan; other Vulkan builds start with copy mode.
     PlaybackSession.setOptionString(
       "hwdec",
       hwdecMode,
@@ -223,8 +225,8 @@ class MPVView(
     val logLevel = if (advancedPreferences.verboseLogging.get()) "v" else "warn"
     PlaybackSession.setOptionString("msg-level", "all=$logLevel")
 
-    PlaybackSession.setPropertyBoolean("keep-open", true)
-    PlaybackSession.setPropertyBoolean("input-default-bindings", true)
+    PlaybackSession.setOptionString("keep-open", "yes")
+    PlaybackSession.setOptionString("input-default-bindings", "yes")
 
     PlaybackSession.setOptionString("tls-verify", "yes")
     PlaybackSession.setOptionString("tls-ca-file", "${context.filesDir.path}/cacert.pem")
@@ -247,6 +249,19 @@ class MPVView(
     // This reduces thermal load and helps prevent jitter/rebuffering on long sessions.
     PlaybackSession.setOptionString("hls-bitrate", "no")
     PlaybackSession.setOptionString("http-allow-redirect", "yes")
+    PlaybackSession.setOptionString("cookies", "yes")
+    PlaybackSession.setOptionString("cookies-file", AndroidCookieJar.playbackCookieFile(context).absolutePath)
+    PlaybackSession.setOptionString("cache", "auto")
+    PlaybackSession.setOptionString("cache-pause", "yes")
+    PlaybackSession.setOptionString("cache-pause-wait", "2")
+    PlaybackSession.setOptionString("demuxer-max-bytes", "64MiB")
+    // Recover boundedly from transient HTTP/TLS disconnects, including non-seekable live inputs.
+    // Do not use reconnect_at_eof globally: a legitimate VOD EOF must still finish normally.
+    PlaybackSession.setOptionString(
+      "demuxer-lavf-o",
+      "reconnect=1,reconnect_on_network_error=1,reconnect_streamed=1," +
+        "reconnect_delay_max=5,reconnect_max_retries=5,reconnect_delay_total_max=20",
+    )
     // Drop only video-output-bound late frames when rendering cannot keep up.
     // This prevents long-term jitter buildup without aggressively sacrificing smoothness.
     PlaybackSession.setOptionString("framedrop", "vo")
@@ -611,27 +626,25 @@ class MPVView(
   }
 
   private fun shouldUseVulkan(ignoreForcedOpenGlFallback: Boolean = false): Boolean {
-    if (forceOpenGlFallback && !ignoreForcedOpenGlFallback) {
-      return false
+    val canUseVulkan =
+      RendererBackendPolicy.canUseVulkan(
+        buildIncludesVulkan = BuildConfig.MPV_SUPPORTS_VULKAN,
+        deviceSupportsVulkan = VulkanCapabilities.isDeviceSupported(context),
+        userEnabledVulkan = decoderPreferences.useVulkan.get(),
+        forceOpenGlFallback = forceOpenGlFallback && !ignoreForcedOpenGlFallback,
+      )
+    if (decoderPreferences.useVulkan.get() && !canUseVulkan) {
+      Log.w(TAG, "Vulkan is unavailable for this build or device. Forcing OpenGL.")
     }
-    if (!decoderPreferences.useVulkan.get()) {
-      return false
-    }
-
-    val supported = VulkanUtils.isVulkanSupported(context)
-    if (!supported) {
-      Log.w(TAG, "Vulkan support checks failed. Falling back to OpenGL.")
-    }
-    return supported
+    return canUseVulkan
   }
 
-  private fun preferredHwdecMode(): String {
-    if (!decoderPreferences.tryHWDecoding.get()) {
-      return "no"
-    }
-
-    return "mediacodec,mediacodec-copy,no"
-  }
+  private fun preferredHwdecMode(usesVulkan: Boolean): String =
+    RendererBackendPolicy.preferredHwdecMode(
+      hardwareDecodingEnabled = decoderPreferences.tryHWDecoding.get(),
+      usesVulkan = usesVulkan,
+      buildSupportsMediaCodecVulkan = BuildConfig.MPV_SUPPORTS_MEDIACODEC_VULKAN,
+    )
 
   private fun selectRenderBackend(ignoreForcedOpenGlFallback: Boolean = false): RenderBackendSelection {
     val anime4kEnabled =

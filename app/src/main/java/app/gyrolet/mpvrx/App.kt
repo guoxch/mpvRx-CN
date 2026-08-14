@@ -22,6 +22,7 @@ import app.gyrolet.mpvrx.database.repository.VideoMetadataCacheRepository
 import app.gyrolet.mpvrx.di.DatabaseModule
 import app.gyrolet.mpvrx.di.FileManagerModule
 import app.gyrolet.mpvrx.di.PreferencesModule
+import app.gyrolet.mpvrx.preferences.DecoderPreferences
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import app.gyrolet.mpvrx.presentation.crash.CrashActivity
 import app.gyrolet.mpvrx.presentation.crash.GlobalExceptionHandler
@@ -78,8 +79,10 @@ class App :
         app.gyrolet.mpvrx.di.domainModule,
       )
     }
+    if (!BuildConfig.MPV_SUPPORTS_VULKAN) {
+      getKoin().get<DecoderPreferences>().useVulkan.set(false)
+    }
     registerActivityLifecycleCallbacks(this)
-
     Thread.setDefaultUncaughtExceptionHandler(GlobalExceptionHandler(applicationContext, CrashActivity::class.java))
     startIdleMpvCoreReaper()
 

@@ -20,6 +20,7 @@ import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.domain.playbackstate.repository.PlaybackStateRepository
 import app.gyrolet.mpvrx.repository.MediaFileRepository
 import app.gyrolet.mpvrx.ui.browser.base.BaseBrowserViewModel
+import app.gyrolet.mpvrx.ui.player.PlaybackIdentity
 import app.gyrolet.mpvrx.utils.media.MediaLibraryEvents
 import app.gyrolet.mpvrx.utils.media.MetadataRetrieval
 import app.gyrolet.mpvrx.utils.media.PlaybackStateEvents
@@ -45,8 +46,8 @@ data class VideoWithPlaybackInfo(
   val video: Video,
   val timeRemaining: Long? = null, // in seconds
   val progressPercentage: Float? = null, // 0.0 to 1.0
-  val isOldAndUnplayed: Boolean = false, // true if video is older than threshold and never played
-  val isWatched: Boolean = false, // true if video has any playback history
+  val isOldAndUnplayed: Boolean = false, // true while the NEW badge is eligible
+  val isWatched: Boolean = false, // true once the configured watched threshold is reached
 )
 
 class VideoListViewModel(
@@ -113,6 +114,8 @@ class VideoListViewModel(
       }
     }
 
+    // Playback persistence emits this event whenever a position/watched state is saved. Re-read
+    // the affected playback metadata so NEW/progress/watched UI updates without a hard refresh.
     viewModelScope.launch(Dispatchers.IO) {
       PlaybackStateEvents.changes.collectLatest {
         if (_videos.value.isNotEmpty()) {
@@ -149,6 +152,9 @@ class VideoListViewModel(
             forceFileSystemCheck = forceFileSystemCheck,
             includeAudioOverride = if (includeAudio) true else null,
           )
+        if (includeAudio) {
+          videoList = videoList.filter { it.isAudio }
+        }
 
         // Enrich with metadata only if chips are enabled
         if (MetadataRetrieval.isVideoMetadataNeeded(browserPreferences)) {
@@ -187,6 +193,9 @@ class VideoListViewModel(
               forceFileSystemCheck = true,
               includeAudioOverride = if (includeAudio) true else null,
             )
+          if (includeAudio) {
+            retryVideoList = retryVideoList.filter { it.isAudio }
+          }
 
           // Enrich retry list if needed
           if (MetadataRetrieval.isVideoMetadataNeeded(browserPreferences)) {
@@ -230,11 +239,36 @@ class VideoListViewModel(
     _videosWereDeletedOrMoved.value = true
   }
 
+  /**
+   * PlayerActivity persists new playback rows with PlaybackIdentity.forUri(...). Older app
+   * versions used the display filename. Read the v2 key first and retain legacy fallbacks so
+   * existing histories continue to work without a destructive database migration.
+   */
+  private suspend fun findPlaybackState(video: Video): PlaybackStateEntity? {
+    val identifiers =
+      linkedSetOf(
+        PlaybackIdentity.forUri(video.uri.toString()),
+        PlaybackIdentity.forUri(video.path),
+        PlaybackIdentity.forUri("file://${video.path}"),
+        video.displayName,
+      )
+
+    for (identifier in identifiers) {
+      playbackStateRepository.getVideoDataByTitle(identifier)?.let { return it }
+    }
+    return null
+  }
+
+  private fun canonicalPlaybackIdentifier(video: Video): String = PlaybackIdentity.forUri(video.uri.toString())
+
   private suspend fun loadPlaybackInfo(videos: List<Video>) {
+    val watchedThreshold = browserPreferences.watchedThreshold.get()
+    val newLabelDays = appearancePreferences.unplayedOldVideoDays.get()
+    val newLabelWindowMillis = newLabelDays.toLong() * 24L * 60L * 60L * 1000L
+    val now = System.currentTimeMillis()
     val videosWithInfo =
       videos.map { video ->
-        val playbackState = playbackStateRepository.getVideoDataByTitle(video.displayName)
-        val watchedThreshold = browserPreferences.watchedThreshold.get()
+        val playbackState = findPlaybackState(video)
 
         // Calculate watch progress (0.0 to 1.0)
         val progress =
@@ -267,7 +301,9 @@ class VideoListViewModel(
 
         // "NEW" badge shows while the video is recent AND not yet watched. It is removed
         // once the video is watched to the configured threshold percentage.
-        val isOldAndUnplayed = !isWatched
+        val videoAge = now - (video.dateModified * 1000L)
+        val isWithinNewLabelWindow = newLabelDays == 0 || videoAge <= newLabelWindowMillis
+        val isOldAndUnplayed = !isWatched && isWithinNewLabelWindow
 
         VideoWithPlaybackInfo(
           video = video,
@@ -290,7 +326,7 @@ class VideoListViewModel(
           item.copy(
             timeRemaining = if (watched) 0L else (video.duration / 1000L).coerceAtLeast(0L),
             progressPercentage = null,
-            isOldAndUnplayed = false,
+            isOldAndUnplayed = item.isOldAndUnplayed && !watched,
             isWatched = watched,
           )
         } else {
@@ -301,16 +337,18 @@ class VideoListViewModel(
 
     viewModelScope.launch(Dispatchers.IO) {
       val durationSeconds = (video.duration / 1000L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+      val canonicalIdentifier = canonicalPlaybackIdentifier(video)
       runCatching {
-        val existing = playbackStateRepository.getVideoDataByTitle(video.displayName)
+        val existing = findPlaybackState(video)
         playbackStateRepository.upsert(
           (existing ?: emptyPlaybackState(video, durationSeconds)).copy(
+            mediaTitle = canonicalIdentifier,
             lastPosition = 0,
             timeRemaining = if (watched) 0 else durationSeconds,
             hasBeenWatched = watched,
           ),
         )
-        PlaybackStateEvents.notifyChanged(video.displayName)
+        PlaybackStateEvents.notifyChanged(canonicalIdentifier)
       }.onFailure { error ->
         Log.e(tag, "Failed to update watched state for ${video.displayName}", error)
         loadPlaybackInfo(_videos.value)
@@ -323,7 +361,7 @@ class VideoListViewModel(
     durationSeconds: Int,
   ): PlaybackStateEntity =
     PlaybackStateEntity(
-      mediaTitle = video.displayName,
+      mediaTitle = canonicalPlaybackIdentifier(video),
       lastPosition = 0,
       playbackSpeed = 1.0,
       sid = -1,
@@ -396,7 +434,7 @@ class VideoListViewModel(
     }
   }
 
-    companion object {
+  companion object {
     fun factory(
       application: Application,
       bucketId: String,

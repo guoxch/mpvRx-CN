@@ -79,6 +79,7 @@ fun FolderCard(
   thumbnail: ImageBitmap? = null,
   isDualPane: Boolean = false,
   isActive: Boolean = false,
+  isAudioOnly: Boolean = false,
 ) {
   val appearancePreferences = koinInject<AppearancePreferences>()
   val browserPreferences = koinInject<BrowserPreferences>()
@@ -281,9 +282,10 @@ fun FolderCard(
                 ),
             contentAlignment = Alignment.Center,
           ) {
+            val folderImageBitmap = remember(folderThumbnail) { folderThumbnail?.asImageBitmap() }
             val resolvedThumbnail =
               if (showFolderThumbnails) {
-                thumbnail ?: folderThumbnail?.asImageBitmap()
+                thumbnail ?: folderImageBitmap
               } else {
                 null
               }
@@ -367,7 +369,9 @@ fun FolderCard(
 
           if (showTotalVideosChip && folder.videoCount > 0) {
             Text(
-              if (includeAudio) {
+              if (isAudioOnly) {
+                if (folder.videoCount == 1) "1 Song" else "${folder.videoCount} Songs"
+              } else if (includeAudio) {
                 if (folder.videoCount == 1) "1 Media item" else "${folder.videoCount} Media items"
               } else if (folder.videoCount == 1) {
                 "1 Video"
@@ -489,7 +493,9 @@ fun FolderCard(
               // Hide chips at storage root level (when videoCount is 0)
               if (showTotalVideosChip && folder.videoCount > 0) {
                 Text(
-                  if (includeAudio) {
+                  if (isAudioOnly) {
+                    if (folder.videoCount == 1) "1 Song" else "${folder.videoCount} Songs"
+                  } else if (includeAudio) {
                     if (folder.videoCount == 1) "1 Media item" else "${folder.videoCount} Media items"
                   } else if (folder.videoCount == 1) {
                     "1 Video"

@@ -243,6 +243,11 @@
   <string name="pref_decoder_vulkan_title">Vulkanを使用</string>
   <string name="pref_decoder_vulkan_summary">対応端末でVulkanレンダリングを有効にします（性能が向上する場合があります）</string>
   <string name="pref_decoder_vulkan_not_supported">非対応（Vulkan 1.3搭載のAndroid 13以降が必要）</string>
+  <string name="pref_decoder_vulkan_excluded_supported_device">OpenGLのみ（Vulkanには標準ビルドが必要）</string>
+  <string name="pref_decoder_vulkan_excluded_unsupported_device">OpenGLのみ（この端末はVulkan 1.3非対応）</string>
+  <string name="renderer_build_notice_title">Vulkanなしビルド</string>
+  <string name="renderer_build_notice_supported_device">OpenGLを使用中（Vulkanには標準ビルドが必要）</string>
+  <string name="renderer_build_notice_unsupported_device">OpenGLを使用中（この端末はVulkan 1.3非対応）</string>
   <string name="pref_decoder_yuv420p_title">YUV420Pピクセル形式を使用</string>
   <string name="pref_decoder_yuv420p_summary">一部の動画コーデックで黒画面を解消し、画質と引き換えに性能も向上する場合があります</string>
   <string name="pref_subtitles">字幕</string>
@@ -1163,6 +1168,7 @@
   <string name="ui_add_connection">接続を追加</string>
   <string name="ui_local_network">ローカルネットワーク</string>
   <string name="ui_no_network_connections">ネットワーク接続がありません</string>
+  <string name="ui_no_recent_links">最近のストリームリンクやトレントはまだありません。開始するには上にストリームURLを貼り付けてください。</string>
   <string name="ui_add_smb_ftp_or_webdav_connections_to_browse_network_files">SMB、FTP、WebDAV接続を追加してネットワークファイルを参照</string>
   <string name="ui_stream_link">ストリームリンク</string>
   <string name="ui_enter_stream_url">ストリームURLを入力…</string>
@@ -1492,6 +1498,7 @@
   <string name="filter_preset_vibrant_neon_like_colors_with_edge">エッジの効いた鮮やかなネオンカラー</string>
   <string name="filter_preset_enhanced_blacks_for_oled_displays">OLEDディスプレイ向けに黒を強調</string>
   <string name="syncplay_title">Syncplay</string>
+  <string name="syncplay_description">友達と動画を同期して視聴できます。一緒に視聴するにはSyncplayサーバーに接続してください。</string>
   <string name="syncplay_open">Syncplay を開く</string>
   <string name="syncplay_connected_as">%1$s としてルーム %2$s に接続中</string>
   <string name="syncplay_users_in_room">ルーム内のユーザー:</string>
@@ -1661,8 +1668,8 @@
   <string name="pref_codecs_min_resolution">最小解像度: %s</string>
   <string name="pref_codecs_alignment">ピクセルアライメント: %1$dx%2$d</string>
   <string name="ui_music">Music</string>
-  <string name="pref_nav_music_title">Show Music tab</string>
-  <string name="pref_nav_music_summary">Show or hide Music in the bottom navigation bar</string>
+  <string name="pref_nav_music_title">音楽タブを表示</string>
+  <string name="pref_nav_music_summary">下部ナビゲーションバーに音楽を表示または非表示</string>
   <string name="player_up_next_title">プレイリスト</string>
   <string name="player_lyrics_title">歌詞</string>
   <string name="lyrics_source_embedded">埋め込み</string>

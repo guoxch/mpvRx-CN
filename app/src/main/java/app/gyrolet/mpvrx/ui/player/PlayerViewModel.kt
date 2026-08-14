@@ -1305,11 +1305,12 @@ class PlayerViewModel : ViewModel(),
     syncplayManager.playbackStateProvider = { currentSyncplayPlaybackState() }
     syncplayManager.fileInfoProvider = { currentSyncplayFileInfo() }
     syncplayManager.onRemotePause = { shouldPause ->
-      viewModelScope.launch(Dispatchers.IO) {
+      viewModelScope.launch(playbackStateDispatcher) {
         val currentlyPaused = PlaybackSession.getPropertyBoolean("pause") ?: false
         if (currentlyPaused != shouldPause) {
           if (!shouldPause) {
-            withContext(Dispatchers.Main) { host.requestAudioFocus() }
+            val focusGranted = withContext(Dispatchers.Main) { host.requestAudioFocus() }
+            if (!focusGranted) return@launch
           }
           PlaybackSession.setPropertyBoolean("pause", shouldPause)
           if (shouldPause) {
@@ -1342,7 +1343,9 @@ class PlayerViewModel : ViewModel(),
     //   500 ms – paused
     viewModelScope.launch(playbackStateDispatcher) {
       while (isActive) {
-        if (!_isMpvCoreReady.value) {
+        val playbackPhase = PlaybackSession.state.value.phase
+        val hasActiveTimeline = playbackPhase == PlaybackPhase.READY || playbackPhase == PlaybackPhase.BACKGROUND
+        if (!_isMpvCoreReady.value || !hasActiveTimeline) {
           delay(250L)
           continue
         }
@@ -2612,11 +2615,9 @@ class PlayerViewModel : ViewModel(),
       _externalSubtitles.clear()
       // Reset subtitle hash when media changes.
       _videoHash.value = null
-      // Scan for previously downloaded/added subtitles
       scanLocalSubtitles(mediaTitle)
       syncplayManager.updateFileInfo(currentSyncplayFileInfo())
 
-      // Restore persisted aspect mode, while zoom and pan continue to reset per file.
       restoreSavedVideoAspect(showUpdate = false)
       skippedSegmentTypes.clear()
       chapterDerivedSegments = emptyList()
@@ -3559,21 +3560,23 @@ class PlayerViewModel : ViewModel(),
   // ==================== Playback Control ====================
 
   fun pauseUnpause() {
-    viewModelScope.launch(Dispatchers.IO) {
+    viewModelScope.launch(playbackStateDispatcher) {
       val wasPaused = PlaybackSession.getPropertyBoolean("pause") ?: PlaybackSession.state.value.paused
       if (wasPaused) {
-        withContext(Dispatchers.Main) { host.requestAudioFocus() }
-      }
-      val isPaused = PlaybackSession.togglePause() ?: return@launch
-      syncplayManager.updatePlayerState(precisePosition.value.toDouble(), isPaused, doSeek = false)
-      if (isPaused) {
+        val focusGranted = withContext(Dispatchers.Main) { host.requestAudioFocus() }
+        if (!focusGranted) return@launch
+        PlaybackSession.setPropertyBoolean("pause", false)
+        syncplayManager.updatePlayerState(precisePosition.value.toDouble(), false, doSeek = false)
+      } else {
+        PlaybackSession.setPropertyBoolean("pause", true)
+        syncplayManager.updatePlayerState(precisePosition.value.toDouble(), true, doSeek = false)
         withContext(Dispatchers.Main) { host.abandonAudioFocus() }
       }
     }
   }
 
   fun pause() {
-    viewModelScope.launch(Dispatchers.IO) {
+    viewModelScope.launch(playbackStateDispatcher) {
       PlaybackSession.setPropertyBoolean("pause", true)
       syncplayManager.updatePlayerState(precisePosition.value.toDouble(), true, doSeek = false)
       withContext(Dispatchers.Main) { host.abandonAudioFocus() }
@@ -3581,8 +3584,9 @@ class PlayerViewModel : ViewModel(),
   }
 
   fun unpause() {
-    viewModelScope.launch(Dispatchers.IO) {
-      withContext(Dispatchers.Main) { host.requestAudioFocus() }
+    viewModelScope.launch(playbackStateDispatcher) {
+      val focusGranted = withContext(Dispatchers.Main) { host.requestAudioFocus() }
+      if (!focusGranted) return@launch
       PlaybackSession.setPropertyBoolean("pause", false)
       syncplayManager.updatePlayerState(precisePosition.value.toDouble(), false, doSeek = false)
     }

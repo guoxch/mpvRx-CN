@@ -243,6 +243,11 @@ Weiter: NEXT</string>
   <string name="pref_decoder_vulkan_title">Vulkan verwenden</string>
   <string name="pref_decoder_vulkan_summary">Vulkan-Rendering auf unterstützten Geräten aktivieren (kann die Leistung verbessern)</string>
   <string name="pref_decoder_vulkan_not_supported">Nicht unterstützt (erfordert Android 13+ mit Vulkan 1.3)</string>
+  <string name="pref_decoder_vulkan_excluded_supported_device">Nur OpenGL; für Vulkan die Standardversion installieren.</string>
+  <string name="pref_decoder_vulkan_excluded_unsupported_device">Nur OpenGL; dieses Gerät unterstützt Vulkan 1.3 nicht.</string>
+  <string name="renderer_build_notice_title">Version ohne Vulkan</string>
+  <string name="renderer_build_notice_supported_device">OpenGL wird verwendet; für Vulkan die Standardversion installieren.</string>
+  <string name="renderer_build_notice_unsupported_device">OpenGL wird verwendet; dieses Gerät unterstützt Vulkan 1.3 nicht.</string>
   <string name="pref_decoder_yuv420p_title">YUV420P-Pixelformat verwenden</string>
   <string name="pref_decoder_yuv420p_summary">Kann schwarze Bildschirme bei einigen Videocodecs beheben und die Leistung auf Kosten der Qualität verbessern</string>
   <string name="pref_subtitles">Untertitel</string>
@@ -1163,6 +1168,7 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="ui_add_connection">Verbindung hinzufügen</string>
   <string name="ui_local_network">Lokales Netzwerk</string>
   <string name="ui_no_network_connections">Keine Netzwerkverbindungen</string>
+  <string name="ui_no_recent_links">Noch keine aktuellen Stream-Links oder Torrents. Füge oben eine Stream-URL ein, um zu beginnen.</string>
   <string name="ui_add_smb_ftp_or_webdav_connections_to_browse_network_files">SMB-, FTP- oder WebDAV-Verbindungen hinzufügen, um Netzwerkdateien zu durchsuchen</string>
   <string name="ui_stream_link">Stream-Link</string>
   <string name="ui_enter_stream_url">Stream-URL eingeben…</string>
@@ -1492,6 +1498,7 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="filter_preset_vibrant_neon_like_colors_with_edge">Kräftige neonartige Farben mit markanter Wirkung</string>
   <string name="filter_preset_enhanced_blacks_for_oled_displays">Verbesserte Schwarztöne für OLED-Displays</string>
   <string name="syncplay_title">Syncplay</string>
+  <string name="syncplay_description">Sieh dir Videos synchron mit Freunden an. Verbinde dich mit einem Syncplay-Server, um gemeinsam zu schauen.</string>
   <string name="syncplay_open">Syncplay öffnen</string>
   <string name="syncplay_connected_as">Als %1$s mit Raum %2$s verbunden</string>
   <string name="syncplay_users_in_room">Benutzer im Raum:</string>
@@ -1661,8 +1668,8 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="pref_codecs_min_resolution">Min. Auflösung: %s</string>
   <string name="pref_codecs_alignment">Pixelausrichtung: %1$dx%2$d</string>
   <string name="ui_music">Music</string>
-  <string name="pref_nav_music_title">Show Music tab</string>
-  <string name="pref_nav_music_summary">Show or hide Music in the bottom navigation bar</string>
+  <string name="pref_nav_music_title">Musik-Tab anzeigen</string>
+  <string name="pref_nav_music_summary">Musik in der unteren Navigationsleiste anzeigen oder ausblenden</string>
   <string name="player_up_next_title">Wiedergabeliste</string>
   <string name="player_lyrics_title">Songtext</string>
   <string name="lyrics_source_embedded">Eingebettet</string>

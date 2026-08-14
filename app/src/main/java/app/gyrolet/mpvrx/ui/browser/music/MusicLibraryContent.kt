@@ -56,8 +56,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Surface
@@ -121,6 +121,7 @@ import app.gyrolet.mpvrx.ui.browser.components.BrowserTopBar
 import app.gyrolet.mpvrx.ui.browser.dialogs.AddToPlaylistDialog
 import app.gyrolet.mpvrx.ui.browser.dialogs.DeleteConfirmationDialog
 import app.gyrolet.mpvrx.ui.browser.dialogs.MusicSortDialog
+import app.gyrolet.mpvrx.ui.browser.folderlist.FolderListScreen
 import app.gyrolet.mpvrx.ui.browser.playlist.PlaylistDetailScreen
 import app.gyrolet.mpvrx.ui.browser.selection.rememberSelectionManager
 import app.gyrolet.mpvrx.ui.icons.Icon
@@ -186,6 +187,7 @@ fun MusicLibraryContent(
   val isPlaybackActive by musicViewModel.isPlaybackActive.collectAsState()
 
   val browserPreferences = koinInject<BrowserPreferences>()
+  val foldersPreferences = koinInject<app.gyrolet.mpvrx.preferences.FoldersPreferences>()
   val coverArtSizeDp by browserPreferences.musicCoverArtSize.collectAsState()
 
   val isRefreshing = remember { mutableStateOf(false) }
@@ -238,7 +240,11 @@ fun MusicLibraryContent(
     MusicTab.ALBUMS -> albumSelectionManager
     MusicTab.ARTISTS -> artistSelectionManager
     MusicTab.PLAYLISTS -> playlistSelectionManager
+    // Folders tab reuses FolderListScreen, which owns its own selection state.
+    MusicTab.FOLDERS -> songSelectionManager
   }
+
+  val visibleTabs by musicViewModel.visibleTabs.collectAsState()
 
   val appearancePreferences = koinInject<AppearancePreferences>()
   val showQuickPlayFab by appearancePreferences.showQuickPlayFab.collectAsState()
@@ -247,18 +253,29 @@ fun MusicLibraryContent(
   val isFabExpanded = remember { mutableStateOf(false) }
   val navigationBarHeight = LocalNavigationBarHeight.current
 
-  val pagerState = rememberPagerState(initialPage = selectedTab.ordinal) { MusicTab.defaultTabs.size }
+  val initialPageIndex = remember(selectedTab, visibleTabs) {
+    visibleTabs.indexOf(selectedTab).coerceAtLeast(0)
+  }
+  val pagerState = rememberPagerState(initialPage = initialPageIndex) { visibleTabs.size }
 
   LaunchedEffect(Unit) {
     musicViewModel.scanLibrary(context)
   }
 
-  LaunchedEffect(pagerState.settledPage) {
-    musicViewModel.setTab(MusicTab.defaultTabs[pagerState.settledPage])
+  LaunchedEffect(visibleTabs) {
+    if (selectedTab !in visibleTabs) {
+      visibleTabs.firstOrNull()?.let { musicViewModel.setTab(it) }
+    }
   }
 
-  LaunchedEffect(selectedTab) {
-    val targetIndex = MusicTab.defaultTabs.indexOf(selectedTab)
+  LaunchedEffect(pagerState.settledPage, visibleTabs) {
+    visibleTabs.getOrNull(pagerState.settledPage)?.let { tab ->
+      musicViewModel.setTab(tab)
+    }
+  }
+
+  LaunchedEffect(selectedTab, visibleTabs) {
+    val targetIndex = visibleTabs.indexOf(selectedTab)
     if (targetIndex >= 0 && pagerState.currentPage != targetIndex) {
       pagerState.animateScrollToPage(targetIndex)
     }
@@ -282,8 +299,13 @@ fun MusicLibraryContent(
     }
   }
 
-  BackHandler(enabled = activeSelectionManager.isInSelectionMode) {
-    activeSelectionManager.clear()
+  BackHandler(enabled = isSearchActive || activeSelectionManager.isInSelectionMode) {
+    if (isSearchActive) {
+      isSearchActive = false
+      musicViewModel.setSearchQuery("")
+    } else if (activeSelectionManager.isInSelectionMode) {
+      activeSelectionManager.clear()
+    }
   }
 
   // Playlist detail overlay when a playlist is opened
@@ -298,6 +320,7 @@ fun MusicLibraryContent(
     MusicTab.ALBUMS -> albums.size
     MusicTab.ARTISTS -> artists.size
     MusicTab.PLAYLISTS -> playlists.size
+    MusicTab.FOLDERS -> 0
   }
 
   Scaffold(
@@ -319,7 +342,7 @@ fun MusicLibraryContent(
                 onSearch = { },
                 expanded = false,
                 onExpandedChange = { },
-                placeholder = { Text("Search songs, albums, artists...") },
+                placeholder = { Text(if (selectedTab == MusicTab.FOLDERS) "Search folders & songs..." else "Search songs, albums, artists...") },
                 leadingIcon = {
                   IconButton(onClick = {
                     isSearchActive = false
@@ -392,8 +415,26 @@ fun MusicLibraryContent(
                     musicViewModel.playAllSongs(context, artistSongs, shuffle = false)
                   }
                   MusicTab.PLAYLISTS -> { }
+                  MusicTab.FOLDERS -> { }
                 }
               },
+              onPinClick = null,
+              onBlacklistClick = {
+                val selectedItems = activeSelectionManager.getSelectedItems()
+                val selectedPaths = selectedItems.mapNotNull { item ->
+                  when (item) {
+                    is MusicSong -> java.io.File(item.path).parent
+                    else -> null
+                  }
+                }.toSet()
+                if (selectedPaths.isNotEmpty()) {
+                  foldersPreferences.addBlacklistedFolders(selectedPaths, app.gyrolet.mpvrx.preferences.BlacklistScope.AUDIO_ONLY)
+                  activeSelectionManager.clear()
+                }
+              },
+              onRenameClick = null,
+              isSingleSelection = activeSelectionManager.isSingleSelection,
+              onInfoClick = null,
               onAddToPlaylistClick = null
             )
           }
@@ -410,13 +451,14 @@ fun MusicLibraryContent(
           onViewModeChange = { musicViewModel.setViewMode(it) }
         )
 
-        PrimaryTabRow(
-          selectedTabIndex = pagerState.currentPage,
+        ScrollableTabRow(
+          selectedTabIndex = pagerState.currentPage.coerceIn(0, (visibleTabs.size - 1).coerceAtLeast(0)),
           containerColor = Color.Transparent,
           contentColor = MaterialTheme.colorScheme.primary,
-          modifier = Modifier.padding(horizontal = 8.dp)
+          edgePadding = 8.dp,
+          divider = {}
         ) {
-          MusicTab.defaultTabs.forEachIndexed { index, tab ->
+          visibleTabs.forEachIndexed { index, tab ->
             Tab(
               selected = pagerState.currentPage == index,
               onClick = {
@@ -429,17 +471,24 @@ fun MusicLibraryContent(
                 Text(
                   text = tab.title,
                   style = MaterialTheme.typography.titleMedium,
-                  fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Medium
+                  fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Medium,
+                  maxLines = 1,
+                  softWrap = false,
+                  overflow = TextOverflow.Ellipsis
                 )
               }
             )
           }
         }
+        HorizontalDivider()
       }
     },
     floatingActionButton = {
-      val isPlaylistsTab = MusicTab.defaultTabs.getOrNull(pagerState.currentPage) == MusicTab.PLAYLISTS
-      if (isPlaylistsTab) {
+      val isPlaylistsTab = visibleTabs.getOrNull(pagerState.currentPage) == MusicTab.PLAYLISTS
+      val isFoldersTab = visibleTabs.getOrNull(pagerState.currentPage) == MusicTab.FOLDERS
+      if (isFoldersTab) {
+        // FolderListScreen.MediaStoreFolderListContent renders its own FAB, skip ours.
+      } else if (isPlaylistsTab) {
         FloatingActionButtonMenu(
           modifier = Modifier.padding(bottom = (navigationBarHeight - 16.dp).coerceAtLeast(0.dp)),
           expanded = false,
@@ -543,7 +592,8 @@ fun MusicLibraryContent(
             state = pagerState,
             modifier = Modifier.fillMaxSize()
           ) { page ->
-            when (MusicTab.defaultTabs[page]) {
+            val activeTab = visibleTabs.getOrNull(page) ?: MusicTab.SONGS
+            when (activeTab) {
               MusicTab.SONGS -> SongsTabContent(
                 songs = songs,
                 viewMode = viewMode,
@@ -613,6 +663,14 @@ fun MusicLibraryContent(
                   playlistSelectionManager.toggle(playlist)
                 },
                 selectionManager = playlistSelectionManager,
+              )
+
+              // Reuse the exact same folder-browsing screen Home uses for videos,
+              // just scoped to audio (audioOnly = true).
+              MusicTab.FOLDERS -> FolderListScreen.MediaStoreFolderListContent(
+                audioOnly = true,
+                embedded = true,
+                searchQuery = searchQuery,
               )
             }
           }
@@ -1004,6 +1062,7 @@ fun MusicLibraryContent(
                 songs.filter { s -> selArtists.any { ar -> s.artist.equals(ar.name, ignoreCase = true) } }.map { it.toVideo() }
               }
               MusicTab.PLAYLISTS -> emptyList()
+              MusicTab.FOLDERS -> emptyList()
             }
             if (videosToAdd.isNotEmpty()) {
               selectedVideosForAddToPlaylist = videosToAdd
@@ -1013,7 +1072,7 @@ fun MusicLibraryContent(
           showMove = false,
           showRename = false,
           showDelete = selectedTab == MusicTab.SONGS || selectedTab == MusicTab.PLAYLISTS,
-          showAddToPlaylist = selectedTab != MusicTab.PLAYLISTS,
+          showAddToPlaylist = selectedTab != MusicTab.PLAYLISTS && selectedTab != MusicTab.FOLDERS,
           modifier = Modifier.align(Alignment.BottomCenter)
         )
     }

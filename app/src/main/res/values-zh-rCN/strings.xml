@@ -243,6 +243,11 @@
   <string name="pref_decoder_vulkan_title">使用 Vulkan</string>
   <string name="pref_decoder_vulkan_summary">在受支持的设备上启用 Vulkan 渲染（可能提高性能）</string>
   <string name="pref_decoder_vulkan_not_supported">不支持（需要 Android 13+ 和 Vulkan 1.3）</string>
+  <string name="pref_decoder_vulkan_excluded_supported_device">仅支持 OpenGL；如需 Vulkan，请安装标准版。</string>
+  <string name="pref_decoder_vulkan_excluded_unsupported_device">仅支持 OpenGL；此设备不支持 Vulkan 1.3。</string>
+  <string name="renderer_build_notice_title">无 Vulkan 版本</string>
+  <string name="renderer_build_notice_supported_device">正在使用 OpenGL；如需 Vulkan，请安装标准版。</string>
+  <string name="renderer_build_notice_unsupported_device">正在使用 OpenGL；此设备不支持 Vulkan 1.3。</string>
   <string name="pref_decoder_yuv420p_title">使用 YUV420P 像素格式</string>
   <string name="pref_decoder_yuv420p_summary">可能修复部分视频编解码器的黑屏问题，也可牺牲画质来提升性能</string>
   <string name="pref_subtitles">字幕</string>
@@ -1176,6 +1181,7 @@
   <string name="ui_add_connection">添加连接</string>
   <string name="ui_local_network">本地网络</string>
   <string name="ui_no_network_connections">没有网络连接</string>
+  <string name="ui_no_recent_links">暂无最近的流媒体链接或种子。请在上方粘贴流媒体 URL 以开始使用。</string>
   <string name="ui_add_smb_ftp_or_webdav_connections_to_browse_network_files">添加 SMB、FTP 或 WebDAV 连接以浏览网络文件</string>
   <string name="ui_stream_link">流媒体链接</string>
   <string name="ui_enter_stream_url">输入流媒体 URL…</string>
@@ -1512,6 +1518,7 @@
   <string name="filter_preset_vibrant_neon_like_colors_with_edge">鲜艳锐利的霓虹色彩</string>
   <string name="filter_preset_enhanced_blacks_for_oled_displays">为 OLED 显示屏增强黑色表现</string>
   <string name="syncplay_title">Syncplay</string>
+  <string name="syncplay_description">与朋友同步观看视频。连接到 Syncplay 服务器即可开始一起观看。</string>
   <string name="syncplay_open">打开 Syncplay</string>
   <string name="syncplay_connected_as">已以 %1$s 身份连接到房间 %2$s</string>
   <string name="syncplay_users_in_room">房间中的用户：</string>
@@ -1684,8 +1691,8 @@
   <string name="pref_codecs_min_resolution">最低分辨率：%s</string>
   <string name="pref_codecs_alignment">像素对齐：%1$dx%2$d</string>
   <string name="ui_music">Music</string>
-  <string name="pref_nav_music_title">Show Music tab</string>
-  <string name="pref_nav_music_summary">Show or hide Music in the bottom navigation bar</string>
+  <string name="pref_nav_music_title">显示音乐标签页</string>
+  <string name="pref_nav_music_summary">在底部导航栏中显示或隐藏音乐</string>
   <string name="player_up_next_title">播放列表</string>
   <string name="player_lyrics_title">歌词</string>
   <string name="lyrics_source_embedded">内嵌</string>

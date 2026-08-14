@@ -106,21 +106,50 @@ fun VideoCard(
 ) {
   val appearancePreferences = koinInject<AppearancePreferences>()
   val browserPreferences = koinInject<BrowserPreferences>()
+
+  val unlimitedNameLines by appearancePreferences.unlimitedNameLines.collectAsState()
+  val showVideoThumbnails by browserPreferences.showVideoThumbnails.collectAsState()
+  val showSizeChipPref by browserPreferences.showSizeChip.collectAsState()
+  val showResolutionChipPref by browserPreferences.showResolutionChip.collectAsState()
+  val showFramerateInResolutionConfig by browserPreferences.showFramerateInResolution.collectAsState()
+  val showProgressBarConfig by browserPreferences.showProgressBar.collectAsState()
+  val showDateChipConfig by browserPreferences.showDateChip.collectAsState()
+  val showUnplayedOldVideoLabelConfig by appearancePreferences.showUnplayedOldVideoLabel.collectAsState()
+  val unplayedOldVideoDaysConfig by appearancePreferences.unplayedOldVideoDays.collectAsState()
+  val showExtensionField by browserPreferences.showExtensionField.collectAsState()
+  val showDurationFieldConfig by browserPreferences.showDurationField.collectAsState()
+  val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
+
   val resolvedUiConfig =
-    uiConfig ?: VideoCardUiConfig(
-      unlimitedNameLines = appearancePreferences.unlimitedNameLines.collectAsState().value,
-      showThumbnails = browserPreferences.showVideoThumbnails.collectAsState().value,
-      showSizeChip = browserPreferences.showSizeChip.collectAsState().value,
-      showResolutionChip = browserPreferences.showResolutionChip.collectAsState().value,
-      showFramerateInResolution = browserPreferences.showFramerateInResolution.collectAsState().value,
-      showProgressBar = browserPreferences.showProgressBar.collectAsState().value,
-      showDateChip = browserPreferences.showDateChip.collectAsState().value,
-      showUnplayedOldVideoLabel = appearancePreferences.showUnplayedOldVideoLabel.collectAsState().value,
-      unplayedOldVideoDays = appearancePreferences.unplayedOldVideoDays.collectAsState().value,
-      showExtensionField = browserPreferences.showExtensionField.collectAsState().value,
-      showDurationField = browserPreferences.showDurationField.collectAsState().value,
-      centerGridTitles = browserPreferences.centerGridTitles.collectAsState().value,
-    )
+    uiConfig ?: remember(
+      unlimitedNameLines,
+      showVideoThumbnails,
+      showSizeChipPref,
+      showResolutionChipPref,
+      showFramerateInResolutionConfig,
+      showProgressBarConfig,
+      showDateChipConfig,
+      showUnplayedOldVideoLabelConfig,
+      unplayedOldVideoDaysConfig,
+      showExtensionField,
+      showDurationFieldConfig,
+      centerGridTitles,
+    ) {
+      VideoCardUiConfig(
+        unlimitedNameLines = unlimitedNameLines,
+        showThumbnails = showVideoThumbnails,
+        showSizeChip = showSizeChipPref,
+        showResolutionChip = showResolutionChipPref,
+        showFramerateInResolution = showFramerateInResolutionConfig,
+        showProgressBar = showProgressBarConfig,
+        showDateChip = showDateChipConfig,
+        showUnplayedOldVideoLabel = showUnplayedOldVideoLabelConfig,
+        unplayedOldVideoDays = unplayedOldVideoDaysConfig,
+        showExtensionField = showExtensionField,
+        showDurationField = showDurationFieldConfig,
+        centerGridTitles = centerGridTitles,
+      )
+    }
   val maxLines = if (resolvedUiConfig.unlimitedNameLines) Int.MAX_VALUE else 2
 
   val showThumbnails = resolvedUiConfig.showThumbnails
@@ -250,6 +279,8 @@ fun VideoCard(
             }
           }
 
+          val thumbnailBitmap = remember(thumbnail) { thumbnail?.asImageBitmap() }
+
           // Thumbnail
           Box(
             modifier =
@@ -265,9 +296,9 @@ fun VideoCard(
             contentAlignment = Alignment.Center,
           ) {
             if (showThumbnails) {
-              thumbnail?.let {
+              thumbnailBitmap?.let {
                 Image(
-                  bitmap = it.asImageBitmap(),
+                  bitmap = it,
                   contentDescription =
                     androidx.compose.ui.res
                       .stringResource(app.gyrolet.mpvrx.R.string.ui_thumbnail),
@@ -504,10 +535,13 @@ fun VideoCard(
         ) {
           val thumbnailRepository = koinInject<ThumbnailRepository>()
           // Audio artwork is square; video thumbnails retain their 16:9 presentation.
-          val thumbWidthDp = 128.dp
           val aspect = if (video.isAudio) 1f else 16f / 9f
-          val thumbWidthPx = with(LocalDensity.current) { thumbWidthDp.roundToPx() }
-          val thumbHeightPx = (thumbWidthPx / aspect).roundToInt()
+          // Respect a caller-supplied size (e.g. the configurable Music cover-art size) instead of
+          // always hardcoding 128dp, otherwise controls like the Cover Art Size slider have no effect
+          // on this list layout.
+          val thumbWidthPx = thumbnailWidthPx?.takeIf { it > 0 } ?: with(LocalDensity.current) { 128.dp.roundToPx() }
+          val thumbWidthDp = with(LocalDensity.current) { thumbWidthPx.toDp() }
+          val thumbHeightPx = thumbnailHeightPx?.takeIf { it > 0 } ?: (thumbWidthPx / aspect).roundToInt()
 
           // Load thumbnail with optimized state management
           // Key includes video identity to prevent reloading same thumbnail
@@ -548,6 +582,8 @@ fun VideoCard(
             }
           }
 
+          val listThumbnailBitmap = remember(thumbnail) { thumbnail?.asImageBitmap() }
+
           Box(
             modifier =
               Modifier
@@ -562,9 +598,9 @@ fun VideoCard(
             contentAlignment = Alignment.Center,
           ) {
             if (showThumbnails) {
-              thumbnail?.let {
+              listThumbnailBitmap?.let {
                 Image(
-                  bitmap = it.asImageBitmap(),
+                  bitmap = it,
                   contentDescription =
                     androidx.compose.ui.res
                       .stringResource(app.gyrolet.mpvrx.R.string.ui_thumbnail),

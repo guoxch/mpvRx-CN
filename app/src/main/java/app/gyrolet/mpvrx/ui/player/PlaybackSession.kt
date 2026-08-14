@@ -125,9 +125,10 @@ object PlaybackSession : MPVLib.EventObserver {
 
   @Volatile
   private var initialized = false
+  private var nativeCoreReady = false
   private var applicationContext: Context? = null
   private var desiredVideoOutput = "gpu"
-  private var activeRendererConfigurationKey: String? = null
+  private var activeCoreConfigurationKey: String? = null
   private var attachedSurfaceOwner: Any? = null
   private var activeNetworkStream: NetworkStreamRegistration? = null
   private val auxiliaryNetworkStreams = linkedMapOf<String, NetworkStreamRegistration>()
@@ -157,22 +158,23 @@ object PlaybackSession : MPVLib.EventObserver {
     context: Context,
     configDir: String,
     cacheDir: String,
-    rendererConfigurationKey: String,
+    coreConfigurationKey: String,
     initOptions: () -> Unit,
     postInitOptions: () -> Unit,
     observeProperties: () -> Unit,
   ): Result<Boolean> =
     runCatching {
       nativeLock.withLock {
-        if (initialized && activeRendererConfigurationKey == rendererConfigurationKey) {
+        if (initialized && activeCoreConfigurationKey == coreConfigurationKey) {
           return@withLock false
         }
         if (initialized) {
-          Log.i(TAG, "Renderer configuration changed; recreating the libmpv core")
+          Log.i(TAG, "Playback core configuration changed; recreating the libmpv core")
           destroyLocked()
         }
 
         applicationContext = context.applicationContext
+        nativeCoreReady = false
         observedProperties.clear()
         suspendedVideoTrack = null
         desiredPaused = true
@@ -186,8 +188,13 @@ object PlaybackSession : MPVLib.EventObserver {
           MPVLib.setOptionString("config-dir", configDir)
           MPVLib.setOptionString("gpu-shader-cache-dir", cacheDir)
           MPVLib.setOptionString("icc-cache-dir", cacheDir)
+          // Keep app defaults before initialization. libmpv then parses the native mpv.conf once
+          // during init, preserving its profiles, includes and quoting without runtime replay.
           initOptions()
           MPVLib.init()
+          // Runtime properties do not exist between MPVLib.create() and MPVLib.init(). Keep option
+          // writes available in that window, but permit property reads only from this point on.
+          nativeCoreReady = true
           postInitOptions()
           MPVLib.setOptionString("force-window", "no")
           MPVLib.setOptionString("idle", "yes")
@@ -195,14 +202,15 @@ object PlaybackSession : MPVLib.EventObserver {
           reobserveTrackedProperties()
           observeProperties()
           initialized = true
-          activeRendererConfigurationKey = rendererConfigurationKey
+          activeCoreConfigurationKey = coreConfigurationKey
           updateState { it.copy(phase = PlaybackPhase.IDLE, paused = true, error = null) }
           true
         } catch (error: Throwable) {
           runCatching { MPVLib.removeObserver(this) }
           runCatching { MPVLib.destroy() }
           initialized = false
-          activeRendererConfigurationKey = null
+          nativeCoreReady = false
+          activeCoreConfigurationKey = null
           suspendedVideoTrack = null
           desiredPaused = true
           clearSeekAudioGuardLocked(restoreMute = false)
@@ -360,7 +368,8 @@ object PlaybackSession : MPVLib.EventObserver {
     observedProperties.clear()
     resetAmbientShaderTrackingLocked()
     initialized = false
-    activeRendererConfigurationKey = null
+    nativeCoreReady = false
+    activeCoreConfigurationKey = null
     updateState { PlaybackSessionState(phase = PlaybackPhase.UNINITIALIZED) }
   }
 
@@ -513,11 +522,8 @@ object PlaybackSession : MPVLib.EventObserver {
           error = null,
         )
       }
-      val userAgent = resolvedItem.headers.entries.firstOrNull { it.key.equals("User-Agent", ignoreCase = true) }?.value
-      val headerFields =
-        resolvedItem.headers.entries
-          .filterNot { it.key.equals("User-Agent", ignoreCase = true) }
-          .joinToString(",") { (name, value) -> "$name: ${value.replace(",", "\\,")}" }
+      val userAgent = PlaybackHttpHeaders.userAgent(resolvedItem.headers)
+      val headerFields = PlaybackHttpHeaders.toMpvHeaderFields(resolvedItem.headers)
       MPVLib.setPropertyString("user-agent", userAgent.orEmpty())
       MPVLib.setPropertyString("http-header-fields", headerFields)
       MPVLib.setPropertyString("force-media-title", "")
@@ -578,7 +584,7 @@ object PlaybackSession : MPVLib.EventObserver {
     value: String,
   ): Int = withCore(-1, allowInitializing = true) { MPVLib.setOptionString(name, value) }
 
-  fun getPropertyInt(property: String): Int? = withCore(null) { MPVLib.getPropertyInt(property) }
+  fun getPropertyInt(property: String): Int? = withReadyCore(null) { MPVLib.getPropertyInt(property) }
 
   fun setPropertyInt(
     property: String,
@@ -588,27 +594,33 @@ object PlaybackSession : MPVLib.EventObserver {
     if (property == "vid" && value > 0) suspendedVideoTrack = null
   }
 
-  fun getPropertyDouble(property: String): Double? = withCore(null) { MPVLib.getPropertyDouble(property) }
+  fun getPropertyDouble(property: String): Double? = withReadyCore(null) { MPVLib.getPropertyDouble(property) }
 
   fun setPropertyDouble(
     property: String,
     value: Double,
   ) = withCore(Unit) {
     when (property) {
-      "video-scale-x" -> setAmbientVideoScaleLocked(axis = 'x', value = value)
-      "video-scale-y" -> setAmbientVideoScaleLocked(axis = 'y', value = value)
+      "video-scale-x" -> {
+        desiredAmbientScaleX = value
+        MPVLib.setPropertyDouble(property, value)
+      }
+      "video-scale-y" -> {
+        desiredAmbientScaleY = value
+        MPVLib.setPropertyDouble(property, value)
+      }
       else -> MPVLib.setPropertyDouble(property, value)
     }
   }
 
-  fun getPropertyFloat(property: String): Float? = withCore(null) { MPVLib.getPropertyFloat(property) }
+  fun getPropertyFloat(property: String): Float? = withReadyCore(null) { MPVLib.getPropertyFloat(property) }
 
   fun setPropertyFloat(
     property: String,
     value: Float,
   ) = withCore(Unit) { MPVLib.setPropertyFloat(property, value) }
 
-  fun getPropertyBoolean(property: String): Boolean? = withCore(null) { MPVLib.getPropertyBoolean(property) }
+  fun getPropertyBoolean(property: String): Boolean? = withReadyCore(null) { MPVLib.getPropertyBoolean(property) }
 
   fun setPropertyBoolean(
     property: String,
@@ -652,9 +664,9 @@ object PlaybackSession : MPVLib.EventObserver {
       nextPaused
     }
 
-  fun getPropertyString(property: String): String? = withCore(null) { MPVLib.getPropertyString(property) }
+  fun getPropertyString(property: String): String? = withReadyCore(null) { MPVLib.getPropertyString(property) }
 
-  fun getPropertyNode(property: String): MPVNode? = withCore(null) { MPVLib.getPropertyNode(property) }
+  fun getPropertyNode(property: String): MPVNode? = withReadyCore(null) { MPVLib.getPropertyNode(property) }
 
   fun setPropertyString(
     property: String,
@@ -828,6 +840,16 @@ object PlaybackSession : MPVLib.EventObserver {
             schedulePlaybackTransitionAudioGuardRestoreLocked(PLAYBACK_TRANSITION_AUDIO_RESTORE_DELAY_MS)
             true
           }
+          MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
+            // A failed/finished file no longer has readable timeline properties. Publishing IDLE
+            // prevents UI polling from repeatedly querying unavailable time-pos/duration values.
+            val current = _state.value
+            if (current.activeGeneration == current.generation) {
+              updateState { it.copy(phase = PlaybackPhase.IDLE, activeGeneration = 0L, paused = true) }
+              propBoolean.emit("pause", true)
+            }
+            true
+          }
           MPVLib.MpvEvent.MPV_EVENT_SHUTDOWN -> {
             releaseActiveNetworkStream()
             releaseAuxiliaryNetworkStreams()
@@ -837,6 +859,7 @@ object PlaybackSession : MPVLib.EventObserver {
             clearPlaybackTransitionAudioGuardLocked(restoreMute = false)
             resetAmbientShaderTrackingLocked()
             initialized = false
+            nativeCoreReady = false
             updateState { it.copy(phase = PlaybackPhase.UNINITIALIZED, surfaceAttached = false, paused = true) }
             true
           }
@@ -926,31 +949,6 @@ object PlaybackSession : MPVLib.EventObserver {
     }
   }
 
-  /**
-   * Ambient Mode expands the real video quad and remaps it back in an OUTPUT shader. Applying the
-   * scale before that shader exists (or leaving it in place while the shader is replaced) exposes
-   * the expanded/cropped source frame directly. That is the intermittent full-frame corruption
-   * seen during file changes, HDR/Anime4K shader-stack rebuilds, and orientation changes.
-   *
-   * Non-1 ambient scales are therefore staged here and become visible only after the matching
-   * ambient shader has been appended. A scale of 1 is always applied immediately for teardown.
-   */
-  private fun setAmbientVideoScaleLocked(
-    axis: Char,
-    value: Double,
-  ) {
-    if (axis == 'x') desiredAmbientScaleX = value else desiredAmbientScaleY = value
-    if (kotlin.math.abs(value - 1.0) <= AMBIENT_SCALE_EPSILON) {
-      MPVLib.setPropertyDouble(if (axis == 'x') "video-scale-x" else "video-scale-y", 1.0)
-    }
-
-    // OFF/teardown writes x=1 then y=1. Purge again when both axes reach identity so an Ambient
-    // shader that raced between the ViewModel's remove and scale-reset calls cannot survive.
-    if (ambientScaleIsIdentityLocked()) {
-      clearAmbientShadersLocked(resetDesired = false)
-    }
-  }
-
   private fun handleAmbientShaderCommandLocked(command: Array<out String>): Boolean {
     if (command.size < 3 || command[0] != "change-list" || command[1] != "glsl-shaders") return false
 
@@ -1032,6 +1030,8 @@ object PlaybackSession : MPVLib.EventObserver {
   }
 
   private fun applyDesiredAmbientScaleLocked() {
+    // Bypass the interceptor — we already hold the staged values and need them applied
+    // to the renderer immediately after the ambient shader has been installed.
     MPVLib.setPropertyDouble("video-scale-x", desiredAmbientScaleX)
     MPVLib.setPropertyDouble("video-scale-y", desiredAmbientScaleY)
   }
@@ -1152,6 +1152,15 @@ object PlaybackSession : MPVLib.EventObserver {
       if (!initialized && !(allowInitializing && _state.value.phase == PlaybackPhase.INITIALIZING)) {
         return@withLock default
       }
+      block()
+    }
+
+  private inline fun <T> withReadyCore(
+    default: T,
+    block: () -> T,
+  ): T =
+    nativeLock.withLock {
+      if (!nativeCoreReady) return@withLock default
       block()
     }
 

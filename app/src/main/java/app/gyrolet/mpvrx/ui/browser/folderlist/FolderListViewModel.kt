@@ -124,10 +124,21 @@ class FolderListViewModel(
       }
     }
 
-    // Filter folders based on blacklist
+    // Filter folders based on blacklist (video vs audio scope)
+    val blacklistFlow = if (audioOnly) {
+      foldersPreferences.blacklistedAudioFolders.changes()
+    } else {
+      foldersPreferences.blacklistedFolders.changes()
+    }
+
     viewModelScope.launch {
-      combine(_allVideoFolders, foldersPreferences.blacklistedFolders.changes()) { folders, blacklist ->
-        folders.filter { folder -> folder.path !in blacklist }
+      combine(_allVideoFolders, blacklistFlow) { folders, blacklist ->
+        folders.filter { folder ->
+          blacklist.none { blacklisted ->
+            folder.path.equals(blacklisted, ignoreCase = true) ||
+              folder.path.startsWith(if (blacklisted.endsWith("/")) blacklisted else "$blacklisted/", ignoreCase = true)
+          }
+        }
       }.collectLatest { filteredFolders ->
         // Check if folders became empty after having folders
         if (previousFolderCount > 0 && filteredFolders.isEmpty()) {
@@ -195,7 +206,8 @@ class FolderListViewModel(
   }
 
   private fun currentFolderCacheKey(): String =
-    "folders_${if (foldersPreferences.includeNoMediaFolders.get()) "with_nomedia" else "exclude_nomedia"}" +
+    "folders_${if (audioOnly) "audioOnly" else "video"}" +
+      "_${if (foldersPreferences.includeNoMediaFolders.get()) "with_nomedia" else "exclude_nomedia"}" +
       "_audio_${browserPreferences.includeAudioBrowser.get()}_${browserPreferences.minimumAudioDurationSeconds.get()}"
 
   private fun serializeFoldersToJson(folders: List<VideoFolder>): String {
@@ -369,7 +381,6 @@ class FolderListViewModel(
                 minimumAudioDurationSeconds = browserPreferences.minimumAudioDurationSeconds.get(),
               )
             _allVideoFolders.value = folders
-            _videoFolders.value = folders
             _isLoading.value = false
             _hasCompletedInitialLoad.value = true
           } catch (e: Exception) {

@@ -80,6 +80,8 @@ import app.gyrolet.mpvrx.domain.torrent.TorrentStreamException
 import app.gyrolet.mpvrx.domain.torrent.TorrentStreamingEngine
 import app.gyrolet.mpvrx.domain.torrent.canonicalInfoHash
 import app.gyrolet.mpvrx.domain.torrent.isTorrentSource
+import app.gyrolet.mpvrx.network.AndroidCookieJar
+import app.gyrolet.mpvrx.network.NetworkUserAgent
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.AudioChannels
@@ -99,6 +101,7 @@ import app.gyrolet.mpvrx.ui.player.controls.PlayerControls
 import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlpManager
 import app.gyrolet.mpvrx.ui.theme.MpvrxTheme
 import app.gyrolet.mpvrx.ui.torrent.TorrentSelectionActivity
+import app.gyrolet.mpvrx.utils.device.VulkanCapabilities
 import app.gyrolet.mpvrx.utils.history.RecentlyPlayedOps
 import app.gyrolet.mpvrx.utils.media.HttpUtils
 import app.gyrolet.mpvrx.utils.media.JellyfinSessionReporter
@@ -132,6 +135,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
+import okhttp3.OkHttpClient
 import java.io.File
 import kotlin.math.pow
 
@@ -204,6 +208,10 @@ class PlayerActivity :
   private val torrentStreamingEngine: TorrentStreamingEngine by inject()
 
   private val networkStreamEntryRepository: NetworkStreamEntryRepository by inject()
+
+  private val networkHttpClient: OkHttpClient by inject()
+
+  private val androidCookieJar: AndroidCookieJar by inject()
 
   /**
    * Repository for managing playlists.
@@ -307,6 +315,7 @@ class PlayerActivity :
    */
   private var networkPlaylistPaths: List<String> = emptyList()
   private var networkPlaylistTitles: List<String> = emptyList()
+  private var networkPlaylistHeaders: List<Map<String, String>> = emptyList()
   private var networkPlaylistConnectionId: Long = -1L
 
   /**
@@ -318,6 +327,14 @@ class PlayerActivity :
    * Current index in the playlist
    */
   internal var playlistIndex: Int = 0
+
+  private data class SavedPlaylistSelection(
+    val index: Int,
+    val stableId: String?,
+    val originalUri: String?,
+  )
+
+  private var pendingSavedPlaylistSelection: SavedPlaylistSelection? = null
 
   /**
    * Playlist ID for tracking play history (optional, only for custom playlists)
@@ -429,11 +446,11 @@ class PlayerActivity :
    */
   private var audioFocusRequest: AudioFocusRequest? = null
 
-  /**
-   * Callback to restore audio focus after it's been lost and regained.
-   */
-  private var restoreAudioFocus: () -> Unit = {}
+  private var audioFocusRequestActive = false
   private var holdsAudioFocus = false
+  private var resumeOnAudioFocusGain = false
+  private var playbackDelayedForAudioFocus = false
+  private var volumeBeforeAudioFocusDuck: Double? = null
 
   // ==================== Broadcast Receivers ====================
 
@@ -484,37 +501,51 @@ class PlayerActivity :
   private val audioFocusChangeListener =
     AudioManager.OnAudioFocusChangeListener { focusChange ->
       when (focusChange) {
-        AudioManager.AUDIOFOCUS_LOSS,
-        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-        -> {
+        AudioManager.AUDIOFOCUS_LOSS -> {
+          audioFocusRequestActive = false
           holdsAudioFocus = false
+          resumeOnAudioFocusGain = false
+          playbackDelayedForAudioFocus = false
+          restoreDuckedAudioVolume()
           // Ignore the loss caused by handing off playback to the detached
           // MediaPlaybackService so minimizing into the Mini Player does not pause.
           val handoff = isFinishing || isDestroyed || MediaPlaybackService.isActivityHandoffInProgress()
           if (handoff) return@OnAudioFocusChangeListener
-          // Save current state to restore later
-          val oldRestore = restoreAudioFocus
-          val wasPlayerPaused = viewModel.paused ?: false
-          viewModel.pause()
-          restoreAudioFocus = {
-            oldRestore()
-            if (!wasPlayerPaused) viewModel.unpause()
-          }
+          // Focus callbacks must not use the ordinary pause action: it abandons focus and can
+          // erase the resume intent while Android is still dispatching a transient focus cycle.
+          PlaybackSession.setPropertyBoolean("pause", true)
+        }
+
+        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+          holdsAudioFocus = false
+          val handoff = isFinishing || isDestroyed || MediaPlaybackService.isActivityHandoffInProgress()
+          if (handoff) return@OnAudioFocusChangeListener
+          val wasPlaying = PlaybackSession.getPropertyBoolean("pause") == false
+          // Android can dispatch the same transient loss more than once during a call. Once a
+          // playing session has requested resume, a later callback must not overwrite it merely
+          // because the first callback already paused mpv.
+          resumeOnAudioFocusGain = resumeOnAudioFocusGain || wasPlaying
+          PlaybackSession.setPropertyBoolean("pause", true)
         }
 
         AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-          // Lower volume temporarily
-          PlaybackSession.command("multiply", "volume", "0.5")
-          restoreAudioFocus = {
-            PlaybackSession.command("multiply", "volume", "2")
+          if (volumeBeforeAudioFocusDuck == null) {
+            PlaybackSession.getPropertyDouble("volume")?.let { volume ->
+              volumeBeforeAudioFocusDuck = volume
+              PlaybackSession.setPropertyDouble("volume", volume * 0.5)
+            }
           }
         }
 
         AudioManager.AUDIOFOCUS_GAIN -> {
+          if (!audioFocusRequestActive) return@OnAudioFocusChangeListener
+          audioFocusRequestActive = true
           holdsAudioFocus = true
-          // Restore previous audio state
-          restoreAudioFocus()
-          restoreAudioFocus = {}
+          restoreDuckedAudioVolume()
+          val shouldResume = resumeOnAudioFocusGain || playbackDelayedForAudioFocus
+          resumeOnAudioFocusGain = false
+          playbackDelayedForAudioFocus = false
+          if (shouldResume) PlaybackSession.setPropertyBoolean("pause", false)
         }
 
         AudioManager.AUDIOFOCUS_REQUEST_FAILED -> {
@@ -527,6 +558,7 @@ class PlayerActivity :
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     if (redirectUnselectedTorrentToPicker(intent, finishCurrent = true)) return
+    pendingSavedPlaylistSelection = savedInstanceState?.toSavedPlaylistSelection()
     mediaRequestGeneration++
     // Read from the actual launch intent now that it's safe to (see isSecureFolderLaunch kdoc).
     isSecureFolderLaunch = intent.getStringExtra("launch_source") == "secure_folder"
@@ -537,9 +569,10 @@ class PlayerActivity :
     // A detached background session belongs to PlaybackSession, not to the old Activity.
     // Notification re-entry attaches this new surface to that live core without reloading it.
     releaseDetachedBackgroundPlaybackBeforeFreshLaunch()
-    if (!setupMPV()) {
+    val setupResult = setupMPV()
+    if (setupResult != null) {
       isUserFinishing = true
-      Toast.makeText(this, R.string.toast_playback_load_failed, Toast.LENGTH_LONG).show()
+      Toast.makeText(this, getString(R.string.toast_playback_load_failed) + ": " + setupResult, Toast.LENGTH_LONG).show()
       finish()
       return
     }
@@ -581,16 +614,19 @@ class PlayerActivity :
     val preparedPlaybackQueue =
       playlist.isEmpty() && restorePreparedPlaybackQueue(intent)
 
+    var restoredSavedPlaylistItem = false
     if (playlist.isNotEmpty()) {
       playlistIndex = playlistIndex.coerceIn(0, playlist.lastIndex)
+      restoredSavedPlaylistItem = applyPendingSavedSelection(playlist)
       playlistWindowOffset = 0
       playlistTotalCount = playlist.size
       viewModel.refreshPlaylistItems()
     }
+    val hasReusableSavedPlaybackSession = hasValidSavedPlaybackSession()
 
     // If playlist is empty but playlist_id is provided, load asynchronously from database
     // Load all items - LazyColumn handles pagination/virtualization efficiently
-    if (playlist.isEmpty() && playlistId != null) {
+    if (playlist.isEmpty() && playlistId != null && !hasReusableSavedPlaybackSession) {
       lifecycleScope.launch(Dispatchers.IO) {
         val pid = playlistId ?: return@launch
         try {
@@ -606,7 +642,11 @@ class PlayerActivity :
     }
 
     // Only auto-generate playlist from folder if playlist mode is enabled and no playlist_id
-    if (playlist.isEmpty() && playlistId == null && playerPreferences.playlistMode.get()) {
+    if (playlist.isEmpty() &&
+      playlistId == null &&
+      playerPreferences.playlistMode.get() &&
+      !hasReusableSavedPlaybackSession
+    ) {
       val path = parsePathFromIntent(intent)
       if (path != null) {
         generatePlaylistFromFolder(path)
@@ -621,40 +661,56 @@ class PlayerActivity :
     legacyMediaIdentifier = getLegacyMediaIdentifier(intent, fileName)
     mediaIdentifier = getMediaIdentifier(intent, fileName)
 
-    if (intent.action != MediaPlaybackService.ACTION_OPEN_PLAYER && !preparedPlaybackQueue) {
+    // A validated process-local session still owns its queue. Do not clear or republish it before
+    // the saved-state attachment below has a chance to claim that exact current item.
+    if (intent.action != MediaPlaybackService.ACTION_OPEN_PLAYER &&
+      !preparedPlaybackQueue &&
+      !hasReusableSavedPlaybackSession
+    ) {
       if (playlist.isEmpty()) PlaybackSession.clearQueue() else publishPlaylistToSession()
     }
 
     // Set HTTP headers (including referer) BEFORE playing the file
     setHttpHeadersFromExtras(intent.extras)
 
-    val attachedToCurrentSession = attachToCurrentPlaybackSessionIfRequested()
-    if (!attachedToCurrentSession) getPlayableUri(intent)?.let { playableUri ->
-      // Remind user if they forgot to set up yt-dlp
-      if (playableUri.startsWith("http") && !playableUri.substringAfterLast('/').contains('.')) {
-        val ytdlDir = YtdlpManager.getYtdlDir(this)
-        if (!File(ytdlDir, "yt-dlp").exists()) {
-          viewModel.showToast(getString(R.string.toast_need_ytdl))
+    val attachedToCurrentSession =
+      attachToCurrentPlaybackSessionIfRequested() || attachToSavedPlaybackSessionIfValid()
+    if (!attachedToCurrentSession && !restoredSavedPlaylistItem && playlist.isNotEmpty()) {
+      pendingSavedPlaylistSelection = null
+    }
+    val awaitingRoomPlaylistRestore =
+      !attachedToCurrentSession && pendingSavedPlaylistSelection != null && playlist.isEmpty() && playlistId != null
+    if (!attachedToCurrentSession && restoredSavedPlaylistItem) {
+      pendingSavedPlaylistSelection = null
+      loadPlaylistItemInternal(playlistIndex, saveCurrentPlaybackState = false)
+    } else if (!attachedToCurrentSession && !awaitingRoomPlaylistRestore) {
+      getPlayableUri(intent)?.let { playableUri ->
+        // Remind user if they forgot to set up yt-dlp
+        if (playableUri.startsWith("http") && !playableUri.substringAfterLast('/').contains('.')) {
+          val ytdlDir = YtdlpManager.getYtdlDir(this)
+          if (!File(ytdlDir, "yt-dlp").exists()) {
+            viewModel.showToast(getString(R.string.toast_need_ytdl))
+          }
         }
-      }
 
-      currentPlayableUri = playableUri
-      isReady = false
-      viewModel.onVideoLoadStarted()
-      val originalUri = extractUriFromIntent(intent)
-      val shouldExpandM3u =
-        M3uPlaybackPolicy.shouldExpandInApp(
-          playableUri = playableUri,
-          originalUri = originalUri?.toString(),
-          fileName = fileName,
-          mimeType = intent.type,
-          hasExistingPlaylist = playlist.isNotEmpty(),
-          hasPlaylistId = playlistId != null,
-        )
-      if (shouldExpandM3u) {
-        startMediaLoad(playableUri, originalUri?.toString(), expandM3u = true)
-      } else {
-        startMediaLoad(playableUri, originalUri?.toString())
+        currentPlayableUri = playableUri
+        isReady = false
+        viewModel.onVideoLoadStarted()
+        val originalUri = extractUriFromIntent(intent)
+        val shouldExpandM3u =
+          M3uPlaybackPolicy.shouldExpandInApp(
+            playableUri = playableUri,
+            originalUri = originalUri?.toString(),
+            fileName = fileName,
+            mimeType = intent.type,
+            hasExistingPlaylist = playlist.isNotEmpty(),
+            hasPlaylistId = playlistId != null,
+          )
+        if (shouldExpandM3u) {
+          startMediaLoad(playableUri, originalUri?.toString(), expandM3u = true)
+        } else {
+          startMediaLoad(playableUri, originalUri?.toString())
+        }
       }
     }
     setupCastPlayback()
@@ -1066,23 +1122,34 @@ class PlayerActivity :
    * @return true if audio focus was granted immediately, false otherwise
    */
   override fun requestAudioFocus(): Boolean {
+    if (holdsAudioFocus) return true
+    if (audioFocusRequestActive) {
+      playbackDelayedForAudioFocus = true
+      return false
+    }
     val req = audioFocusRequest ?: return false
     val result = audioManager.requestAudioFocus(req)
     return when (result) {
       AudioManager.AUDIOFOCUS_REQUEST_GRANTED -> {
+        audioFocusRequestActive = true
         holdsAudioFocus = true
-        restoreAudioFocus = {}
+        playbackDelayedForAudioFocus = false
+        resumeOnAudioFocusGain = false
         true
       }
 
       AudioManager.AUDIOFOCUS_REQUEST_DELAYED -> {
-        restoreAudioFocus = { requestAudioFocus() }
+        audioFocusRequestActive = true
+        holdsAudioFocus = false
+        playbackDelayedForAudioFocus = true
         false
       }
 
       else -> {
+        audioFocusRequestActive = false
         holdsAudioFocus = false
-        restoreAudioFocus = {}
+        playbackDelayedForAudioFocus = false
+        resumeOnAudioFocusGain = false
         false
       }
     }
@@ -1127,6 +1194,20 @@ class PlayerActivity :
     if (shouldAutoHideSystemBars()) {
       scheduleSystemBarsAutoHide(delayMs = 250L)
     }
+  }
+
+  override fun onSaveInstanceState(outState: Bundle) {
+    val queueState = PlaybackSession.queue.value
+    val currentItem = queueState.currentItem
+    val index = queueState.currentIndex.takeIf { currentItem != null && it >= 0 } ?: playlistIndex
+    val originalUri = currentItem?.originalUri ?: playlist.getOrNull(index)?.toString() ?: currentPlayableUri
+    val stableId = currentItem?.stableId ?: mediaIdentifier.takeIf { it.isNotBlank() }
+    if (index >= 0 && (!stableId.isNullOrBlank() || !originalUri.isNullOrBlank())) {
+      outState.putInt(STATE_PLAYLIST_INDEX, index)
+      outState.putString(STATE_PLAYLIST_STABLE_ID, stableId)
+      outState.putString(STATE_PLAYLIST_ORIGINAL_URI, originalUri)
+    }
+    super.onSaveInstanceState(outState)
   }
 
   override fun onDestroy() {
@@ -1232,6 +1313,7 @@ class PlayerActivity :
             playlistTotalCount = playlist.size
             networkPlaylistPaths = queueItems.map { queued -> queued.networkSource?.relativePath.orEmpty() }
             networkPlaylistTitles = queueItems.map { queued -> queued.title.orEmpty() }
+            networkPlaylistHeaders = queueItems.map(PlaybackItem::headers)
             networkPlaylistConnectionId = item.networkSource?.connectionId ?: -1L
             fileName = item.title?.takeIf { it.isNotBlank() } ?: getFileNameFromUri(Uri.parse(item.originalUri))
             legacyMediaIdentifier = null
@@ -1247,11 +1329,19 @@ class PlayerActivity :
   }
 
   override fun abandonAudioFocus() {
-    if (holdsAudioFocus) {
+    resumeOnAudioFocusGain = false
+    playbackDelayedForAudioFocus = false
+    restoreDuckedAudioVolume()
+    if (audioFocusRequestActive) {
       audioFocusRequest?.let { req -> runCatching { audioManager.abandonAudioFocusRequest(req) } }
-      holdsAudioFocus = false
     }
-    restoreAudioFocus = {}
+    audioFocusRequestActive = false
+    holdsAudioFocus = false
+  }
+
+  private fun restoreDuckedAudioVolume() {
+    volumeBeforeAudioFocusDuck?.let { volume -> PlaybackSession.setPropertyDouble("volume", volume) }
+    volumeBeforeAudioFocusDuck = null
   }
 
   private fun cleanupAudio() {
@@ -1694,7 +1784,9 @@ class PlayerActivity :
   }
 
   private fun releaseDetachedBackgroundPlaybackBeforeFreshLaunch() {
-    if (intent.action == MediaPlaybackService.ACTION_OPEN_PLAYER && PlaybackSession.isInitialized) {
+    if ((intent.action == MediaPlaybackService.ACTION_OPEN_PLAYER || hasValidSavedPlaybackSession()) &&
+      PlaybackSession.isInitialized
+    ) {
       MediaPlaybackService.prepareForActivityHandoff()
       PlaybackSession.markForeground()
       return
@@ -1709,6 +1801,27 @@ class PlayerActivity :
 
   private fun attachToCurrentPlaybackSessionIfRequested(sourceIntent: Intent = intent): Boolean {
     if (sourceIntent.action != MediaPlaybackService.ACTION_OPEN_PLAYER) return false
+    return attachToPlaybackSession(sourceIntent)
+  }
+
+  private fun attachToSavedPlaybackSessionIfValid(sourceIntent: Intent = intent): Boolean {
+    if (!hasValidSavedPlaybackSession()) return false
+    val attached = attachToPlaybackSession(sourceIntent)
+    if (attached) pendingSavedPlaylistSelection = null
+    return attached
+  }
+
+  private fun hasValidSavedPlaybackSession(): Boolean {
+    val saved = pendingSavedPlaylistSelection ?: return false
+    val state = PlaybackSession.state.value
+    if (state.phase !in setOf(PlaybackPhase.LOADING, PlaybackPhase.READY, PlaybackPhase.BACKGROUND)) return false
+    val queue = PlaybackSession.queue.value
+    if (queue.currentIndex != saved.index) return false
+    val item = queue.currentItem ?: return false
+    return saved.stableId == item.stableId || saved.originalUri == item.originalUri
+  }
+
+  private fun attachToPlaybackSession(sourceIntent: Intent): Boolean {
     val sessionState = PlaybackSession.state.value
     val currentItem = sessionState.currentItem ?: PlaybackSession.queue.value.currentItem ?: return false
     if (sessionState.phase !in setOf(PlaybackPhase.LOADING, PlaybackPhase.READY, PlaybackPhase.BACKGROUND)) return false
@@ -1720,6 +1833,7 @@ class PlayerActivity :
     playlistTotalCount = playlist.size
     networkPlaylistPaths = queueState.items.map { item -> item.networkSource?.relativePath.orEmpty() }
     networkPlaylistTitles = queueState.items.map { item -> item.title.orEmpty() }
+    networkPlaylistHeaders = queueState.items.map(PlaybackItem::headers)
     networkPlaylistConnectionId = currentItem.networkSource?.connectionId ?: -1L
 
     fileName = currentItem.title?.takeIf { it.isNotBlank() } ?: getFileNameFromUri(Uri.parse(currentItem.originalUri))
@@ -1730,11 +1844,17 @@ class PlayerActivity :
     PlaybackSession.markForeground()
 
     val mediaIntent =
-      Intent(Intent.ACTION_VIEW, Uri.parse(currentItem.originalUri)).apply {
+      Intent(sourceIntent).apply {
+        action = Intent.ACTION_VIEW
+        data = Uri.parse(currentItem.originalUri)
         type = currentItem.mimeType
         putExtra("title", currentItem.title)
         putExtra("media_identifier", currentItem.stableId)
-        putExtra("launch_source", "notification")
+        putExtra("playlist_index", queueState.currentIndex)
+        playlistId?.let { id -> putExtra("playlist_id", id) }
+        if (sourceIntent.action == MediaPlaybackService.ACTION_OPEN_PLAYER) {
+          putExtra("launch_source", "notification")
+        }
         putExtra("internal_launch", true)
         val isAudio =
           sourceIntent.getBooleanExtra("is_audio", false) ||
@@ -1779,6 +1899,7 @@ class PlayerActivity :
     playlistTotalCount = playlist.size
     networkPlaylistPaths = queueState.items.map { item -> item.networkSource?.relativePath.orEmpty() }
     networkPlaylistTitles = queueState.items.map { item -> item.title.orEmpty() }
+    networkPlaylistHeaders = queueState.items.map(PlaybackItem::headers)
     networkPlaylistConnectionId = currentItem.networkSource?.connectionId ?: -1L
     return true
   }
@@ -1787,7 +1908,7 @@ class PlayerActivity :
    * Initializes the MPV player with the necessary paths and observers.
    * CRITICAL: Must copy config and scripts BEFORE initializing MPV, as MPV loads scripts during init.
    */
-  private fun setupMPV(): Boolean {
+  private fun setupMPV(): String? {
     // Prepare config and user MPV assets before initializing MPV.
     runCatching {
       syncBundledAssetsIfNeeded()
@@ -1805,7 +1926,8 @@ class PlayerActivity :
     }
 
     // NOW initialize MPV - it will find and load the scripts we just copied
-    if (!initializePlayerWithRendererFallback()) return false
+    val initError = initializePlayerWithRendererFallback()
+    if (initError != null) return initError
     runCatching { PlaybackSession.setThumbnailJavaVM(applicationContext) }
     mpvInitialized = true
     Log.d(TAG, "MPV initialized")
@@ -1814,26 +1936,25 @@ class PlayerActivity :
     PlaybackSession.addObserver(playerObserver)
 
     scheduleDeferredSubtitleFontsSync()
-    return true
+    return null
   }
 
-  private fun initializePlayerWithRendererFallback(): Boolean {
+  private fun initializePlayerWithRendererFallback(): String? {
     player.forceOpenGlFallback = false
-
     val firstAttempt = player.initializeSession(filesDir.path, cacheDir.path)
-    if (firstAttempt.isSuccess) return true
+    if (firstAttempt.isSuccess) return null
 
     val firstError = firstAttempt.exceptionOrNull()
-    if (!decoderPreferences.useVulkan.get()) {
+    if (!decoderPreferences.useVulkan.get() || !VulkanCapabilities.isAvailable(this)) {
       Log.e(TAG, "Failed to initialize MPV", firstError)
-      return false
+      return firstError?.message ?: firstError?.toString() ?: "Unknown error"
     }
 
     Log.w(TAG, "MPV Vulkan init failed, retrying with OpenGL fallback for this session", firstError)
     player.forceOpenGlFallback = true
     val fallbackAttempt = player.initializeSession(filesDir.path, cacheDir.path)
     fallbackAttempt.exceptionOrNull()?.let { error -> Log.e(TAG, "Failed to initialize MPV", error) }
-    return fallbackAttempt.isSuccess
+    return if (fallbackAttempt.isSuccess) null else fallbackAttempt.exceptionOrNull()?.message ?: fallbackAttempt.exceptionOrNull()?.toString() ?: "Unknown fallback error"
   }
 
   /**
@@ -2635,35 +2756,9 @@ class PlayerActivity :
    * @param extras Bundle containing HTTP headers
    */
   private fun setHttpHeadersFromExtras(extras: Bundle?) {
-    // Build header map starting with auto-detected referer
-    val headerMap = mutableMapOf<String, String>()
-    var userAgent: String? = null
-
-    // Automatically extract and set referer domain from the URL
     val uri = extractUriFromIntent(intent)
-    if (uri != null && HttpUtils.isNetworkStream(uri)) {
-      HttpUtils.extractRefererDomain(uri)?.let { referer ->
-        headerMap["Referer"] = referer
-        Log.d(TAG, "Auto-detected Referer: $referer")
-      }
-    }
-
-    // Process headers from extras (these can override the auto-detected referer)
-    extras?.getStringArray("headers")?.let { headers ->
-      headers
-        .asList()
-        .chunked(2)
-        .filter { it.size == 2 }
-        .forEach { (key, value) ->
-          if (key.equals("User-Agent", ignoreCase = true)) {
-            userAgent = value
-          } else {
-            headerMap[key] = value
-          }
-        }
-    }
-
-    applyHttpHeaders(userAgent, headerMap)
+    val headers = buildPlaybackHeaders(uri, PlaybackHttpHeaders.fromFlatPairs(extras?.getStringArray("headers")))
+    applyHttpHeaders(headers)
   }
 
   /**
@@ -2674,20 +2769,21 @@ class PlayerActivity :
    */
   private fun setHttpHeadersForUri(uri: Uri) {
     if (!HttpUtils.isNetworkStream(uri)) {
-      applyHttpHeaders(userAgent = null, headers = emptyMap())
+      applyHttpHeaders(emptyMap())
       return
     }
 
-    val headerMap = mutableMapOf<String, String>()
     val playlistItem = getPlaylistItemByUri(uri)
-
-    // Automatically extract and set referer domain from the URI
-    HttpUtils.extractRefererDomain(uri)?.let { referer ->
-      headerMap["Referer"] = referer
-      Log.d(TAG, "Auto-detected Referer for playlist item: $referer")
-    }
-
-    applyHttpHeaders(getEffectiveUserAgent(playlistItem), headerMap)
+    val itemHeaders =
+      PlaybackSession.queue.value.items
+        .getOrNull(playlistIndex)
+        ?.headers
+        .orEmpty()
+    val storedHeaders =
+      getEffectiveUserAgent(playlistItem)
+        ?.let { userAgent -> mapOf("User-Agent" to userAgent) }
+        .orEmpty()
+    applyHttpHeaders(buildPlaybackHeaders(uri, itemHeaders, storedHeaders))
   }
 
   /**
@@ -2862,20 +2958,23 @@ class PlayerActivity :
     item?.userAgent?.takeIf { it.isNotBlank() }
       ?: playlistEntity?.userAgent?.takeIf { it.isNotBlank() }
 
-  private fun applyHttpHeaders(
-    userAgent: String?,
-    headers: Map<String, String>,
-  ) {
-    PlaybackSession.setPropertyString("user-agent", userAgent.orEmpty())
+  private fun buildPlaybackHeaders(
+    uri: Uri?,
+    vararg sources: Map<String, String>,
+  ): Map<String, String> {
+    if (!HttpUtils.isNetworkStream(uri)) return emptyMap()
+    var headers = PlaybackHttpHeaders.merge(*sources)
+    headers = PlaybackHttpHeaders.withDefault(headers, "Referer", HttpUtils.extractRefererDomain(uri))
+    headers = PlaybackHttpHeaders.withDefault(headers, "User-Agent", NetworkUserAgent.resolve(this))
+    return headers
+  }
 
-    val headersString =
-      headers.entries.joinToString(",") { (key, value) ->
-        "$key: ${value.replace(",", "\\,")}"
-      }
-    PlaybackSession.setPropertyString("http-header-fields", headersString)
+  private fun applyHttpHeaders(headers: Map<String, String>) {
+    PlaybackSession.setPropertyString("user-agent", PlaybackHttpHeaders.userAgent(headers).orEmpty())
+    PlaybackSession.setPropertyString("http-header-fields", PlaybackHttpHeaders.toMpvHeaderFields(headers))
 
-    if (userAgent != null || headers.isNotEmpty()) {
-      Log.d(TAG, "Applied HTTP headers (ua=${userAgent != null}, count=${headers.size})")
+    if (headers.isNotEmpty()) {
+      Log.d(TAG, "Applied HTTP headers (ua=${PlaybackHttpHeaders.userAgent(headers) != null}, count=${headers.size})")
     }
   }
 
@@ -3380,8 +3479,6 @@ class PlayerActivity :
         }
         if (playWhenFileLoaded) {
           playWhenFileLoaded = false
-          requestAudioFocus()
-          PlaybackSession.setPropertyBoolean("pause", false)
         }
         viewModel.onVideoLoadCompleted()
         handleFileLoaded(loadGeneration)
@@ -3549,7 +3646,10 @@ class PlayerActivity :
       }
     }
 
-    if (subtitlesPreferences.autoEnableSubtitles.get() && subtitlesPreferences.autoloadMatchingSubtitles.get()) {
+    if (
+      subtitlesPreferences.autoEnableSubtitles.get() &&
+      subtitlesPreferences.autoloadMatchingSubtitles.get()
+    ) {
       lifecycleScope.launch {
         if (!PlaybackSession.isCurrentGeneration(loadGeneration)) return@launch
         // For network files played via proxy (SMB/WebDAV/FTP), use the original network file path
@@ -3980,7 +4080,7 @@ class PlayerActivity :
    * Applies saved playback state to MPV.
    *
    * Restores subtitle delay, audio delay, audio and track selections, and playback speed.
-   * Also restores saved time position if enabled.
+   * Also restores saved time position if enabled. Explicit player state remains authoritative.
    *
    * @param state The saved playback state entity
    */
@@ -4266,6 +4366,7 @@ class PlayerActivity :
 
     setIntent(intent)
     mediaRequestGeneration++
+    pendingSavedPlaylistSelection = null
     if (isKnownAudioLaunch(intent)) setOrientation()
 
     isBackgroundPlaybackSessionActive = false
@@ -4330,6 +4431,7 @@ class PlayerActivity :
       isM3uPlaylist = false
       networkPlaylistPaths = emptyList()
       networkPlaylistTitles = emptyList()
+      networkPlaylistHeaders = emptyList()
       networkPlaylistConnectionId = -1L
       PlaybackSession.clearQueue()
     }
@@ -4445,6 +4547,12 @@ class PlayerActivity :
     val requestedQueueItem = PlaybackSession.queue.value.items.getOrNull(requestedPlaylistIndex)
     val requestGeneration = mediaRequestGeneration
     val requestedSource = originalUri ?: extractUriFromIntent(sourceIntent)?.toString() ?: playableUri
+    val requestedHeaders =
+      buildPlaybackHeaders(
+        Uri.parse(requestedSource),
+        PlaybackHttpHeaders.fromFlatPairs(sourceIntent.extras?.getStringArray("headers")),
+        requestedQueueItem?.headers.orEmpty(),
+      )
     val requestedTorrentFileIndex = sourceIntent.getIntExtra("torrent_file_index", -1).takeIf { it >= 0 }
     val isTorrentRequest =
       isTorrentSource(requestedSource, sourceIntent.type) || isTorrentSource(playableUri, sourceIntent.type)
@@ -4532,7 +4640,6 @@ class PlayerActivity :
             }
           }
 
-          withContext(Dispatchers.Main) { requestAudioFocus() }
           // Tear down the outgoing video track before replacing the file.
           restoreVideoTrackAfterFileLoad = !disableVideoOnFallback
           PlaybackSession.setPropertyString("vid", "no")
@@ -4546,7 +4653,7 @@ class PlayerActivity :
             }
           val item =
             if (!isTorrentRequest) {
-              requestedQueueItem?.copy(playableUri = resolvedPlayableUri)
+              requestedQueueItem?.copy(playableUri = resolvedPlayableUri, headers = requestedHeaders)
             } else {
               null
             }
@@ -4556,11 +4663,19 @@ class PlayerActivity :
                 playableUri = resolvedPlayableUri,
                 title = resolvedFileName,
                 mimeType = resolvedMimeType,
+                headers = requestedHeaders,
                 networkSource = networkSource,
               )
+          val cookieSource =
+            sequenceOf(resolvedPlayableUri, resolvedOriginalUri)
+              .firstOrNull { value -> value.startsWith("http://", true) || value.startsWith("https://", true) }
+          if (cookieSource != null) {
+            androidCookieJar
+              .exportForPlayback(cookieSource, AndroidCookieJar.playbackCookieFile(this@PlayerActivity))
+              .onFailure { error -> Log.w(TAG, "Failed to prepare playback cookies", error) }
+          }
           if (requestedQueueItem == null || isTorrentRequest) PlaybackSession.replaceQueue(listOf(item), 0)
           PlaybackSession.load(item)
-          PlaybackSession.setPropertyBoolean("pause", false)
         } catch (error: CancellationException) {
           throw error
         } catch (error: Exception) {
@@ -5467,6 +5582,9 @@ class PlayerActivity :
     if (networkPlaylistTitles.size == playlist.size) {
       networkPlaylistTitles = networkPlaylistTitles.toMutableList().apply { add(to, removeAt(from)) }
     }
+    if (networkPlaylistHeaders.size == playlist.size) {
+      networkPlaylistHeaders = networkPlaylistHeaders.toMutableList().apply { add(to, removeAt(from)) }
+    }
 
     if (playlistItems.isNotEmpty() && from in playlistItems.indices && to in playlistItems.indices) {
       val mutableItems = playlistItems.toMutableList()
@@ -5532,14 +5650,17 @@ class PlayerActivity :
   /**
    * Internal method to load a playlist item
    */
-  private fun loadPlaylistItemInternal(index: Int) {
+  private fun loadPlaylistItemInternal(
+    index: Int,
+    saveCurrentPlaybackState: Boolean = true,
+  ) {
     if (index < 0 || index >= playlist.size) {
       Log.e(TAG, "Invalid playlist index: $index (playlist size: ${playlist.size})")
       return
     }
 
     // Save current video's playback state before switching
-    if (fileName.isNotBlank()) {
+    if (saveCurrentPlaybackState && fileName.isNotBlank()) {
       saveVideoPlaybackState(fileName)
       reportJellyfinStop()
     }
@@ -5946,7 +6067,41 @@ class PlayerActivity :
   private fun loadNetworkPlaylistMetadata(intent: Intent) {
     networkPlaylistPaths = intent.getStringArrayListExtra("network_playlist_paths") ?: emptyList()
     networkPlaylistTitles = intent.getStringArrayListExtra("network_playlist_titles") ?: emptyList()
+    networkPlaylistHeaders = emptyList()
     networkPlaylistConnectionId = intent.getLongExtra("network_playlist_connection_id", -1L)
+  }
+
+  private fun Bundle.toSavedPlaylistSelection(): SavedPlaylistSelection? {
+    if (!containsKey(STATE_PLAYLIST_INDEX)) return null
+    val index = getInt(STATE_PLAYLIST_INDEX, -1)
+    val stableId = getString(STATE_PLAYLIST_STABLE_ID)?.takeIf { it.isNotBlank() }
+    val originalUri = getString(STATE_PLAYLIST_ORIGINAL_URI)?.takeIf { it.isNotBlank() }
+    return if (index >= 0 && (stableId != null || originalUri != null)) {
+      SavedPlaylistSelection(index, stableId, originalUri)
+    } else {
+      null
+    }
+  }
+
+  /** Resolves by identity first, with the saved numeric cursor as the final compatibility fallback. */
+  private fun applyPendingSavedSelection(materializedPlaylist: List<Uri>): Boolean {
+    val saved = pendingSavedPlaylistSelection ?: return false
+    val matchingIndex =
+      saved.index
+        .takeIf { index -> materializedPlaylist.getOrNull(index)?.matches(saved) == true }
+        ?: materializedPlaylist.indexOfFirst { uri -> uri.matches(saved) }.takeIf { it >= 0 }
+        // A playlist can legitimately refresh URI spellings or stable-ID inputs between process
+        // instances. The saved numeric cursor is the final fallback, never the stale launch index.
+        ?: saved.index.takeIf { index -> index in materializedPlaylist.indices }
+        ?: return false
+    playlistIndex = matchingIndex
+    Log.d(TAG, "Restored playlist item $matchingIndex from saved Activity state")
+    return true
+  }
+
+  private fun Uri.matches(saved: SavedPlaylistSelection): Boolean {
+    val uri = toString()
+    return saved.originalUri == uri || saved.stableId == PlaybackIdentity.forUri(uri)
   }
 
   private fun publishPlaylistToSession() {
@@ -5970,12 +6125,13 @@ class PlayerActivity :
           databaseItem?.fileName?.takeIf { it.isNotBlank() }
             ?: networkPlaylistTitles.getOrNull(index)?.takeIf { it.isNotBlank() }
             ?: getFileNameFromUri(uri)
-        val headers =
+        val storedHeaders =
           databaseItem
             ?.userAgent
             ?.takeIf { it.isNotBlank() }
             ?.let { userAgent -> mapOf("User-Agent" to userAgent) }
             .orEmpty()
+        val headers = buildPlaybackHeaders(uri, networkPlaylistHeaders.getOrNull(index).orEmpty(), storedHeaders)
 
         PlaybackItem.fromUri(
           uri = uri.toString(),
@@ -6179,14 +6335,23 @@ class PlayerActivity :
         playlistItems = syntheticItems
         isM3uPlaylist = false
         playlist = playlistUris
+        networkPlaylistHeaders = emptyList()
         playlistWindowOffset = 0
         playlistTotalCount = playlistUris.size
         playlistIndex =
           derivedIndex.takeIf { it >= 0 }
             ?: playlistIndex.coerceIn(0, (playlistUris.lastIndex).coerceAtLeast(0))
         Log.d(TAG, "$logPrefix ${playlistUris.size} items from all-videos playlist")
+        val restoringSavedSelection = pendingSavedPlaylistSelection != null
+        if (restoringSavedSelection) {
+          applyPendingSavedSelection(playlist)
+          pendingSavedPlaylistSelection = null
+        }
         publishPlaylistToSession()
         viewModel.refreshPlaylistItems()
+        if (restoringSavedSelection && playlist.isNotEmpty()) {
+          loadPlaylistItemInternal(playlistIndex, saveCurrentPlaybackState = false)
+        }
       }
       return
     }
@@ -6203,12 +6368,21 @@ class PlayerActivity :
       playlistItems = loadedItems
       isM3uPlaylist = loadedPlaylist?.isM3uPlaylist == true
       playlist = items
+      networkPlaylistHeaders = emptyList()
       playlistIndex = if (items.isEmpty()) 0 else playlistIndex.coerceIn(items.indices)
       playlistWindowOffset = 0
       playlistTotalCount = totalCount
       Log.d(TAG, "$logPrefix all $totalCount items from playlist $pid (isM3U: $isM3uPlaylist)")
+      val restoringSavedSelection = pendingSavedPlaylistSelection != null
+      if (restoringSavedSelection) {
+        applyPendingSavedSelection(playlist)
+        pendingSavedPlaylistSelection = null
+      }
       publishPlaylistToSession()
       viewModel.refreshPlaylistItems()
+      if (restoringSavedSelection && playlist.isNotEmpty()) {
+        loadPlaylistItemInternal(playlistIndex, saveCurrentPlaybackState = false)
+      }
     }
   }
 
@@ -6245,10 +6419,16 @@ class PlayerActivity :
         playlistItems = emptyList()
         isM3uPlaylist = false
         playlist = siblingFiles.map { it.toUri() }
+        networkPlaylistHeaders = emptyList()
         playlistIndex = newIndex
+        val restoredSavedSelection = applyPendingSavedSelection(playlist)
+        if (pendingSavedPlaylistSelection != null) pendingSavedPlaylistSelection = null
         publishPlaylistToSession()
         viewModel.refreshPlaylistItems()
         Log.d(TAG, "Auto-playlist generated: ${playlist.size} items")
+        if (restoredSavedSelection) {
+          loadPlaylistItemInternal(playlistIndex, saveCurrentPlaybackState = false)
+        }
       }
       true
     }.onFailure { error ->
@@ -6264,17 +6444,21 @@ class PlayerActivity :
     uriString: String,
     sourceIntent: Intent,
   ): Boolean {
-    val userAgent =
-      sourceIntent.extras
-        ?.getStringArray("headers")
-        ?.asList()
-        ?.chunked(2)
-        ?.firstOrNull { pair -> pair.size == 2 && pair[0].equals("User-Agent", ignoreCase = true) }
-        ?.get(1)
+    val requestHeaders =
+      buildPlaybackHeaders(
+        Uri.parse(uriString),
+        PlaybackHttpHeaders.fromFlatPairs(sourceIntent.extras?.getStringArray("headers")),
+      )
+    val userAgent = PlaybackHttpHeaders.userAgent(requestHeaders)
     val parseResult =
       when {
         uriString.startsWith("http://") || uriString.startsWith("https://") ->
-          M3UParser.parseFromUrl(uriString, userAgent)
+          M3UParser.parseFromUrl(
+            url = uriString,
+            userAgent = userAgent,
+            headers = requestHeaders,
+            httpClient = networkHttpClient,
+          )
         uriString.startsWith("content://") || uriString.startsWith("file://") ->
           M3UParser.parseFromUri(this, Uri.parse(uriString))
         else -> {
@@ -6297,10 +6481,20 @@ class PlayerActivity :
           playlist = items.map { Uri.parse(it.url) }
           networkPlaylistTitles = items.map { it.title ?: extractFileNameFromUri(Uri.parse(it.url)) }
           networkPlaylistPaths = items.map { it.url }
+          networkPlaylistHeaders =
+            items.map { item ->
+              buildPlaybackHeaders(
+                Uri.parse(item.url),
+                requestHeaders,
+                item.userAgent?.let { mapOf("User-Agent" to it) }.orEmpty(),
+              )
+            }
           playlistWindowOffset = 0
           playlistTotalCount = items.size
 
           Log.d(TAG, "Dynamically loaded M3U playlist with ${items.size} items")
+          applyPendingSavedSelection(playlist)
+          if (pendingSavedPlaylistSelection != null) pendingSavedPlaylistSelection = null
           publishPlaylistToSession()
           viewModel.refreshPlaylistItems()
         }
@@ -6396,5 +6590,8 @@ class PlayerActivity :
     const val TAG = "mpvrx"
 
     const val EXTRA_PREPARED_PLAYBACK_QUEUE = "prepared_playback_queue"
+    private const val STATE_PLAYLIST_INDEX = "player_state_playlist_index"
+    private const val STATE_PLAYLIST_STABLE_ID = "player_state_playlist_stable_id"
+    private const val STATE_PLAYLIST_ORIGINAL_URI = "player_state_playlist_original_uri"
   }
 }

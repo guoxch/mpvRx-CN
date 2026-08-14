@@ -5,6 +5,7 @@ import java.util.Properties
 val enableX86 = project.findProperty("enableX86") != "false"
 val x86Abis = if (enableX86) listOf("x86", "x86_64") else emptyList()
 val singleAbi = project.findProperty("singleAbi")?.toString()
+val universalOnlyDistributions = setOf("noVulkan", "fongmi")
 
 plugins {
   alias(libs.plugins.android.application)
@@ -55,6 +56,24 @@ android {
       dimension = "distribution"
       buildConfigField("boolean", "ENABLE_UPDATE_FEATURE", "true")
       buildConfigField("boolean", "SCOPED_STORAGE_ONLY", "false")
+      buildConfigField("boolean", "MPV_SUPPORTS_VULKAN", "true")
+      buildConfigField("boolean", "MPV_SUPPORTS_MEDIACODEC_VULKAN", "false")
+    }
+
+    create("noVulkan") {
+      dimension = "distribution"
+      buildConfigField("boolean", "ENABLE_UPDATE_FEATURE", "false")
+      buildConfigField("boolean", "SCOPED_STORAGE_ONLY", "false")
+      buildConfigField("boolean", "MPV_SUPPORTS_VULKAN", "false")
+      buildConfigField("boolean", "MPV_SUPPORTS_MEDIACODEC_VULKAN", "false")
+    }
+
+    create("fongmi") {
+      dimension = "distribution"
+      buildConfigField("boolean", "ENABLE_UPDATE_FEATURE", "false")
+      buildConfigField("boolean", "SCOPED_STORAGE_ONLY", "false")
+      buildConfigField("boolean", "MPV_SUPPORTS_VULKAN", "true")
+      buildConfigField("boolean", "MPV_SUPPORTS_MEDIACODEC_VULKAN", "true")
     }
   }
 
@@ -174,11 +193,20 @@ androidComponents {
   }
 
   onVariants { variant ->
+    val isUniversalOnly =
+      variant.productFlavors.any { (dimension, flavor) ->
+        dimension == "distribution" && flavor in universalOnlyDistributions
+      }
+
     variant.outputs.forEach { output ->
       val abi =
         output.filters
           .find { it.filterType == FilterConfiguration.FilterType.ABI }
           ?.identifier
+
+      if (isUniversalOnly && abi != null) {
+        output.enabled.set(false)
+      }
 
       output.versionCode.set(
         (output.versionCode.orNull ?: 0) * 10 + (abiCodes[abi] ?: 0),
@@ -265,7 +293,9 @@ dependencies {
   implementation(libs.androidx.profileinstaller)
   implementation(libs.google.cast.framework)
 
-  implementation(files("libs/mpvlib.aar"))
+  "standardImplementation"(files("libs/mpvlib.aar"))
+  "noVulkanImplementation"(files("libs/mpvlib-no-vulkun.aar"))
+  "fongmiImplementation"(files("libs/mpvlib-fongmi.aar"))
 
   // Network protocol libraries
   implementation(libs.smbj)

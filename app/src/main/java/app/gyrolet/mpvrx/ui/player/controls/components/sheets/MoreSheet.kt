@@ -276,6 +276,34 @@ fun MoreSheet(
         }
       }
 
+      // Burn-after-reading toggle
+      if (onAutoDeleteToggle != null) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onAutoDeleteToggle(!autoDeleteAfterPlay) }
+            .padding(vertical = 12.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = stringResource(R.string.burn_after_reading),
+              style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+              text = stringResource(R.string.burn_after_reading_desc),
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
+          Switch(
+            checked = autoDeleteAfterPlay,
+            onCheckedChange = onAutoDeleteToggle,
+          )
+        }
+      }
+
       // Standard Anime4K needs legacy gpu or gpu-next with Vulkan.
       if (anime4KUiState.isAvailable) {
         Text(

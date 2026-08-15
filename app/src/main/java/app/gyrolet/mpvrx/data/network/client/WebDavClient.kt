@@ -232,17 +232,40 @@ class WebDavClient(
   override suspend fun getFileSize(path: String): Result<Long> =
     withContext(Dispatchers.IO) {
       try {
-        val client = sardine ?: return@withContext Result.failure(Exception("Not connected"))
-
         val url = buildUrl(path)
+        val xmlBody =
+          """<?xml version="1.0" encoding="utf-8"?>
+            |<D:propfind xmlns:D="DAV:">
+            |  <D:prop>
+            |    <D:getcontentlength/>
+            |  </D:prop>
+            |</D:propfind>""".trimMargin()
 
-        // Use PROPFIND to get file properties including size
-        val resources = client.list(url, 0) // depth 0 = only the resource itself
-        if (resources.isNotEmpty() && !resources[0].isDirectory) {
-          val size = resources[0].contentLength ?: -1L
+        val request =
+          Request.Builder()
+            .url(url)
+            .addHeader("Depth", "0")
+            .apply {
+              if (!connection.isAnonymous) {
+                addHeader("Authorization", Credentials.basic(connection.username, connection.password))
+              }
+            }
+            .method("PROPFIND", xmlBody.toRequestBody("application/xml".toMediaType()))
+            .build()
+
+        val response = OkHttpClient().newCall(request).execute()
+        val body = response.body?.string()
+        val size =
+          body
+            ?.let { Regex("<D:getcontentlength>(\\d+)</D:getcontentlength>").find(it) }
+            ?.groupValues
+            ?.get(1)
+            ?.toLongOrNull()
+
+        if (size != null && size >= 0L) {
           Result.success(size)
         } else {
-          Result.failure(Exception("File not found or is a directory"))
+          Result.failure(Exception("File not found or size unavailable"))
         }
       } catch (e: Exception) {
         Result.failure(e)
@@ -259,21 +282,26 @@ class WebDavClient(
           return@withContext getRangedFileStream(path, offset)
         }
 
-        // Create a fresh Sardine client for this stream to avoid connection conflicts
-        val streamClient = OkHttpSardine()
+        val requestBuilder =
+          Request
+            .Builder()
+            .url(buildUrl(path))
+            .get()
 
         if (!connection.isAnonymous) {
-          streamClient.setCredentials(connection.username, connection.password)
+          requestBuilder.addHeader(
+            "Authorization",
+            Credentials.basic(connection.username, connection.password),
+          )
         }
 
-        val url = buildUrl(path)
-        val rawStream = streamClient.get(url)
-
-        if (rawStream == null) {
-          return@withContext Result.failure(Exception("Failed to open WebDAV stream"))
+        val response = OkHttpClient().newCall(requestBuilder.build()).execute()
+        if (!response.isSuccessful) {
+          response.close()
+          return@withContext Result.failure(Exception("Failed to open WebDAV stream: HTTP ${response.code}"))
         }
 
-        // Wrap the stream
+        val rawStream = response.body.byteStream()
         val wrappedStream =
           object : InputStream() {
             override fun read(): Int = rawStream.read()

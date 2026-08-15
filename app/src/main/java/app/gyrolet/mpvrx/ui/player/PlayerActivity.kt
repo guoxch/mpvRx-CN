@@ -3254,12 +3254,16 @@ class PlayerActivity :
     if (!viewModel.autoDeleteAfterPlay.value) return
     val uri = intent.data ?: return
     if (!HttpUtils.isNetworkStream(uri)) return
+    val queueItem = PlaybackSession.queue.value.items.getOrNull(burnedIdx)
+    val networkSource = queueItem?.networkSource
     val networkFilePath =
-      networkPlaylistPaths.getOrNull(burnedIdx)?.takeIf { it.isNotBlank() }
+      networkSource?.relativePath
+        ?: networkPlaylistPaths.getOrNull(burnedIdx)?.takeIf { it.isNotBlank() }
         ?: intent.getStringExtra("network_file_path") ?: return
     val connId =
-      if (networkPlaylistConnectionId != -1L) networkPlaylistConnectionId
-      else intent.getLongExtra("network_connection_id", -1L)
+      networkSource?.connectionId
+        ?: if (networkPlaylistConnectionId != -1L) networkPlaylistConnectionId
+        else intent.getLongExtra("network_connection_id", -1L)
     if (connId == -1L) return
     lifecycleScope.launch(Dispatchers.IO) {
       val conn = networkRepository.getConnectionById(connId) ?: return@launch
@@ -3284,13 +3288,7 @@ class PlayerActivity :
   }
 
   private fun removeFromPlaylist(idx: Int) {
-    if (idx < 0 || idx >= playlist.size) return
-    playlist = playlist.toMutableList().apply { removeAt(idx) }
-    playlistItems = playlistItems.toMutableList().apply { if (idx < size) removeAt(idx) }
-    networkPlaylistPaths = networkPlaylistPaths.toMutableList().apply { if (idx < size) removeAt(idx) }
-    networkPlaylistTitles = networkPlaylistTitles.toMutableList().apply { if (idx < size) removeAt(idx) }
-    if (idx < playlistIndex) playlistIndex--
-    if (playlistIndex >= playlist.size) playlistIndex = (playlist.size - 1).coerceAtLeast(0)
+    PlaybackSession.removeQueueItem(idx)
     viewModel.refreshPlaylistItems()
   }
 

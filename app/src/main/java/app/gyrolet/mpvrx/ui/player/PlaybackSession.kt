@@ -405,6 +405,14 @@ object PlaybackSession : MPVLib.EventObserver {
     replaceQueue(emptyList(), -1)
   }
 
+  fun removeQueueItem(index: Int): Boolean =
+    nativeLock.withLock {
+      val next = PlaybackQueueReducer.remove(_queue.value, index) ?: return@withLock false
+      _queue.value = next
+      updateState { it.copy(currentItem = next.currentItem) }
+      true
+    }
+
   fun moveQueueItem(
     from: Int,
     to: Int,

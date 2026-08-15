@@ -243,6 +243,8 @@ object CustomButtonScreen : Screen {
 
     // Reorderable list state
     val lazyListState = rememberLazyListState()
+    val settingsHighlight =
+      rememberSettingsSearchHighlight(CustomButtonScreen, lazyListState, MaterialTheme.colorScheme.primary)
     val NON_SLOT_ITEMS_BEFORE = 1 // the Spacer item()
     val reorderState =
       rememberReorderableLazyListState(lazyListState) { from, to ->
@@ -258,6 +260,7 @@ object CustomButtonScreen : Screen {
           title = {
             Column {
               Text(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_custom_lua_title),
                 text =
                   androidx.compose.ui.res.stringResource(
                     app.gyrolet.mpvrx.R.string.pref_custom_lua_title,
@@ -301,7 +304,8 @@ object CustomButtonScreen : Screen {
         modifier =
           Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            .then(settingsHighlight),
         verticalArrangement = Arrangement.spacedBy(10.dp),
       ) {
         // Section divider items

@@ -606,6 +606,7 @@ object CodecCapabilitiesScreen : Screen {
           title = {
             Column {
               Text(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_codecs_title),
                 text = stringResource(R.string.pref_codecs_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Black,
@@ -645,11 +646,15 @@ object CodecCapabilitiesScreen : Screen {
         )
       },
     ) { innerPadding ->
+      val (settingsListState, settingsHighlight) =
+        rememberSettingsSearchList(CodecCapabilitiesScreen, MaterialTheme.colorScheme.primary)
       LazyColumn(
+        state = settingsListState,
         modifier = Modifier
           .fillMaxSize()
           .padding(innerPadding)
-          .padding(horizontal = 16.dp),
+          .padding(horizontal = 16.dp)
+          .then(settingsHighlight),
         verticalArrangement = Arrangement.spacedBy(16.dp),
       ) {
         // Hero Diagnostics Summary Banner with Live Stat Pills

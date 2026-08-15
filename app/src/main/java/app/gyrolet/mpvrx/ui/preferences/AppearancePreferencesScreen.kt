@@ -182,14 +182,21 @@ object AppearancePreferencesScreen : Screen {
       },
     ) { padding ->
       ProvidePreferenceLocals {
+        val (settingsListState, settingsHighlight) =
+          rememberSettingsSearchList(AppearancePreferencesScreen, MaterialTheme.colorScheme.primary)
         LazyColumn(
+          state = settingsListState,
           modifier =
             Modifier
               .fillMaxSize()
-              .padding(padding),
+              .padding(padding)
+              .then(settingsHighlight),
         ) {
           item {
-            PreferenceSectionHeader(title = stringResource(id = R.string.pref_appearance_category_theme))
+            PreferenceSectionHeader(
+              title = stringResource(id = R.string.pref_appearance_category_theme),
+              modifier = Modifier.settingsSearchTarget(R.string.pref_appearance_title),
+            )
           }
 
           item {
@@ -275,6 +282,7 @@ object AppearancePreferencesScreen : Screen {
                   PreferenceDivider()
 
                   SwitchPreference(
+                    modifier = Modifier.settingsSearchTarget(R.string.pref_appearance_amoled_mode_title),
                     value = amoledMode,
                     onValueChange = { newValue ->
                       if (themeTransition?.isAnimating != true) {
@@ -308,6 +316,7 @@ object AppearancePreferencesScreen : Screen {
 
                   val useSystemFont by preferences.useSystemFont.collectAsState()
                   SwitchPreference(
+                    modifier = Modifier.settingsSearchTarget(R.string.pref_appearance_system_font_title),
                     value = useSystemFont,
                     onValueChange = preferences.useSystemFont::set,
                     title = {
@@ -340,6 +349,7 @@ object AppearancePreferencesScreen : Screen {
             PreferenceCard {
               val unlimitedNameLines by preferences.unlimitedNameLines.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_appearance_unlimited_name_lines_title),
                 value = unlimitedNameLines,
                 onValueChange = { preferences.unlimitedNameLines.set(it) },
                 title = {
@@ -362,6 +372,7 @@ object AppearancePreferencesScreen : Screen {
 
               val showUnplayedOldVideoLabel by preferences.showUnplayedOldVideoLabel.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_appearance_show_unplayed_old_video_label_title),
                 value = showUnplayedOldVideoLabel,
                 onValueChange = { preferences.showUnplayedOldVideoLabel.set(it) },
                 title = {
@@ -387,6 +398,7 @@ object AppearancePreferencesScreen : Screen {
 
               val unplayedOldVideoDays by preferences.unplayedOldVideoDays.collectAsState()
               SliderPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_appearance_unplayed_old_video_days_title),
                 value = unplayedOldVideoDays.toFloat(),
                 onValueChange = { preferences.unplayedOldVideoDays.set(it.roundToInt()) },
                 title = {
@@ -419,6 +431,7 @@ object AppearancePreferencesScreen : Screen {
 
               val autoScrollToLastPlayed by browserPreferences.autoScrollToLastPlayed.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_appearance_auto_scroll_title),
                 value = autoScrollToLastPlayed,
                 onValueChange = { browserPreferences.autoScrollToLastPlayed.set(it) },
                 title = {
@@ -546,6 +559,7 @@ object AppearancePreferencesScreen : Screen {
             PreferenceCard {
               val showVideoThumbnails by browserPreferences.showVideoThumbnails.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_appearance_show_video_thumbnails_title),
                 value = showVideoThumbnails,
                 onValueChange = { browserPreferences.showVideoThumbnails.set(it) },
                 title = {
@@ -567,6 +581,7 @@ object AppearancePreferencesScreen : Screen {
               PreferenceDivider()
 
               ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_appearance_thumbnail_generation_title),
                 value = thumbnailMode,
                 onValueChange = { newMode ->
                   if (newMode != thumbnailMode) {
@@ -597,6 +612,7 @@ object AppearancePreferencesScreen : Screen {
               PreferenceDivider()
 
               ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_appearance_thumbnail_quality_title),
                 value = thumbnailQuality,
                 onValueChange = { newQuality ->
                   if (newQuality != thumbnailQuality) {
@@ -661,6 +677,7 @@ object AppearancePreferencesScreen : Screen {
 
               val tapThumbnailToSelect by gesturePreferences.tapThumbnailToSelect.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_gesture_tap_thumbnail_to_select_title),
                 value = tapThumbnailToSelect,
                 onValueChange = { gesturePreferences.tapThumbnailToSelect.set(it) },
                 title = {
@@ -684,6 +701,7 @@ object AppearancePreferencesScreen : Screen {
 
               val showNetworkThumbnails by preferences.showNetworkThumbnails.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_appearance_show_network_thumbnails_title),
                 value = showNetworkThumbnails,
                 onValueChange = { preferences.showNetworkThumbnails.set(it) },
                 title = {

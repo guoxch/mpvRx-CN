@@ -2211,6 +2211,7 @@ class PlayerViewModel : ViewModel(),
           if (select) {
             withContext(Dispatchers.Main) {
               runCatching { PlaybackSession.setPropertyInt("sid", existingTrack.id) }
+              syncSubtitleLayout()
             }
           }
           // Still track it in _externalSubtitles if it's not there
@@ -2225,6 +2226,7 @@ class PlayerViewModel : ViewModel(),
 
         withContext(Dispatchers.Main) {
           PlaybackSession.command("sub-add", mpvPath, mode)
+          if (select) syncSubtitleLayout()
         }
 
         // Track external subtitle URI for persistence
@@ -4478,6 +4480,43 @@ class PlayerViewModel : ViewModel(),
       SingleActionGesture.Custom ->
         viewModelScope.launch(Dispatchers.IO) {
           PlaybackSession.command("keypress", CustomKeyCodes.DoubleTapRight.keyCode)
+        }
+      SingleActionGesture.None -> {}
+    }
+  }
+
+  fun handleMediaPrevious() {
+    when (gesturePreferences.mediaPreviousGesture.get()) {
+      SingleActionGesture.Seek -> leftSeek()
+      SingleActionGesture.PlayPause -> pauseUnpause()
+      SingleActionGesture.Custom ->
+        viewModelScope.launch(Dispatchers.IO) {
+          PlaybackSession.command("keypress", CustomKeyCodes.MediaPrevious.keyCode)
+        }
+      SingleActionGesture.None -> {}
+    }
+  }
+
+  fun handleMediaPlayPause() {
+    when (gesturePreferences.mediaPlayGesture.get()) {
+      SingleActionGesture.PlayPause -> pauseUnpause()
+      SingleActionGesture.Custom ->
+        viewModelScope.launch(Dispatchers.IO) {
+          PlaybackSession.command("keypress", CustomKeyCodes.MediaPlay.keyCode)
+        }
+      SingleActionGesture.Seek,
+      SingleActionGesture.None,
+      -> {}
+    }
+  }
+
+  fun handleMediaNext() {
+    when (gesturePreferences.mediaNextGesture.get()) {
+      SingleActionGesture.Seek -> rightSeek()
+      SingleActionGesture.PlayPause -> pauseUnpause()
+      SingleActionGesture.Custom ->
+        viewModelScope.launch(Dispatchers.IO) {
+          PlaybackSession.command("keypress", CustomKeyCodes.MediaNext.keyCode)
         }
       SingleActionGesture.None -> {}
     }

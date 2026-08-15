@@ -95,6 +95,8 @@ object FoldersPreferencesScreen : Screen {
     var isLoading by remember { mutableStateOf(false) }
     var selectionState by remember { mutableStateOf(SelectionState<String>()) }
     var showClearAllDialog by remember { mutableStateOf(false) }
+    val settingsHighlight =
+      rememberSettingsSearchHighlight(FoldersPreferencesScreen, MaterialTheme.colorScheme.primary)
 
     val allBlacklistedFolders = remember(blacklistedVideoFolders, blacklistedAudioFolders) {
       (blacklistedVideoFolders + blacklistedAudioFolders).toList().sorted()
@@ -127,7 +129,10 @@ object FoldersPreferencesScreen : Screen {
             if (!selectionState.isInSelectionMode && allBlacklistedFolders.isNotEmpty()) {
               IconButton(
                 onClick = { showClearAllDialog = true },
-                modifier = Modifier.padding(horizontal = 2.dp),
+                modifier =
+                  Modifier
+                    .settingsSearchTarget(R.string.pref_folders_clear_all)
+                    .padding(horizontal = 2.dp),
               ) {
                 Icon(
                   Icons.RoundedFilled.Clear,
@@ -147,13 +152,18 @@ object FoldersPreferencesScreen : Screen {
           Modifier
             .fillMaxSize()
             .padding(padding)
-            .padding(16.dp),
+            .padding(16.dp)
+            .then(settingsHighlight),
       ) {
         if (!selectionState.isInSelectionMode) {
           // ── Media Library ─────────────────────────────────────────────
-          PreferenceSectionHeader(title = stringResource(R.string.pref_media_library_section))
+          PreferenceSectionHeader(
+            title = stringResource(R.string.pref_media_library_section),
+            modifier = Modifier.settingsSearchTarget(R.string.pref_folders_title),
+          )
 
           NoMediaPreferenceCard(
+            modifier = Modifier.settingsSearchTarget(R.string.pref_folders_include_nomedia_title),
             includeNoMediaFolders = includeNoMediaFolders,
             onIncludeNoMediaFoldersChanged = { enabled ->
               preferences.includeNoMediaFolders.set(enabled)
@@ -230,6 +240,7 @@ object FoldersPreferencesScreen : Screen {
           Card(
             modifier =
               Modifier
+                .settingsSearchTarget(R.string.pref_folders_add_folder)
                 .fillMaxWidth()
                 .clickable {
                   showAddDialog = true
@@ -311,9 +322,10 @@ object FoldersPreferencesScreen : Screen {
 private fun NoMediaPreferenceCard(
   includeNoMediaFolders: Boolean,
   onIncludeNoMediaFoldersChanged: (Boolean) -> Unit,
+  modifier: Modifier = Modifier,
 ) {
   Card(
-    modifier = Modifier.fillMaxWidth(),
+    modifier = modifier.fillMaxWidth(),
     colors =
       CardDefaults.cardColors(
         containerColor = MaterialTheme.colorScheme.surfaceVariant,

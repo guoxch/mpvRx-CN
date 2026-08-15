@@ -214,21 +214,29 @@ object SubtitlesPreferencesScreen : Screen {
             }
         }
 
+        val (settingsListState, settingsHighlight) =
+          rememberSettingsSearchList(SubtitlesPreferencesScreen, MaterialTheme.colorScheme.primary)
         LazyColumn(
+          state = settingsListState,
           modifier =
             Modifier
               .fillMaxSize()
-              .padding(padding),
+              .padding(padding)
+              .then(settingsHighlight),
         ) {
           // === GENERAL SECTION ===
           item {
-            PreferenceSectionHeader(title = stringResource(R.string.general))
+            PreferenceSectionHeader(
+              title = stringResource(R.string.general),
+              modifier = Modifier.settingsSearchTarget(R.string.pref_subtitles),
+            )
           }
 
           item {
             PreferenceCard {
               val preferredLanguages by preferences.preferredLanguages.collectAsState()
               TextFieldPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_preferred_languages),
                 value = preferredLanguages,
                 onValueChange = preferences.preferredLanguages::set,
                 textToValue = { input ->
@@ -269,6 +277,7 @@ object SubtitlesPreferencesScreen : Screen {
 
               val autoload by preferences.autoloadMatchingSubtitles.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_subtitles_autoload_title),
                 value = autoload,
                 onValueChange = { preferences.autoloadMatchingSubtitles.set(it) },
                 title = { Text(stringResource(R.string.pref_subtitles_autoload_title)) },
@@ -284,6 +293,7 @@ object SubtitlesPreferencesScreen : Screen {
 
               val overrideAss by preferences.overrideAssSubs.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.player_sheets_sub_override_ass),
                 value = overrideAss,
                 onValueChange = { preferences.overrideAssSubs.set(it) },
                 title = { Text(stringResource(R.string.player_sheets_sub_override_ass)) },
@@ -299,6 +309,7 @@ object SubtitlesPreferencesScreen : Screen {
 
               val scaleByWindow by preferences.scaleByWindow.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.player_sheets_sub_scale_by_window),
                 value = scaleByWindow,
                 onValueChange = { preferences.scaleByWindow.set(it) },
                 title = { Text(stringResource(R.string.player_sheets_sub_scale_by_window)) },
@@ -320,6 +331,7 @@ object SubtitlesPreferencesScreen : Screen {
           item {
             PreferenceCard {
               Preference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_subtitles_fonts_dir),
                 title = { Text(stringResource(R.string.pref_subtitles_fonts_dir)) },
                 summary = {
                   val folderSummary =
@@ -363,6 +375,7 @@ object SubtitlesPreferencesScreen : Screen {
                 }
 
               ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_subtitles_font_title),
                 value = fontValue,
                 onValueChange = preferences.font::set,
                 values = fontValues,
@@ -440,7 +453,10 @@ object SubtitlesPreferencesScreen : Screen {
 
           // === ONLINE SUBTITLE SECTION ===
           item {
-            PreferenceSectionHeader(title = stringResource(R.string.pref_section_subtitle_search))
+            PreferenceSectionHeader(
+              title = stringResource(R.string.pref_section_subtitle_search),
+              modifier = Modifier.settingsSearchTarget(R.string.pref_subtitle_search_title),
+            )
           }
 
           item {
@@ -529,6 +545,7 @@ object SubtitlesPreferencesScreen : Screen {
                 }
 
               Preference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_subtitle_sources_title),
                 title = { Text(stringResource(R.string.pref_subtitle_sources_title)) },
                 summary = {
                   val summaryText =
@@ -828,6 +845,7 @@ object SubtitlesPreferencesScreen : Screen {
               // Languages
               val subtitleSearchLanguages by preferences.subtitleSearchLanguages.collectAsState()
               MultiChoicePreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_subtitles_search_languages),
                 title = { Text(stringResource(R.string.pref_subtitles_search_languages)) },
                 summary = {
                   val summaryText =
@@ -874,6 +892,7 @@ object SubtitlesPreferencesScreen : Screen {
                 if (showAdvanced) {
                   Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                     SwitchPreference(
+                      modifier = Modifier.settingsSearchTarget(R.string.pref_hearing_impaired_title),
                       value = wyzieHearingImpaired,
                       onValueChange = { preferences.wyzieHearingImpaired.set(it) },
                       title = { Text(stringResource(R.string.pref_hearing_impaired_title)) },
@@ -905,6 +924,7 @@ object SubtitlesPreferencesScreen : Screen {
                     PreferenceDivider()
 
                     MultiChoicePreference(
+                      modifier = Modifier.settingsSearchTarget(R.string.pref_preferred_formats_title),
                       title = { Text(stringResource(R.string.pref_preferred_formats_title)) },
                       summary = {
                         val summaryText =
@@ -924,6 +944,7 @@ object SubtitlesPreferencesScreen : Screen {
                     PreferenceDivider()
 
                     MultiChoicePreference(
+                      modifier = Modifier.settingsSearchTarget(R.string.pref_preferred_encodings_title),
                       title = { Text(stringResource(R.string.pref_preferred_encodings_title)) },
                       summary = {
                         val summaryText =
@@ -948,6 +969,7 @@ object SubtitlesPreferencesScreen : Screen {
               PreferenceDivider()
 
               Preference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_subtitles_clear_downloads),
                 title = {
                   Text(
                     stringResource(R.string.pref_subtitles_clear_downloads),
@@ -1052,10 +1074,12 @@ fun MultiChoicePreference(
   selectedValues: Set<String>,
   onValuesChange: (Set<String>) -> Unit,
   hasAllOption: Boolean = false,
+  modifier: Modifier = Modifier,
 ) {
   var showDialog by remember { mutableStateOf(false) }
 
   Preference(
+    modifier = modifier,
     title = title,
     summary = summary,
     onClick = { showDialog = true },

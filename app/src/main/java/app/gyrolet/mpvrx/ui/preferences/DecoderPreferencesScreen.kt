@@ -104,14 +104,21 @@ object DecoderPreferencesScreen : Screen {
       },
     ) { padding ->
       ProvidePreferenceLocals {
+        val (settingsListState, settingsHighlight) =
+          rememberSettingsSearchList(DecoderPreferencesScreen, MaterialTheme.colorScheme.primary)
         LazyColumn(
+          state = settingsListState,
           modifier =
             Modifier
               .fillMaxSize()
-              .padding(padding),
+              .padding(padding)
+              .then(settingsHighlight),
         ) {
           item {
-            PreferenceSectionHeader(title = stringResource(R.string.pref_decoder))
+            PreferenceSectionHeader(
+              title = stringResource(R.string.pref_decoder),
+              modifier = Modifier.settingsSearchTarget(R.string.pref_decoder),
+            )
           }
 
           item {
@@ -135,6 +142,7 @@ object DecoderPreferencesScreen : Screen {
 
               val tryHWDecoding by preferences.tryHWDecoding.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_decoder_try_hw_dec_title),
                 value = tryHWDecoding,
                 onValueChange = {
                   preferences.tryHWDecoding.set(it)
@@ -147,6 +155,7 @@ object DecoderPreferencesScreen : Screen {
               val gpuNext by preferences.gpuNext.collectAsState()
               val useVulkan by preferences.useVulkan.collectAsState() // Added to check Vulkan state
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_decoder_gpu_next_title),
                 value = gpuNext,
                 onValueChange = { enabled ->
                   if (enabled && !gpuNext && !useVulkan) { // Only show warning if Vulkan is disabled
@@ -215,6 +224,7 @@ object DecoderPreferencesScreen : Screen {
               PreferenceDivider()
 
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_decoder_vulkan_experimental_title),
                 value = useVulkan && isVulkanSupported,
                 onValueChange = { enabled ->
                   if (isVulkanSupported) {
@@ -258,6 +268,7 @@ object DecoderPreferencesScreen : Screen {
 
               val debanding by preferences.debanding.collectAsState()
               ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_decoder_debanding_title),
                 value = debanding,
                 onValueChange = { preferences.debanding.set(it) },
                 values = Debanding.entries,
@@ -274,6 +285,7 @@ object DecoderPreferencesScreen : Screen {
 
               val useYUV420p by preferences.useYUV420P.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_decoder_yuv420p_title),
                 value = useYUV420p,
                 onValueChange = {
                   preferences.useYUV420P.set(it)
@@ -291,6 +303,7 @@ object DecoderPreferencesScreen : Screen {
 
               val enableAnime4K by preferences.enableAnime4K.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_anime4k_title),
                 value = enableAnime4K,
                 onValueChange = { enabled ->
                   preferences.enableAnime4K.set(enabled)

@@ -396,10 +396,6 @@ class PlayerActivity :
   private var mediaLoadJob: Job? = null
   @Volatile private var mediaRequestGeneration = 0L
   private var eofAdvanceJob: Job? = null
-  // Keep the old video decoder detached until mpv has completed the replacement load.
-  // Reattaching it as part of `loadfile` can make the old and new outputs overlap.
-  private var restoreVideoTrackAfterFileLoad = false
-
   @Volatile private var isAdvancingAtEof = false
 
   @Volatile private var playWhenFileLoaded = false
@@ -1085,7 +1081,7 @@ class PlayerActivity :
     audioPreferences.audioChannels.get().let {
       runCatching {
         if (it == AudioChannels.ReverseStereo) {
-          PlaybackSession.setPropertyString(AudioChannels.AutoSafe.property, AudioChannels.AutoSafe.value)
+          PlaybackSession.setPropertyString(AudioChannels.Auto.property, AudioChannels.Auto.value)
         } else {
           PlaybackSession.setPropertyString(it.property, it.value)
         }
@@ -1218,6 +1214,12 @@ class PlayerActivity :
         backgroundPlaybackEnabled = playbackWasInitialized && isBackgroundPlaybackEnabled(),
         backgroundPlaybackSessionActive = isBackgroundPlaybackSessionActive,
       )
+
+    // Do this before saving state or stopping services: a queued AudioTrack buffer can otherwise
+    // remain audible for a moment after the player window closes.
+    if (playbackWasInitialized && !keepBackgroundPlaybackAlive) {
+      PlaybackSession.silenceForTeardown()
+    }
 
     runCatching {
       mediaLoadJob?.cancel()
@@ -3473,10 +3475,6 @@ class PlayerActivity :
         eofAdvanceJob = null
         isAdvancingAtEof = false
         isReady = true
-        if (restoreVideoTrackAfterFileLoad) {
-          restoreVideoTrackAfterFileLoad = false
-          PlaybackSession.setPropertyString("vid", "auto")
-        }
         if (playWhenFileLoaded) {
           playWhenFileLoaded = false
         }
@@ -4524,7 +4522,6 @@ class PlayerActivity :
           playableUri = uri,
           originalUri = originalUri?.toString(),
           expandM3u = true,
-          disableVideoOnFallback = true,
         )
       } else {
         startMediaLoad(uri, originalUri?.toString())
@@ -4536,7 +4533,6 @@ class PlayerActivity :
     playableUri: String,
     originalUri: String? = null,
     expandM3u: Boolean = false,
-    disableVideoOnFallback: Boolean = false,
   ) {
     mediaLoadJob?.cancel()
     playWhenFileLoaded = true
@@ -4640,9 +4636,6 @@ class PlayerActivity :
             }
           }
 
-          // Tear down the outgoing video track before replacing the file.
-          restoreVideoTrackAfterFileLoad = !disableVideoOnFallback
-          PlaybackSession.setPropertyString("vid", "no")
           val networkPath = sourceIntent.getStringExtra("network_file_path")
           val networkConnectionId = sourceIntent.getLongExtra("network_connection_id", -1L)
           val networkSource =
@@ -5001,6 +4994,33 @@ class PlayerActivity :
 
       KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
         viewModel.handleRightDoubleTap()
+        return true
+      }
+
+      KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+        viewModel.handleMediaPrevious()
+        return true
+      }
+
+      KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+      KeyEvent.KEYCODE_HEADSETHOOK,
+      -> {
+        viewModel.handleMediaPlayPause()
+        return true
+      }
+
+      KeyEvent.KEYCODE_MEDIA_NEXT -> {
+        viewModel.handleMediaNext()
+        return true
+      }
+
+      KeyEvent.KEYCODE_MEDIA_PLAY -> {
+        viewModel.unpause()
+        return true
+      }
+
+      KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+        viewModel.pause()
         return true
       }
 

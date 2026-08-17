@@ -2037,6 +2037,9 @@ class PlayerViewModel : ViewModel(),
     const val AUTO_SHOW_SKIP_CHIP_DURATION = 10.0
     const val SEEK_COALESCE_DELAY_MS = 60L
     const val PREVIEW_SEEK_INTERVAL_MS = 80L
+    // Tiny coalescing window for the full-screen gesture seek. Kept very small (≈60fps) so the
+    // frame tracks the finger exactly like mpvKt while still avoiding a command per pixel.
+    const val GESTURE_PREVIEW_INTERVAL_MS = 16L
     const val SEEK_THUMBNAIL_TIMEOUT_MS = 5_000L
     const val SEEK_THUMBNAIL_FAILURE_COOLDOWN_MS = 10_000L
     const val SEEK_THUMBNAIL_FAILURE_CACHE_MAX = 128
@@ -3966,11 +3969,63 @@ class PlayerViewModel : ViewModel(),
     }
   }
 
+  /**
+   * Frame-accurate live preview used by the full-screen horizontal seek gesture.
+   *
+   * This mirrors mpvKt's behaviour: while the gesture is active the player is paused (handled in
+   * GestureHandler) and the playhead is moved to the exact target position on every pointer move,
+   * so the displayed frame tracks the finger smoothly and natively instead of snapping between
+   * keyframes. Unlike [seekTo] this does not notify Syncplay peers every frame, and unlike
+   * [previewSeekTo] it is not throttled to keyframes.
+   */
+  private var gesturePreviewJob: Job? = null
+  private val gesturePreviewLock = Any()
+  private var pendingGesturePreviewPosition: Int? = null
+
+  fun gesturePreviewSeekTo(position: Int) {
+    synchronized(gesturePreviewLock) {
+      pendingGesturePreviewPosition = position.coerceAtLeast(0)
+      if (gesturePreviewJob?.isActive == true) return
+      gesturePreviewJob = viewModelScope.launch(Dispatchers.IO) { runGesturePreviewLoop() }
+    }
+  }
+
+  private suspend fun runGesturePreviewLoop() {
+    while (kotlinx.coroutines.currentCoroutineContext().isActive) {
+      val target =
+        synchronized(gesturePreviewLock) {
+          pendingGesturePreviewPosition?.also { pendingGesturePreviewPosition = null }
+            ?: run {
+              gesturePreviewJob = null
+              return
+            }
+        }
+      val maxDuration =
+        (PlaybackSession.getPropertyInt("duration") ?: duration ?: _preciseDuration.value.toInt())
+          .coerceAtLeast(0)
+      val clampedPosition =
+        if (maxDuration > 0) target.coerceIn(0, maxDuration) else target.coerceAtLeast(0)
+      // Frame-accurate seek so the preview matches the finger position exactly.
+      PlaybackSession.command("seek", clampedPosition.toString(), "absolute+exact")
+      delay(GESTURE_PREVIEW_INTERVAL_MS)
+    }
+  }
+
+  fun cancelGesturePreview() {
+    synchronized(gesturePreviewLock) {
+      gesturePreviewJob?.cancel()
+      gesturePreviewJob = null
+      pendingGesturePreviewPosition = null
+    }
+  }
+
   fun seekTo(
     position: Int,
     fast: Boolean = false,
+    precise: Boolean? = null,
   ) {
     cancelPreviewSeek()
+    cancelGesturePreview()
     viewModelScope.launch(Dispatchers.IO) {
       val maxDuration =
         (PlaybackSession.getPropertyInt("duration") ?: duration ?: _preciseDuration.value.toInt())
@@ -3991,10 +4046,11 @@ class PlayerViewModel : ViewModel(),
       seekCoalesceJob?.cancel()
       pendingSeekOffset = 0
 
-      // Exact seeking is intentionally opt-in. Forcing it on every short clip is expensive and can
-      // leave sparse-keyframe MP4/MKV files on a black frame. Drag previews always use keyframes.
-      val seekMode =
-        if (!fast && playerPreferences.usePreciseSeeking.get()) "absolute+exact" else "absolute+keyframes"
+      // Exact seeking is intentionally opt-in for general seeks (forcing it on every short clip is
+      // expensive and can leave sparse-keyframe MP4/MKV files on a black frame). The full-screen
+      // gesture always commits an exact frame so the released position matches the preview exactly.
+      val usePrecise = precise ?: (!fast && playerPreferences.usePreciseSeeking.get())
+      val seekMode = if (usePrecise) "absolute+exact" else "absolute+keyframes"
       PlaybackSession.command("seek", clampedPosition.toString(), seekMode)
       syncplayManager.updatePlayerState(
         clampedPosition.toDouble(),

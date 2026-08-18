@@ -259,7 +259,7 @@ class MPVView(
     // Do not use reconnect_at_eof globally: a legitimate VOD EOF must still finish normally.
     PlaybackSession.setOptionString(
       "demuxer-lavf-o",
-      "reconnect=1,reconnect_on_network_error=1,reconnect_streamed=1," +
+      "http_persistent=0,reconnect=1,reconnect_on_network_error=1,reconnect_streamed=1," +
         "reconnect_delay_max=5,reconnect_max_retries=5,reconnect_delay_total_max=20",
     )
     // Drop only video-output-bound late frames when rendering cannot keep up.
@@ -399,6 +399,8 @@ class MPVView(
     mapOf(
       "pause" to MPVLib.MpvFormat.MPV_FORMAT_FLAG,
       "paused-for-cache" to MPVLib.MpvFormat.MPV_FORMAT_FLAG,
+      "cache-buffering-state" to MPVLib.MpvFormat.MPV_FORMAT_INT64,
+      "demuxer-cache-duration" to MPVLib.MpvFormat.MPV_FORMAT_DOUBLE,
       "demuxer-cache-time" to MPVLib.MpvFormat.MPV_FORMAT_DOUBLE,
       "video-params/aspect" to MPVLib.MpvFormat.MPV_FORMAT_DOUBLE,
       "video-params/w" to MPVLib.MpvFormat.MPV_FORMAT_INT64,

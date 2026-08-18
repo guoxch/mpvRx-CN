@@ -16,6 +16,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.Surface
+import app.gyrolet.mpvrx.data.network.proxy.HlsStreamingProxy
 import app.gyrolet.mpvrx.data.network.proxy.NetworkStreamingProxy
 import app.gyrolet.mpvrx.domain.network.NetworkPlaybackUri
 import `is`.xyz.mpv.MPVLib
@@ -92,7 +93,8 @@ object PlaybackSession : MPVLib.EventObserver {
   private const val AMBIENT_SCALE_EPSILON = 0.000001
 
   private data class NetworkStreamRegistration(
-    val proxy: NetworkStreamingProxy,
+    val proxy: NetworkStreamingProxy? = null,
+    val hlsProxy: HlsStreamingProxy? = null,
     val streamId: String,
   )
 
@@ -340,21 +342,6 @@ object PlaybackSession : MPVLib.EventObserver {
     releaseAuxiliaryNetworkStreams()
   }
 
-  /**
-   * Silences the native output at the start of a foreground player teardown.
-   *
-   * The transition guard carries the user's prior mute state through the next replacement load,
-   * so stopping a video cannot leave the next one permanently muted.
-   */
-  fun silenceForTeardown() {
-    withCore(Unit) {
-      clearSeekAudioGuardLocked(restoreMute = true)
-      beginPlaybackTransitionAudioGuardLocked()
-      desiredPaused = true
-      runCatching { MPVLib.setPropertyBoolean("pause", true) }
-      propBoolean.emit("pause", true)
-    }
-  }
 
   /** Native destruction is reserved for process-level shutdown or an unrecoverable init reset. */
   fun destroy() {
@@ -512,10 +499,9 @@ object PlaybackSession : MPVLib.EventObserver {
     item: PlaybackItem? = null,
   ): Long =
     withCore(default = -1L) {
-      // The outgoing file can be intentionally left at vid=no while its Surface/decoder is being
-      // replaced. Never let that file-local track selection leak into the new foreground file.
-      // Using a loadfile option selects the new file's default video track atomically, without
-      // briefly re-enabling the outgoing decoder before the replacement command executes.
+      // A preceding surface detach may have left the outgoing file at vid=no. Select video for the
+      // incoming file only when a valid render Surface is attached, and make that choice file-local
+      // in the load command instead of mutating the process-wide vid property during replacement.
       val selectVideoForNewFile = _state.value.surfaceAttached
 
       // An OUTPUT Ambient shader bakes the previous video's aspect ratio into its GLSL. Because the
@@ -552,11 +538,7 @@ object PlaybackSession : MPVLib.EventObserver {
       MPVLib.setPropertyString("http-header-fields", headerFields)
       MPVLib.setPropertyString("force-media-title", "")
 
-      // Quiesce the outgoing decoder while holding the same native lock as loadfile. Previously
-      // PlayerActivity did this in a separate call, which left a scheduling window where the old
-      // GPU frame could overlap the new decoder output during a playlist switch.
-      runCatching { MPVLib.setPropertyBoolean("pause", true) }
-      runCatching { MPVLib.setPropertyString("vid", "no") }
+
 
       // Keep the native core paused while tracks/decoder/output are being replaced. When a valid
       // render Surface is attached, explicitly make vid=auto file-local to this new load. This
@@ -655,24 +637,7 @@ object PlaybackSession : MPVLib.EventObserver {
   fun setPropertyBoolean(
     property: String,
     value: Boolean,
-  ) = withCore(Unit) { setPropertyBooleanLocked(property, value) }
-
-  /** Updates a boolean property only while the media that requested it is still active. */
-  fun setPropertyBooleanForGeneration(
-    expectedGeneration: Long,
-    property: String,
-    value: Boolean,
-  ): Boolean =
-    nativeLock.withLock {
-      if (!initialized || _state.value.generation != expectedGeneration) return@withLock false
-      setPropertyBooleanLocked(property, value)
-      true
-    }
-
-  private fun setPropertyBooleanLocked(
-    property: String,
-    value: Boolean,
-  ) {
+  ) = withCore(Unit) {
     if (property == "pause") {
       desiredPaused = value
       // During a replacement load the native core deliberately stays paused until FILE_LOADED.
@@ -784,7 +749,7 @@ object PlaybackSession : MPVLib.EventObserver {
           fileSize = fileSize,
           mimeType = mimeType,
         )
-      auxiliaryNetworkStreams[uri] = NetworkStreamRegistration(proxy, streamId)
+      auxiliaryNetworkStreams[uri] = NetworkStreamRegistration(proxy = proxy, streamId = streamId)
       uri
     }
 
@@ -867,14 +832,6 @@ object PlaybackSession : MPVLib.EventObserver {
               Log.d(TAG, "Ignoring stale FILE_LOADED generation ${current.activeGeneration}; current=${current.generation}")
               false
             } else {
-              // The outgoing decoder was disabled with vid=no before the replacement command.
-              // Re-enable video only after the new file has loaded, while it is still paused: this
-              // preserves the no-overlap guarantee without leaving the replacement file black.
-              if (current.surfaceAttached) {
-                runCatching { MPVLib.setPropertyString("vid", "auto") }
-                  .onFailure { error -> Log.w(TAG, "Failed to activate video for replacement load", error) }
-              }
-
               // Track/decoder replacement is now complete. Apply the latest user/service intent
               // once instead of allowing pause writes to race the load operation.
               MPVLib.setPropertyBoolean("pause", desiredPaused)
@@ -1147,7 +1104,22 @@ object PlaybackSession : MPVLib.EventObserver {
           filePath = reference.path.value,
           mimeType = item.mimeType ?: "application/octet-stream",
         )
-      return ResolvedPlayable(uri, NetworkStreamRegistration(proxy, streamId))
+      return ResolvedPlayable(uri, NetworkStreamRegistration(proxy = proxy, streamId = streamId))
+    }
+
+    if (M3uPlaybackPolicy.shouldProxyHls(item.playableUri, item.mimeType)) {
+      val hlsProxy = HlsStreamingProxy.getInstance()
+      val streamId = "hls-${streamSequence.incrementAndGet()}"
+      val userAgent = PlaybackHttpHeaders.userAgent(item.headers)
+      val uri =
+        hlsProxy.registerStream(
+          streamId = streamId,
+          sourceUrl = item.playableUri,
+          headers = item.headers,
+          userAgent = userAgent,
+        )
+      Log.d(TAG, "Routing HLS stream through HlsStreamingProxy: $uri")
+      return ResolvedPlayable(uri, NetworkStreamRegistration(hlsProxy = hlsProxy, streamId = streamId))
     }
 
     if (!item.playableUri.startsWith("content://")) return ResolvedPlayable(item.playableUri)
@@ -1181,8 +1153,10 @@ object PlaybackSession : MPVLib.EventObserver {
   }
 
   private fun releaseNetworkStream(registration: NetworkStreamRegistration) {
-    runCatching { registration.proxy.unregisterStream(registration.streamId) }
-      .onFailure { error -> Log.w(TAG, "Failed to release network stream", error) }
+    runCatching {
+      registration.proxy?.unregisterStream(registration.streamId)
+      registration.hlsProxy?.unregisterStream(registration.streamId)
+    }.onFailure { error -> Log.w(TAG, "Failed to release network stream", error) }
   }
 
   private fun observerSnapshot(): List<MPVLib.EventObserver> = observers.toList()

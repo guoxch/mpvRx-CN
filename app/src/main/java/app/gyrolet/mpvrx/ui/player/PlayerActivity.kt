@@ -396,6 +396,10 @@ class PlayerActivity :
   private var mediaLoadJob: Job? = null
   @Volatile private var mediaRequestGeneration = 0L
   private var eofAdvanceJob: Job? = null
+  // Keep the old video decoder detached until mpv has completed the replacement load.
+  // Reattaching it as part of `loadfile` can make the old and new outputs overlap.
+  private var restoreVideoTrackAfterFileLoad = false
+
   @Volatile private var isAdvancingAtEof = false
 
   @Volatile private var playWhenFileLoaded = false
@@ -1081,7 +1085,7 @@ class PlayerActivity :
     audioPreferences.audioChannels.get().let {
       runCatching {
         if (it == AudioChannels.ReverseStereo) {
-          PlaybackSession.setPropertyString(AudioChannels.Auto.property, AudioChannels.Auto.value)
+          PlaybackSession.setPropertyString(AudioChannels.AutoSafe.property, AudioChannels.AutoSafe.value)
         } else {
           PlaybackSession.setPropertyString(it.property, it.value)
         }
@@ -1215,11 +1219,6 @@ class PlayerActivity :
         backgroundPlaybackSessionActive = isBackgroundPlaybackSessionActive,
       )
 
-    // Do this before saving state or stopping services: a queued AudioTrack buffer can otherwise
-    // remain audible for a moment after the player window closes.
-    if (playbackWasInitialized && !keepBackgroundPlaybackAlive) {
-      PlaybackSession.silenceForTeardown()
-    }
 
     runCatching {
       mediaLoadJob?.cancel()
@@ -2684,13 +2683,13 @@ class PlayerActivity :
    * @param extras Bundle containing subtitle URIs
    */
   private fun addSubtitlesFromExtras(extras: Bundle) {
-    if (!extras.containsKey("subs")) return
+    if (!extras.containsKey("subs") && !extras.containsKey("subs.enable")) return
 
-    val subList = Utils.getParcelableArray<Uri>(extras, "subs").toList().orEmpty()
-    val subsToEnable = Utils.getParcelableArray<Uri>(extras, "subs.enable").toList().orEmpty()
+    val subList = extractSubtitleUriList(extras, "subs")
+    val subsToEnable = extractSubtitleUriList(extras, "subs.enable")
     val hasSubsToEnable = extras.containsKey("subs.enable")
-    val subtitleTitles = extras.getStringArray("subs.titles").orEmpty()
-    val subtitleLanguages = extras.getStringArray("subs.langs").orEmpty()
+    val subtitleTitles = extractSubtitleStringArray(extras, "subs.name", "subs.titles", "subs.filename")
+    val subtitleLanguages = extractSubtitleStringArray(extras, "subs.langs", "subs.languages")
     val subtitleEntries =
       IntentSubtitleLoadPolicy.entriesToLoad(
         subtitles = subList,
@@ -2707,17 +2706,25 @@ class PlayerActivity :
           val subfile = suburi.resolveUri(this@PlayerActivity) ?: continue
           val flag = if (entry.select) "select" else "auto"
           val title =
-            subtitleTitles
-              .getOrNull(entry.metadataIndex)
-              ?.trim()
-              .orEmpty()
-              .ifBlank { null }
+            if (entry.metadataIndex >= 0) {
+              subtitleTitles
+                .getOrNull(entry.metadataIndex)
+                ?.trim()
+                .orEmpty()
+                .ifBlank { null }
+            } else {
+              null
+            }
           val language =
-            subtitleLanguages
-              .getOrNull(entry.metadataIndex)
-              ?.trim()
-              .orEmpty()
-              .ifBlank { null }
+            if (entry.metadataIndex >= 0) {
+              subtitleLanguages
+                .getOrNull(entry.metadataIndex)
+                ?.trim()
+                .orEmpty()
+                .ifBlank { null }
+            } else {
+              null
+            }
           val displayTitle = title ?: language
 
           withContext(Dispatchers.Main.immediate) {
@@ -2732,10 +2739,17 @@ class PlayerActivity :
               }
             }.onSuccess {
               val trackCountAfter = PlaybackSession.getPropertyInt("track-list/count") ?: 0
-              if (displayTitle != null && trackCountAfter > trackCountBefore) {
+              if (trackCountAfter > trackCountBefore) {
                 val newTrackIndex = trackCountAfter - 1
-                runCatching {
-                  PlaybackSession.setPropertyString("track-list/$newTrackIndex/title", displayTitle)
+                if (displayTitle != null) {
+                  runCatching {
+                    PlaybackSession.setPropertyString("track-list/$newTrackIndex/title", displayTitle)
+                  }
+                }
+                if (language != null) {
+                  runCatching {
+                    PlaybackSession.setPropertyString("track-list/$newTrackIndex/lang", language)
+                  }
                 }
               }
             }.onFailure { error ->
@@ -2744,6 +2758,37 @@ class PlayerActivity :
           }
         }
       }
+  }
+
+  private fun extractSubtitleUriList(extras: Bundle, key: String): List<Uri> {
+    val fromParcelableArray = runCatching { Utils.getParcelableArray<Uri>(extras, key)?.toList() }.getOrNull()
+    if (!fromParcelableArray.isNullOrEmpty()) return fromParcelableArray
+
+    val fromParcelableList = runCatching {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        extras.getParcelableArrayList(key, Uri::class.java)
+      } else {
+        @Suppress("DEPRECATION")
+        extras.getParcelableArrayList<Uri>(key)
+      }
+    }.getOrNull()
+    if (!fromParcelableList.isNullOrEmpty()) return fromParcelableList
+
+    val fromStringArray = extras.getStringArray(key)?.mapNotNull { runCatching { Uri.parse(it) }.getOrNull() }
+    if (!fromStringArray.isNullOrEmpty()) return fromStringArray
+
+    val fromStringList = extras.getStringArrayList(key)?.mapNotNull { runCatching { Uri.parse(it) }.getOrNull() }
+    if (!fromStringList.isNullOrEmpty()) return fromStringList
+
+    return emptyList()
+  }
+
+  private fun extractSubtitleStringArray(extras: Bundle, vararg keys: String): Array<String> {
+    for (key in keys) {
+      extras.getStringArray(key)?.let { return it }
+      extras.getStringArrayList(key)?.let { return it.toTypedArray() }
+    }
+    return emptyArray()
   }
 
   /**
@@ -3203,7 +3248,8 @@ class PlayerActivity :
       return
     }
 
-    val autoplay = playerPreferences.autoplayNextVideo.get()
+    val isAudio = viewModel.isAudioOnly.value || isKnownAudioLaunch(intent) || isCurrentMediaKnownAudio()
+    val autoplay = if (isAudio) playerPreferences.autoplayNextAudio.get() else playerPreferences.autoplayNextVideo.get()
     val repeatAll = repeatMode == RepeatMode.ALL
 
     if (playlist.isNotEmpty()) {
@@ -3473,6 +3519,10 @@ class PlayerActivity :
         eofAdvanceJob = null
         isAdvancingAtEof = false
         isReady = true
+        if (restoreVideoTrackAfterFileLoad) {
+          restoreVideoTrackAfterFileLoad = false
+          PlaybackSession.setPropertyString("vid", "auto")
+        }
         if (playWhenFileLoaded) {
           playWhenFileLoaded = false
         }
@@ -4046,7 +4096,14 @@ class PlayerActivity :
       var state = playbackStateRepository.getVideoDataByTitle(identifier)
       if (state == null) {
         val legacyKey = legacyIdentifier?.takeIf { it.isNotBlank() && it != identifier }
-        val legacyState = legacyKey?.let { playbackStateRepository.getVideoDataByTitle(it) }
+        // Only migrate legacy records whose key is collision-resistant (e.g. contains a
+        // URI hash like "name_123456" for remote files). Bare filenames used by older
+        // versions for local files are ambiguous — two files in different directories
+        // share the same display name, so migrating would steal one file's state.
+        val isCollisionResistant = legacyKey != null && legacyKey.contains('_')
+        val legacyState = legacyKey
+          ?.takeIf { isCollisionResistant }
+          ?.let { playbackStateRepository.getVideoDataByTitle(it) }
         if (legacyState != null) {
           val migratedState = legacyState.copy(mediaTitle = identifier)
           state = migratedState
@@ -4520,6 +4577,7 @@ class PlayerActivity :
           playableUri = uri,
           originalUri = originalUri?.toString(),
           expandM3u = true,
+          disableVideoOnFallback = true,
         )
       } else {
         startMediaLoad(uri, originalUri?.toString())
@@ -4531,6 +4589,7 @@ class PlayerActivity :
     playableUri: String,
     originalUri: String? = null,
     expandM3u: Boolean = false,
+    disableVideoOnFallback: Boolean = false,
   ) {
     mediaLoadJob?.cancel()
     playWhenFileLoaded = true
@@ -4634,6 +4693,9 @@ class PlayerActivity :
             }
           }
 
+          // Tear down the outgoing video track before replacing the file.
+          restoreVideoTrackAfterFileLoad = !disableVideoOnFallback
+          PlaybackSession.setPropertyString("vid", "no")
           val networkPath = sourceIntent.getStringExtra("network_file_path")
           val networkConnectionId = sourceIntent.getLongExtra("network_connection_id", -1L)
           val networkSource =
@@ -5711,7 +5773,7 @@ class PlayerActivity :
       } else if (isRemotePlaybackUri(uri)) {
         "${fileName}_${uri.toString().hashCode()}"
       } else {
-        fileName
+        null
       }
     mediaIdentifier =
       if (networkFilePath != null && resolvedNetworkConnectionId != null) {
@@ -6079,7 +6141,9 @@ class PlayerActivity :
     }
     val uri = extractUriFromIntent(intent)
     if (uri != null && NetworkPlaybackUri.parse(uri.toString()) != null) return null
-    return if (uri != null && isRemotePlaybackUri(uri)) "${fileName}_${uri.toString().hashCode()}" else fileName
+    // Local files must not use the bare filename as a legacy key — it is ambiguous when
+    // multiple directories contain files with the same display name (issue #382).
+    return if (uri != null && isRemotePlaybackUri(uri)) "${fileName}_${uri.toString().hashCode()}" else null
   }
 
   private fun loadNetworkPlaylistMetadata(intent: Intent) {

@@ -57,7 +57,9 @@ class PlayerPreferences(
   val volumeGesture = preferenceStore.getBoolean("volume_brightness", true)
   val pinchToZoomGesture = preferenceStore.getBoolean("pinch_to_zoom_gesture", true)
   val horizontalSwipeToSeek = preferenceStore.getBoolean("horizontal_swipe_to_seek", true)
-  val horizontalSwipeSensitivity = preferenceStore.getFloat("horizontal_swipe_sensitivity", 0.05f)
+  // Default tuned to match mpvKt's full-screen seek feel: ~0.15s of seek per pixel, so a full
+  // screen-width swipe scrubs ~150s. Higher = faster scrubbing.
+  val horizontalSwipeSensitivity = preferenceStore.getFloat("horizontal_swipe_sensitivity", 0.15f)
 
   val customAspectRatios = preferenceStore.getStringSet("custom_aspect_ratios", emptySet())
   val lastVideoAspect = preferenceStore.getEnum("last_video_aspect", VideoAspect.Fit)
@@ -120,6 +122,7 @@ class PlayerPreferences(
 
   // New: autoplay next video when current file ends
   val autoplayNextVideo = preferenceStore.getBoolean("autoplay_next_video", true)
+  val autoplayNextAudio = preferenceStore.getBoolean("autoplay_next_audio", true)
 
   val autoPiPOnNavigation = preferenceStore.getBoolean("auto_pip_on_navigation", false)
   private val videoBackgroundPlayback = preferenceStore.getBoolean("automatic_background_playback", false)

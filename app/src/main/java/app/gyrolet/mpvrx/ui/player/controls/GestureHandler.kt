@@ -84,7 +84,6 @@ import app.gyrolet.mpvrx.ui.player.getSubtitleHitboxBounds
 import app.gyrolet.mpvrx.ui.player.getTrackSelectionId
 import app.gyrolet.mpvrx.ui.theme.AppMotion
 import app.gyrolet.mpvrx.ui.theme.playerRippleConfiguration
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -157,6 +156,8 @@ fun GestureHandler(
   val panelShown by viewModel.panelShown.collectAsState()
   val allowGesturesInPanels by playerPreferences.allowGesturesInPanels.collectAsState()
   val paused by PlaybackSession.propBoolean["pause"].collectAsState()
+  val duration by PlaybackSession.propInt["duration"].collectAsState()
+  val position by PlaybackSession.propInt["time-pos"].collectAsState()
   val playbackSpeed by PlaybackSession.propFloat["speed"].collectAsState()
   val controlsShown by viewModel.controlsShown.collectAsState()
   val areControlsLocked by viewModel.areControlsLocked.collectAsState()
@@ -1050,30 +1051,17 @@ fun GestureHandler(
 
             var gestureType: String? = null
             var hasStartedSeeking = false
-            var initialVideoPosition = 0.0
-            var pendingSeekPosition: Double? = null
-            var legacySeekPreviewActive = false
+            var initialVideoPosition = 0f
+            var pendingSeekPosition: Float? = null
+            // Tracks whether we paused the player for the duration of the horizontal seek
+            // gesture. Mirrors mpvKt: pausing during the drag keeps the scrub buttery smooth
+            // because playback never fights the seek and no audio glitches occur.
+            var wasPausedForSeek = false
             // Use the sensitivity preference instead of hardcoded value
             val seekSensitivity = horizontalSwipeSensitivity
-            val mediaDuration =
-              (
-                PlaybackSession.getPropertyDouble("duration")
-                  ?: viewModel.preciseDuration.value.toDouble()
-              ).takeIf { it.isFinite() && it > 0.0 } ?: 0.0
 
             do {
-              val event =
-                try {
-                  awaitPointerEvent()
-                } catch (cancellation: CancellationException) {
-                  if (legacySeekPreviewActive) {
-                    viewModel.cancelLegacySeekPreview()
-                    legacySeekPreviewActive = false
-                  } else if (hasStartedSeeking && gestureType == "horizontal_seek") {
-                    viewModel.hideSeekThumbnailPreview()
-                  }
-                  throw cancellation
-                }
+              val event = awaitPointerEvent()
               val pointerCount = event.changes.count { it.pressed }
 
               if (pointerCount == 1) {
@@ -1124,16 +1112,12 @@ fun GestureHandler(
 
                       gestureType = "horizontal_seek"
                       hasStartedSeeking = true
-                      initialVideoPosition =
-                        (
-                          PlaybackSession.getPropertyDouble("time-pos")
-                            ?: viewModel.precisePosition.value.toDouble()
-                        ).takeIf { it.isFinite() } ?: 0.0
+                      initialVideoPosition = position?.toFloat() ?: 0f
                       pendingSeekPosition = initialVideoPosition
-                      if (!useThumbFastSeekPreview) {
-                        viewModel.beginLegacySeekPreview()
-                        legacySeekPreviewActive = true
-                      }
+                      // Pause playback while scrubbing so the gesture feels smooth and native,
+                      // exactly like mpvKt. Resume only if it was playing before the gesture.
+                      wasPausedForSeek = PlaybackSession.getPropertyBoolean("pause") ?: false
+                      if (!wasPausedForSeek) viewModel.pause()
 
                       // Show seekbar and start seeking mode (same as seekbar scrubbing)
                       viewModel.showSeekBar()
@@ -1142,15 +1126,15 @@ fun GestureHandler(
 
                     if (gestureType == "horizontal_seek" && hasStartedSeeking) {
                       // Calculate seek amount based on horizontal movement
-                      val seekAmount = (deltaX * seekSensitivity).toDouble()
-                      val targetPosition = (initialVideoPosition + seekAmount).coerceAtLeast(0.0)
-                      val clampedPosition =
-                        if (mediaDuration > 0.0) targetPosition.coerceAtMost(mediaDuration) else targetPosition
+                      val seekAmount = deltaX * seekSensitivity
+                      val targetPosition = (initialVideoPosition + seekAmount).coerceAtLeast(0f)
+                      val maxDuration = duration?.toFloat() ?: 0f
+                      val clampedPosition = targetPosition.coerceAtMost(maxDuration)
                       pendingSeekPosition = clampedPosition
                       if (useThumbFastSeekPreview) {
-                        viewModel.updateSeekThumbnailPreview(clampedPosition.toFloat(), mediaDuration.toFloat())
+                        viewModel.updateSeekThumbnailPreview(clampedPosition, maxDuration)
                       } else {
-                        viewModel.updateLegacySeekPreview(clampedPosition, mediaDuration)
+                        viewModel.gesturePreviewSeekTo(clampedPosition.toInt())
                       }
 
                       // Format and display time position updates
@@ -1183,9 +1167,8 @@ fun GestureHandler(
                   // Clean up seeking state without showing controls
                   if (useThumbFastSeekPreview) {
                     viewModel.hideSeekThumbnailPreview()
-                  } else if (legacySeekPreviewActive) {
-                    viewModel.cancelLegacySeekPreview()
-                    legacySeekPreviewActive = false
+                  } else {
+                    viewModel.cancelGesturePreview()
                   }
                   viewModel.playerUpdate.update { PlayerUpdates.None }
                   if (gestureType == "horizontal_seek") {
@@ -1196,14 +1179,21 @@ fun GestureHandler(
               }
             } while (event.changes.any { it.pressed })
 
-            // Apply the final seek when gesture ends
+            // Resume playback if we paused it for the horizontal seek gesture. This runs
+            // regardless of how the gesture ended (normal release or multi-finger cancel) so
+            // the player is never left paused.
+            if (gestureType == "horizontal_seek" && !wasPausedForSeek) {
+              viewModel.unpause()
+            }
+
+            // Apply the final seek when gesture ends. The gesture previews are frame-accurate, so
+            // commit an exact seek on release to avoid snapping back to the nearest keyframe.
             if (hasStartedSeeking) {
               if (useThumbFastSeekPreview) {
-                pendingSeekPosition?.let { viewModel.seekTo(it, fast = false) }
+                pendingSeekPosition?.let { viewModel.seekTo(it.toInt(), precise = true) }
                 viewModel.hideSeekThumbnailPreview()
               } else {
-                pendingSeekPosition?.let { viewModel.commitLegacySeekPreview(it, mediaDuration) }
-                legacySeekPreviewActive = false
+                pendingSeekPosition?.let { viewModel.seekTo(it.toInt(), fast = false, precise = true) }
               }
               if (gestureType == "subtitle_dialog_seek") {
                 coroutineScope.launch {

@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,12 +22,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +56,7 @@ import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.torrent.TorrentFileItem
 import app.gyrolet.mpvrx.domain.torrent.formatTorrentBytes
 import app.gyrolet.mpvrx.presentation.components.RemoteImage
+import app.gyrolet.mpvrx.utils.media.MediaInfoParser
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -89,6 +94,9 @@ private fun TorrentReadyScreen(
     remember(state.catalog.infoHash) {
       mutableStateOf(loadViewedFileIndices(viewedPreferences, state.catalog.infoHash))
     }
+  var searchQuery by rememberSaveable { mutableStateOf("") }
+  var isSearchOpen by rememberSaveable { mutableStateOf(false) }
+  var sortDescending by rememberSaveable { mutableStateOf(false) }
 
   Surface(
     modifier = Modifier.fillMaxSize(),
@@ -158,54 +166,175 @@ private fun TorrentReadyScreen(
           TorrentHeroBanner(artwork)
         }
 
+        val displayedFiles =
+          remember(state.catalog.playableFiles, searchQuery, sortDescending) {
+            val baseList =
+              state.catalog.playableFiles.sortedWith { f1, f2 ->
+                MediaInfoParser.compareMediaFiles(f1.name, f1.index, f2.name, f2.index)
+              }
+            val filtered =
+              if (searchQuery.isBlank()) {
+                baseList
+              } else {
+                val query = searchQuery.trim()
+                baseList.filter { file ->
+                  file.name.contains(query, ignoreCase = true) ||
+                    file.path.contains(query, ignoreCase = true) ||
+                    (file.index + 1).toString() == query
+                }
+              }
+            if (sortDescending) filtered.reversed() else filtered
+          }
+
         // File list header
         Column(
           modifier =
             Modifier
               .fillMaxWidth()
-              .padding(horizontal = 20.dp, vertical = 8.dp),
+              .padding(horizontal = 20.dp, vertical = 4.dp),
         ) {
-          Text(
-            text =
-              pluralStringResource(
-                R.plurals.torrent_picker_playable_count,
-                state.catalog.playableFiles.size,
-                state.catalog.playableFiles.size,
-              ),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Text(
+              text =
+                pluralStringResource(
+                  R.plurals.torrent_picker_playable_count,
+                  displayedFiles.size,
+                  displayedFiles.size,
+                ),
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              modifier = Modifier.weight(1f),
+            )
+
+            if (state.catalog.playableFiles.size > 1) {
+              IconButton(
+                onClick = { isSearchOpen = !isSearchOpen },
+                modifier = Modifier.size(36.dp),
+              ) {
+                Icon(
+                  imageVector = Icons.RoundedFilled.Search,
+                  contentDescription = stringResource(R.string.ui_search_episodes),
+                  modifier = Modifier.size(20.dp),
+                  tint =
+                    if (isSearchOpen || searchQuery.isNotBlank()) {
+                      MaterialTheme.colorScheme.primary
+                    } else {
+                      MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+              }
+
+              IconButton(
+                onClick = { sortDescending = !sortDescending },
+                modifier = Modifier.size(36.dp),
+              ) {
+                Icon(
+                  imageVector = Icons.RoundedFilled.SwapVert,
+                  contentDescription =
+                    stringResource(
+                      if (sortDescending) R.string.ui_sort_descending else R.string.ui_sort_ascending,
+                    ),
+                  modifier = Modifier.size(20.dp),
+                  tint =
+                    if (sortDescending) {
+                      MaterialTheme.colorScheme.primary
+                    } else {
+                      MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+              }
+            }
+          }
+
+          if (isSearchOpen && state.catalog.playableFiles.size > 1) {
+            OutlinedTextField(
+              value = searchQuery,
+              onValueChange = { searchQuery = it },
+              modifier =
+                Modifier
+                  .fillMaxWidth()
+                  .padding(top = 4.dp, bottom = 4.dp),
+              placeholder = {
+                Text(
+                  stringResource(R.string.ui_search_episodes),
+                  style = MaterialTheme.typography.bodySmall,
+                )
+              },
+              leadingIcon = {
+                Icon(
+                  imageVector = Icons.RoundedFilled.Search,
+                  contentDescription = null,
+                  modifier = Modifier.size(18.dp),
+                  tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+              },
+              trailingIcon = {
+                if (searchQuery.isNotBlank()) {
+                  IconButton(onClick = { searchQuery = "" }) {
+                    Icon(
+                      imageVector = Icons.RoundedFilled.Close,
+                      contentDescription = "Clear",
+                      modifier = Modifier.size(18.dp),
+                    )
+                  }
+                }
+              },
+              singleLine = true,
+              shape = RoundedCornerShape(12.dp),
+              textStyle = MaterialTheme.typography.bodySmall,
+            )
+          }
         }
 
         // File list
-        LazyColumn(
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .weight(1f)
-              .padding(horizontal = 16.dp),
-          verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-          itemsIndexed(
-            items = state.catalog.playableFiles,
-            key = { _, file -> file.index },
-            contentType = { _, _ -> "torrent_file_row" },
-          ) { position, file ->
-            TorrentFileRow(
-              file = file,
-              position = position,
-              enabled = state.launchingFileIndex == null,
-              launching = state.launchingFileIndex == file.index,
-              viewed = file.index in viewedFileIndices,
-              onClick = {
-                val updatedViewedFiles = viewedFileIndices + file.index
-                viewedFileIndices = updatedViewedFiles
-                saveViewedFileIndices(viewedPreferences, state.catalog.infoHash, updatedViewedFiles)
-                onSelect(file.index)
-              },
+        if (displayedFiles.isEmpty()) {
+          Box(
+            modifier =
+              Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(24.dp),
+            contentAlignment = Alignment.Center,
+          ) {
+            Text(
+              text = stringResource(R.string.ui_no_matching_episodes),
+              style = MaterialTheme.typography.bodyMedium,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
           }
-          item { Spacer(modifier = Modifier.height(16.dp)) }
+        } else {
+          LazyColumn(
+            modifier =
+              Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            itemsIndexed(
+              items = displayedFiles,
+              key = { _, file -> file.index },
+              contentType = { _, _ -> "torrent_file_row" },
+            ) { position, file ->
+              TorrentFileRow(
+                file = file,
+                position = position,
+                enabled = state.launchingFileIndex == null,
+                launching = state.launchingFileIndex == file.index,
+                viewed = file.index in viewedFileIndices,
+                onClick = {
+                  val updatedViewedFiles = viewedFileIndices + file.index
+                  viewedFileIndices = updatedViewedFiles
+                  saveViewedFileIndices(viewedPreferences, state.catalog.infoHash, updatedViewedFiles)
+                  onSelect(file.index)
+                },
+              )
+            }
+            item { Spacer(modifier = Modifier.height(16.dp)) }
+          }
         }
       }
     }
@@ -216,7 +345,13 @@ private fun TorrentReadyScreen(
 private fun TorrentHeroBanner(artwork: TorrentArtwork) {
   var expanded by remember { mutableStateOf(false) }
   val hasBackdrop = !artwork.backdropUrl.isNullOrBlank()
+  val hasPoster = !artwork.posterUrl.isNullOrBlank()
   val hasDescription = !artwork.description.isNullOrBlank()
+  val metadata =
+    listOfNotNull(
+      artwork.releaseYear,
+      artwork.mediaType,
+    ).joinToString("  •  ")
 
   Column(
     modifier =
@@ -232,7 +367,6 @@ private fun TorrentHeroBanner(artwork: TorrentArtwork) {
             .fillMaxWidth()
             .aspectRatio(16f / 9f)
             .clip(RoundedCornerShape(16.dp)),
-        contentAlignment = Alignment.BottomStart,
       ) {
         RemoteImage(
           url = artwork.backdropUrl!!,
@@ -244,46 +378,98 @@ private fun TorrentHeroBanner(artwork: TorrentArtwork) {
           modifier =
             Modifier
               .fillMaxWidth()
-              .height(80.dp)
+              .height(140.dp)
+              .align(Alignment.BottomCenter)
               .background(
                 Brush.verticalGradient(
-                  colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
+                  colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)),
                 ),
               ),
         )
-        Text(
-          text = artwork.title,
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.Bold,
-          color = Color.White,
-          maxLines = 2,
-          overflow = TextOverflow.Ellipsis,
-          modifier = Modifier.padding(12.dp),
-        )
+        Row(
+          modifier =
+            Modifier
+              .align(Alignment.BottomStart)
+              .padding(12.dp),
+          horizontalArrangement = Arrangement.spacedBy(12.dp),
+          verticalAlignment = Alignment.Bottom,
+        ) {
+          if (hasPoster) {
+            Box(
+              modifier =
+                Modifier
+                  .width(84.dp)
+                  .aspectRatio(2f / 3f)
+                  .clip(RoundedCornerShape(10.dp)),
+            ) {
+              RemoteImage(
+                url = artwork.posterUrl!!,
+                contentDescription = artwork.title,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+              )
+            }
+          }
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = artwork.title,
+              style = MaterialTheme.typography.titleMedium,
+              fontWeight = FontWeight.Bold,
+              color = Color.White,
+              maxLines = 2,
+              overflow = TextOverflow.Ellipsis,
+            )
+            if (metadata.isNotBlank()) {
+              Text(
+                text = metadata,
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.padding(top = 4.dp),
+              )
+            }
+          }
+        }
       }
     } else {
-      Text(
-        text = artwork.title,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis,
-      )
-    }
-
-    val metadata =
-      listOfNotNull(
-        artwork.releaseYear,
-        artwork.mediaType,
-      ).joinToString("  •  ")
-
-    if (metadata.isNotBlank()) {
-      Text(
-        text = metadata,
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 6.dp),
-      )
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.Top,
+      ) {
+        if (hasPoster) {
+          Box(
+            modifier =
+              Modifier
+                .width(84.dp)
+                .aspectRatio(2f / 3f)
+                .clip(RoundedCornerShape(12.dp)),
+          ) {
+            RemoteImage(
+              url = artwork.posterUrl!!,
+              contentDescription = artwork.title,
+              modifier = Modifier.fillMaxSize(),
+              contentScale = ContentScale.Crop,
+            )
+          }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+          Text(
+            text = artwork.title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+          )
+          if (metadata.isNotBlank()) {
+            Text(
+              text = metadata,
+              style = MaterialTheme.typography.labelMedium,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              modifier = Modifier.padding(top = 6.dp),
+            )
+          }
+        }
+      }
     }
 
     if (hasDescription) {
@@ -295,7 +481,7 @@ private fun TorrentHeroBanner(artwork: TorrentArtwork) {
         overflow = TextOverflow.Ellipsis,
         modifier =
           Modifier
-            .padding(top = 6.dp)
+            .padding(top = 10.dp)
             .clickable { expanded = !expanded },
       )
     }
@@ -367,8 +553,8 @@ private fun TorrentFileRow(
           text = file.name,
           style = MaterialTheme.typography.bodyMedium,
           fontWeight = FontWeight.SemiBold,
-          maxLines = 2,
-          overflow = TextOverflow.Ellipsis,
+          maxLines = 1,
+          modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE, repeatDelayMillis = 2000),
         )
         Text(
           text =

@@ -9,6 +9,10 @@
 
 package app.gyrolet.mpvrx.utils.media
 
+import android.net.Uri
+import app.gyrolet.mpvrx.utils.sort.SortUtils
+import java.net.URLDecoder
+
 /**
  * High-accuracy media filename parser inspired by kahari-parser (GizmoH2o/kahari-parser).
  *
@@ -335,23 +339,23 @@ object MediaInfoParser {
 
   // ── Regex patterns ───────────────────────────────────────────────────────────
 
-  // Season-Episode: S01E02, S1E2, s01e02, S01.E02 — also captures multi-episode S01E01E02
-  private val SEASON_EPISODE_REGEX = Regex("""[Ss](\d{1,2})\.?[Ee](\d{1,4})""")
+  // Season-Episode: S01E02, S1E2, S1:E1, s01e02, S01.E02, S01_E01, S01-E01, S01 - E01, [S1E1]
+  private val SEASON_EPISODE_REGEX = Regex("""[Ss](\d{1,2})[\s.:_-]*[Ee](\d{1,4})""")
 
   // Cross-format: 1x02 format
   private val CROSS_FORMAT_REGEX = Regex("""\b(\d{1,2})[xX](\d{1,4})\b""")
 
   // EP marker: EP05, Ep5 — with word boundary to avoid matching inside words
-  private val EP_MARKER_REGEX = Regex("""\b[Ee][Pp](\d{1,4})\b""")
+  private val EP_MARKER_REGEX = Regex("""\b[Ee][Pp][\s.:_-]*(\d{1,4})\b""")
 
   // Standalone E-prefix: E05, E5 — only after a separator (dot/space/dash) to avoid false positives
-  private val E_PREFIX_REGEX = Regex("""(?:^|[.\s_-])[Ee](\d{2,4})(?:[.\s_-]|$)""")
+  private val E_PREFIX_REGEX = Regex("""(?:^|[.\s_:-])[Ee](\d{2,4})(?:[.\s_:-]|$)""")
 
-  // Episode word: Episode 5, EPISODE 05
-  private val EPISODE_WORD_REGEX = Regex("""\b[Ee]pisode\s*(\d{1,4})\b""")
+  // Episode word: Episode 5, EPISODE 05, Ep: 1
+  private val EPISODE_WORD_REGEX = Regex("""\b[Ee]p(?:isode)?[\s.:_-]*(\d{1,4})\b""")
 
-  // Season word: Season 3, SEASON 3
-  private val SEASON_WORD_REGEX = Regex("""\b[Ss]eason\s*(\d{1,2})\b""")
+  // Season word: Season 3, SEASON 3, Season: 1
+  private val SEASON_WORD_REGEX = Regex("""\b[Ss]eason[\s.:_-]*(\d{1,2})\b""")
 
   // Year: 1900-2099
   private val YEAR_REGEX = Regex("""\b(19|20)\d{2}\b""")
@@ -789,4 +793,127 @@ object MediaInfoParser {
       // Remove trailing dash left over from group removal
       .replace(Regex("""\s*-\s*$"""), "")
       .trim()
+
+  /**
+   * Intelligently compares two media file names using parsed season/episode numbers,
+   * natural alphanumeric ordering, and file index fallback.
+   */
+  fun compareMediaFiles(
+    name1: String,
+    index1: Int?,
+    name2: String,
+    index2: Int?,
+  ): Int {
+    val p1 = parse(name1)
+    val p2 = parse(name2)
+
+    val s1 = p1.season
+    val s2 = p2.season
+    if (s1 != null && s2 != null && s1 != s2) {
+      return s1.compareTo(s2)
+    }
+
+    val e1 = p1.episode
+    val e2 = p2.episode
+    if (e1 != null && e2 != null && e1 != e2) {
+      return e1.compareTo(e2)
+    }
+
+    val natural = SortUtils.NaturalOrderComparator.DEFAULT.compare(name1, name2)
+    if (natural != 0) return natural
+
+    return (index1 ?: Int.MAX_VALUE).compareTo(index2 ?: Int.MAX_VALUE)
+  }
+
+  /**
+   * Extracts and formats a clean, human-readable media title from a streaming URL or fallback filename.
+   */
+  fun parseStreamTitle(
+    source: String,
+    fallbackFileName: String? = null,
+  ): String {
+    val genericWords =
+      setOf(
+        "raw", "api", "stream", "video", "play", "watch", "download", "get", "media", "v1", "v2", "v3",
+        "index.m3u8", "master.m3u8", "playlist.m3u8", "manifest.mpd", "video.mp4", "audio.mp3", "file", "embed", "player", "link",
+      )
+
+    val trimmedFallback = fallbackFileName?.trim()
+    if (!trimmedFallback.isNullOrBlank()) {
+      val isUrlLike = trimmedFallback.startsWith("http://", ignoreCase = true) || trimmedFallback.startsWith("https://", ignoreCase = true)
+      if (!isUrlLike && !genericWords.contains(trimmedFallback.lowercase())) {
+        val parsed = parse(trimmedFallback)
+        if (parsed.title.isNotBlank() && !genericWords.contains(parsed.title.lowercase())) {
+          return formatDisplayTitle(parsed)
+        }
+        return trimmedFallback
+      }
+    }
+
+    if (source.isBlank()) return fallbackFileName.orEmpty()
+
+    val parsedCandidate =
+      runCatching {
+        val uri = Uri.parse(source)
+        val queryParams = listOf("path", "file", "filename", "title", "name", "url", "src", "stream", "video", "target", "source", "query", "q")
+        var candidate: String? = null
+
+        for (param in queryParams) {
+          val value = uri.getQueryParameter(param)
+          if (!value.isNullOrBlank()) {
+            val decoded = runCatching { URLDecoder.decode(value, "UTF-8") }.getOrDefault(value).trim()
+            val extracted = decoded.substringAfterLast('/').substringAfterLast('\\').trim()
+            if (extracted.isNotEmpty() && !genericWords.contains(extracted.lowercase())) {
+              candidate = extracted
+              break
+            }
+          }
+        }
+
+        if (candidate == null) {
+          val segments = uri.pathSegments.orEmpty()
+          for (i in segments.indices.reversed()) {
+            val seg = runCatching { URLDecoder.decode(segments[i], "UTF-8") }.getOrDefault(segments[i]).trim()
+            val segClean = seg.substringAfterLast('/').substringAfterLast('\\').trim()
+            if (segClean.isNotEmpty() && !genericWords.contains(segClean.lowercase())) {
+              candidate = segClean
+              break
+            }
+          }
+        }
+
+        candidate ?: uri.host?.takeIf(String::isNotBlank) ?: source
+      }.getOrDefault(source)
+
+    val parsed = parse(parsedCandidate)
+    if (parsed.title.isNotBlank() && !genericWords.contains(parsed.title.lowercase())) {
+      return formatDisplayTitle(parsed)
+    }
+
+    return parsedCandidate
+      .replace(Regex("""\.(?:mkv|mp4|m4v|webm|avi|mov|ts|m2ts|mp3|m4a|flac|ogg|m3u8|mpd)$""", RegexOption.IGNORE_CASE), "")
+      .replace(Regex("""[._\-]"""), " ")
+      .replace(Regex("""\s+"""), " ")
+      .trim()
+      .ifBlank { source }
+  }
+
+  private fun formatDisplayTitle(info: ParsedMediaInfo): String {
+    val builder = StringBuilder(info.title)
+    if (info.season != null && info.episode != null) {
+      builder.append(" S").append(info.season.toString().padStart(2, '0'))
+      builder.append("E").append(info.episode.toString().padStart(2, '0'))
+      if (!info.episodeTitle.isNullOrBlank()) {
+        builder.append(" - ").append(info.episodeTitle)
+      }
+    } else if (info.episode != null) {
+      builder.append(" E").append(info.episode.toString().padStart(2, '0'))
+      if (!info.episodeTitle.isNullOrBlank()) {
+        builder.append(" - ").append(info.episodeTitle)
+      }
+    } else if (info.year != null) {
+      builder.append(" (").append(info.year).append(")")
+    }
+    return builder.toString()
+  }
 }

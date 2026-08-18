@@ -76,6 +76,7 @@
   <!-- Theme names -->
   <string name="theme_default">Default</string>
   <string name="theme_dynamic">Dynamic</string>
+  <string name="theme_aurora">Aurora</string>
   <string name="theme_cloudflare">Cloudflare</string>
   <string name="theme_cotton_candy">Cotton Candy</string>
   <string name="theme_doom">Doom</string>
@@ -115,6 +116,9 @@
   <string name="pref_autoplay_next_video_title">Autoplay next video</string>
   <string name="pref_autoplay_next_video_summary">Automatically play next video when current ends</string>
   <string name="pref_autoplay_next_video_summary_disabled">Stay on current video when it ends</string>
+  <string name="pref_autoplay_next_audio_title">Autoplay next audio</string>
+  <string name="pref_autoplay_next_audio_summary">Automatically play next audio track when current ends</string>
+  <string name="pref_autoplay_next_audio_summary_disabled">Stay on current audio track when it ends</string>
   <string name="pref_auto_pip_title">Auto Picture-in-Picture</string>
   <string name="pref_auto_pip_summary">Automatically enter PIP mode when pressing home or back</string>
   <string name="pref_enable_video_mini_player_title">Enable Video Mini Player</string>
@@ -144,6 +148,8 @@
   <string name="pref_enable_lua_scripts_summary">Load scripts from your MPV configuration directory</string>
   <string name="pref_enable_p2p_streaming_title">Enable P2P torrent streaming</string>
   <string name="pref_enable_p2p_streaming_summary">Stream playable media from magnet links and torrent files</string>
+  <string name="pref_enable_hls_proxy_title">Enable HLS streaming proxy</string>
+  <string name="pref_enable_hls_proxy_summary">Normalize adaptive HLS manifests and handle split audio/video streams</string>
   <string name="pref_manage_lua_scripts_title">Manage scripts</string>
   <string name="pref_manage_lua_scripts_summary">Manage enabled scripts</string>
   <string name="pref_clear_config_cache_title">Clear config cache</string>
@@ -705,6 +711,19 @@
   <!-- Advanced Preferences                                       -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <string name="pref_section_backup_restore">Backup &amp; Restore</string>
+    <string name="ui_recent_streams">Recent Stream Links</string>
+  <string name="ui_autofill_stream_url">Autofill stream URL</string>
+  <string name="ui_torrent_media_anime">Anime</string>
+  <string name="ui_torrent_media_series">Series</string>
+  <string name="ui_torrent_media_movie">Movie</string>
+  <string name="ui_torrent_media_torrent">Torrent</string>
+  <string name="ui_resume_playback">Resume</string>
+  <string name="ui_play_now">Play</string>
+  <string name="ui_show_more">Show more</string>
+  <string name="ui_show_less">Show less</string>
+  <string name="ui_episodes">Episodes</string>
+  <string name="ui_no_torrents_title">No Torrents Saved</string>
+  <string name="ui_no_torrents_description">Paste a magnet link or torrent URL above to stream anime and movies.</string>
   <string name="pref_export_complete_title">Export Complete</string>
   <string name="pref_export_complete_text">Successfully exported %1$d items!</string>
   <string name="pref_import_complete_title">Import Complete</string>
@@ -723,6 +742,11 @@
     <item quantity="one">%1$d playable file</item>
     <item quantity="other">%1$d playable files</item>
   </plurals>
+  <string name="ui_search_episodes">Search episodes…</string>
+  <string name="ui_sort_ascending">Sort Ascending</string>
+  <string name="ui_sort_descending">Sort Descending</string>
+  <string name="ui_no_matching_episodes">No matching episodes</string>
+  <string name="ui_buffering">Buffering…</string>
   <string name="ui_expand_torrent_group">Show torrent files</string>
   <string name="ui_collapse_torrent_group">Hide torrent files</string>
   <string name="ui_delete_torrent_group">Remove torrent</string>

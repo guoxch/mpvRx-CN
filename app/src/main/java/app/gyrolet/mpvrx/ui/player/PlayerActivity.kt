@@ -607,6 +607,7 @@ class PlayerActivity :
     setupMediaSession()
     lockMaxResolution()
     observePlaybackSessionQueue()
+    observeTorrentStreamingState()
     // Note: screenStateReceiver is now registered in onStart() and
     // unregistered in onStop(), matching the noisyReceiver pattern.
     // Previously it was registered here in onCreate and stayed registered
@@ -1342,6 +1343,16 @@ class PlayerActivity :
             viewModel.calculateVideoHash(Uri.parse(item.originalUri))
             viewModel.refreshPlaylistItems()
           }
+      }
+    }
+  }
+
+  private fun observeTorrentStreamingState() {
+    lifecycleScope.launch {
+      repeatOnLifecycle(Lifecycle.State.STARTED) {
+        torrentStreamingEngine.state.collect { state ->
+          viewModel.updateTorrentState(state)
+        }
       }
     }
   }
@@ -3631,7 +3642,7 @@ class PlayerActivity :
 
     reportJellyfinStop()
     currentUri?.toString()?.let { url ->
-      jellyfinSessionReporter = JellyfinSessionReporter.create(url, lifecycleScope)
+      jellyfinSessionReporter = JellyfinSessionReporter.create(url, lifecycleScope, networkHttpClient)
       jellyfinSessionReporter?.reportPlaybackStart((viewModel.pos ?: 0).toLong() * 1000L)
       startJellyfinProgressLoop()
     }
@@ -4081,6 +4092,15 @@ class PlayerActivity :
     jellyfinProgressJob?.cancel()
     jellyfinProgressJob =
       lifecycleScope.launch {
+        // Immediately report pause/resume state changes to Jellyfin dashboard
+        launch {
+          PlaybackSession.propBoolean["pause"]
+            .collect { pausedValue ->
+              val reporter = jellyfinSessionReporter ?: return@collect
+              val currentPosMs = (viewModel.pos ?: 0).toLong() * 1000L
+              reporter.reportPlaybackProgress(currentPosMs, pausedValue ?: false)
+            }
+        }
         while (isActive) {
           delay(10000) // Report progress every 10 seconds
           val reporter = jellyfinSessionReporter ?: continue

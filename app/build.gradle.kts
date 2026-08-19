@@ -102,7 +102,7 @@ android {
       isEnable = true
       reset()
       include(*activeAbis.toTypedArray())
-      isUniversalApk = activeAbis.size > 1
+      isUniversalApk = true
     }
   }
 

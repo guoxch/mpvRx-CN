@@ -1733,4 +1733,31 @@
     <item quantity="one">%1$d 个可播放文件</item>
     <item quantity="other">%1$d 个可播放文件</item>
   </plurals>
+  <string name="pref_autoplay_next_audio_title">自动播放下一个音频</string>
+  <string name="pref_autoplay_next_audio_summary">当前音频结束后自动播放下一个音轨</string>
+  <string name="pref_autoplay_next_audio_summary_disabled">当前音频结束后停留在当前音轨</string>
+  <string name="pref_enable_hls_proxy_title">启用 HLS 流代理</string>
+  <string name="pref_enable_hls_proxy_summary">规范化自适应 HLS 清单并处理分离的音视频流</string>
+  <string name="pref_nav_jellyfin_title">显示“Jellyfin”标签页</string>
+  <string name="pref_nav_jellyfin_summary">在底部导航栏中显示或隐藏 Jellyfin</string>
+  <string name="ui_autofill_stream_url">自动填充流链接</string>
+  <string name="ui_buffering">缓冲中…</string>
+  <string name="ui_episodes">剧集</string>
+  <string name="ui_jellyfin">Jellyfin</string>
+  <string name="ui_no_matching_episodes">没有匹配的剧集</string>
+  <string name="ui_no_torrents_description">在上方粘贴磁力链接或种子 URL，即可在线播放动漫和电影。</string>
+  <string name="ui_no_torrents_title">没有已保存的种子</string>
+  <string name="ui_play_now">播放</string>
+  <string name="ui_recent_streams">最近的流链接</string>
+  <string name="ui_resume_playback">继续播放</string>
+  <string name="ui_search_episodes">搜索剧集…</string>
+  <string name="ui_show_less">收起</string>
+  <string name="ui_show_more">展开</string>
+  <string name="ui_sort">排序</string>
+  <string name="ui_sort_ascending">升序排序</string>
+  <string name="ui_sort_descending">降序排序</string>
+  <string name="ui_torrent_media_anime">动漫</string>
+  <string name="ui_torrent_media_movie">电影</string>
+  <string name="ui_torrent_media_series">剧集</string>
+  <string name="ui_torrent_media_torrent">种子</string>
 </resources>

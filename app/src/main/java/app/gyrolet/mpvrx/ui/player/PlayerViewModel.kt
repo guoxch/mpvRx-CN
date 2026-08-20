@@ -2750,27 +2750,14 @@ class PlayerViewModel : ViewModel(),
   }
 
   private fun maybeAutoSkipIntro(positionSeconds: Double) {
-    val totalDur = currentDurationSeconds()
-    val hasNextItem = PlaybackSession.hasNext()
     val activeSegment =
       skipSegmentsSnapshot.firstOrNull { segment ->
-        positionSeconds in segment.startSeconds..segment.endSeconds && (segment.endSeconds - positionSeconds) >= 1.0
-      } ?: if (hasNextItem && totalDur > 45.0 && (totalDur - positionSeconds) in 1.0..30.0) {
-        SkipSegment(
-          type = SkipSegmentType.NEXT_EPISODE,
-          startSeconds = totalDur - 30.0,
-          endSeconds = totalDur,
-          source = "auto_outro",
-        )
-      } else {
-        null
+        positionSeconds >= segment.startSeconds && positionSeconds < segment.endSeconds && (segment.endSeconds - positionSeconds) >= 0.8
       }
 
     val showChip =
-      activeSegment != null && (
-        activeSegment.type == SkipSegmentType.NEXT_EPISODE ||
-          (positionSeconds - activeSegment.startSeconds) < AUTO_SHOW_SKIP_CHIP_DURATION
-      )
+      activeSegment != null && !skippedSegmentTypes.contains(activeSegment.type) &&
+        (positionSeconds - activeSegment.startSeconds) < AUTO_SHOW_SKIP_CHIP_DURATION
     if (_currentSkippableSegment.value != activeSegment) {
       _currentSkippableSegment.value = activeSegment
     }
@@ -2787,38 +2774,32 @@ class PlayerViewModel : ViewModel(),
         SkipSegmentType.OUTRO -> playerPreferences.autoSkipOutro.get()
         SkipSegmentType.CREDITS -> playerPreferences.autoSkipOutro.get()
         SkipSegmentType.PREVIEW -> playerPreferences.autoSkipOutro.get()
-        SkipSegmentType.NEXT_EPISODE -> false
       }
     if (!autoSkipEnabled) return
 
     skippedSegmentTypes += activeSegment.type
-    if ((activeSegment.type == SkipSegmentType.OUTRO || activeSegment.type == SkipSegmentType.CREDITS) && hasNext()) {
-      playNext()
-    } else {
-      PlaybackSession.setPropertyDouble("time-pos", activeSegment.endSeconds)
-      syncplayManager.updatePlayerState(
-        activeSegment.endSeconds,
-        PlaybackSession.getPropertyBoolean("pause") ?: false,
-        doSeek = true,
-      )
-      showToast("${activeSegment.label} (auto)")
-    }
+    _showSkipChipAuto.value = false
+    seekPastSkipSegment(activeSegment, auto = true)
   }
 
   fun skipActiveSegment() {
     val segment = _currentSkippableSegment.value ?: return
     skippedSegmentTypes += segment.type
-    if ((segment.type == SkipSegmentType.OUTRO || segment.type == SkipSegmentType.CREDITS || segment.type == SkipSegmentType.NEXT_EPISODE) && hasNext()) {
-      playNext()
-    } else {
-      PlaybackSession.setPropertyDouble("time-pos", segment.endSeconds)
-      syncplayManager.updatePlayerState(
-        segment.endSeconds,
-        PlaybackSession.getPropertyBoolean("pause") ?: false,
-        doSeek = true,
-      )
-      showToast("${segment.label}")
-    }
+    _showSkipChipAuto.value = false
+    seekPastSkipSegment(segment, auto = false)
+  }
+
+  private fun seekPastSkipSegment(
+    segment: SkipSegment,
+    auto: Boolean,
+  ) {
+    PlaybackSession.setPropertyDouble("time-pos", segment.endSeconds)
+    syncplayManager.updatePlayerState(
+      segment.endSeconds,
+      PlaybackSession.getPropertyBoolean("pause") ?: false,
+      doSeek = true,
+    )
+    showToast(if (auto) "${segment.label} (auto)" else segment.label)
   }
 
   private fun mergeSkipSegments() {
@@ -3221,14 +3202,21 @@ class PlayerViewModel : ViewModel(),
       chapters.mapIndexedNotNull { index, segment ->
         val type = chapterTitleToType(segment.name) ?: return@mapIndexedNotNull null
         val start = segment.start.toDouble()
-        val end = chapters.getOrNull(index + 1)?.start?.toDouble() ?: durationSec
+        val nextStart = chapters.getOrNull(index + 1)?.start?.toDouble()
+        val isTerminalType =
+          type == SkipSegmentType.OUTRO ||
+            type == SkipSegmentType.CREDITS ||
+            type == SkipSegmentType.PREVIEW
+        // A final terminal chapter has no safe in-file destination after it. Treating
+        // EOF as its end turns "skip" into normal EOF/autoplay and can advance the queue.
+        if (nextStart == null && isTerminalType) return@mapIndexedNotNull null
+        val end = nextStart ?: durationSec
         val normalizedEnd = end.coerceAtMost(durationSec)
         if (normalizedEnd - start < 5.0) return@mapIndexedNotNull null
         val durationFraction = start / durationSec
         when (type) {
-          SkipSegmentType.INTRO -> if (durationFraction > 0.5) return@mapIndexedNotNull null
-          SkipSegmentType.OUTRO -> if (durationFraction < 0.4) return@mapIndexedNotNull null
-          else -> {}
+          SkipSegmentType.INTRO, SkipSegmentType.RECAP -> if (durationFraction > 0.5) return@mapIndexedNotNull null
+          SkipSegmentType.OUTRO, SkipSegmentType.CREDITS, SkipSegmentType.PREVIEW -> if (durationFraction < 0.4) return@mapIndexedNotNull null
         }
         SkipSegment(type = type, startSeconds = start, endSeconds = normalizedEnd, source = "chapter")
       }
@@ -3294,25 +3282,29 @@ class PlayerViewModel : ViewModel(),
   }
 
   private fun app.gyrolet.mpvrx.repository.IntroDbSegment.toSkipSegment(durationSec: Double): SkipSegment? {
-    val loweredType = segmentType?.lowercase().orEmpty()
+    val loweredType = segmentType?.lowercase().orEmpty().trim()
     val type =
       when {
         "recap" in loweredType || "summary" in loweredType -> SkipSegmentType.RECAP
         "credit" in loweredType -> SkipSegmentType.CREDITS
-        "preview" in loweredType -> SkipSegmentType.PREVIEW
-        "out" in loweredType || "ending" in loweredType -> SkipSegmentType.OUTRO
+        "preview" in loweredType || "next" in loweredType -> SkipSegmentType.PREVIEW
+        "out" in loweredType || "ending" in loweredType || "ed" == loweredType || "mixed-ed" in loweredType -> SkipSegmentType.OUTRO
         else -> SkipSegmentType.INTRO
       }
-    val endSeconds =
-      endSecondsOrNull ?: durationSec.takeIf {
-        (type == SkipSegmentType.CREDITS || type == SkipSegmentType.PREVIEW) && it > normalizedStart
+    // Do not synthesize EOF for an open-ended provider marker. The last timestamp
+    // from some providers has no end bound, and seeking it to duration triggers EOF.
+    val explicitEnd = endSecondsOrNull ?: return null
+    val normalizedEnd =
+      if (durationSec > 0.0) {
+        explicitEnd.coerceAtMost(durationSec)
+      } else {
+        explicitEnd
       }
-        ?: return null
-    if (endSeconds <= normalizedStart) return null
+    if (normalizedEnd <= normalizedStart) return null
     return SkipSegment(
       type = type,
       startSeconds = normalizedStart,
-      endSeconds = endSeconds,
+      endSeconds = normalizedEnd,
       source = introDbSourceKey,
     )
   }
@@ -3448,7 +3440,7 @@ class PlayerViewModel : ViewModel(),
             )
           }
         }.onFailure {
-          showProviderStatusToast("Failed to load episodes: ${it.message}")
+          showProviderStatusToast("Failed to load series details: ${it.message}")
         }
       _isFetchingEpisodes.value = false
     }

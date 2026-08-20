@@ -1480,7 +1480,12 @@ class PlayerActivity :
     // Minimizing into the Mini Player: slide the full player down toward the bottom
     // bar. The browser tab stays in place; the Mini Player slides up to meet it.
     if (isMiniPlayerEnabled()) {
-      overridePendingTransition(0, R.anim.slide_out_down)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, R.anim.slide_out_down)
+      } else {
+        @Suppress("DEPRECATION")
+        overridePendingTransition(0, R.anim.slide_out_down)
+      }
     }
   }
 
@@ -2814,7 +2819,7 @@ class PlayerActivity :
   }
 
   private fun extractSubtitleUriList(extras: Bundle, key: String): List<Uri> {
-    val fromParcelableArray = runCatching { Utils.getParcelableArray<Uri>(extras, key)?.toList() }.getOrNull()
+    val fromParcelableArray = runCatching { Utils.getParcelableArray<Uri>(extras, key).toList() }.getOrNull()
     if (!fromParcelableArray.isNullOrEmpty()) return fromParcelableArray
 
     val fromParcelableList = runCatching {
@@ -2900,7 +2905,7 @@ class PlayerActivity :
   private fun parsePathFromIntent(intent: Intent): String? =
     intent
       .getStringExtra("local_media_path")
-      ?.takeIf { path -> File(path).isFile }
+      ?.takeIf { path -> File(path).canRead() }
       ?: when (intent.action) {
         Intent.ACTION_VIEW -> intent.data?.resolveUri(this)
         Intent.ACTION_SEND -> parsePathFromSendIntent(intent)
@@ -3943,6 +3948,14 @@ class PlayerActivity :
             )
           }.onFailure { e ->
             Log.e(TAG, "Error updating video metadata in recently played", e)
+          }
+
+          // Persist the resolved title to the Network tab recent links
+          runCatching {
+            networkStreamEntryRepository.saveNormalEntry(
+              canonicalSourceUri = url,
+              fileName = betterFilename,
+            )
           }
         }
       } catch (e: Exception) {
@@ -6182,6 +6195,18 @@ class PlayerActivity :
         launchSource = "playlist",
         playlistId = historyPlaylistId,
       )
+
+      if (HttpUtils.isNetworkStream(uri)) {
+        val streamTitle = videoTitle?.takeIf { !HttpUtils.isLikelyJunkTitle(it) } ?: resolvedName
+        if (!HttpUtils.isLikelyJunkTitle(streamTitle)) {
+          runCatching {
+            networkStreamEntryRepository.saveNormalEntry(
+              canonicalSourceUri = uri.toString(),
+              fileName = streamTitle,
+            )
+          }
+        }
+      }
 
       Log.d(TAG, "Saved recently played (playlist): $filePath")
       Log.d(TAG, "  - fileName: $name")

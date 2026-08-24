@@ -56,6 +56,7 @@ import androidx.compose.runtime.withFrameNanos
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -99,6 +100,11 @@ fun LyricsView(
   onTap: (() -> Unit)? = null,
 ) {
   val audioPreferences = koinInject<AudioPreferences>()
+  val enhancedLyrics by audioPreferences.enhancedLyrics.collectAsState()
+  val lyricsClickToSeek by audioPreferences.lyricsClickToSeek.collectAsState()
+  val lyricsAutoScroll by audioPreferences.lyricsAutoScroll.collectAsState()
+  val lyricsLineBlur by audioPreferences.lyricsLineBlur.collectAsState()
+  val lyricsWordSync by audioPreferences.lyricsWordSync.collectAsState()
   val translationDisplayMode by audioPreferences.lyricsTranslationDisplayMode.collectAsState()
   val state by viewModel.lyricsUiState.collectAsState()
   val precisePosition by viewModel.precisePosition.collectAsState()
@@ -116,7 +122,8 @@ fun LyricsView(
   val smoothPositionMs = rememberSmoothedPositionMs(currentPosMs, paused == false, playbackSpeed ?: 1f)
 
   // Autoscroll: scroll current active line to the top
-  LaunchedEffect(state.activeLineIndex, isLyricsFullscreen, lyricsViewportPx) {
+  LaunchedEffect(state.activeLineIndex, isLyricsFullscreen, lyricsViewportPx, enhancedLyrics, lyricsAutoScroll) {
+    if (!enhancedLyrics || !lyricsAutoScroll) return@LaunchedEffect
     val target = state.activeLineIndex
     if (target < 0) return@LaunchedEffect
     runCatching {
@@ -300,6 +307,10 @@ fun LyricsView(
                 val isBlankLine = ogText.isBlank()
                 val displayText = if (isBlankLine) ". . ." else ogText
                 val hasTranslation = !transText.isNullOrBlank()
+                val romanizedText =
+                  line.romanization
+                    ?.trim()
+                    ?.takeIf { it.isNotBlank() && !it.equals(ogText, ignoreCase = true) && !it.equals(transText, ignoreCase = true) }
 
                 val distanceFromActive =
                   if (state.activeLineIndex >= 0) kotlin.math.abs(index - state.activeLineIndex) else 0
@@ -308,6 +319,7 @@ fun LyricsView(
                   targetValue =
                     when {
                       isActiveLine -> 1.0f
+                      !enhancedLyrics || !lyricsLineBlur -> 0.68f
                       distanceFromActive == 1 -> 0.70f
                       distanceFromActive == 2 -> 0.50f
                       else -> 0.38f
@@ -317,7 +329,7 @@ fun LyricsView(
                 )
 
                 val lineScale by animateFloatAsState(
-                  targetValue = if (isActiveLine) 1.02f else 1.0f,
+                  targetValue = if (enhancedLyrics && isActiveLine) 1.02f else 1.0f,
                   animationSpec = spring(dampingRatio = 0.80f, stiffness = 280f),
                   label = "LineScale",
                 )
@@ -330,6 +342,12 @@ fun LyricsView(
                   animationSpec = tween(durationMillis = 250),
                   label = "LineColor",
                 )
+                val lineBlurRadius =
+                  if (enhancedLyrics && lyricsLineBlur && !isActiveLine) {
+                    distanceFromActive.coerceIn(1, 3).dp
+                  } else {
+                    0.dp
+                  }
 
                 Column(
                   modifier = Modifier
@@ -340,10 +358,11 @@ fun LyricsView(
                       scaleY = lineScale
                       transformOrigin = TransformOrigin(0.5f, 0.5f)
                     }
+                    .blur(lineBlurRadius)
                     .clip(RoundedCornerShape(8.dp))
                     .clickable {
                       onTap?.invoke()
-                      if (!isLyricsFullscreen) {
+                      if (lyricsClickToSeek && !isLyricsFullscreen) {
                         val targetSeconds = line.time / 1000f
                         PlaybackSession.command("seek", targetSeconds.toString(), "absolute+exact")
                       }
@@ -351,7 +370,7 @@ fun LyricsView(
                     .padding(vertical = 4.dp, horizontal = 6.dp),
                   horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                  if (isActiveLine && !isBlankLine && !line.words.isNullOrEmpty()) {
+                  if (enhancedLyrics && lyricsWordSync && isActiveLine && !isBlankLine && !line.words.isNullOrEmpty()) {
                     FlowRow(
                       modifier = Modifier.fillMaxWidth(),
                       horizontalArrangement = Arrangement.Center,
@@ -403,6 +422,19 @@ fun LyricsView(
                       color = translationColor,
                       fontSize = if (isActiveLine) 18.sp else 16.sp,
                       fontWeight = FontWeight.Bold,
+                      fontFamily = FontFamily.SansSerif,
+                      textAlign = TextAlign.Center,
+                      modifier = Modifier.fillMaxWidth(),
+                    )
+                  }
+
+                  if (!romanizedText.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                      text = romanizedText,
+                      color = if (isActiveLine) activeColor.copy(alpha = 0.78f) else inactiveColor.copy(alpha = 0.62f),
+                      fontSize = if (isActiveLine) 17.sp else 15.sp,
+                      fontWeight = FontWeight.SemiBold,
                       fontFamily = FontFamily.SansSerif,
                       textAlign = TextAlign.Center,
                       modifier = Modifier.fillMaxWidth(),

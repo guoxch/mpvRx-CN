@@ -706,6 +706,9 @@ class PlayerViewModel : ViewModel(),
       ?: PlaybackSession.getPropertyString("metadata/by-key/album_artist")
       ?: ""
 
+    val album = PlaybackSession.getPropertyString("metadata/by-key/Album")
+      ?: PlaybackSession.getPropertyString("metadata/by-key/ALBUM")
+
     val duration = PlaybackSession.getPropertyInt("duration") ?: 0
 
     lyricsUiState.value = lyricsUiState.value.copy(isLoading = true, errorMessage = null, syncOffsetMs = 0)
@@ -715,6 +718,7 @@ class PlayerViewModel : ViewModel(),
         mediaPath = path,
         title = title,
         artist = artist,
+        album = album,
         durationSeconds = duration,
         forceRefresh = forceRefresh,
       )
@@ -767,10 +771,13 @@ class PlayerViewModel : ViewModel(),
           ?: PlaybackSession.getPropertyString("metadata/by-key/ARTIST")
           ?: PlaybackSession.getPropertyString("metadata/by-key/album_artist")
           ?: ""
+        val album = PlaybackSession.getPropertyString("metadata/by-key/Album")
+          ?: PlaybackSession.getPropertyString("metadata/by-key/ALBUM")
         val duration = PlaybackSession.getPropertyInt("duration") ?: 0
 
-        val online = lyricsRepository.fetchOnlineLyrics(title, artist, duration)
-        val updatedSources = (current.availableSources + app.gyrolet.mpvrx.domain.lyrics.LyricsSourceType.ONLINE).distinct()
+        val refreshed = lyricsRepository.refreshOnlineLyrics(path, title, artist, album, duration)
+        val online = refreshed.onlineLyrics
+        val updatedSources = refreshed.availableSources
         val activeLyrics = online ?: current.embeddedLyrics
         val activeIndex = app.gyrolet.mpvrx.utils.media.LyricsUtils.getActiveLineIndex(
           syncedLines = activeLyrics?.synced,

@@ -7,12 +7,10 @@ package app.gyrolet.mpvrx.repository.lyrics
 import android.content.Context
 import android.util.Log
 import android.util.LruCache
-import app.gyrolet.mpvrx.data.lyrics.LrcLibApiService
-import app.gyrolet.mpvrx.data.lyrics.LrcLibResponse
+import app.gyrolet.mpvrx.data.lyrics.LyricsSearchRequest
 import app.gyrolet.mpvrx.domain.lyrics.Lyrics
 import app.gyrolet.mpvrx.domain.lyrics.LyricsSourceType
 import app.gyrolet.mpvrx.utils.media.EmbeddedLyricsExtractor
-import app.gyrolet.mpvrx.utils.media.LyricsUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -26,7 +24,7 @@ data class LyricsResult(
 
 class LyricsRepository(
   private val context: Context,
-  private val lrcLibApiService: LrcLibApiService,
+  private val providerRegistry: LyricsProviderRegistry,
 ) {
   companion object {
     private const val TAG = "LyricsRepository"
@@ -63,6 +61,7 @@ class LyricsRepository(
     mediaPath: String,
     title: String?,
     artist: String?,
+    album: String? = null,
     durationSeconds: Int = 0,
     forceRefresh: Boolean = false,
   ): LyricsResult = withContext(Dispatchers.IO) {
@@ -73,10 +72,11 @@ class LyricsRepository(
     Log.d(TAG, "Loading lyrics for: $title by $artist ($mediaPath)")
 
     // 1. Check embedded lyrics first
-    val embedded = EmbeddedLyricsExtractor.extractEmbeddedLyrics(context, mediaPath)
+    val embedded = EmbeddedLyricsExtractor.extractEmbeddedLyrics(context, mediaPath)?.let(providerRegistry::enhance)
 
-    // 2. Fetch online lyrics from LRCLIB
-    val online = fetchOnlineLyrics(title, artist, durationSeconds)
+    // 2. Query all enabled providers and keep the quality-ranked results.
+    val rankedOnlineLyrics = fetchRankedOnlineLyrics(title, artist, album, durationSeconds, mediaPath)
+    val online = rankedOnlineLyrics.firstOrNull()
 
     // 3. Determine available sources and default preference (Embedded first if available)
     val sources = mutableListOf<LyricsSourceType>()
@@ -110,12 +110,14 @@ class LyricsRepository(
     result
   }
 
-  suspend fun fetchOnlineLyrics(
+  private suspend fun fetchRankedOnlineLyrics(
     rawTitle: String?,
     rawArtist: String?,
+    album: String? = null,
     durationSeconds: Int = 0,
-  ): Lyrics? = withContext(Dispatchers.IO) {
-    if (rawTitle.isNullOrBlank()) return@withContext null
+    mediaId: String? = null,
+  ): List<Lyrics> = withContext(Dispatchers.IO) {
+    if (rawTitle.isNullOrBlank()) return@withContext emptyList()
 
     var title = cleanTitle(rawTitle)
     var artist = cleanArtist(rawArtist)
@@ -129,67 +131,53 @@ class LyricsRepository(
       }
     }
 
-    val sCleanTitle = superCleanTitle(title)
-
-    try {
-      // Strategy 1: Exact search with get endpoint (if artist known)
-      if (artist.isNotBlank()) {
-        val response = lrcLibApiService.getLyrics(
-          trackName = title,
-          artistName = artist,
-          duration = if (durationSeconds > 0) durationSeconds else null,
-        )
-        if (response != null) {
-          val raw = response.syncedLyrics ?: response.plainLyrics
-          if (!raw.isNullOrBlank()) {
-            val parsed = LyricsUtils.parseLyrics(raw, sourceType = LyricsSourceType.ONLINE)
-            if (parsed.isValid()) return@withContext parsed
-          }
-        }
-      }
-
-      // Strategy 2: Flexible search with clean title and artist
-      val results2 = lrcLibApiService.searchLyrics(
-        trackName = title,
-        artistName = artist.takeIf { it.isNotBlank() },
+    val request =
+      LyricsSearchRequest(
+        title = title,
+        artist = artist,
+        album = album,
+        durationSeconds = durationSeconds,
+        mediaId = extractYouTubeId(mediaId),
       )
-      extractBestMatch(results2)?.let { return@withContext it }
-
-      // Strategy 3: Super clean title and artist (stripped brackets/feat)
-      if (sCleanTitle != title) {
-        val results3 = lrcLibApiService.searchLyrics(
-          trackName = sCleanTitle,
-          artistName = artist.takeIf { it.isNotBlank() },
-        )
-        extractBestMatch(results3)?.let { return@withContext it }
+    return@withContext try {
+      val exact = providerRegistry.fetchAll(request)
+      if (exact.isNotEmpty()) {
+        exact
+      } else {
+        val fallbackTitle = superCleanTitle(title)
+        if (fallbackTitle == title) emptyList() else providerRegistry.fetchAll(request.copy(title = fallbackTitle))
       }
-
-      // Strategy 4: Combined query search ("Artist Track")
-      if (artist.isNotBlank()) {
-        val results4 = lrcLibApiService.searchLyrics(query = "$artist $sCleanTitle")
-        extractBestMatch(results4)?.let { return@withContext it }
-      }
-
-      // Strategy 5: Track-only search with superCleanTitle (aggressive fallback)
-      val results5 = lrcLibApiService.searchLyrics(trackName = sCleanTitle)
-      extractBestMatch(results5)?.let { return@withContext it }
-
     } catch (e: Exception) {
       Log.w(TAG, "Failed to fetch online lyrics: ${e.message}")
+      emptyList()
     }
-
-    null
   }
 
-  private fun extractBestMatch(responses: List<LrcLibResponse>): Lyrics? {
-    if (responses.isEmpty()) return null
-    val bestMatch = responses.firstOrNull { !it.syncedLyrics.isNullOrBlank() }
-      ?: responses.firstOrNull { !it.plainLyrics.isNullOrBlank() }
-      ?: return null
-
-    val raw = bestMatch.syncedLyrics ?: bestMatch.plainLyrics ?: return null
-    val parsed = LyricsUtils.parseLyrics(raw, sourceType = LyricsSourceType.ONLINE)
-    return if (parsed.isValid()) parsed else null
+  suspend fun refreshOnlineLyrics(
+    mediaPath: String,
+    title: String?,
+    artist: String?,
+    album: String? = null,
+    durationSeconds: Int = 0,
+  ): LyricsResult {
+    val existing = cache.get(mediaPath) ?: LyricsResult()
+    val rankedOnlineLyrics = fetchRankedOnlineLyrics(title, artist, album, durationSeconds, mediaPath)
+    val online = rankedOnlineLyrics.firstOrNull()
+    val sources =
+      if (online != null) {
+        (existing.availableSources + LyricsSourceType.ONLINE).distinct()
+      } else {
+        existing.availableSources - LyricsSourceType.ONLINE
+      }
+    val updated =
+      existing.copy(
+        onlineLyrics = online,
+        activeLyrics = online ?: existing.embeddedLyrics,
+        selectedSource = if (online != null) LyricsSourceType.ONLINE else existing.selectedSource,
+        availableSources = sources,
+      )
+    cache.put(mediaPath, updated)
+    return updated
   }
 
   fun switchSource(mediaPath: String, sourceType: LyricsSourceType): LyricsResult? {
@@ -204,5 +192,14 @@ class LyricsRepository(
     )
     cache.put(mediaPath, updated)
     return updated
+  }
+
+  private fun extractYouTubeId(value: String?): String? {
+    val raw = value?.trim().orEmpty()
+    if (raw.matches(Regex("^[A-Za-z0-9_-]{11}$"))) return raw
+    return Regex("""(?:youtu\.be/|youtube\.com/(?:watch\?.*?v=|shorts/|embed/))([A-Za-z0-9_-]{11})""", RegexOption.IGNORE_CASE)
+      .find(raw)
+      ?.groupValues
+      ?.get(1)
   }
 }

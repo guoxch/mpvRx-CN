@@ -535,10 +535,101 @@ object AudioPreferencesScreen : Screen {
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
               )
 
+              val enhancedLyrics by preferences.enhancedLyrics.collectAsState()
+              SwitchPreference(
+                value = enhancedLyrics,
+                onValueChange = preferences.enhancedLyrics::set,
+                title = { Text(stringResource(R.string.pref_enhanced_lyrics)) },
+                summary = { Text(stringResource(R.string.pref_enhanced_lyrics_summary)) },
+              )
+
+              PreferenceDivider()
+              val lyricsClickToSeek by preferences.lyricsClickToSeek.collectAsState()
+              SwitchPreference(
+                value = lyricsClickToSeek,
+                onValueChange = preferences.lyricsClickToSeek::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_click_to_seek)) },
+              )
+
+              PreferenceDivider()
+              val lyricsAutoScroll by preferences.lyricsAutoScroll.collectAsState()
+              SwitchPreference(
+                value = lyricsAutoScroll,
+                onValueChange = preferences.lyricsAutoScroll::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_auto_scroll)) },
+              )
+
+              PreferenceDivider()
+              val lyricsLineBlur by preferences.lyricsLineBlur.collectAsState()
+              SwitchPreference(
+                value = lyricsLineBlur,
+                onValueChange = preferences.lyricsLineBlur::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_line_blur)) },
+              )
+
+              PreferenceDivider()
+              val lyricsWordSync by preferences.lyricsWordSync.collectAsState()
+              SwitchPreference(
+                value = lyricsWordSync,
+                onValueChange = preferences.lyricsWordSync::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_word_sync)) },
+              )
+
+              PreferenceDivider()
+              val romanizeJapanese by preferences.lyricsRomanizeJapanese.collectAsState()
+              SwitchPreference(
+                value = romanizeJapanese,
+                onValueChange = preferences.lyricsRomanizeJapanese::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_romanize_japanese)) },
+              )
+
+              PreferenceDivider()
+              val romanizeKorean by preferences.lyricsRomanizeKorean.collectAsState()
+              SwitchPreference(
+                value = romanizeKorean,
+                onValueChange = preferences.lyricsRomanizeKorean::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_romanize_korean)) },
+              )
+
+              PreferenceDivider()
+              val romanizeChinese by preferences.lyricsRomanizeChinese.collectAsState()
+              SwitchPreference(
+                value = romanizeChinese,
+                onValueChange = preferences.lyricsRomanizeChinese::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_romanize_chinese)) },
+              )
+
+              PreferenceDivider()
+              val romanizeHindi by preferences.lyricsRomanizeHindi.collectAsState()
+              SwitchPreference(
+                value = romanizeHindi,
+                onValueChange = preferences.lyricsRomanizeHindi::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_romanize_hindi)) },
+              )
+
+              PreferenceDivider()
+              val romanizeOther by preferences.lyricsRomanizeOtherLanguages.collectAsState()
+              SwitchPreference(
+                value = romanizeOther,
+                onValueChange = preferences.lyricsRomanizeOtherLanguages::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_romanize_other)) },
+              )
+
+              PreferenceDivider()
               val lyricsAutoTranslate by preferences.lyricsAutoTranslate.collectAsState()
               SwitchPreference(
                 value = lyricsAutoTranslate,
                 onValueChange = { preferences.lyricsAutoTranslate.set(it) },
+                enabled = enhancedLyrics,
                 title = { Text(stringResource(R.string.pref_lyrics_auto_translate)) },
                 summary = {
                   Text(
@@ -691,5 +782,6 @@ object AudioPreferencesScreen : Screen {
         },
       )
     }
+
   }
 }

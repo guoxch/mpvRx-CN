@@ -27,9 +27,14 @@ object LyricsUtils {
       return Lyrics(plain = emptyList(), synced = emptyList(), sourceType = sourceType)
     }
 
+    if (EnhancedLyricsParser.canParse(lyricsText)) {
+      EnhancedLyricsParser.parse(lyricsText, sourceType)?.let { return it }
+    }
+
     val syncedLines = mutableListOf<SyncedLine>()
     val plainLines = mutableListOf<String>()
     var isSynced = false
+    var hasExplicitWordTiming = false
 
     lyricsText.lines().forEach { rawLine ->
       val line = rawLine.trim()
@@ -50,6 +55,7 @@ object LyricsUtils {
 
         val words = mutableListOf<SyncedWord>()
         if (rawText.contains(LRC_WORD_TAG_REGEX)) {
+          hasExplicitWordTiming = true
           val parts = rawText.split(LRC_WORD_SPLIT_REGEX)
           for (part in parts) {
             if (part.isEmpty()) continue
@@ -130,6 +136,7 @@ object LyricsUtils {
         plain = plainVersion,
         areFromRemote = (sourceType == LyricsSourceType.ONLINE),
         sourceType = sourceType,
+        isWordSynced = hasExplicitWordTiming,
       )
     } else {
       Lyrics(

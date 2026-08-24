@@ -139,7 +139,7 @@ class LyricsTranslationService(
             targetLanguage == "romaji" || targetLanguage == "hinglish" -> romanizedText ?: translatedText
             else -> translatedText
           },
-          romanization = romanizedText,
+          romanization = romanizedText ?: line.romanization,
         )
       } else {
         line

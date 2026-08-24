@@ -1880,6 +1880,7 @@ class PlayerActivity :
 
     if (MediaPlaybackService.isRunning()) {
       Log.d(TAG, "Stopping detached service before replacing its media")
+      MediaPlaybackService.prepareForActivityHandoff()
       MediaPlaybackService.relinquishMediaSessionToActivity()
       MediaPlaybackService.prepareForMpvShutdown()
       stopService(Intent(this, MediaPlaybackService::class.java))

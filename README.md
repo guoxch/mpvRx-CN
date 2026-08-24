@@ -344,13 +344,6 @@ report it in the [Issues](https://github.com/Riteshp2001/mpvRx/issues).
 ./gradlew.bat :app:assembleStandardDebug
 ```
 
-### Release Build
-
-```powershell
-./gradlew.bat assembleRelease
-./gradlew.bat assembleStandardRelease -PenableX86=false -PsingleAbi=arm64-v8a
-```
-
 ### Release Variants
 
 | Variant | Description |

@@ -40,7 +40,7 @@ fun DecodersSheet(
     LazyColumn {
       items(Decoder.entries.minusElement(Decoder.Auto), key = { it.name }) { decoder ->
         AudioTrackRow(
-          title = stringResource(R.string.player_sheets_decoder_formatted, stringResource(decoder.titleRes), decoder.value),
+          title = stringResource(R.string.player_sheets_decoder_formatted, decoder.title, decoder.value),
           isSelected = selectedDecoder == decoder,
           enabled = decoder != Decoder.HWPlus || directMediaCodecAllowed,
           onClick = { onSelect(decoder) },

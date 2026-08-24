@@ -56,14 +56,14 @@ enum class CustomKeyCodes(
 }
 
 enum class Decoder(
-  @StringRes val titleRes: Int,
+  val title: String,
   val value: String,
 ) {
-  AutoCopy(R.string.decoder_auto, "auto-copy"),
-  Auto(R.string.decoder_auto, "auto"),
-  SW(R.string.decoder_sw, "no"),
-  HW(R.string.decoder_hw, "mediacodec-copy"),
-  HWPlus(R.string.decoder_hw_plus, "mediacodec"),
+  AutoCopy("Auto", "auto-copy"),
+  Auto("Auto", "auto"),
+  SW("SW", "no"),
+  HW("HW", "mediacodec-copy"),
+  HWPlus("HW+", "mediacodec"),
   ;
 
   companion object {
@@ -85,10 +85,10 @@ enum class MPVProfile(
 ) {
   Fast("Fast", "fast"),
   Default("Default", "default"),
-  HighQuality("高质量", "high-quality"),
-  GpuHQ("GPU 高质量", "gpu-hq"),
-  LowLatency("低延迟", "low-latency"),
-  SwFast("软件快速", "sw-fast"),
+  HighQuality("High Quality", "high-quality"),
+  GpuHQ("GPU HQ", "gpu-hq"),
+  LowLatency("Low Latency", "low-latency"),
+  SwFast("SW Fast", "sw-fast"),
   ;
 
   override fun toString(): String = displayName

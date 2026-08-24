@@ -23,7 +23,7 @@ object EnhancedLyricsParser {
   private val qrcWordRegex = Regex("""(.*?)\((\d{1,10}),(\d{1,10})(?:,\d{1,10})?\)""")
   private val qrcContentRegex = Regex("""LyricContent\s*=\s*"([\s\S]*?)"""", RegexOption.IGNORE_CASE)
   private val numericEntityRegex = Regex("""&#(x?[0-9A-Fa-f]+);""")
-  private val whitespaceRegex = Regex("\s+")
+  private val whitespaceRegex = Regex("""\s+""")
 
   fun canParse(content: String): Boolean {
     val trimmed = content.trimStart()
@@ -297,7 +297,7 @@ object EnhancedLyricsParser {
         val frameRate = root.attributeBySuffix("frameRate")?.toDoubleOrNull()?.coerceAtLeast(1.0) ?: 30.0
         val multiplier =
           root.attributeBySuffix("frameRateMultiplier")
-            ?.split(Regex("\s+"))
+            ?.split(Regex("""\s+"""))
             ?.mapNotNull(String::toDoubleOrNull)
             ?.takeIf { it.size == 2 && it[1] != 0.0 }
             ?.let { it[0] / it[1] }

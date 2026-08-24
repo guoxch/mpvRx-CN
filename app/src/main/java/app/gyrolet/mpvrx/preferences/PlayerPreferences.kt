@@ -27,17 +27,17 @@ enum class IntroSegmentProvider(
 ) {
   INTRO_DB("IntroDB", "introdb"),
   THE_INTRO_DB("TIDB", "theintrodb"),
-  ANI_SKIP("AniSkip（动漫）", "aniskip"),
+  ANI_SKIP("AniSkip (Anime)", "aniskip"),
   ANIME_SKIP("Anime Skip", "animeskip"),
-  HYBRID("混合（最快）", "hybrid"),
+  HYBRID("Hybrid (Fastest)", "hybrid"),
 }
 
 enum class PlayerClockFormat(
   val displayName: String,
 ) {
-  SYSTEM("跟随系统"),
-  TWELVE_HOUR("12 小时制"),
-  TWENTY_FOUR_HOUR("24 小时制"),
+  SYSTEM("System"),
+  TWELVE_HOUR("12 hour"),
+  TWENTY_FOUR_HOUR("24 hour"),
 }
 
 class PlayerPreferences(
@@ -57,9 +57,7 @@ class PlayerPreferences(
   val volumeGesture = preferenceStore.getBoolean("volume_brightness", true)
   val pinchToZoomGesture = preferenceStore.getBoolean("pinch_to_zoom_gesture", true)
   val horizontalSwipeToSeek = preferenceStore.getBoolean("horizontal_swipe_to_seek", true)
-  // Default tuned to match mpvKt's full-screen seek feel: ~0.15s of seek per pixel, so a full
-  // screen-width swipe scrubs ~150s. Higher = faster scrubbing.
-  val horizontalSwipeSensitivity = preferenceStore.getFloat("horizontal_swipe_sensitivity", 0.15f)
+  val horizontalSwipeSensitivity = preferenceStore.getFloat("horizontal_swipe_sensitivity", 0.05f)
 
   val customAspectRatios = preferenceStore.getStringSet("custom_aspect_ratios", emptySet())
   val lastVideoAspect = preferenceStore.getEnum("last_video_aspect", VideoAspect.Fit)
@@ -75,7 +73,6 @@ class PlayerPreferences(
   val swapVolumeAndBrightness = preferenceStore.getBoolean("display_volume_on_right")
   val showLoadingCircle = preferenceStore.getBoolean("show_loading_circle", true)
   val savePositionOnQuit = preferenceStore.getBoolean("save_position", true)
-  val burnAfterReading = preferenceStore.getBoolean("burn_after_reading", false)
 
   val closeAfterReachingEndOfVideo = preferenceStore.getBoolean("close_after_eof", true)
 

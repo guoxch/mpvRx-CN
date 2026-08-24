@@ -66,7 +66,7 @@ object LyricsRomanizer {
   }
 
   private fun String.normalizeRomanization(original: String): String? =
-    replace(Regex("\s+"), " ")
+    replace(Regex("""\s+"""), " ")
       .trim()
       .takeIf { it.isNotBlank() && !it.equals(original.trim(), ignoreCase = true) }
 

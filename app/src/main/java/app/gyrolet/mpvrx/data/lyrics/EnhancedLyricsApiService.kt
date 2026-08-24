@@ -200,7 +200,7 @@ class EnhancedLyricsApiService(
     val videoId = request.mediaId?.takeIf(::looksLikeYouTubeId) ?: findPaxsenixYouTubeId(request) ?: return null
     val root = getJson("https://api-lyrics.simpmusic.org/v1/$videoId")?.asObject() ?: return null
     if (root["success"]?.asBoolean() == false) return null
-    val matches = root["data"]?.asArray().orEmpty().mapNotNull(JsonElement::asObject)
+    val matches = root["data"]?.asArray().orEmpty().mapNotNull { it.asObject() }
     val best = closestByDuration(matches, request.durationSeconds * 1000L) ?: return null
     return best["syncedLyrics"]?.asString() ?: best["plainLyrics"]?.asString()
   }
@@ -212,7 +212,7 @@ class EnhancedLyricsApiService(
         "https://unison.boidu.dev/lyrics/search",
         metadataParams(request, titleKey = "song", durationKey = "duration") + ("limit" to "5"),
       )?.asObject() ?: return null
-    val entries = root["data"]?.asArray().orEmpty().mapNotNull(JsonElement::asObject)
+    val entries = root["data"]?.asArray().orEmpty().mapNotNull { it.asObject() }
     entries.firstNotNullOfOrNull { it["lyrics"]?.asString()?.takeIf(String::isNotBlank) }?.let { return it }
     val id = entries.firstOrNull()?.get("id")?.asString() ?: return null
     return extractLyrics(getJson("https://unison.boidu.dev/lyrics/$id"))
@@ -225,7 +225,7 @@ class EnhancedLyricsApiService(
         "https://itunes.apple.com/search",
         mapOf("term" to "${request.title} ${request.artist}", "media" to "music", "entity" to "song", "limit" to "10"),
       )?.asObject() ?: return null
-    val songs = catalog["results"]?.asArray().orEmpty().mapNotNull(JsonElement::asObject)
+    val songs = catalog["results"]?.asArray().orEmpty().mapNotNull { it.asObject() }
     val match = bestMetadataMatch(songs, request, "trackName", "artistName", "trackTimeMillis") ?: return null
     val id = match["trackId"]?.asString() ?: return null
     val ttml = getBody("$PAXSENIX_BASE/apple-music/lyrics", mapOf("id" to id, "ttml" to "true"), paxsenixHeaders)
@@ -238,7 +238,7 @@ class EnhancedLyricsApiService(
   private suspend fun fetchPaxsenixNetease(request: LyricsSearchRequest): String? {
     val root = getJson("$PAXSENIX_BASE/netease/search", mapOf("q" to "${request.title} ${request.artist}"), paxsenixHeaders)?.asObject()
       ?: return null
-    val songs = root["result"]?.asObject()?.get("songs")?.asArray().orEmpty().mapNotNull(JsonElement::asObject)
+    val songs = root["result"]?.asObject()?.get("songs")?.asArray().orEmpty().mapNotNull { it.asObject() }
     val best = closestByDuration(songs, request.durationSeconds * 1000L) ?: return null
     val actualDuration = durationMillis(best["duration"])
     if (request.durationSeconds > 0 && actualDuration > 0L && abs(actualDuration - request.durationSeconds * 1000L) > 10_000L) return null
@@ -255,7 +255,7 @@ class EnhancedLyricsApiService(
   ): String? {
     val root = getJson("$PAXSENIX_BASE/$backend/search", mapOf("q" to "${request.title} ${request.artist}"), paxsenixHeaders)
       ?: return null
-    val items = root.asArray().orEmpty().mapNotNull(JsonElement::asObject)
+    val items = root.asArray().orEmpty().mapNotNull { it.asObject() }
     val best = bestMetadataMatch(items, request, durationKey = "duration") ?: return null
     val id = best["id"]?.asString() ?: best["trackId"]?.asString() ?: return null
     return extractLyrics(getJson("$PAXSENIX_BASE/$backend/lyrics", mapOf("id" to id), paxsenixHeaders))
@@ -276,7 +276,7 @@ class EnhancedLyricsApiService(
   private suspend fun findPaxsenixYouTubeId(request: LyricsSearchRequest): String? {
     val root = getJson("$PAXSENIX_BASE/youtube/search", mapOf("q" to "${request.title} ${request.artist}"), paxsenixHeaders)
       ?: return null
-    val items = root.asArray().orEmpty().mapNotNull(JsonElement::asObject)
+    val items = root.asArray().orEmpty().mapNotNull { it.asObject() }
     val best = bestMetadataMatch(items, request, durationKey = "duration") ?: return null
     return best["id"]?.asString() ?: best["trackId"]?.asString()
   }
@@ -377,7 +377,7 @@ class EnhancedLyricsApiService(
     return lines.mapNotNull { lineElement ->
       val line = lineElement.asObject() ?: return@mapNotNull null
       val timestamp = line["timestamp"]?.asLong() ?: return@mapNotNull null
-      val words = line["text"]?.asArray().orEmpty().mapNotNull(JsonElement::asObject)
+      val words = line["text"]?.asArray().orEmpty().mapNotNull { it.asObject() }
       buildString {
         append(formatLrcTimestamp(timestamp, bracketed = true))
         words.forEach { word ->

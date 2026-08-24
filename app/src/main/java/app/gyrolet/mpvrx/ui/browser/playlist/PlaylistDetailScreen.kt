@@ -238,11 +238,19 @@ data class PlaylistDetailScreen(
       item: PlaylistVideoItem,
       startIndex: Int,
     ) {
+      val playUri = item.video.uri.takeIf { it != Uri.EMPTY && it.toString().isNotBlank() }
+        ?: if (item.video.path.startsWith("content://") || item.video.path.startsWith("http")) {
+          Uri.parse(item.video.path)
+        } else {
+          Uri.fromFile(java.io.File(item.video.path))
+        }
+
       val intent =
         Intent(context, PlayerActivity::class.java).apply {
           action = Intent.ACTION_VIEW
-          data = item.video.uri
+          data = playUri
           putExtra("internal_launch", true)
+          putExtra("local_media_path", item.video.path)
           putExtra("playlist_index", startIndex)
           putExtra("playlist_id", playlistId)
           putExtra("launch_source", if (playlist?.isM3uPlaylist == true) "m3u_playlist" else "playlist")
@@ -664,6 +672,7 @@ private fun PlaylistVideoListContent(
   val showFramerateInResolution by browserPreferences.showFramerateInResolution.collectAsState()
   val showProgressBar by browserPreferences.showProgressBar.collectAsState()
   val showDateChip by browserPreferences.showDateChip.collectAsState()
+  val showCodecSupportIndicator by browserPreferences.showCodecSupportIndicator.collectAsState()
   val showUnplayedOldVideoLabel by appearancePreferences.showUnplayedOldVideoLabel.collectAsState()
   val unplayedOldVideoDays by appearancePreferences.unplayedOldVideoDays.collectAsState()
   val showExtensionField by browserPreferences.showExtensionField.collectAsState()
@@ -676,6 +685,7 @@ private fun PlaylistVideoListContent(
       showSizeChip,
       showResolutionChip,
       showFramerateInResolution,
+      showCodecSupportIndicator,
       showProgressBar,
       showDateChip,
       showUnplayedOldVideoLabel,
@@ -690,6 +700,7 @@ private fun PlaylistVideoListContent(
         showSizeChip = showSizeChip,
         showResolutionChip = showResolutionChip,
         showFramerateInResolution = showFramerateInResolution,
+        showCodecSupportIndicator = showCodecSupportIndicator,
         showProgressBar = showProgressBar,
         showDateChip = showDateChip,
         showUnplayedOldVideoLabel = showUnplayedOldVideoLabel,
@@ -823,7 +834,7 @@ private fun PlaylistVideoListContent(
                   )
                 } else {
                   VideoCard(
-                    video = item.video,
+                    video = if (isAudio && !item.video.isAudio) item.video.copy(isAudio = true) else item.video,
                     progressPercentage = progressPercentage,
                     isRecentlyPlayed = item.playlistItem.id == mostRecentlyPlayedItem?.playlistItem?.id,
                     isSelected = selectionManager.isSelected(item),

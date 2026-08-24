@@ -40,8 +40,8 @@ android {
     applicationId = "app.gyrolet.mpvrx"
     minSdk = 26
     targetSdk = 36
-    versionCode = 210
-    versionName = "2.1.0"
+    versionCode = 222
+    versionName = "2.2.2"
 
     vectorDrawables {
       useSupportLibrary = true
@@ -160,7 +160,6 @@ android {
     viewBinding = true
     buildConfig = true
     resValues = true
-    prefab = true
   }
 
   packaging {
@@ -273,6 +272,7 @@ dependencies {
 
   implementation(libs.seeker)
   implementation(libs.compose.prefs)
+  implementation(libs.markdown.renderer.m3)
 
   implementation(libs.accompanist.permissions)
 
@@ -283,7 +283,6 @@ dependencies {
   implementation(libs.kotlinx.immutable.collections)
   implementation(libs.kotlinx.serialization.json)
   implementation(libs.okhttp)
-  implementation(libs.curl.android)
   implementation(libs.jsoup)
   implementation(libs.androidx.media3.common)
   implementation(libs.androidx.media3.effect)

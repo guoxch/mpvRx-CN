@@ -67,9 +67,9 @@ enum class EqualizerPreset(
   JAZZ("Jazz", listOf(3, 2, -1, 2, 3)),
   CLASSICAL("Classical", listOf(3, 1, -1, 2, 3)),
   ELECTRONIC("Electronic", listOf(5, 3, 0, 2, 4)),
-  BASS_BOOST("低音增强", listOf(5, 3, 0, -1, -2)),
-  TREBLE_BOOST("高音增强", listOf(-2, -1, 0, 3, 5)),
-  VOICE_BOOST("人声增强", listOf(2, 4, 5, 3, 1)),
+  BASS_BOOST("Bass Boost", listOf(5, 3, 0, -1, -2)),
+  TREBLE_BOOST("Treble Boost", listOf(-2, -1, 0, 3, 5)),
+  VOICE_BOOST("Voice Boost", listOf(2, 4, 5, 3, 1)),
   LOUDNESS("Loudness", listOf(4, 2, 0, 2, 4)),
   CUSTOM("Custom", listOf(0, 0, 0, 0, 0)),
   ;

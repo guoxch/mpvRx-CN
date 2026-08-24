@@ -294,7 +294,7 @@ class RecentlyPlayedViewModel(
 
     // Use host as bucket ID (grouping by domain)
     val bucketId = (uri.host ?: "network").hashCode().toString()
-    val bucketDisplayName = uri.host ?: "网络流"
+    val bucketDisplayName = uri.host ?: "Network Streams"
 
     // Determine mime type based on URL extension, default to generic video
     val extension = uri.lastPathSegment?.substringAfterLast('.', "")?.lowercase() ?: ""

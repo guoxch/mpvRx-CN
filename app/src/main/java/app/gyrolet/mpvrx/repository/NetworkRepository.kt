@@ -290,20 +290,6 @@ class NetworkRepository(
 
   fun isConnected(connectionId: Long): Boolean = hasConnectedClient(connectionId)
 
-  /** Delete a file on a network share */
-  suspend fun deleteFile(
-    connection: NetworkConnection,
-    path: String,
-  ): Result<Unit> =
-    withContext(Dispatchers.IO) {
-      val client = activeClients[connection.id] ?: return@withContext Result.failure(Exception("Not connected"))
-      try {
-        client.deleteFile(path)
-      } catch (e: Exception) {
-        Result.failure(e)
-      }
-    }
-
   suspend fun disconnectAll() =
     withContext(Dispatchers.IO) {
       clientLifecycleMutex.withLock {

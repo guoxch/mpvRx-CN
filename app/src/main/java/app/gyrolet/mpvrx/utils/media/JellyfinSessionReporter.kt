@@ -11,6 +11,7 @@ package app.gyrolet.mpvrx.utils.media
 
 import android.net.Uri
 import android.util.Log
+import app.gyrolet.mpvrx.network.SharedHttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -40,10 +41,10 @@ class JellyfinSessionReporter(
     private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
     private val defaultHttpClient by lazy {
-      OkHttpClient.Builder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(5, TimeUnit.SECONDS)
-        .build()
+      SharedHttpClient.derive {
+        connectTimeout(5, TimeUnit.SECONDS)
+        readTimeout(5, TimeUnit.SECONDS)
+      }
     }
 
     fun create(

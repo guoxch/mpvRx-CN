@@ -121,7 +121,7 @@ fun CastRemoteControllerScreen(
         IconButton(onClick = onStopCasting) {
           Icon(
             Icons.RoundedFilled.Cast,
-            contentDescription = "停止投屏",
+            contentDescription = "Stop Casting",
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(28.dp),
           )
@@ -387,7 +387,7 @@ private fun CastSpeedDialog(
 
   AlertDialog(
     onDismissRequest = onDismiss,
-    title = { Text("播放速度") },
+    title = { Text("Playback Speed") },
     text = {
       Column {
         speeds.forEach { speed ->

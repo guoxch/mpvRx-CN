@@ -14,6 +14,7 @@ import android.os.Environment
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -387,6 +388,9 @@ data class VideoListScreen(
         val navigationBarHeight = app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight.current
         val miniPlayerClearance = app.gyrolet.mpvrx.ui.browser.NavigationBarState.miniPlayerClearance
         if (sortedVideosWithInfo.isNotEmpty()) {
+          val isFabShouldBeVisible =
+            showQuickPlayFab && !selectionManager.isInSelectionMode && isFabVisible.value
+
           TooltipBox(
             positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
             tooltip = {
@@ -406,7 +410,7 @@ data class VideoListScreen(
                   .windowInsetsPadding(WindowInsets.systemBars)
                   .padding(bottom = navigationBarHeight + miniPlayerClearance)
                   .animateFloatingActionButton(
-                    visible = showQuickPlayFab && !selectionManager.isInSelectionMode && isFabVisible.value,
+                    visible = isFabShouldBeVisible,
                     alignment = Alignment.BottomEnd,
                   ),
               onClick = {
@@ -816,6 +820,8 @@ internal fun VideoListContent(
   mediaLayoutMode: app.gyrolet.mpvrx.preferences.MediaLayoutMode,
   isAudio: Boolean = false,
   musicCoverArtSize: Int = 48,
+  isFabExpanded: Boolean = false,
+  onFabExpandedChange: (Boolean) -> Unit = {},
 ) {
   val thumbnailRepository = koinInject<ThumbnailRepository>()
   val gesturePreferences = koinInject<GesturePreferences>()
@@ -841,6 +847,7 @@ internal fun VideoListContent(
   val showFramerateInResolution by browserPreferences.showFramerateInResolution.collectAsState()
   val showProgressBar by browserPreferences.showProgressBar.collectAsState()
   val showDateChip by browserPreferences.showDateChip.collectAsState()
+  val showCodecSupportIndicator by browserPreferences.showCodecSupportIndicator.collectAsState()
   val showUnplayedOldVideoLabel by appearancePreferences.showUnplayedOldVideoLabel.collectAsState()
   val unplayedOldVideoDays by appearancePreferences.unplayedOldVideoDays.collectAsState()
   val showExtensionField by browserPreferences.showExtensionField.collectAsState()
@@ -858,6 +865,7 @@ internal fun VideoListContent(
       showSizeChip,
       showResolutionChip,
       showFramerateInResolution,
+      showCodecSupportIndicator,
       showProgressBar,
       showDateChip,
       showUnplayedOldVideoLabel,
@@ -872,6 +880,7 @@ internal fun VideoListContent(
         showSizeChip = showSizeChip,
         showResolutionChip = showResolutionChip,
         showFramerateInResolution = showFramerateInResolution,
+        showCodecSupportIndicator = showCodecSupportIndicator,
         showProgressBar = showProgressBar,
         showDateChip = showDateChip,
         showUnplayedOldVideoLabel = showUnplayedOldVideoLabel,
@@ -1059,8 +1068,8 @@ internal fun VideoListContent(
           listState = listState,
           gridState = if (mediaLayoutMode == MediaLayoutMode.GRID) gridState else null,
           isFabVisible = isFabVisible,
-          expanded = false,
-          onExpandedChange = {},
+          expanded = isFabExpanded,
+          onExpandedChange = onFabExpandedChange,
         )
 
         val coroutineScope = rememberCoroutineScope()
@@ -1110,7 +1119,7 @@ internal fun VideoListContent(
               ) {
                 items(
                   count = videosWithInfo.size,
-                  key = { index -> videosWithInfo[index].video.id },
+                  key = { index -> videosWithInfo[index].video.stableListKey },
                   contentType = { "video_item" },
                 ) { index ->
                   val videoWithInfo = videosWithInfo[index]
@@ -1185,7 +1194,7 @@ internal fun VideoListContent(
               ) {
                 items(
                   count = videosWithInfo.size,
-                  key = { index -> videosWithInfo[index].video.id },
+                  key = { index -> videosWithInfo[index].video.stableListKey },
                   contentType = { "video_item" },
                 ) { index ->
                   val videoWithInfo = videosWithInfo[index]
@@ -1270,5 +1279,8 @@ private fun visibleVideoWindow(
     if (beforeStart < visibleStart) addAll(beforeStart until visibleStart)
   }
 }
+
+private val Video.stableListKey: String
+  get() = "$id:$path"
 
 private const val THUMBNAIL_SCROLL_SETTLE_MILLIS = 100L

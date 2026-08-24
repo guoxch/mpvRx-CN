@@ -10,6 +10,20 @@
 package app.gyrolet.mpvrx.ui.player
 
 internal object PlayerLifecyclePolicy {
+  /** Auto-PiP owns Home/Back navigation whenever a playable video can enter it. */
+  fun shouldEnterPipOnNavigation(
+    autoPipEnabled: Boolean,
+    mediaReady: Boolean,
+    isAudioMedia: Boolean,
+    isActivityUnavailable: Boolean,
+    isAlreadyInPip: Boolean,
+  ): Boolean =
+    autoPipEnabled &&
+      mediaReady &&
+      !isAudioMedia &&
+      !isActivityUnavailable &&
+      !isAlreadyInPip
+
   fun shouldPauseOnPause(
     backgroundPlaybackEnabled: Boolean,
     backgroundPlaybackSessionActive: Boolean,
@@ -37,14 +51,12 @@ internal object PlayerLifecyclePolicy {
     wasInPictureInPictureMode: Boolean,
     isInPictureInPictureMode: Boolean,
     isChangingConfigurations: Boolean,
-    backgroundPlaybackEnabled: Boolean,
     isScreenOffOrLocked: Boolean,
     alreadyHandled: Boolean,
   ): Boolean =
     wasInPictureInPictureMode &&
       !isInPictureInPictureMode &&
       !isChangingConfigurations &&
-      !backgroundPlaybackEnabled &&
       !isScreenOffOrLocked &&
       !alreadyHandled
 

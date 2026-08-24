@@ -355,16 +355,7 @@ class NetworkStreamingProxy private constructor() :
   private fun parseRoute(uri: String): Route? {
     val withoutLeadingSlash = uri.removePrefix("/")
     val token = withoutLeadingSlash.substringBefore('/').takeIf(String::isNotBlank) ?: return null
-    val rawPathText = withoutLeadingSlash.substringAfter('/', missingDelimiterValue = "")
-    // The loopback URL is percent-encoded by URI.toASCIIString(); decode it once so the
-    // downstream WebDAV/SMB client does not re-encode it (which would double-encode non-ASCII names).
-    val pathText =
-      if (rawPathText.isBlank()) {
-        ""
-      } else {
-        runCatching { java.net.URLDecoder.decode(rawPathText.replace("+", "%2B"), "UTF-8") }
-          .getOrDefault(rawPathText)
-      }
+    val pathText = withoutLeadingSlash.substringAfter('/', missingDelimiterValue = "")
     val path =
       if (pathText.isBlank()) {
         null
@@ -411,7 +402,7 @@ class NetworkStreamingProxy private constructor() :
   ): Response =
     textResponse(
       Response.Status.RANGE_NOT_SATISFIABLE,
-      "请求的范围不满足",
+      "Requested range not satisfiable",
       headOnly,
     ).apply {
       addHeader("Content-Range", "bytes */$fileSize")
@@ -419,7 +410,7 @@ class NetworkStreamingProxy private constructor() :
     }
 
   private fun notFound(headOnly: Boolean): Response =
-    textResponse(Response.Status.NOT_FOUND, "找不到流", headOnly)
+    textResponse(Response.Status.NOT_FOUND, "Stream not found", headOnly)
 
   private fun upstreamFailure(headOnly: Boolean): Response =
     textResponse(Response.Status.SERVICE_UNAVAILABLE, "Upstream stream failed", headOnly)

@@ -64,20 +64,36 @@ internal fun Uri.extractLocalPath(): String? {
   return null
 }
 
-internal fun Uri.openContentFd(context: Context): String? =
+internal fun Uri.openContentFd(
+  context: Context,
+  allowFdFallback: Boolean = true,
+): String? =
   extractLocalPath()
-    ?: tryFileDescriptorPath(context)
+    ?: tryFileDescriptorPath(context, allowFdFallback)
     ?: tryMediaStoreQuery(context)
     ?: tryDocumentUriParsing(context)
-    ?: tryFileDescriptorFallback(context)
+    ?: (if (allowFdFallback) tryFileDescriptorFallback(context) else null)
+
+/** Resolves identity only; unlike [openContentFd], this never detaches a file descriptor. */
+internal fun Uri.resolveLocalPath(context: Context): String? =
+  when (scheme?.lowercase()) {
+    "file" -> path
+    "content" -> extractLocalPath() ?: tryMediaStoreQuery(context) ?: tryDocumentUriParsing(context)
+    else -> null
+  }
 
 /**
  * Method 1: Extract real filesystem path from file descriptor.
  * Works best for most content URIs on modern Android.
  * If the resolved path is not readable directly (e.g. 0 permissions granted),
  * returns the detached file descriptor so MPV can play via fd:// directly.
+ * Callers that persist the result must pass [allowFdFallback] = false: a detached
+ * descriptor is single-use and cannot be replayed later.
  */
-private fun Uri.tryFileDescriptorPath(context: Context): String? =
+private fun Uri.tryFileDescriptorPath(
+  context: Context,
+  allowFdFallback: Boolean = true,
+): String? =
   runCatching {
     val pfd = context.contentResolver.openFileDescriptor(this, "r") ?: return null
     val path = Utils.findRealPath(pfd.fd)
@@ -85,10 +101,13 @@ private fun Uri.tryFileDescriptorPath(context: Context): String? =
       pfd.close()
       Log.d(TAG, "Resolved via file descriptor: $path")
       path
-    } else {
+    } else if (allowFdFallback) {
       val fd = pfd.detachFd()
       Log.d(TAG, "Using file descriptor fallback (fd://$fd) for $this")
       "fd://$fd"
+    } else {
+      pfd.close()
+      null
     }
   }.getOrNull()
 
@@ -213,7 +232,10 @@ private fun Uri.tryFileDescriptorFallback(context: Context): String? =
  *
  * Returns null if URI scheme is null or unsupported.
  */
-internal fun Uri.resolveUri(context: Context): String? {
+internal fun Uri.resolveUri(
+  context: Context,
+  allowFdFallback: Boolean = true,
+): String? {
   if (scheme == null) {
     Log.e(TAG, "URI has null scheme: $this")
     return null
@@ -221,7 +243,9 @@ internal fun Uri.resolveUri(context: Context): String? {
 
   return when (scheme) {
     "file" -> path
-    "content" -> openContentFd(context)
+    "content" ->
+      openContentFd(context, allowFdFallback = allowFdFallback)
+        ?: if (allowFdFallback) null else toString()
     "data" -> "data://$schemeSpecificPart"
     "magnet", "torrent" -> toString()
     NetworkPlaybackUri.SCHEME -> toString()

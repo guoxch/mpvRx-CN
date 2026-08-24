@@ -33,6 +33,7 @@ enum class JellyfinAuthMode {
 enum class JellyfinSortBy(val apiValue: String, val displayName: String) {
   NAME("SortName", "Title"),
   DATE_ADDED("DateCreated", "Recently Added"),
+  DATE_PLAYED("DatePlayed", "Recently Played"),
   PREMIERE_DATE("PremiereDate", "Release Date"),
   RATING("CommunityRating", "Rating"),
   RUNTIME("Runtime", "Duration"),
@@ -83,6 +84,8 @@ data class JellyfinItem(
   val isFolder: Boolean = false,
   val primaryImageTag: String? = null,
   val backdropImageTag: String? = null,
+  val albumId: String? = null,
+  val albumPrimaryImageTag: String? = null,
   val childCount: Int? = null,
   val container: String? = null,
   val videoCodec: String? = null,
@@ -93,6 +96,7 @@ data class JellyfinItem(
   val premiereDate: String? = null,
   val status: String? = null,
   val lastPlayedDate: String? = null,
+  val remoteTrailerUrl: String? = null,
 ) {
   val isVideo: Boolean
     get() = type == "Movie" || type == "Episode" || type == "Video"

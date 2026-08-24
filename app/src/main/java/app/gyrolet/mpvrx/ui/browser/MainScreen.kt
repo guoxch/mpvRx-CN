@@ -14,14 +14,18 @@ import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -31,6 +35,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -46,6 +53,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -65,9 +75,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -149,10 +161,6 @@ object MainScreen : Screen {
   @SuppressLint("ComposableNaming")
   @Composable
   override fun Content() {
-    var selectedTab by remember {
-      mutableStateOf(persistentSelectedTab)
-    }
-
     val density = LocalDensity.current
     val appearancePreferences = koinInject<AppearancePreferences>()
     val playerPreferences = koinInject<PlayerPreferences>()
@@ -202,16 +210,28 @@ object MainScreen : Screen {
     val scope = rememberCoroutineScope()
 
     val pagerState = rememberPagerState(
-      initialPage = visibleTabs.indexOf(selectedTab).coerceAtLeast(0),
+      initialPage = visibleTabs.indexOf(persistentSelectedTab).coerceAtLeast(0),
       pageCount = { visibleTabs.size },
     )
+    val selectedTab = visibleTabs.getOrNull(pagerState.targetPage) ?: visibleTabs.firstOrNull() ?: MainTab.HOME
 
-    // Sync pager → selectedTab when user swipes
-    LaunchedEffect(pagerState) {
+    // PagerState is the only live navigation state. Restore first, then persist completed moves.
+    LaunchedEffect(pagerState, visibleTabs) {
+      if (visibleTabs.isEmpty()) {
+        persistentSelectedTab = MainTab.HOME
+        return@LaunchedEffect
+      }
+      val restorePage = visibleTabs.indexOf(persistentSelectedTab).takeIf { it >= 0 } ?: 0
+      if (pagerState.settledPage != restorePage) {
+        pagerState.scrollToPage(restorePage)
+      }
       snapshotFlow { pagerState.settledPage }
         .collect { page ->
-          if (page in visibleTabs.indices) {
-            selectedTab = visibleTabs[page]
+          visibleTabs.getOrNull(page)?.let { settledTab ->
+            persistentSelectedTab = settledTab
+            if (settledTab != MainTab.HOME) {
+              NavigationBarState.isDualPaneFolderSelected = false
+            }
           }
         }
     }
@@ -219,70 +239,59 @@ object MainScreen : Screen {
     val onTabSelected: (MainScreen.MainTab) -> Unit = { tab ->
       scope.launch {
         val page = visibleTabs.indexOf(tab)
-        if (page >= 0) {
+        if (page >= 0 && page != pagerState.targetPage) {
           pagerState.animateScrollToPage(page)
         }
       }
-      selectedTab = tab
-    }
-
-    val pagerPositionFloatProvider = remember(pagerState) {
-      { pagerState.currentPage + pagerState.currentPageOffsetFraction }
     }
 
     val mainNavBar = @Composable { modifier: Modifier ->
-      TelegramPillNavigationBar(
+      ExpressivePillNavigationBar(
         visibleTabs = visibleTabs,
         selectedTab = selectedTab,
-        pagerPositionFloatProvider = pagerPositionFloatProvider,
         onTabSelected = onTabSelected,
         modifier = modifier,
       )
     }
 
-    LaunchedEffect(selectedTab) {
-      android.util.Log.d("MainScreen", "selectedTab changed to: $selectedTab (was $persistentSelectedTab)")
-      persistentSelectedTab = selectedTab
-      if (selectedTab != MainTab.HOME) {
-        NavigationBarState.isDualPaneFolderSelected = false
-      }
-    }
-
-    LaunchedEffect(visibleTabs) {
-      if (visibleTabs.isEmpty()) {
-        selectedTab = MainTab.HOME
-      } else if (!visibleTabs.contains(selectedTab)) {
-        selectedTab = visibleTabs.first()
-      }
-      val page = visibleTabs.indexOf(selectedTab)
-      if (page >= 0) {
-        pagerState.scrollToPage(page)
-      }
-    }
-
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
-    val tabCount = visibleTabs.size.coerceAtLeast(1)
-    val perTabWidth = if (tabCount >= 6) 54.dp else 58.dp
-    val targetNavBarWidth =
-      ((perTabWidth * tabCount) + 16.dp)
-        .coerceAtMost(screenWidth - 32.dp)
-        .coerceAtLeast(64.dp)
 
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
     val isTablet = configuration.smallestScreenWidthDp >= 600
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    // In landscape/tablet single-pane the nav bar slides to the left edge (with a
-    // small margin) so the mini player can sit on its right side.
-    val leftAlignedOffset =
-      ((12.dp + targetNavBarWidth / 2) / screenWidth)
-        .coerceAtLeast(0f)
+    val selectedTabTitleLength =
+      when (selectedTab) {
+        MainTab.HOME -> 36.dp
+        MainTab.MUSIC -> 36.dp
+        MainTab.RECENTS -> 48.dp
+        MainTab.PLAYLISTS -> 52.dp
+        MainTab.NETWORK -> 50.dp
+        MainTab.JELLYFIN -> 44.dp
+      }
+    val unselectedCount = (visibleTabs.size - 1).coerceAtLeast(0)
+    val targetNavBarWidth =
+      if (visibleTabs.isEmpty()) 0.dp
+      else (22.dp + 6.dp + selectedTabTitleLength + 28.dp) +
+        (42.dp * unselectedCount) +
+        (4.dp * unselectedCount) +
+        12.dp
+
+    val navBarWidth by animateDpAsState(
+      targetValue = targetNavBarWidth,
+      animationSpec =
+        spring(
+          dampingRatio = Spring.DampingRatioNoBouncy,
+          stiffness = Spring.StiffnessMedium,
+        ),
+      label = "nav_bar_width",
+    )
 
     val targetOffsetFraction =
       when {
         isDualPaneFolderSelected && selectedTab == MainTab.HOME -> 0.2f
-        isMiniPlayerVisible && (isLandscape || isTablet) -> leftAlignedOffset
+        isMiniPlayerVisible && (isLandscape || isTablet) -> 0f
         else -> 0.5f
       }
 
@@ -291,19 +300,9 @@ object MainScreen : Screen {
       animationSpec =
         spring(
           dampingRatio = Spring.DampingRatioNoBouncy,
-          stiffness = Spring.StiffnessMediumLow,
+          stiffness = Spring.StiffnessMedium,
         ),
       label = "nav_bar_position",
-    )
-
-    val navBarWidth by animateDpAsState(
-      targetValue = targetNavBarWidth,
-      animationSpec =
-        spring(
-          dampingRatio = Spring.DampingRatioNoBouncy,
-          stiffness = Spring.StiffnessMediumLow,
-        ),
-      label = "nav_bar_width",
     )
 
     // On portrait phones the edge-to-edge mini player sits above the pill nav bar,
@@ -336,15 +335,16 @@ object MainScreen : Screen {
         } else {
           HorizontalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().nestedScroll(NavigationBarState.navScrollConnection),
             userScrollEnabled = !isPermissionDenied,
             beyondViewportPageCount = 1,
+            key = { page -> visibleTabs[page] },
           ) { page ->
             CompositionLocalProvider(
               LocalNavigationBarHeight provides contentBottomPadding,
               LocalMainNavigationBar provides mainNavBar,
             ) {
-              val tab = visibleTabs[page]
+              val tab = visibleTabs.getOrNull(page) ?: return@CompositionLocalProvider
               when (tab) {
                 MainTab.HOME -> FolderListScreen.Content()
                 MainTab.MUSIC -> MusicLibraryContent()
@@ -387,29 +387,73 @@ object MainScreen : Screen {
         ) {
           BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val containerWidth = maxWidth
-            val targetCenter = containerWidth * animatedOffsetFraction
-            val leftPadding = (targetCenter - (navBarWidth / 2)).coerceAtLeast(0.dp)
+            val density = LocalDensity.current
+            var measuredWidthDp by remember { mutableStateOf(220.dp) }
+            val isDualPaneActive = isDualPaneFolderSelected && selectedTab == MainTab.HOME
+            val isMiniPlayerActive = isMiniPlayerVisible && (isLandscape || isTablet)
+            val isCustomAligned = isDualPaneActive || isMiniPlayerActive
 
-            // Publish the animated nav bar geometry so the mini player overlay can sit
-            // on its right side in landscape/tablet single-pane.
+            val animatedWidthDp by animateDpAsState(
+              targetValue = measuredWidthDp,
+              animationSpec =
+                spring(
+                  dampingRatio = Spring.DampingRatioNoBouncy,
+                  stiffness = Spring.StiffnessMedium,
+                ),
+              label = "measured_width_anim",
+            )
+
+            val targetLeftPadding =
+              when {
+                isDualPaneActive ->
+                  ((containerWidth * 0.20f) - (animatedWidthDp / 2)).coerceAtLeast(16.dp)
+                isMiniPlayerActive ->
+                  16.dp
+                else ->
+                  ((containerWidth - animatedWidthDp) / 2).coerceAtLeast(16.dp)
+              }
+
+            val animatedLeftPadding by animateDpAsState(
+              targetValue = targetLeftPadding,
+              animationSpec =
+                spring(
+                  dampingRatio = Spring.DampingRatioNoBouncy,
+                  stiffness = Spring.StiffnessMedium,
+                ),
+              label = "pill_left_padding",
+            )
+
             SideEffect {
-              NavigationBarState.navbarLeftOffset = leftPadding
-              NavigationBarState.navbarWidth = navBarWidth
+              NavigationBarState.navbarLeftOffset =
+                if (isCustomAligned) animatedLeftPadding else ((containerWidth - animatedWidthDp) / 2).coerceAtLeast(16.dp)
+              NavigationBarState.navbarWidth = animatedWidthDp
             }
 
             Box(
               modifier =
                 Modifier
-                  .padding(start = leftPadding)
-                  .width(navBarWidth),
-              contentAlignment = Alignment.Center,
+                  .fillMaxWidth()
+                  .then(
+                    if (isCustomAligned) {
+                      Modifier
+                        .wrapContentSize(Alignment.TopStart)
+                        .padding(start = animatedLeftPadding)
+                    } else {
+                      Modifier.wrapContentSize(Alignment.TopCenter)
+                    }
+                  ),
             ) {
-              TelegramPillNavigationBar(
+              ExpressivePillNavigationBar(
                 visibleTabs = visibleTabs,
                 selectedTab = selectedTab,
-                pagerPositionFloatProvider = pagerPositionFloatProvider,
                 onTabSelected = onTabSelected,
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                  Modifier.onGloballyPositioned { coords ->
+                    val w = with(density) { coords.size.width.toDp() }
+                    if (w > 0.dp && w != measuredWidthDp) {
+                      measuredWidthDp = w
+                    }
+                  },
               )
             }
           }
@@ -420,155 +464,161 @@ object MainScreen : Screen {
 }
 
 @Composable
-private fun TelegramPillNavigationBar(
+private fun ExpressivePillNavigationBar(
   visibleTabs: List<MainScreen.MainTab>,
   selectedTab: MainScreen.MainTab,
-  pagerPositionFloatProvider: () -> Float,
   onTabSelected: (MainScreen.MainTab) -> Unit,
   modifier: Modifier = Modifier,
 ) {
-  val density = LocalDensity.current
-  val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+  val haptics = LocalHapticFeedback.current
 
-  BoxWithConstraints(modifier = modifier) {
-    val totalWidth = maxWidth
-    val count = visibleTabs.size.coerceAtLeast(1)
-    val horizontalPadding = 6.dp
-    val availableWidth = totalWidth - (horizontalPadding * 2)
-    val itemWidth = availableWidth / count
-    val itemWidthPx = with(density) { itemWidth.toPx() }
-
-    Surface(
-      modifier = Modifier.fillMaxWidth(),
-      shape = CircleShape,
-      color = MaterialTheme.colorScheme.surfaceContainerHigh,
-      tonalElevation = 6.dp,
-      shadowElevation = 8.dp,
-      border =
-        BorderStroke(
-          width = 1.dp,
-          color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-        ),
+  Surface(
+    modifier = modifier,
+    shape = CircleShape,
+    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    tonalElevation = 6.dp,
+    shadowElevation = 8.dp,
+    border =
+      BorderStroke(
+        width = 1.dp,
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+      ),
+  ) {
+    Row(
+      modifier =
+        Modifier
+          .wrapContentWidth()
+          .padding(horizontal = 6.dp, vertical = 6.dp),
+      horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
+      verticalAlignment = Alignment.CenterVertically,
     ) {
-      Box(
-        modifier =
-          Modifier
-            .fillMaxWidth()
-            .padding(horizontal = horizontalPadding, vertical = 6.dp),
-      ) {
-        // Hardware accelerated sliding active pill background
-        if (visibleTabs.isNotEmpty()) {
-          Box(
+      visibleTabs.forEach { tab ->
+        val isSelected = selectedTab == tab
+
+        val animatedPadding by animateDpAsState(
+          targetValue = if (isSelected) 14.dp else 10.dp,
+          animationSpec =
+            spring(
+              dampingRatio = Spring.DampingRatioNoBouncy,
+              stiffness = Spring.StiffnessMedium,
+            ),
+          label = "expressive_nav_padding",
+        )
+
+        val animatedContainerColor by animateColorAsState(
+          targetValue =
+            if (isSelected) {
+              MaterialTheme.colorScheme.primaryContainer
+            } else {
+              Color.Transparent
+            },
+          animationSpec = androidx.compose.animation.core.tween(durationMillis = 180),
+          label = "expressive_nav_container_color",
+        )
+
+        val animatedContentColor by animateColorAsState(
+          targetValue =
+            if (isSelected) {
+              MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+              MaterialTheme.colorScheme.onSurfaceVariant
+            },
+          animationSpec = androidx.compose.animation.core.tween(durationMillis = 180),
+          label = "expressive_nav_content_color",
+        )
+
+        Surface(
+          onClick = {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            onTabSelected(tab)
+          },
+          shape = CircleShape,
+          color = animatedContainerColor,
+          contentColor = animatedContentColor,
+          modifier = Modifier.height(44.dp),
+        ) {
+          Row(
             modifier =
               Modifier
-                .width(itemWidth)
-                .height(56.dp)
-                .graphicsLayer {
-                  val currentPos =
-                    pagerPositionFloatProvider().coerceIn(
-                      0f,
-                      (visibleTabs.size - 1).coerceAtLeast(0).toFloat(),
-                    )
-                  translationX = if (isRtl) -itemWidthPx * currentPos else itemWidthPx * currentPos
-                }.clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-          )
-        }
+                .padding(horizontal = animatedPadding)
+                .animateContentSize(
+                  animationSpec =
+                    spring(
+                      dampingRatio = Spring.DampingRatioNoBouncy,
+                      stiffness = Spring.StiffnessMedium,
+                    ),
+                ),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            when (tab) {
+              MainScreen.MainTab.HOME ->
+                Icon(
+                  Icons.RoundedFilled.Home,
+                  contentDescription = stringResource(R.string.ui_home),
+                  tint = animatedContentColor,
+                  modifier = Modifier.size(22.dp),
+                )
+              MainScreen.MainTab.MUSIC ->
+                Icon(
+                  Icons.RoundedFilled.Audiotrack,
+                  contentDescription = stringResource(R.string.ui_music),
+                  tint = animatedContentColor,
+                  modifier = Modifier.size(22.dp),
+                )
+              MainScreen.MainTab.RECENTS ->
+                Icon(
+                  Icons.RoundedFilled.History,
+                  contentDescription = stringResource(R.string.ui_recents),
+                  tint = animatedContentColor,
+                  modifier = Modifier.size(22.dp),
+                )
+              MainScreen.MainTab.PLAYLISTS ->
+                Icon(
+                  Icons.RoundedFilled.PlaylistPlay,
+                  contentDescription = stringResource(R.string.ui_playlists),
+                  tint = animatedContentColor,
+                  modifier = Modifier.size(22.dp),
+                )
+              MainScreen.MainTab.NETWORK ->
+                Icon(
+                  Icons.RoundedFilled.BringYourOwnIp,
+                  contentDescription = stringResource(R.string.ui_network),
+                  tint = animatedContentColor,
+                  modifier = Modifier.size(22.dp),
+                )
+              MainScreen.MainTab.JELLYFIN ->
+                androidx.compose.material3.Icon(
+                  painter = painterResource(R.drawable.ic_jellyfin),
+                  contentDescription = "Jellyfin",
+                  tint = animatedContentColor,
+                  modifier = Modifier.size(22.dp),
+                )
+            }
 
-        // Tab Items Layer
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceEvenly,
-          verticalAlignment = Alignment.CenterVertically,
-        ) {
-          visibleTabs.forEachIndexed { index, tab ->
-            val isSelected = selectedTab == tab
-            val contentColor =
-              if (isSelected) {
-                MaterialTheme.colorScheme.onPrimaryContainer
-              } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-              }
-
-            Box(
-              modifier =
-                Modifier
-                  .weight(1f)
-                  .height(56.dp)
-                  .clip(CircleShape)
-                  .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = { onTabSelected(tab) },
+            AnimatedVisibility(
+              visible = isSelected,
+              enter =
+                fadeIn(animationSpec = androidx.compose.animation.core.tween(150)) +
+                  expandHorizontally(
+                    animationSpec =
+                      spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium,
+                      ),
                   ),
-              contentAlignment = Alignment.Center,
+              exit =
+                fadeOut(animationSpec = androidx.compose.animation.core.tween(100)) +
+                  shrinkHorizontally(
+                    animationSpec =
+                      spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium,
+                      ),
+                  ),
             ) {
-              Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-              ) {
-                Box(
-                  modifier =
-                    Modifier.graphicsLayer {
-                      val currentPos =
-                        pagerPositionFloatProvider().coerceIn(
-                          0f,
-                          (visibleTabs.size - 1).coerceAtLeast(0).toFloat(),
-                        )
-                      val dist = kotlin.math.abs(currentPos - index)
-                      val prog = (1f - dist).coerceIn(0f, 1f)
-                      val scale = 1.0f + 0.10f * prog
-                      scaleX = scale
-                      scaleY = scale
-                    },
-                  contentAlignment = Alignment.Center,
-                ) {
-                  when (tab) {
-                    MainScreen.MainTab.HOME ->
-                      Icon(
-                        Icons.RoundedFilled.Home,
-                        contentDescription = stringResource(R.string.ui_home),
-                        tint = contentColor,
-                        modifier = Modifier.size(22.dp),
-                      )
-                    MainScreen.MainTab.MUSIC ->
-                      Icon(
-                        Icons.RoundedFilled.Audiotrack,
-                        contentDescription = stringResource(R.string.ui_music),
-                        tint = contentColor,
-                        modifier = Modifier.size(22.dp),
-                      )
-                    MainScreen.MainTab.RECENTS ->
-                      Icon(
-                        Icons.RoundedFilled.History,
-                        contentDescription = stringResource(R.string.ui_recents),
-                        tint = contentColor,
-                        modifier = Modifier.size(22.dp),
-                      )
-                    MainScreen.MainTab.PLAYLISTS ->
-                      Icon(
-                        Icons.RoundedFilled.PlaylistPlay,
-                        contentDescription = stringResource(R.string.ui_playlists),
-                        tint = contentColor,
-                        modifier = Modifier.size(22.dp),
-                      )
-                    MainScreen.MainTab.NETWORK ->
-                      Icon(
-                        Icons.RoundedFilled.BringYourOwnIp,
-                        contentDescription = stringResource(R.string.ui_network),
-                        tint = contentColor,
-                        modifier = Modifier.size(22.dp),
-                      )
-                    MainScreen.MainTab.JELLYFIN ->
-                      androidx.compose.material3.Icon(
-                        painter = painterResource(R.drawable.ic_jellyfin),
-                        contentDescription = "Jellyfin",
-                        tint = contentColor,
-                        modifier = Modifier.size(22.dp),
-                      )
-                  }
-                }
-                Spacer(modifier = Modifier.height(3.dp))
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                   text =
                     when (tab) {
@@ -579,12 +629,11 @@ private fun TelegramPillNavigationBar(
                       MainScreen.MainTab.NETWORK -> stringResource(R.string.ui_network)
                       MainScreen.MainTab.JELLYFIN -> stringResource(R.string.ui_jellyfin)
                     },
-                  style = MaterialTheme.typography.labelSmall,
-                  fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                  color = contentColor,
+                  style = MaterialTheme.typography.labelMedium,
+                  fontWeight = FontWeight.Bold,
+                  color = animatedContentColor,
                   maxLines = 1,
                   overflow = TextOverflow.Ellipsis,
-                  textAlign = TextAlign.Center,
                 )
               }
             }

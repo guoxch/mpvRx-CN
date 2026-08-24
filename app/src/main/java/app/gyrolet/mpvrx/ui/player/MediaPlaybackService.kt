@@ -45,6 +45,7 @@ import androidx.media.session.MediaButtonReceiver
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.database.entities.PlaybackStateEntity
 import app.gyrolet.mpvrx.domain.playbackstate.repository.PlaybackStateRepository
+import app.gyrolet.mpvrx.domain.thumbnail.EmbeddedArtworkResolver
 import app.gyrolet.mpvrx.domain.torrent.TorrentStreamingEngine
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.AudioPreferences
@@ -65,7 +66,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.lang.ref.WeakReference
@@ -83,6 +84,9 @@ class MediaPlaybackService :
   KoinComponent {
   companion object {
     private const val TAG = "MediaPlaybackService"
+
+    // Final state saves must outlive serviceScope, which is cancelled during teardown.
+    private val persistenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private const val NOTIFICATION_ID = 1
     private const val NOTIFICATION_CHANNEL_ID = "mpvrx_playback_channel"
     private const val PLAYBACK_STATE_SAVE_INTERVAL_MS = 5000L
@@ -203,6 +207,7 @@ class MediaPlaybackService :
   private var mediaTitle = ""
   private var mediaArtist = ""
   private var mediaUri: String? = null
+  private var activeArtworkUri: String? = null
   private var paused = false
   private var playbackSpeed = 1.0f
   private var activeQueueItemId: Long = MediaSessionCompat.QueueItem.UNKNOWN_ID.toLong()
@@ -233,13 +238,21 @@ class MediaPlaybackService :
   private var mpvAccessReleased = false
   private var usesAudioBackgroundPlayback = false
   private val audioManager by lazy { getSystemService(AUDIO_SERVICE) as AudioManager }
-  private var audioFocusRequest: AudioFocusRequest? = null
-  private var ownsAudioFocus = false
-  private var hasAudioFocus = false
+
+  // Mutated from the framework's audio-focus callback thread as well as serviceScope and the
+  // Activity's main thread; stale reads here strand focus and permanently duck other apps.
+  @Volatile private var audioFocusRequest: AudioFocusRequest? = null
+
+  @Volatile private var ownsAudioFocus = false
+
+  @Volatile private var hasAudioFocus = false
+
   @Volatile
   private var handingBackToActivity = false
-  private var resumeAfterFocusGain = false
-  private var volumeBeforeDuck: Double? = null
+
+  @Volatile private var resumeAfterFocusGain = false
+
+  @Volatile private var volumeBeforeDuck: Double? = null
   private var noisyReceiverRegistered = false
   @Volatile
   private var foregroundReady = false
@@ -384,6 +397,14 @@ class MediaPlaybackService :
   ): Int {
     Log.d(TAG, "Service starting with startId: $startId")
 
+    // MediaButtonReceiver launches us with startForegroundService(). Android 16 enforces the
+    // promotion deadline even when there is no live playback session and this start will be
+    // stopped immediately, so no validation or action branch may run before this call.
+    if (!startForegroundNotification()) {
+      stopSelf(startId)
+      return START_NOT_STICKY
+    }
+
     if (!PlaybackSession.isInitialized) {
       Log.w(TAG, "Ignoring playback service start without a live playback session")
       stopForegroundNotification()
@@ -477,6 +498,21 @@ class MediaPlaybackService :
       return START_NOT_STICKY
     }
 
+    if (!startForegroundNotification()) {
+      foregroundReady = false
+      mediaSession.isActive = false
+      stopSelf(startId)
+      return START_NOT_STICKY
+    }
+    foregroundReady = true
+    mediaSession.isActive = true
+    Log.d(TAG, "Foreground service started successfully")
+
+    return START_NOT_STICKY
+  }
+
+  @SuppressLint("ForegroundServiceType")
+  private fun startForegroundNotification(): Boolean =
     try {
       val type =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -485,19 +521,11 @@ class MediaPlaybackService :
           0
         }
       ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotification(), type)
-      foregroundReady = true
-      mediaSession.isActive = true
-      Log.d(TAG, "Foreground service started successfully")
-    } catch (e: Exception) {
-      foregroundReady = false
-      mediaSession.isActive = false
-      Log.e(TAG, "Error starting foreground service", e)
-      stopSelf(startId)
-      return START_NOT_STICKY
+      true
+    } catch (error: Exception) {
+      Log.e(TAG, "Error starting foreground service", error)
+      false
     }
-
-    return START_NOT_STICKY
-  }
 
   override fun onGetRoot(
     clientPackageName: String,
@@ -522,7 +550,9 @@ class MediaPlaybackService :
     serviceScope.launch {
       val resolvedTitle = FileTypeUtils.stripExtension(title)
       val resolvedIdentifier = identifier?.takeIf { it.isNotBlank() }
-      val artworkChanged = replaceOwnedThumbnail(thumbnail)
+      // A metadata-only Activity sync must not erase artwork already resolved for this queue item.
+      // Item changes are cleared explicitly in applySessionItem before the next cover is loaded.
+      val artworkChanged = thumbnail?.let(::replaceOwnedThumbnail) ?: false
       val metadataChanged =
         mediaTitle != resolvedTitle ||
           mediaArtist != artist ||
@@ -594,7 +624,13 @@ class MediaPlaybackService :
       resumeAfterFocusGain = false
       return
     }
-    audioFocusRequest?.let { request -> audioManager.abandonAudioFocusRequest(request) }
+    val request = audioFocusRequest
+    if (request != null) {
+      audioManager.abandonAudioFocusRequest(request)
+    } else {
+      Log.w(TAG, "Owned audio focus without a request; focus may remain held")
+    }
+    audioFocusRequest = null
     ownsAudioFocus = false
     hasAudioFocus = false
     resumeAfterFocusGain = false
@@ -667,17 +703,19 @@ class MediaPlaybackService :
 
   private fun applySessionItem(item: PlaybackItem) {
     val itemChanged = mediaIdentifier != item.stableId || mediaUri != item.originalUri
+    val artworkChanged = activeArtworkUri != item.artworkUri
     notificationIsAudio = resolveNotificationIsAudio(item, notificationIsAudio)
     mediaIdentifier = item.stableId
     mediaTitle = FileTypeUtils.stripExtension(item.title.orEmpty()).ifBlank { getString(R.string.player_unknown_video) }
-    mediaArtist = ""
+    mediaArtist = item.artist.orEmpty()
     mediaUri = item.originalUri
+    activeArtworkUri = item.artworkUri
     currentPositionSeconds = 0.0
     lastPublishedPositionSeconds = 0.0
     mediaDurationSeconds = 0.0
     paused = false
     playbackSpeed = 1.0f
-    if (itemChanged) {
+    if (itemChanged || artworkChanged) {
       chapters = emptyList()
       currentChapterIndex = -1
       replaceOwnedThumbnail(null)
@@ -686,6 +724,27 @@ class MediaPlaybackService :
     updateMediaSessionMetadata()
     updateMediaSessionPlaybackState()
     updateNotification()
+    loadSessionArtwork(item)
+  }
+
+  private fun loadSessionArtwork(item: PlaybackItem) {
+    val artworkUri = item.artworkUri?.takeIf { it.isNotBlank() } ?: return
+    val expectedIdentifier = item.stableId
+    serviceScope.launch {
+      val loaded =
+        withContext(Dispatchers.IO) {
+          EmbeddedArtworkResolver.decodeArtworkUri(this@MediaPlaybackService, artworkUri)
+        } ?: return@launch
+      if (mediaIdentifier != expectedIdentifier) {
+        return@launch
+      }
+      val changed = replaceOwnedThumbnail(loaded)
+      if (changed) {
+        refreshNotificationPalette()
+        updateMediaSessionMetadata()
+        updateNotification()
+      }
+    }
   }
 
   private fun resolveNotificationIsAudio(
@@ -724,7 +783,17 @@ class MediaPlaybackService :
     )
 
     val currentItem = queueState.currentItem
-    if (currentItem != null && (currentItem.stableId != mediaIdentifier || currentItem.originalUri != mediaUri)) {
+    val currentTitle =
+      currentItem?.title?.let { FileTypeUtils.stripExtension(it) }.orEmpty().ifBlank {
+        getString(R.string.player_unknown_video)
+      }
+    if (currentItem != null &&
+      (currentItem.stableId != mediaIdentifier ||
+        currentItem.originalUri != mediaUri ||
+        currentTitle != mediaTitle ||
+        currentItem.artist.orEmpty() != mediaArtist ||
+        currentItem.artworkUri != activeArtworkUri)
+    ) {
       applySessionItem(currentItem)
     } else {
       refreshTransportControls()
@@ -762,6 +831,7 @@ class MediaPlaybackService :
             .Builder()
             .setMediaId(item.stableId)
             .setTitle(item.title?.takeIf { it.isNotBlank() } ?: getString(R.string.player_unknown_video))
+            .setSubtitle(item.artist?.takeIf { it.isNotBlank() })
             .build(),
           queueId,
         )
@@ -814,14 +884,14 @@ class MediaPlaybackService :
 
   private fun stopDetachedPlaybackIfNeeded() {
     // Never kill the shared PlaybackSession media while an Activity is taking it back over.
-    if (handingBackToActivity) return
+    if (activityForeground || handingBackToActivity) return
     if (PlaybackSession.state.value.surfaceAttached) return
     torrentStreamingEngine.stopStream()
     PlaybackSession.stop(clearQueue = false)
   }
 
   private fun handleDetachedEndOfFile() {
-    if (PlaybackSession.state.value.surfaceAttached || !foregroundReady) return
+    if (activityForeground || PlaybackSession.state.value.surfaceAttached || !foregroundReady) return
     val queueState = PlaybackSession.queue.value
     val autoplay = if (notificationIsAudio) playerPreferences.autoplayNextAudio.get() else playerPreferences.autoplayNextVideo.get()
     when {
@@ -1453,7 +1523,7 @@ class MediaPlaybackService :
   ) {
     if (eventId == MPVLib.MpvEvent.MPV_EVENT_SHUTDOWN) {
       Log.d(TAG, "MPV shutdown event received, stopping service")
-      savePlaybackStateBlocking()
+      savePlaybackStateNow()
       stopSelf()
       return
     }
@@ -1487,13 +1557,14 @@ class MediaPlaybackService :
       }
   }
 
-  private fun savePlaybackStateBlocking() {
+  private fun savePlaybackStateNow() {
     val identifier = mediaIdentifier
     if (identifier.isBlank()) return
+    // Every libmpv read happens here, so the database write can safely outlive the service.
     val snapshot = capturePlaybackStateSnapshot(identifier, oldState = null) ?: return
 
     playbackStateSaveJob?.cancel()
-    runBlocking(Dispatchers.IO) {
+    persistenceScope.launch {
       runCatching {
         persistPlaybackState(identifier, snapshot)
       }.onFailure { error ->
@@ -1608,7 +1679,7 @@ class MediaPlaybackService :
     if (mpvAccessReleased) return
     mpvAccessReleased = true
 
-    runCatching { savePlaybackStateBlocking() }
+    runCatching { savePlaybackStateNow() }
       .onFailure { error -> Log.e(TAG, "Error saving playback state before MPV shutdown", error) }
     runCatching { PlaybackSession.removeObserver(this) }
       .onFailure { error -> Log.e(TAG, "Error removing MPV observer", error) }

@@ -18,14 +18,23 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import app.gyrolet.mpvrx.data.network.client.NetworkClientFactory
 import app.gyrolet.mpvrx.database.repository.PlaylistRepository
 import app.gyrolet.mpvrx.domain.network.NetworkConnection
 import app.gyrolet.mpvrx.domain.network.NetworkFile
+import app.gyrolet.mpvrx.domain.network.NetworkPath
+import app.gyrolet.mpvrx.domain.network.NetworkPlaybackUri
 import app.gyrolet.mpvrx.domain.network.NetworkProtocol
 import app.gyrolet.mpvrx.repository.NetworkRepository
+import app.gyrolet.mpvrx.ui.player.NetworkPlaybackSource
+import app.gyrolet.mpvrx.ui.player.PlaybackItem
+import app.gyrolet.mpvrx.ui.player.PlaybackSession
+import app.gyrolet.mpvrx.ui.player.PlayerActivity
+import app.gyrolet.mpvrx.utils.media.M3UParseResult
 import app.gyrolet.mpvrx.utils.media.M3UParser
+import app.gyrolet.mpvrx.utils.media.M3UPlaylistItem
 import app.gyrolet.mpvrx.utils.storage.FileTypeUtils
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -33,8 +42,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import java.net.URI
 
 /**
  * ViewModel for browsing files on a network share
@@ -48,41 +59,6 @@ class NetworkBrowserViewModel(
   KoinComponent {
   private val repository: NetworkRepository by inject()
   private val playlistRepository: PlaylistRepository by inject()
-
-  // Sort state
-  enum class NetworkFileSort {
-    NAME_AZ, NAME_ZA, TIME_NEWEST, TIME_OLDEST, SIZE_LARGEST, SIZE_SMALLEST,
-  }
-
-  private val _sortMode = MutableStateFlow(NetworkFileSort.NAME_AZ)
-  val sortMode: StateFlow<NetworkFileSort> = _sortMode.asStateFlow()
-
-  fun setSortMode(mode: NetworkFileSort) {
-    _sortMode.value = mode
-    applySort()
-    val firstFile = _files.value.firstOrNull { !it.isDirectory }?.name ?: "none"
-  }
-
-  private fun applySort() {
-    val current = _files.value
-    if (current.isEmpty()) return
-    _files.value = sortFileList(current)
-  }
-
-  private fun sortFileList(list: List<NetworkFile>): List<NetworkFile> {
-    return list.sortedWith(
-      compareBy<NetworkFile> { !it.isDirectory }.then(
-        when (_sortMode.value) {
-          NetworkFileSort.NAME_AZ -> compareBy { it.name.lowercase() }
-          NetworkFileSort.NAME_ZA -> compareByDescending { it.name.lowercase() }
-          NetworkFileSort.TIME_NEWEST -> compareByDescending { it.lastModified }
-          NetworkFileSort.TIME_OLDEST -> compareBy { it.lastModified }
-          NetworkFileSort.SIZE_LARGEST -> compareByDescending { it.size }
-          NetworkFileSort.SIZE_SMALLEST -> compareBy { it.size }
-        },
-      ),
-    )
-  }
 
   private val _files = MutableStateFlow<List<NetworkFile>>(emptyList())
   val files: StateFlow<List<NetworkFile>> = _files.asStateFlow()
@@ -116,27 +92,19 @@ class NetworkBrowserViewModel(
         repository
           .listFiles(connection, currentPath)
           .onSuccess { fileList ->
-            _files.value = sortFileList(fileList)
+            _files.value =
+              fileList.sortedWith(
+                compareBy<NetworkFile> { !it.isDirectory }
+                  .thenBy { it.name.lowercase() },
+              )
           }.onFailure { e ->
-            _error.value = e.message ?: "未知错误"
+            _error.value = e.message ?: "Unknown error"
           }
       } catch (e: Exception) {
-        _error.value = e.message ?: "未知错误"
+        _error.value = e.message ?: "Unknown error"
       } finally {
         _isLoading.value = false
       }
-    }
-  }
-
-  /**
-   * Delete a network file and reload the directory
-   */
-  fun deleteFile(file: NetworkFile) {
-    viewModelScope.launch {
-      val connection = _connection.value ?: return@launch
-      repository.deleteFile(connection, file.path)
-        .onSuccess { loadFiles() }
-        .onFailure { _error.value = "删除失败: ${it.message}" }
     }
   }
 
@@ -155,9 +123,11 @@ class NetworkBrowserViewModel(
         } else {
           playVideoInternal(connection, file)
         }
+      } catch (cancellation: CancellationException) {
+        throw cancellation
       } catch (e: Exception) {
         Log.e(TAG, "Error opening network media", e)
-        _error.value = e.message ?: "未知错误"
+        _error.value = e.message ?: "Unknown error"
       }
     }
   }
@@ -172,9 +142,11 @@ class NetworkBrowserViewModel(
           repository.getConnectionById(connectionId)
             ?: throw Exception("Connection not found")
         playVideoInternal(connection, file)
+      } catch (cancellation: CancellationException) {
+        throw cancellation
       } catch (e: Exception) {
         Log.e(TAG, "Error playing video", e)
-        _error.value = e.message ?: "未知错误"
+        _error.value = e.message ?: "Unknown error"
       }
     }
   }
@@ -183,45 +155,36 @@ class NetworkBrowserViewModel(
     connection: NetworkConnection,
     file: NetworkFile,
   ) {
-    val client = NetworkClientFactory.createClient(connection)
-    val content =
+    val client = repository.createClient(connection.id).getOrThrow()
+    val sourceUrl = NetworkPlaybackUri.create(connection.id, file.path)
+    val parseResult =
       try {
         client.connect().getOrThrow()
-        client
-          .getFileStream(file.path)
-          .getOrThrow()
-          .bufferedReader(Charsets.UTF_8)
-          .use { it.readText() }
+        M3UParser.parseFromStream(
+          inputStream = client.getFileStream(file.path).getOrThrow(),
+          sourceUrl = sourceUrl,
+          overridePlaylistName = file.name,
+        )
       } finally {
-        client.disconnect()
+        withContext(NonCancellable) { client.disconnect() }
       }
 
-    if (M3UParser.isLikelyHlsMediaManifest(content)) {
+    if (M3UParser.shouldPlayHlsDirectly(parseResult)) {
       playVideoInternal(connection, file)
       return
     }
 
-    // Resolve the source URL that the M3U was loaded from.
-    // This is essential for resolving relative paths inside the M3U
-    // (e.g. "episode02.mkv" -> "davs://server/videos/episode02.mkv").
-    // getFileUri() is tried first; if it fails we build a best-effort URL
-    // from the connection's base URL + file path.
-    val sourceUrl: String =
-      NetworkClientFactory
-        .createClient(connection)
-        .getFileUri(file.path)
-        .getOrNull()
-        ?.toString()
-        ?: buildFallbackSourceUrl(connection, file.path)
-
-    Log.d(TAG, "Importing M3U playlist from: $sourceUrl")
+    val parsed =
+      parseResult as? M3UParseResult.Success
+        ?: throw IllegalArgumentException((parseResult as M3UParseResult.Error).message)
+    val persistentResult =
+      parsed.copy(items = parsed.items.map { item -> item.forSavedConnection(connection) })
 
     val playlistId =
       playlistRepository
-        .createM3UPlaylistFromContent(
-          content = content,
+        .createM3UPlaylistFromParsed(
+          parseResult = persistentResult,
           sourceName = file.name,
-          sourceUrl = sourceUrl,
         ).getOrElse { e ->
           Log.e(TAG, "Failed to create playlist from M3U content", e)
           _error.value = "Failed to import playlist: ${e.message}"
@@ -230,69 +193,45 @@ class NetworkBrowserViewModel(
     _importedPlaylistId.emit(playlistId.toInt())
   }
 
-  /**
-   * Builds a best-effort URL for the given file path on a network connection.
-   * Used as a fallback when [NetworkClientFactory] cannot produce a URI.
-   */
-  private fun buildFallbackSourceUrl(
-    connection: NetworkConnection,
-    filePath: String,
-  ): String {
-    val protocol =
-      when (connection.protocol) {
-        NetworkProtocol.WEBDAV -> if (connection.useHttps) "https" else "http"
-        NetworkProtocol.FTP -> "ftp"
-        NetworkProtocol.SMB -> "smb"
-      }
-    val defaultPort = connection.protocol.defaultPort
-    val portStr = if (connection.port != defaultPort) ":${connection.port}" else ""
-    val normalizedPath = if (filePath.startsWith("/")) filePath else "/$filePath"
-    return "$protocol://${connection.host}$portStr$normalizedPath"
-  }
-
   private fun playVideoInternal(
     connection: NetworkConnection,
     file: NetworkFile,
   ) {
-    // Use proxy server for protocols that need seeking support
-    val useProxy = connection.protocol in PROXY_PROTOCOLS
-
     val playableFiles = currentDirectoryPlayableFiles(file)
     val playlistIndex =
       playableFiles
         .indexOfFirst { it.path == file.path }
         .takeIf { it >= 0 }
         ?: 0
-    val playlistUris = playableFiles.map { createPlayableNetworkUri(connection, it, useProxy) }
-    val uri =
-      playlistUris.getOrNull(playlistIndex)
-        ?: createPlayableNetworkUri(connection, file, useProxy)
+    val queueItems =
+      playableFiles.map { networkFile ->
+        val networkUri = NetworkPlaybackUri.create(connection.id, networkFile.path)
+        PlaybackItem.fromUri(
+          uri = networkUri,
+          title = networkFile.name,
+          mimeType = networkFile.mimeType,
+          networkSource = NetworkPlaybackSource(connection.id, networkFile.path),
+        )
+      }
+    PlaybackSession.replaceQueue(
+      items = queueItems,
+      currentIndex = playlistIndex,
+      isExplicitQueue = true,
+    )
+    val uri = Uri.parse(queueItems[playlistIndex].originalUri)
 
-    // Launch the player
     val intent = Intent(Intent.ACTION_VIEW, uri)
-    intent.setClass(application, app.gyrolet.mpvrx.ui.player.PlayerActivity::class.java)
+    intent.setClass(application, PlayerActivity::class.java)
     intent.putExtra("internal_launch", true)
     intent.putExtra("launch_source", "network_stream")
+    intent.putExtra(PlayerActivity.EXTRA_PREPARED_PLAYBACK_QUEUE, true)
     intent.putExtra("title", file.name)
     intent.putExtra("filename", file.name)
-    // Pass the original network file path for stable media identifier (position saving)
     intent.putExtra("network_file_path", file.path)
     intent.putExtra("network_connection_id", connectionId)
+    intent.putExtra("playlist_index", playlistIndex)
     intent.setDataAndType(uri, file.mimeType ?: "video/*")
     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-
-    if (playlistUris.size > 1) {
-      intent.putParcelableArrayListExtra("playlist", ArrayList(playlistUris))
-      intent.putExtra("playlist_index", playlistIndex)
-      intent.putStringArrayListExtra("network_playlist_paths", ArrayList(playableFiles.map { it.path }))
-      intent.putStringArrayListExtra("network_playlist_titles", ArrayList(playableFiles.map { it.name }))
-      intent.putExtra("network_playlist_connection_id", connectionId)
-    }
-
-    if (!useProxy) {
-      intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-
     application.startActivity(intent)
   }
 
@@ -308,34 +247,59 @@ class NetworkBrowserViewModel(
     }
   }
 
-  private fun createPlayableNetworkUri(
-    connection: NetworkConnection,
-    file: NetworkFile,
-    useProxy: Boolean,
-  ): Uri =
-    if (useProxy) {
-      val proxy =
-        app.gyrolet.mpvrx.data.network.proxy.NetworkStreamingProxy
-          .getInstance()
-      val streamId = buildStableStreamId(file)
-      val proxyUrl =
-        proxy.registerStream(
-          streamId = streamId,
-          connection = connection,
-          filePath = file.path,
-          fileSize = file.size,
-          mimeType = file.mimeType ?: "video/mp4",
-        )
-      Uri.parse(proxyUrl)
-    } else {
-      Uri.parse(buildFallbackSourceUrl(connection, file.path))
+  private fun M3UPlaylistItem.forSavedConnection(connection: NetworkConnection): M3UPlaylistItem {
+    val resource = url.substringBefore('|')
+    NetworkPlaybackUri.parse(resource)?.let { reference ->
+      if (reference.connectionId == connection.id) {
+        return copy(url = NetworkPlaybackUri.create(connection.id, reference.path.value))
+      }
     }
 
-  private fun buildStableStreamId(file: NetworkFile): String {
-    val pathHash = Integer.toUnsignedString(file.path.hashCode(), 36)
-    val sizeHash = Integer.toUnsignedString(file.size.hashCode(), 36)
-    return "network_${connectionId}_${pathHash}_$sizeHash"
+    val absolutePath = absoluteConnectionPath(resource, connection) ?: return copy(url = M3UParser.sanitizeSourceUrl(url))
+    return copy(url = NetworkPlaybackUri.create(connection.id, absolutePath.value))
   }
+
+  private fun absoluteConnectionPath(
+    rawUri: String,
+    connection: NetworkConnection,
+  ): NetworkPath? =
+    runCatching {
+      val uri = URI(rawUri)
+      val expectedScheme =
+        when (connection.protocol) {
+          NetworkProtocol.SMB -> "smb"
+          NetworkProtocol.FTP -> "ftp"
+          NetworkProtocol.WEBDAV -> if (connection.useHttps) "https" else "http"
+        }
+      if (!uri.scheme.equals(expectedScheme, ignoreCase = true) ||
+        !uri.host.equals(connection.host.trim('[', ']'), ignoreCase = true) ||
+        uri.rawQuery != null ||
+        uri.rawFragment != null
+      ) {
+        return@runCatching null
+      }
+
+      val actualPort = uri.port.takeIf { it >= 0 } ?: defaultPort(expectedScheme)
+      if (actualPort != connection.port) return@runCatching null
+
+      val root = NetworkPath.from(connection.path).segments
+      val fullPath = uri.path.orEmpty().split('/').filter(String::isNotEmpty)
+      val matchesRoot =
+        root.indices.all { index ->
+          val actual = fullPath.getOrNull(index) ?: return@all false
+          if (connection.protocol == NetworkProtocol.SMB) actual.equals(root[index], ignoreCase = true) else actual == root[index]
+        }
+      if (!matchesRoot) return@runCatching null
+      NetworkPath.from(fullPath.drop(root.size).joinToString("/"))
+    }.getOrNull()
+
+  private fun defaultPort(scheme: String): Int =
+    when (scheme.lowercase()) {
+      "smb" -> 445
+      "ftp" -> 21
+      "https" -> 443
+      else -> 80
+    }
 
   private fun NetworkFile.isPlayableVideoFile(): Boolean {
     if (isDirectory || isM3uFile(this)) {
@@ -364,14 +328,6 @@ class NetworkBrowserViewModel(
 
   companion object {
     private const val TAG = "NetworkBrowserVM"
-
-    // Protocols that require proxy server for seeking support
-    private val PROXY_PROTOCOLS =
-      setOf(
-        NetworkProtocol.SMB,
-        NetworkProtocol.FTP,
-        NetworkProtocol.WEBDAV,
-      )
 
     private val M3U_MIME_TYPES =
       setOf(

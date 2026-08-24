@@ -85,6 +85,8 @@ object MediaUtils {
     playlist: List<Uri> = emptyList(),
     playlistIndex: Int = 0,
     playlistTitles: List<String> = emptyList(),
+    playlistArtworkUrls: List<String> = emptyList(),
+    isAudio: Boolean = false,
   ) {
     val uri =
       when (source) {
@@ -144,6 +146,8 @@ object MediaUtils {
             playlist = playlist,
             playlistIndex = playlistIndex,
             playlistTitles = playlistTitles,
+            playlistArtworkUrls = playlistArtworkUrls,
+            isAudio = isAudio,
           )
           context.startActivity(intent)
           return
@@ -227,6 +231,8 @@ object MediaUtils {
       playlist = playlist,
       playlistIndex = playlistIndex,
       playlistTitles = playlistTitles,
+      playlistArtworkUrls = playlistArtworkUrls,
+      isAudio = isAudio,
     )
     context.startActivity(intent)
   }
@@ -285,14 +291,25 @@ object MediaUtils {
     playlist: List<Uri> = emptyList(),
     playlistIndex: Int = 0,
     playlistTitles: List<String> = emptyList(),
+    playlistArtworkUrls: List<String> = emptyList(),
+    isAudio: Boolean = false,
   ) {
+    if (isAudio) {
+      intent.putExtra("is_audio", true)
+      intent.putExtra("media_library_audio", true)
+    }
     if (playlist.isNotEmpty()) {
       val playlistArrayList = if (playlist is ArrayList) playlist else ArrayList(playlist)
       intent.putParcelableArrayListExtra("playlist", playlistArrayList)
       intent.putExtra("playlistIndex", playlistIndex)
+      intent.putExtra("playlist_index", playlistIndex)
       if (playlistTitles.isNotEmpty()) {
         val titlesArrayList = if (playlistTitles is ArrayList) playlistTitles else ArrayList(playlistTitles)
         intent.putStringArrayListExtra("playlist_titles", titlesArrayList)
+      }
+      if (playlistArtworkUrls.isNotEmpty()) {
+        val artworksArrayList = if (playlistArtworkUrls is ArrayList) playlistArtworkUrls else ArrayList(playlistArtworkUrls)
+        intent.putStringArrayListExtra("playlist_artwork_urls", artworksArrayList)
       }
     }
     launchSource?.let { intent.putExtra("launch_source", it) }

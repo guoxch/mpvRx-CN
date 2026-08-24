@@ -11,8 +11,10 @@ package app.gyrolet.mpvrx.di
 
 import app.gyrolet.mpvrx.domain.anime4k.Anime4KManager
 import app.gyrolet.mpvrx.domain.hdr.HdrToysManager
+import app.gyrolet.mpvrx.domain.hdr.MpvShaderRuntime
 import app.gyrolet.mpvrx.domain.torrent.TorrentStreamingEngine
 import app.gyrolet.mpvrx.network.AndroidCookieJar
+import app.gyrolet.mpvrx.network.SharedHttpClient
 import app.gyrolet.mpvrx.preferences.AiPreferences
 import app.gyrolet.mpvrx.repository.IntroDbRepository
 import app.gyrolet.mpvrx.repository.ai.AiClient
@@ -31,6 +33,7 @@ import app.gyrolet.mpvrx.repository.subtitle.OnlineSubtitleFileStore
 import app.gyrolet.mpvrx.repository.subtitle.OnlineSubtitleOrchestrator
 import app.gyrolet.mpvrx.repository.subtitlehub.MpvRxSubtitleHubRepository
 import app.gyrolet.mpvrx.repository.wyzie.WyzieSearchRepository
+import app.gyrolet.mpvrx.ui.player.PlaybackSessionShaderRuntime
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
@@ -41,17 +44,15 @@ import java.util.concurrent.TimeUnit
 val domainModule =
   module {
     single { AndroidCookieJar() }
-    single {
-      OkHttpClient
-        .Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .cookieJar(get<AndroidCookieJar>())
-        .build()
+    single<OkHttpClient> {
+      SharedHttpClient.derive {
+        connectTimeout(30, TimeUnit.SECONDS)
+        cookieJar(get<AndroidCookieJar>())
+      }
     }
     single { Anime4KManager(androidContext()) }
-    single { HdrToysManager(androidContext()) }
+    single<MpvShaderRuntime> { PlaybackSessionShaderRuntime }
+    single { HdrToysManager(androidContext(), get()) }
     single { OnlineSubtitleFileStore(androidContext(), get()) }
     single { WyzieSearchRepository(androidContext(), get(), get(), get(), get()) }
     single { MpvRxSubtitleHubRepository(get(), get(), get(), get()) }
@@ -91,6 +92,9 @@ val domainModule =
         .SyncplayManager(androidContext())
     }
     single { app.gyrolet.mpvrx.data.lyrics.LrcLibApiService(get()) }
+    single { app.gyrolet.mpvrx.data.lyrics.EnhancedLyricsApiService(get(), get()) }
+    single { app.gyrolet.mpvrx.data.lyrics.LyricsTranslationService(get()) }
+    single { app.gyrolet.mpvrx.repository.lyrics.LyricsProviderRegistry(get(), get(), get()) }
     single { app.gyrolet.mpvrx.repository.lyrics.LyricsRepository(androidContext(), get()) }
     single { TorrentStreamingEngine(androidContext()) }
   }

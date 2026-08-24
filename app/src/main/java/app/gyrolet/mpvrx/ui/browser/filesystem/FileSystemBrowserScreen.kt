@@ -17,8 +17,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import app.gyrolet.mpvrx.ui.browser.fab.FabScrollHelper
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -72,7 +77,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -566,7 +573,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
               if (isAtRoot) {
                 stringResource(app.gyrolet.mpvrx.R.string.app_name)
               } else {
-                breadcrumbs.lastOrNull()?.name ?: "目录树视图"
+                breadcrumbs.lastOrNull()?.name ?: "Tree View"
               },
             isInSelectionMode = isInSelectionMode,
             selectedCount = selectedCount,
@@ -635,6 +642,13 @@ fun FileSystemBrowserScreen(path: String? = null) {
         val navigationBarHeight = app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight.current
         val miniPlayerClearance = app.gyrolet.mpvrx.ui.browser.NavigationBarState.miniPlayerClearance
         if (isAtRoot) {
+          val isFabShouldBeVisible =
+            showQuickPlayFab &&
+              !isInSelectionMode &&
+              isFabVisible.value &&
+              !app.gyrolet.mpvrx.ui.browser.MainScreen
+                .getPermissionDeniedState()
+
           FloatingActionButtonMenu(
             modifier =
               Modifier.padding(
@@ -665,12 +679,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                   modifier =
                     Modifier
                       .animateFloatingActionButton(
-                        visible =
-                          showQuickPlayFab &&
-                            !isInSelectionMode &&
-                            isFabVisible.value &&
-                            !app.gyrolet.mpvrx.ui.browser.MainScreen
-                              .getPermissionDeniedState(),
+                        visible = isFabShouldBeVisible,
                         alignment = Alignment.BottomEnd,
                       ),
                   checked = isFabExpanded.value && !quickPlayFabDirect,
@@ -768,8 +777,8 @@ fun FileSystemBrowserScreen(path: String? = null) {
             }
           }
         }
-      },
-    ) { padding ->
+      }
+  ) { padding ->
       Box(modifier = Modifier.padding(padding)) {
         if (isPermissionSetupCompleted && permissionState.status == PermissionStatus.Granted) {
             if (isSearching) {
@@ -882,6 +891,11 @@ fun FileSystemBrowserScreen(path: String? = null) {
             modifier = Modifier,
           )
         }
+
+        FabScrollHelper.FabScrim(
+          visible = isFabExpanded.value && !quickPlayFabDirect,
+          onDismiss = { isFabExpanded.value = false },
+        )
       }
     }
 
@@ -1324,6 +1338,7 @@ private fun FileSystemBrowserContent(
   val showFramerateInResolution by browserPreferences.showFramerateInResolution.collectAsState()
   val showProgressBar by browserPreferences.showProgressBar.collectAsState()
   val showDateChip by browserPreferences.showDateChip.collectAsState()
+  val showCodecSupportIndicator by browserPreferences.showCodecSupportIndicator.collectAsState()
   val showUnplayedOldVideoLabel by appearancePreferences.showUnplayedOldVideoLabel.collectAsState()
   val unplayedOldVideoDays by appearancePreferences.unplayedOldVideoDays.collectAsState()
   val showExtensionField by browserPreferences.showExtensionField.collectAsState()
@@ -1343,6 +1358,7 @@ private fun FileSystemBrowserContent(
       showExtensionField,
       showDurationField,
       centerGridTitles,
+      showCodecSupportIndicator,
     ) {
       VideoCardUiConfig(
         unlimitedNameLines = unlimitedNameLines,
@@ -1350,6 +1366,7 @@ private fun FileSystemBrowserContent(
         showSizeChip = showSizeChip,
         showResolutionChip = showResolutionChip,
         showFramerateInResolution = showFramerateInResolution,
+        showCodecSupportIndicator = showCodecSupportIndicator,
         showProgressBar = showProgressBar,
         showDateChip = showDateChip,
         showUnplayedOldVideoLabel = showUnplayedOldVideoLabel,
@@ -1750,6 +1767,7 @@ private fun FileSystemSearchContent(
   val showFramerateInResolution by browserPreferences.showFramerateInResolution.collectAsState()
   val showProgressBar by browserPreferences.showProgressBar.collectAsState()
   val showDateChip by browserPreferences.showDateChip.collectAsState()
+  val showCodecSupportIndicator by browserPreferences.showCodecSupportIndicator.collectAsState()
   val unlimitedNameLines by appearancePreferences.unlimitedNameLines.collectAsState()
   val showUnplayedOldVideoLabel by appearancePreferences.showUnplayedOldVideoLabel.collectAsState()
   val unplayedOldVideoDays by appearancePreferences.unplayedOldVideoDays.collectAsState()
@@ -1770,6 +1788,7 @@ private fun FileSystemSearchContent(
       showExtensionField,
       showDurationField,
       centerGridTitles,
+      showCodecSupportIndicator,
     ) {
       VideoCardUiConfig(
         unlimitedNameLines = unlimitedNameLines,
@@ -1777,6 +1796,7 @@ private fun FileSystemSearchContent(
         showSizeChip = showSizeChip,
         showResolutionChip = showResolutionChip,
         showFramerateInResolution = showFramerateInResolution,
+        showCodecSupportIndicator = showCodecSupportIndicator,
         showProgressBar = showProgressBar,
         showDateChip = showDateChip,
         showUnplayedOldVideoLabel = showUnplayedOldVideoLabel,

@@ -458,7 +458,7 @@ private fun GridColumnsNextSection(
   HorizontalDivider(modifier = Modifier.padding(top = 10.dp))
 
   if (folderGridColumnSelector != null && videoGridColumnSelector != null) {
-    DialogSectionTitle(text = "网格列数")
+    DialogSectionTitle(text = "Grid Columns")
     Row(
       modifier = Modifier.fillMaxWidth(),
       horizontalArrangement = Arrangement.spacedBy(16.dp),

@@ -45,17 +45,25 @@ data class PlaybackItem(
   val originalUri: String,
   val playableUri: String = originalUri,
   val title: String? = null,
+  val artist: String? = null,
   val mimeType: String? = null,
   val headers: Map<String, String> = emptyMap(),
   val networkSource: NetworkPlaybackSource? = null,
   val playlistItemId: Int? = null,
   val artworkUri: String? = null,
+  /** File index inside a multi-file torrent; lets a series episode restart its stream. */
+  val torrentFileIndex: Int? = null,
 ) {
+  /** True while this torrent episode still points at its magnet/torrent source instead of a live stream URL. */
+  fun requiresTorrentResolution(): Boolean = torrentFileIndex != null && playableUri == originalUri
+
   companion object {
     fun fromUri(
       uri: String,
+      stableId: String? = null,
       playableUri: String = uri,
       title: String? = null,
+      artist: String? = null,
       mimeType: String? = null,
       headers: Map<String, String> = emptyMap(),
       networkSource: NetworkPlaybackSource? = null,
@@ -64,11 +72,13 @@ data class PlaybackItem(
     ): PlaybackItem =
       PlaybackItem(
         stableId =
-          networkSource?.let { PlaybackIdentity.forNetwork(it.connectionId, it.relativePath) }
+          stableId
+            ?: networkSource?.let { PlaybackIdentity.forNetwork(it.connectionId, it.relativePath) }
             ?: PlaybackIdentity.forUri(uri),
         originalUri = uri,
         playableUri = playableUri,
         title = title,
+        artist = artist,
         mimeType = mimeType,
         headers = headers,
         networkSource = networkSource,
@@ -167,31 +177,6 @@ internal object PlaybackQueueReducer {
     repeatMode: RepeatMode,
   ): PlaybackQueueState = previous.copy(repeatMode = repeatMode)
 
-  fun remove(
-    previous: PlaybackQueueState,
-    index: Int,
-  ): PlaybackQueueState? {
-    if (index !in previous.items.indices) return null
-    val removed = previous.items.toMutableList().apply { removeAt(index) }
-    if (removed.isEmpty()) {
-      return previous.copy(
-        items = emptyList(),
-        currentIndex = -1,
-        isExplicitQueue = false,
-        isM3u = false,
-        shuffleOrder = emptyList(),
-        shufflePosition = -1,
-      )
-    }
-    val newCurrentIndex =
-      when {
-        index == previous.currentIndex -> index.coerceAtMost(removed.lastIndex)
-        index < previous.currentIndex -> previous.currentIndex - 1
-        else -> previous.currentIndex
-      }
-    return rebuildShuffle(previous.copy(items = removed, currentIndex = newCurrentIndex))
-  }
-
   fun setShuffleEnabled(
     previous: PlaybackQueueState,
     enabled: Boolean,
@@ -215,6 +200,10 @@ internal object PlaybackQueueReducer {
   fun hasNext(previous: PlaybackQueueState): Boolean = peek(previous, forward = true) != null
 
   fun hasPrevious(previous: PlaybackQueueState): Boolean = peek(previous, forward = false) != null
+
+  fun peekNext(previous: PlaybackQueueState): PlaybackItem? = peek(previous, forward = true)
+
+  fun peekPrevious(previous: PlaybackQueueState): PlaybackItem? = peek(previous, forward = false)
 
   private fun advance(
     previous: PlaybackQueueState,
@@ -301,6 +290,9 @@ object PlaybackIdentity {
 
   fun forUri(uri: String): String = digest("uri\u0000${canonicalizeUri(uri)}")
 
+  /** Gives every URI representation of the same local file one playback-state key. */
+  fun forLocalPath(path: String): String = digest("local\u0000${normalizeLocalPath(path)}")
+
   fun forTorrent(
     infoHash: String,
     fileIndex: Int,
@@ -325,6 +317,11 @@ object PlaybackIdentity {
     }
     return normalized.joinToString("/")
   }
+
+  private fun normalizeLocalPath(path: String): String =
+    runCatching { URI(null, null, path.replace('\\', '/'), null).normalize().path }
+      .getOrDefault(path.replace('\\', '/'))
+      .trim()
 
   private fun canonicalizeUri(raw: String): String {
     val parsed = runCatching { URI(raw) }.getOrNull() ?: return raw.trim()

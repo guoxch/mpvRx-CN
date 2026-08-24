@@ -98,8 +98,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import androidx.palette.graphics.Palette
+import app.gyrolet.mpvrx.database.repository.PlaylistRepository
+import app.gyrolet.mpvrx.repository.JellyfinRepository
 import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.ui.browser.dialogs.AddToPlaylistDialog
+import app.gyrolet.mpvrx.ui.player.resolveUri
+import app.gyrolet.mpvrx.ui.player.controls.components.MiniAudioVisualizer
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.PlaylistItem
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
@@ -136,6 +140,7 @@ import androidx.core.content.ContextCompat
 import kotlin.math.roundToInt
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.thumbnail.EmbeddedArtworkResolver
+import app.gyrolet.mpvrx.presentation.components.RemoteImage
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.AudioPreferences
 import app.gyrolet.mpvrx.preferences.AudioVisualizerStyle
@@ -158,6 +163,7 @@ import app.gyrolet.mpvrx.ui.player.visualizer.GalaxyOverlay
 import app.gyrolet.mpvrx.ui.player.visualizer.ParticleOverlay
 import app.gyrolet.mpvrx.ui.player.visualizer.VisualizerPalette
 import app.gyrolet.mpvrx.ui.player.visualizer.rememberAudioVisualizerFeatures
+import app.gyrolet.mpvrx.ui.utils.isMpvOptionOwnedByConfig
 
 import app.gyrolet.mpvrx.utils.media.fileExtension
 import kotlinx.collections.immutable.persistentListOf
@@ -201,76 +207,111 @@ private object AudioPresentationMetadataCache {
         )
     }
 
-  fun peek(pathOrUri: String?): AudioPresentationMetadata? {
+  private fun cacheKey(
+    pathOrUri: String,
+    artworkUri: String?,
+  ): String = "$pathOrUri\u0000${artworkUri.orEmpty()}"
+
+  fun peek(
+    pathOrUri: String?,
+    artworkUri: String?,
+  ): AudioPresentationMetadata? {
     if (pathOrUri.isNullOrBlank()) return null
-    return synchronized(cache) { cache.get(pathOrUri) }
+    return synchronized(cache) { cache.get(cacheKey(pathOrUri, artworkUri)) }
   }
 
   suspend fun resolve(
     context: android.content.Context,
     pathOrUri: String,
+    artworkUri: String?,
   ): AudioPresentationMetadata =
     withContext(Dispatchers.IO) {
-      synchronized(cache) { cache.get(pathOrUri) }?.let { return@withContext it }
+      val key = cacheKey(pathOrUri, artworkUri)
+      synchronized(cache) { cache.get(key) }?.let { return@withContext it }
 
       loadMutex.withLock {
-        synchronized(cache) { cache.get(pathOrUri) }?.let { return@withLock it }
+        synchronized(cache) { cache.get(key) }?.let { return@withLock it }
 
         val cleanPath =
           when {
-            pathOrUri.startsWith("file://") -> pathOrUri.removePrefix("file://")
-            pathOrUri.startsWith("content://") -> null
+            pathOrUri.startsWith("file://") -> Uri.parse(pathOrUri).path ?: pathOrUri.removePrefix("file://")
+            pathOrUri.startsWith("content://") -> {
+              val uri = Uri.parse(pathOrUri)
+              uri.resolveUri(context, allowFdFallback = false)
+            }
             else -> pathOrUri
           }
-        val retriever = MediaMetadataRetriever()
+        val explicitArtwork = EmbeddedArtworkResolver.decodeArtworkUri(context, artworkUri)
+        val isNetworkStream = pathOrUri.startsWith("http://", ignoreCase = true) || pathOrUri.startsWith("https://", ignoreCase = true)
+        val retriever = if (!isNetworkStream) MediaMetadataRetriever() else null
         val loaded =
           try {
-            if (cleanPath != null) {
-              retriever.setDataSource(cleanPath)
-            } else {
-              retriever.setDataSource(context, Uri.parse(pathOrUri))
+            if (retriever != null) {
+              if (cleanPath != null && java.io.File(cleanPath).canRead()) {
+                retriever.setDataSource(cleanPath)
+              } else if (pathOrUri.startsWith("content://")) {
+                val uri = Uri.parse(pathOrUri)
+                try {
+                  context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                    retriever.setDataSource(pfd.fileDescriptor)
+                  }
+                } catch (_: Exception) {
+                  retriever.setDataSource(context, uri)
+                }
+              } else {
+                retriever.setDataSource(context, Uri.parse(pathOrUri))
+              }
             }
 
             AudioPresentationMetadata(
-              artwork = EmbeddedArtworkResolver.decodeEmbeddedArtwork(cleanPath, retriever),
-              artist =
-                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
-                  ?: retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)
-                  ?: retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_AUTHOR)
-                  ?: retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_COMPOSER),
+              artwork = explicitArtwork ?: retriever?.let { EmbeddedArtworkResolver.decodeEmbeddedArtwork(cleanPath ?: pathOrUri, it) },
+              artist = retriever?.let {
+                it.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                  ?: it.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)
+                  ?: it.extractMetadata(MediaMetadataRetriever.METADATA_KEY_AUTHOR)
+                  ?: it.extractMetadata(MediaMetadataRetriever.METADATA_KEY_COMPOSER)
+              },
             )
           } catch (_: Exception) {
-            AudioPresentationMetadata(artwork = null, artist = null)
+            val fallbackArtwork = explicitArtwork ?: if (cleanPath != null && !isNetworkStream) {
+              EmbeddedArtworkResolver.decodeSidecar(cleanPath)
+            } else null
+            AudioPresentationMetadata(artwork = fallbackArtwork, artist = null)
           } finally {
-            runCatching { retriever.release() }
+            runCatching { retriever?.release() }
           }
 
-        synchronized(cache) { cache.put(pathOrUri, loaded) }
+        synchronized(cache) { cache.put(key, loaded) }
         loaded
       }
     }
 }
 
 @Composable
-private fun rememberAudioPresentationMetadata(pathOrUri: String?): AudioPresentationMetadata? {
+private fun rememberAudioPresentationMetadata(
+  pathOrUri: String?,
+  artworkUri: String? = null,
+): AudioPresentationMetadata? {
   val context = LocalContext.current
-  var metadata by remember(pathOrUri) {
-    mutableStateOf(AudioPresentationMetadataCache.peek(pathOrUri))
+  var metadata by remember(pathOrUri, artworkUri) {
+    mutableStateOf(AudioPresentationMetadataCache.peek(pathOrUri, artworkUri))
   }
-  LaunchedEffect(pathOrUri) {
+  LaunchedEffect(pathOrUri, artworkUri) {
     metadata =
       if (pathOrUri.isNullOrBlank()) {
         null
       } else {
-        AudioPresentationMetadataCache.resolve(context, pathOrUri)
+        AudioPresentationMetadataCache.resolve(context, pathOrUri, artworkUri)
       }
   }
   return metadata
 }
 
 @Composable
-private fun rememberAudioAlbumArt(pathOrUri: String?): Bitmap? =
-  rememberAudioPresentationMetadata(pathOrUri)?.artwork
+private fun rememberAudioAlbumArt(
+  pathOrUri: String?,
+  artworkUri: String? = null,
+): Bitmap? = rememberAudioPresentationMetadata(pathOrUri, artworkUri)?.artwork
 
 /**
  * Cuboid is a Compose Canvas and does not pass through the GLSurfaceView VisualizerOverlay, so it
@@ -323,11 +364,21 @@ private fun CuboidSpectrumCaptureEffect(
 }
 
 @Composable
-private fun CoverArtCardImage(bitmap: Bitmap?) {
+private fun CoverArtCardImage(
+  bitmap: Bitmap?,
+  artworkUrl: String? = null,
+) {
   val imageBitmap = remember(bitmap) { bitmap?.asImageBitmap() }
   if (imageBitmap != null) {
     Image(
       bitmap = imageBitmap,
+      contentDescription = null,
+      contentScale = ContentScale.Crop,
+      modifier = Modifier.fillMaxSize(),
+    )
+  } else if (!artworkUrl.isNullOrBlank() && (artworkUrl.startsWith("http://", ignoreCase = true) || artworkUrl.startsWith("https://", ignoreCase = true))) {
+    RemoteImage(
+      url = artworkUrl,
       contentDescription = null,
       contentScale = ContentScale.Crop,
       modifier = Modifier.fillMaxSize(),
@@ -362,9 +413,19 @@ fun AudioPlayerControls(
   onOpenPanel: (Panels) -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  val speedConfigOwned = isMpvOptionOwnedByConfig("speed")
+  val audioFiltersConfigOwned = isMpvOptionOwnedByConfig("af")
   val paused by PlaybackSession.propBoolean["pause"].collectAsState()
   val duration by PlaybackSession.propInt["duration"].collectAsState()
   val preciseDuration by viewModel.preciseDuration.collectAsState()
+  val playbackState by PlaybackSession.state.collectAsStateWithLifecycle()
+  val queueState by PlaybackSession.queue.collectAsStateWithLifecycle()
+  val currentItem = playbackState.currentItem ?: queueState.currentItem
+  val playlistItems by viewModel.playlistItems.collectAsState()
+  val filteredPlaylist =
+    remember(playlistItems) {
+      playlistItems.filter { it.isAudio }
+    }
 
   var showInPlaceLyrics by rememberSaveable { mutableStateOf(false) }
   var wasLyricsActiveBeforeLandscape by rememberSaveable { mutableStateOf(false) }
@@ -385,6 +446,10 @@ fun AudioPlayerControls(
   val currentPath by PlaybackSession.propString["path"].collectAsState()
   val currentStreamFilename by PlaybackSession.propString["stream-open-filename"].collectAsState()
   val mediaPath = currentPath?.takeIf { it.isNotBlank() } ?: currentStreamFilename
+  val currentMediaSource =
+    currentItem?.originalUri?.takeIf { it.isNotBlank() }
+      ?: currentItem?.playableUri?.takeIf { it.isNotBlank() }
+      ?: mediaPath
 
   val audioCodec by PlaybackSession.propString["audio-codec-name"].collectAsState()
   val sampleRate by PlaybackSession.propInt["audio-params/samplerate"].collectAsState()
@@ -414,7 +479,7 @@ fun AudioPlayerControls(
 
   var showLosslessDetails by remember { mutableStateOf(false) }
 
-  LaunchedEffect(mediaPath) {
+  LaunchedEffect(currentItem?.stableId, mediaPath) {
     showLosslessDetails = false
   }
 
@@ -463,7 +528,15 @@ fun AudioPlayerControls(
       }
     }
 
-  val currentAudioPresentation = rememberAudioPresentationMetadata(mediaPath)
+  val currentArtworkUri =
+    currentItem?.artworkUri?.takeIf { it.isNotBlank() }
+      ?: filteredPlaylist.firstOrNull { it.isPlaying || it.path == mediaPath || it.uri.toString() == mediaPath }?.tvgLogo?.takeIf { it.isNotBlank() }
+
+  val currentAudioPresentation =
+    rememberAudioPresentationMetadata(
+      pathOrUri = mediaPath?.takeIf { it.isNotBlank() } ?: currentMediaSource,
+      artworkUri = currentArtworkUri,
+    )
   val albumArtBitmap = currentAudioPresentation?.artwork
 
   fun cleanSongTitle(
@@ -471,7 +544,7 @@ fun AudioPlayerControls(
     artist: String?,
   ): String {
     val titleWithoutExt = title.stripAudioExtension()
-    if (!artist.isNullOrBlank() && artist != "未知艺术家") {
+    if (!artist.isNullOrBlank() && artist != "Unknown Artist") {
       val prefixes = listOf("$artist - ", "$artist – ", "$artist — ", "$artist- ", "$artist : ")
       for (prefix in prefixes) {
         if (titleWithoutExt.startsWith(prefix, ignoreCase = true)) {
@@ -490,12 +563,15 @@ fun AudioPlayerControls(
 
   var lastValidTitle by remember {
     mutableStateOf(
-      mediaTitle?.takeIf { it.isNotBlank() }?.stripAudioExtension() ?: "音轨",
+      currentItem?.title?.takeIf { it.isNotBlank() }?.stripAudioExtension()
+        ?: mediaTitle?.takeIf { it.isNotBlank() }?.stripAudioExtension()
+        ?: "Audio Track",
     )
   }
-  LaunchedEffect(mediaTitle) {
-    if (!mediaTitle.isNullOrBlank()) {
-      lastValidTitle = mediaTitle.stripAudioExtension()
+  LaunchedEffect(currentItem?.stableId, currentItem?.title, mediaTitle) {
+    val updatedTitle = currentItem?.title?.takeIf { it.isNotBlank() } ?: mediaTitle
+    if (!updatedTitle.isNullOrBlank()) {
+      lastValidTitle = updatedTitle.stripAudioExtension()
     }
   }
 
@@ -507,10 +583,10 @@ fun AudioPlayerControls(
   val retrievedArtist = currentAudioPresentation?.artist
 
   val displayArtist =
-    remember(rawArtist, rawArtistAlt, rawAlbumArtist, rawPerformer, retrievedArtist) {
-      sequenceOf(rawArtist, rawArtistAlt, rawAlbumArtist, rawPerformer, retrievedArtist)
+    remember(currentItem?.artist, rawArtist, rawArtistAlt, rawAlbumArtist, rawPerformer, retrievedArtist) {
+      sequenceOf(currentItem?.artist, rawArtist, rawArtistAlt, rawAlbumArtist, rawPerformer, retrievedArtist)
         .filterNotNull()
-        .firstOrNull { it.isNotBlank() } ?: "未知艺术家"
+        .firstOrNull { it.isNotBlank() } ?: "Unknown Artist"
     }
 
   val audioPreferences = koinInject<AudioPreferences>()
@@ -557,6 +633,74 @@ fun AudioPlayerControls(
   var addToPlaylistDialogOpen by rememberSaveable { mutableStateOf(false) }
 
   val playerPreferences = koinInject<PlayerPreferences>()
+  val playlistRepository = koinInject<PlaylistRepository>()
+  val jellyfinRepository = koinInject<JellyfinRepository>()
+  val jellyfinServers by jellyfinRepository.allServers.collectAsState(initial = emptyList())
+  val coroutineScope = rememberCoroutineScope()
+  val activeTrackPath = mediaPath?.takeIf { it.isNotBlank() } ?: currentMediaSource
+
+  val jellyfinInfo = remember(activeTrackPath, mediaPath) {
+    val path = mediaPath?.takeIf { it.isNotBlank() } ?: activeTrackPath
+    if (path.isNullOrBlank()) null
+    else {
+      val uri = runCatching { Uri.parse(path) }.getOrNull()
+      if (uri == null) null
+      else {
+        val pathSegments = uri.pathSegments
+        val mediaIndex = pathSegments.indexOfFirst {
+          it.equals("Videos", ignoreCase = true) ||
+            it.equals("Audio", ignoreCase = true) ||
+            it.equals("Items", ignoreCase = true)
+        }
+        if (mediaIndex != -1 && mediaIndex + 1 < pathSegments.size) {
+          val itemId = pathSegments[mediaIndex + 1]
+          val apiKey = uri.getQueryParameter("api_key") ?: uri.getQueryParameter("ApiKey")
+          val scheme = uri.scheme ?: "http"
+          val authority = uri.encodedAuthority
+          val subPathSegments = pathSegments.subList(0, mediaIndex)
+          val baseUrl = if (authority != null) {
+            if (subPathSegments.isEmpty()) "$scheme://$authority"
+            else "$scheme://$authority/" + subPathSegments.joinToString("/")
+          } else null
+          if (itemId.isNotBlank() && baseUrl != null) {
+            Triple(baseUrl, itemId, apiKey)
+          } else null
+        } else null
+      }
+    }
+  }
+
+  val activeJellyfinServer = remember(jellyfinServers, jellyfinInfo) {
+    if (jellyfinInfo == null) null
+    else {
+      jellyfinServers.firstOrNull { s ->
+        s.serverUrl.contains(runCatching { Uri.parse(jellyfinInfo.first).host.orEmpty() }.getOrDefault("")) ||
+          (!jellyfinInfo.third.isNullOrBlank() && s.accessToken == jellyfinInfo.third)
+      } ?: jellyfinServers.firstOrNull()
+    }
+  }
+
+  var jellyfinFavoriteOverride by remember(activeTrackPath, mediaPath) { mutableStateOf<Boolean?>(null) }
+
+  LaunchedEffect(activeJellyfinServer, jellyfinInfo?.second) {
+    val server = activeJellyfinServer
+    val itemId = jellyfinInfo?.second
+    if (server != null && !itemId.isNullOrBlank()) {
+      val item = withContext(Dispatchers.IO) {
+        jellyfinRepository.getItem(server, itemId).getOrNull()
+      }
+      if (item != null) {
+        jellyfinFavoriteOverride = item.isFavorite
+      }
+    }
+  }
+
+  val isCurrentTrackFavoriteLocal by remember(activeTrackPath, mediaPath) {
+    playlistRepository.observeIsFavorite((mediaPath?.takeIf { it.isNotBlank() } ?: activeTrackPath).orEmpty(), isAudio = true)
+  }.collectAsState(initial = false)
+
+  val isCurrentTrackFavorite = jellyfinFavoriteOverride ?: isCurrentTrackFavoriteLocal
+
   val seekbarStyle by appearancePreferences.seekbarStyle.collectAsState()
   val invertDuration by playerPreferences.invertDuration.collectAsState()
   val showChapterIndicators by playerPreferences.showChapterIndicators.collectAsState()
@@ -570,12 +714,7 @@ fun AudioPlayerControls(
     viewModel.refreshPlaylistItems()
   }
 
-  val playlistItems by viewModel.playlistItems.collectAsState()
   val isAudioOnly by viewModel.isAudioOnly.collectAsState()
-  val filteredPlaylist =
-    remember(playlistItems) {
-      playlistItems.filter { it.isAudio }
-    }
 
   val configuration = LocalConfiguration.current
   val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
@@ -771,10 +910,8 @@ fun AudioPlayerControls(
     val haptic = LocalHapticFeedback.current
     var activeCoverOverride by remember { mutableStateOf<Bitmap?>(null) }
 
-    LaunchedEffect(albumArtBitmap) {
-      if (albumArtBitmap != null) {
-        activeCoverOverride = null
-      }
+    LaunchedEffect(currentItem?.stableId, albumArtBitmap) {
+      activeCoverOverride = null
     }
 
     val nextItem = remember(filteredPlaylist, mediaPath) {
@@ -787,8 +924,16 @@ fun AudioPlayerControls(
       if (idx > 0) filteredPlaylist[idx - 1] else null
     }
 
-    val nextCoverBitmap = rememberAudioAlbumArt(nextItem?.let { it.path.ifBlank { it.uri.toString() } })
-    val prevCoverBitmap = rememberAudioAlbumArt(prevItem?.let { it.path.ifBlank { it.uri.toString() } })
+    val nextCoverBitmap =
+      rememberAudioAlbumArt(
+        pathOrUri = nextItem?.let { it.path.ifBlank { it.uri.toString() } },
+        artworkUri = nextItem?.tvgLogo,
+      )
+    val prevCoverBitmap =
+      rememberAudioAlbumArt(
+        pathOrUri = prevItem?.let { it.path.ifBlank { it.uri.toString() } },
+        artworkUri = prevItem?.tvgLogo,
+      )
 
     @OptIn(ExperimentalFoundationApi::class)
     val centerVisualizerView = @Composable { visualizerModifier: Modifier ->
@@ -958,7 +1103,7 @@ fun AudioPlayerControls(
                   shape = coverShape,
                   color = Color.Transparent,
                 ) {
-                  CoverArtCardImage(bitmap = prevCoverBitmap)
+                  CoverArtCardImage(bitmap = prevCoverBitmap, artworkUrl = prevItem?.tvgLogo?.takeIf { it.isNotBlank() })
                 }
               }
 
@@ -972,7 +1117,7 @@ fun AudioPlayerControls(
                   shape = coverShape,
                   color = Color.Transparent,
                 ) {
-                  CoverArtCardImage(bitmap = nextCoverBitmap)
+                  CoverArtCardImage(bitmap = nextCoverBitmap, artworkUrl = nextItem?.tvgLogo?.takeIf { it.isNotBlank() })
                 }
               }
 
@@ -985,7 +1130,7 @@ fun AudioPlayerControls(
                 shape = coverShape,
                 color = Color.Transparent,
               ) {
-                CoverArtCardImage(bitmap = activeCoverOverride ?: albumArtBitmap)
+                CoverArtCardImage(bitmap = activeCoverOverride ?: albumArtBitmap, artworkUrl = currentArtworkUri)
               }
             }
           }
@@ -1028,7 +1173,7 @@ fun AudioPlayerControls(
 
         // 3. Track Info | A-B Loop Control
         val playlistInfo = viewModel.getPlaylistInfo()
-        val trackText = if (playlistInfo != null) "Track $playlistInfo" else "音频媒体"
+        val trackText = if (playlistInfo != null) "Track $playlistInfo" else "Audio Media"
 
         Row(
           modifier = Modifier.fillMaxWidth(),
@@ -1060,7 +1205,7 @@ fun AudioPlayerControls(
                 Modifier
                   .height(30.dp)
                   .clip(CircleShape)
-                  .clickable(onClick = { onOpenSheet(Sheets.PlaybackSpeed) }),
+                  .clickable(enabled = !speedConfigOwned, onClick = { onOpenSheet(Sheets.PlaybackSpeed) }),
             ) {
               Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1070,13 +1215,13 @@ fun AudioPlayerControls(
                 Icon(
                   imageVector = Icons.RoundedFilled.Speed,
                   contentDescription = stringResource(R.string.ui_playback_speed),
-                  tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                  tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (speedConfigOwned) 0.38f else 1f),
                   modifier = Modifier.size(16.dp),
                 )
                 Text(
                   text = String.format("%.2fx", playbackSpeed ?: 1f),
                   style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (speedConfigOwned) 0.38f else 1f),
                 )
               }
             }
@@ -1191,16 +1336,51 @@ fun AudioPlayerControls(
             }
           }
 
-          ReactiveIconButton(
-            onClick = { addToPlaylistDialogOpen = true },
-            modifier = Modifier.size(40.dp),
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
           ) {
-            Icon(
-              imageVector = Icons.RoundedFilled.PlaylistAdd,
-              contentDescription = stringResource(R.string.ui_add_to_playlist),
-              tint = MaterialTheme.colorScheme.onSurface,
-              modifier = Modifier.size(32.dp),
-            )
+            // Favorite Button (right before Add to Playlist)
+            ReactiveIconButton(
+              onClick = {
+                val path = mediaPath?.takeIf { it.isNotBlank() } ?: activeTrackPath ?: return@ReactiveIconButton
+                val server = activeJellyfinServer
+                val itemId = jellyfinInfo?.second
+                val newFavState = !isCurrentTrackFavorite
+
+                coroutineScope.launch {
+                  // Toggle local Room favorite state
+                  playlistRepository.toggleFavorite(filePath = path, fileName = displayTitle, isAudio = true)
+                  // Toggle Jellyfin server favorite status via API if playing from Jellyfin
+                  if (server != null && !itemId.isNullOrBlank()) {
+                    jellyfinFavoriteOverride = newFavState
+                    withContext(Dispatchers.IO) {
+                      jellyfinRepository.toggleFavorite(server = server, itemId = itemId, isFavorite = newFavState)
+                    }
+                  }
+                }
+              },
+              modifier = Modifier.size(40.dp),
+            ) {
+              Icon(
+                imageVector = if (isCurrentTrackFavorite) Icons.RoundedFilled.Favorite else Icons.RoundedFilled.FavoriteBorder,
+                contentDescription = if (isCurrentTrackFavorite) "Remove from Favorites" else "Add to Favorites",
+                tint = if (isCurrentTrackFavorite) Color.White else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(30.dp),
+              )
+            }
+
+            ReactiveIconButton(
+              onClick = { addToPlaylistDialogOpen = true },
+              modifier = Modifier.size(40.dp),
+            ) {
+              Icon(
+                imageVector = Icons.RoundedFilled.PlaylistAdd,
+                contentDescription = stringResource(R.string.ui_add_to_playlist),
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(32.dp),
+              )
+            }
           }
         }
       }
@@ -1208,6 +1388,7 @@ fun AudioPlayerControls(
 
     val seekbarView = @Composable {
       val position by PlaybackSession.propInt["time-pos"].collectAsStateWithLifecycle()
+      val remaining  by PlaybackSession.propFloat["playtime-remaining"].collectAsState()
       val precisePosition by viewModel.precisePosition.collectAsStateWithLifecycle()
       val currentPosSec = if (precisePosition > 0f) precisePosition else position?.toFloat() ?: 0f
 
@@ -1215,7 +1396,8 @@ fun AudioPlayerControls(
         position = currentPosSec,
         committedPosition = currentPosSec,
         duration = currentDurSec.coerceAtLeast(1f),
-        onValueChange = { value -> viewModel.previewSeekTo(value.toInt()) },
+        remaining = remaining?.toFloat() ?: 0f,
+        onValueChange = { value -> viewModel.previewSeekTo(value) },
         onValueChangeFinished = { targetPosition -> viewModel.seekTo(targetPosition.toInt(), fast = false) },
         timersInverted = Pair(false, invertDuration),
         durationTimerOnCLick = { playerPreferences.invertDuration.set(!invertDuration) },
@@ -1312,6 +1494,7 @@ fun AudioPlayerControls(
       ) {
         ReactiveIconButton(
           onClick = { onOpenSheet(Sheets.Equalizer) },
+          enabled = !audioFiltersConfigOwned,
           modifier =
             Modifier
               .clip(
@@ -1323,7 +1506,7 @@ fun AudioPlayerControls(
             Icon(
               imageVector = Icons.RoundedFilled.Equalizer,
               contentDescription = "Equalizer",
-              tint = MaterialTheme.colorScheme.onSurface,
+              tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (audioFiltersConfigOwned) 0.38f else 1f),
               modifier = Modifier.size(24.dp),
             )
           }
@@ -1665,11 +1848,20 @@ fun AudioPlayerControls(
           )
         }
 
+      val isJellyfinMedia = remember(mediaPath) {
+        !mediaPath.isNullOrBlank() &&
+          (mediaPath.contains("api_key=", ignoreCase = true) ||
+            mediaPath.contains("/Items/", ignoreCase = true) ||
+            mediaPath.contains("/Audio/", ignoreCase = true) ||
+            mediaPath.contains("jellyfin", ignoreCase = true))
+      }
+
       AddToPlaylistDialog(
         isOpen = true,
         videos = listOf(videoForPlaylist),
         onDismiss = { addToPlaylistDialogOpen = false },
         onSuccess = { addToPlaylistDialogOpen = false },
+        isJellyfin = isJellyfinMedia,
       )
     }
   }
@@ -1816,10 +2008,11 @@ private fun UpNextPlaylistContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
       ) {
-        items(displayPlaylist.size, key = { index -> displayPlaylist[index].uri.toString() }) { index ->
+        // A queue can contain the same URI more than once.
+        items(displayPlaylist.size, key = { index -> displayPlaylist[index].index }) { index ->
           val item = displayPlaylist[index]
           if (showDragHandle) {
-            ReorderableItem(reorderableLazyListState, key = item.uri.toString()) { isDragging ->
+            ReorderableItem(reorderableLazyListState, key = item.index) { isDragging ->
               val isDraggingPrev = remember { mutableStateOf(false) }
               LaunchedEffect(isDragging) {
                 if (isDraggingPrev.value && !isDragging) {
@@ -1866,7 +2059,11 @@ private fun UpNextPlaylistItemRow(
     MaterialTheme.colorScheme.surfaceContainer
   }
 
-  val itemCoverArt = rememberAudioAlbumArt(item.path.ifBlank { item.uri.toString() })
+  val itemCoverArt =
+    rememberAudioAlbumArt(
+      pathOrUri = item.path.ifBlank { item.uri.toString() },
+      artworkUri = item.tvgLogo,
+    )
 
   Surface(
     modifier = Modifier
@@ -1901,7 +2098,9 @@ private fun UpNextPlaylistItemRow(
         shape = RoundedCornerShape(10.dp),
         color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
       ) {
-          val itemImageBitmap = remember(itemCoverArt) { itemCoverArt?.asImageBitmap() }
+        val itemImageBitmap = remember(itemCoverArt) { itemCoverArt?.asImageBitmap() }
+        val hasRemoteImage = item.tvgLogo.isNotBlank() && (item.tvgLogo.startsWith("http://", ignoreCase = true) || item.tvgLogo.startsWith("https://", ignoreCase = true))
+        if (itemImageBitmap != null || hasRemoteImage) {
           if (itemImageBitmap != null) {
             Image(
               bitmap = itemImageBitmap,
@@ -1909,39 +2108,54 @@ private fun UpNextPlaylistItemRow(
               contentScale = ContentScale.Crop,
               modifier = Modifier.fillMaxSize(),
             )
-            if (isPlaying) {
-              Box(
-                modifier = Modifier
-                  .fillMaxSize()
-                  .background(Color.Black.copy(alpha = 0.45f)),
-                contentAlignment = Alignment.Center,
-              ) {
-                Icon(
-                  imageVector = Icons.RoundedFilled.Equalizer,
-                  contentDescription = "Now Playing",
-                  tint = MaterialTheme.colorScheme.primary,
-                  modifier = Modifier.size(22.dp),
-                )
-              }
-            }
           } else {
-            if (isPlaying) {
-              Icon(
-                imageVector = Icons.RoundedFilled.Equalizer,
-                contentDescription = "Now Playing",
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(22.dp),
-              )
-            } else {
-              Icon(
-                imageVector = Icons.RoundedFilled.Audiotrack,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
+            RemoteImage(
+              url = item.tvgLogo,
+              contentDescription = null,
+              contentScale = ContentScale.Crop,
+              modifier = Modifier.fillMaxSize(),
+            )
+          }
+          if (isPlaying) {
+            val paused by PlaybackSession.propBoolean["pause"].collectAsState()
+            val isPlaybackActive = paused != true
+            Box(
+              modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.45f)),
+              contentAlignment = Alignment.Center,
+            ) {
+              MiniAudioVisualizer(
+                isPlaying = isPlaybackActive,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(width = 18.dp, height = 16.dp),
               )
             }
           }
+        } else {
+          if (isPlaying) {
+            val paused by PlaybackSession.propBoolean["pause"].collectAsState()
+            val isPlaybackActive = paused != true
+            Box(
+              modifier = Modifier.fillMaxSize(),
+              contentAlignment = Alignment.Center,
+            ) {
+              MiniAudioVisualizer(
+                isPlaying = isPlaybackActive,
+                color = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(width = 18.dp, height = 16.dp),
+              )
+            }
+          } else {
+            Icon(
+              imageVector = Icons.RoundedFilled.Audiotrack,
+              contentDescription = null,
+              tint = MaterialTheme.colorScheme.onSurfaceVariant,
+              modifier = Modifier.size(20.dp),
+            )
+          }
         }
+      }
 
       Spacer(modifier = Modifier.width(12.dp))
 

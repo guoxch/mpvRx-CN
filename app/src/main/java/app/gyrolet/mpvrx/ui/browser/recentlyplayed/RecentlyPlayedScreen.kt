@@ -14,9 +14,16 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import app.gyrolet.mpvrx.ui.browser.fab.FabScrollHelper
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,6 +35,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -36,6 +45,9 @@ import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
@@ -51,12 +63,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -71,6 +86,7 @@ import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
 import app.gyrolet.mpvrx.preferences.GesturePreferences
 import app.gyrolet.mpvrx.preferences.MediaLayoutMode
+import app.gyrolet.mpvrx.preferences.MediaLibraryType
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.presentation.Screen
 import app.gyrolet.mpvrx.presentation.components.ConfirmDialog
@@ -94,6 +110,12 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.koin.compose.koinInject
 
+private fun isRecentlyPlayedItemAudio(item: RecentlyPlayedItem): Boolean =
+  when (item) {
+    is RecentlyPlayedItem.VideoItem -> item.video.isAudio
+    is RecentlyPlayedItem.PlaylistItem -> item.playlist.isAudio
+  }
+
 @Serializable
 object RecentlyPlayedScreen : Screen {
   @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -106,6 +128,16 @@ object RecentlyPlayedScreen : Screen {
 
     val recentItems by viewModel.recentItems.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    var recentlyPlayedFilter by rememberSaveable { mutableStateOf(MediaLibraryType.Video) }
+    val videoItems =
+      remember(recentItems) {
+        recentItems.filterNot(::isRecentlyPlayedItemAudio)
+      }
+    val audioItems =
+      remember(recentItems) {
+        recentItems.filter(::isRecentlyPlayedItemAudio)
+      }
+    val filteredRecentItems = if (recentlyPlayedFilter == MediaLibraryType.Audio) audioItems else videoItems
     val deleteDialogOpen = rememberSaveable { mutableStateOf(false) }
     val deleteFilesCheckbox = rememberSaveable { mutableStateOf(false) }
     val advancedPreferences = koinInject<AdvancedPreferences>()
@@ -125,13 +157,8 @@ object RecentlyPlayedScreen : Screen {
     // Selection manager for all items (videos and playlists)
     val selectionManager =
       rememberSelectionManager(
-        items = recentItems,
-        getId = { item ->
-          when (item) {
-            is RecentlyPlayedItem.VideoItem -> "video_${item.video.id}"
-            is RecentlyPlayedItem.PlaylistItem -> "playlist_${item.playlist.id}"
-          }
-        },
+        items = filteredRecentItems,
+        getId = ::recentlyPlayedItemKey,
         onDeleteItems = { items, deleteFiles ->
           val videos = items.filterIsInstance<RecentlyPlayedItem.VideoItem>().map { it.video }
           val playlistIds = items.filterIsInstance<RecentlyPlayedItem.PlaylistItem>().map { it.playlist.id }
@@ -191,9 +218,14 @@ object RecentlyPlayedScreen : Screen {
         }
       }
 
-    // Track scroll for FAB visibility - create states here to pass to content
-    val listState = remember { LazyListState() }
-    val gridState = remember { LazyGridState() }
+    // Track scroll for FAB visibility - create per-tab states so swiping between
+    // Video/Audio doesn't share scroll position, then expose whichever pair is active.
+    val videoListState = remember { LazyListState() }
+    val videoGridState = remember { LazyGridState() }
+    val audioListState = remember { LazyListState() }
+    val audioGridState = remember { LazyGridState() }
+    val listState = if (recentlyPlayedFilter == MediaLibraryType.Audio) audioListState else videoListState
+    val gridState = if (recentlyPlayedFilter == MediaLibraryType.Audio) audioGridState else videoGridState
     val browserPreferences = koinInject<BrowserPreferences>()
     val mediaLayoutMode by browserPreferences.mediaLayoutMode.collectAsState()
     app.gyrolet.mpvrx.ui.browser.fab.FabScrollHelper.trackScrollForFabVisibility(
@@ -204,13 +236,30 @@ object RecentlyPlayedScreen : Screen {
       onExpandedChange = { isFabExpanded.value = it },
     )
 
+    // Swipe between the Video/Audio tabs, kept in sync with the segmented buttons.
+    val pagerState = rememberPagerState(initialPage = recentlyPlayedFilter.ordinal) { MediaLibraryType.entries.size }
+    LaunchedEffect(pagerState.currentPage) {
+      MediaLibraryType.entries.getOrNull(pagerState.currentPage)?.let { type ->
+        if (recentlyPlayedFilter != type) {
+          selectionManager.clear()
+          recentlyPlayedFilter = type
+        }
+      }
+    }
+    LaunchedEffect(recentlyPlayedFilter) {
+      val targetPage = recentlyPlayedFilter.ordinal
+      if (pagerState.currentPage != targetPage) {
+        pagerState.animateScrollToPage(targetPage)
+      }
+    }
+
     Scaffold(
       topBar = {
         BrowserTopBar(
           title = stringResource(R.string.pref_advanced_enable_recently_played_title),
           isInSelectionMode = selectionManager.isInSelectionMode,
           selectedCount = selectionManager.selectedCount,
-          totalCount = recentItems.size,
+          totalCount = filteredRecentItems.size,
           onBackClick = null, // No back button for recently played screen
           onCancelSelection = { selectionManager.clear() },
           onSortClick = null, // No sorting in recently played
@@ -228,6 +277,9 @@ object RecentlyPlayedScreen : Screen {
         )
       },
       floatingActionButton = {
+        val isFabShouldBeVisible =
+          showQuickPlayFab && !selectionManager.isInSelectionMode && isFabVisible.value && filteredRecentItems.isNotEmpty()
+
         FloatingActionButtonMenu(
           modifier =
             Modifier
@@ -257,7 +309,7 @@ object RecentlyPlayedScreen : Screen {
                 modifier =
                   Modifier
                     .animateFloatingActionButton(
-                      visible = showQuickPlayFab && !selectionManager.isInSelectionMode && isFabVisible.value,
+                      visible = isFabShouldBeVisible,
                       alignment = Alignment.BottomEnd,
                     ),
                 checked = isFabExpanded.value && !quickPlayFabDirect,
@@ -361,15 +413,63 @@ object RecentlyPlayedScreen : Screen {
         }
       },
     ) { padding ->
-      when {
-        !enableRecentlyPlayed -> {
-          Box(
+      Box(
+        modifier =
+          Modifier
+            .fillMaxSize()
+            .padding(padding),
+      ) {
+      Column(
+        modifier = Modifier.fillMaxSize(),
+      ) {
+        if (enableRecentlyPlayed) {
+          SingleChoiceSegmentedButtonRow(
             modifier =
               Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentAlignment = Alignment.Center,
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
           ) {
+            MediaLibraryType.entries.forEachIndexed { index, type ->
+              SegmentedButton(
+                selected = recentlyPlayedFilter == type,
+                onClick = {
+                  if (recentlyPlayedFilter != type) {
+                    selectionManager.clear()
+                    recentlyPlayedFilter = type
+                  }
+                },
+                shape = SegmentedButtonDefaults.itemShape(index, MediaLibraryType.entries.size),
+                colors =
+                  SegmentedButtonDefaults.colors(
+                    activeContentColor = MaterialTheme.colorScheme.primary,
+                    activeBorderColor = MaterialTheme.colorScheme.primary,
+                  ),
+              ) {
+                Text(
+                  text =
+                    if (type == MediaLibraryType.Audio) {
+                      stringResource(R.string.ui_audio_tab)
+                    } else {
+                      stringResource(R.string.ui_videos)
+                    },
+                )
+              }
+            }
+          }
+        }
+
+        Box(
+          modifier =
+            Modifier
+              .fillMaxWidth()
+              .weight(1f),
+        ) {
+        when {
+          !enableRecentlyPlayed -> {
+            Box(
+              modifier = Modifier.fillMaxSize(),
+              contentAlignment = Alignment.Center,
+            ) {
             EmptyState(
               icon = Icons.RoundedFilled.History,
               title = stringResource(R.string.ui_recently_played_disabled),
@@ -380,10 +480,7 @@ object RecentlyPlayedScreen : Screen {
 
         isLoading && recentItems.isEmpty() -> {
           Box(
-            modifier =
-              Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
           ) {
             CircularProgressIndicator(
@@ -393,52 +490,68 @@ object RecentlyPlayedScreen : Screen {
           }
         }
 
-        recentItems.isEmpty() && !isLoading -> {
-          Box(
-            modifier =
-              Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentAlignment = Alignment.Center,
-          ) {
-            EmptyState(
-              icon = Icons.RoundedFilled.History,
-              title = stringResource(R.string.ui_no_recently_played_videos),
-              message = "Videos you play will appear here",
-            )
+        else -> {
+          HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+          ) { page ->
+            val pageType = MediaLibraryType.entries.getOrNull(page) ?: MediaLibraryType.Video
+            val pageIsAudio = pageType == MediaLibraryType.Audio
+            val pageItems = if (pageIsAudio) audioItems else videoItems
+            val pageListState = if (pageIsAudio) audioListState else videoListState
+            val pageGridState = if (pageIsAudio) audioGridState else videoGridState
+
+            if (pageItems.isEmpty()) {
+              Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+              ) {
+                EmptyState(
+                  icon = Icons.RoundedFilled.History,
+                  title =
+                    if (pageIsAudio) {
+                      stringResource(R.string.ui_no_audio_found)
+                    } else {
+                      stringResource(R.string.ui_no_recently_played_videos)
+                    },
+                  message = "Items you play will appear here",
+                )
+              }
+            } else {
+              RecentItemsContent(
+                recentItems = pageItems,
+                selectionManager = selectionManager,
+                onVideoClick = { video ->
+                  coroutineScope.launch {
+                    val playableVideo = viewModel.resolvePlayableRecentVideo(video)
+                    if (playableVideo != null) {
+                      // Always play individual videos without creating a playlist.
+                      MediaUtils.playFile(playableVideo, context, "recently_played")
+                    } else {
+                      Toast
+                        .makeText(
+                          context,
+                          context.getString(app.gyrolet.mpvrx.R.string.ui_recent_file_no_longer_exists),
+                          Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                  }
+                },
+                onPlaylistClick = { playlistItem ->
+                  // Navigate to playlist detail screen
+                  backStack.add(PlaylistDetailScreen(playlistItem.playlist.id))
+                },
+                modifier = Modifier,
+                isInSelectionMode = selectionManager.isInSelectionMode,
+                isAudioTab = pageIsAudio,
+                listState = pageListState,
+                gridState = pageGridState,
+              )
+            }
           }
         }
-
-        else -> {
-          RecentItemsContent(
-            recentItems = recentItems,
-            selectionManager = selectionManager,
-            onVideoClick = { video ->
-              coroutineScope.launch {
-                val playableVideo = viewModel.resolvePlayableRecentVideo(video)
-                if (playableVideo != null) {
-                  // Always play individual videos without creating a playlist.
-                  MediaUtils.playFile(playableVideo, context, "recently_played")
-                } else {
-                  Toast
-                    .makeText(
-                      context,
-                      context.getString(app.gyrolet.mpvrx.R.string.ui_recent_file_no_longer_exists),
-                      Toast.LENGTH_SHORT,
-                    ).show()
-                }
-              }
-            },
-            onPlaylistClick = { playlistItem ->
-              // Navigate to playlist detail screen
-              backStack.add(PlaylistDetailScreen(playlistItem.playlist.id))
-            },
-            modifier = Modifier.padding(padding),
-            isInSelectionMode = selectionManager.isInSelectionMode,
-            listState = listState,
-            gridState = gridState,
-          )
-        }
+      }
+      }
       }
 
       // Delete confirmation dialog
@@ -508,8 +621,14 @@ object RecentlyPlayedScreen : Screen {
         onDismiss = { showLinkDialog.value = false },
         onPlayLink = { url -> MediaUtils.playFile(url, context, "play_link") },
       )
+
+      FabScrollHelper.FabScrim(
+        visible = isFabExpanded.value && !quickPlayFabDirect,
+        onDismiss = { isFabExpanded.value = false },
+      )
     }
   }
+}
 }
 
 @Composable
@@ -520,6 +639,7 @@ private fun RecentItemsContent(
   onPlaylistClick: suspend (RecentlyPlayedItem.PlaylistItem) -> Unit,
   modifier: Modifier = Modifier,
   isInSelectionMode: Boolean = false,
+  isAudioTab: Boolean = false,
   listState: LazyListState,
   gridState: LazyGridState,
 ) {
@@ -537,6 +657,7 @@ private fun RecentItemsContent(
   val showFramerateInResolution by browserPreferences.showFramerateInResolution.collectAsState()
   val showProgressBar by browserPreferences.showProgressBar.collectAsState()
   val showDateChip by browserPreferences.showDateChip.collectAsState()
+  val showCodecSupportIndicator by browserPreferences.showCodecSupportIndicator.collectAsState()
   val showUnplayedOldVideoLabel by appearancePreferences.showUnplayedOldVideoLabel.collectAsState()
   val unplayedOldVideoDays by appearancePreferences.unplayedOldVideoDays.collectAsState()
   val mediaLayoutMode by browserPreferences.mediaLayoutMode.collectAsState()
@@ -546,6 +667,7 @@ private fun RecentItemsContent(
   val manualGridColumnsEnabled by browserPreferences.manualGridColumnsEnabled.collectAsState()
   val videoGridColumnsPortrait by browserPreferences.videoGridColumnsPortrait.collectAsState()
   val videoGridColumnsLandscape by browserPreferences.videoGridColumnsLandscape.collectAsState()
+  val musicCoverArtSize by browserPreferences.musicCoverArtSize.collectAsState()
   val configuration = androidx.compose.ui.platform.LocalConfiguration.current
   val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
   val screenWidthDp = configuration.screenWidthDp.dp
@@ -569,6 +691,10 @@ private fun RecentItemsContent(
   val thumbWidthDp =
     if (isGridMode) {
       (screenWidthDp / computedVideoColumns)
+    } else if (isAudioTab) {
+      // List mode for the Audio tab uses the configurable cover-art size instead of the
+      // fixed video thumbnail width, so the Music sort dialog's slider has an effect here too.
+      musicCoverArtSize.dp
     } else {
       160.dp
     }
@@ -582,6 +708,7 @@ private fun RecentItemsContent(
       showSizeChip,
       showResolutionChip,
       showFramerateInResolution,
+      showCodecSupportIndicator,
       showProgressBar,
       showDateChip,
       showUnplayedOldVideoLabel,
@@ -596,6 +723,7 @@ private fun RecentItemsContent(
         showSizeChip = showSizeChip,
         showResolutionChip = showResolutionChip,
         showFramerateInResolution = showFramerateInResolution,
+        showCodecSupportIndicator = showCodecSupportIndicator,
         showProgressBar = showProgressBar,
         showDateChip = showDateChip,
         showUnplayedOldVideoLabel = showUnplayedOldVideoLabel,
@@ -675,12 +803,7 @@ private fun RecentItemsContent(
         ) {
           items(
             count = recentItems.size,
-            key = { index ->
-              when (val item = recentItems[index]) {
-                is RecentlyPlayedItem.VideoItem -> "video_${item.video.id}_${item.timestamp}"
-                is RecentlyPlayedItem.PlaylistItem -> "playlist_${item.playlist.id}_${item.timestamp}"
-              }
-            },
+            key = { index -> recentlyPlayedItemKey(recentItems[index]) },
             contentType = { index ->
               when (recentItems[index]) {
                 is RecentlyPlayedItem.VideoItem -> "video_item"
@@ -815,12 +938,7 @@ private fun RecentItemsContent(
         ) {
           items(
             count = recentItems.size,
-            key = { index ->
-              when (val item = recentItems[index]) {
-                is RecentlyPlayedItem.VideoItem -> "video_${item.video.id}_${item.timestamp}"
-                is RecentlyPlayedItem.PlaylistItem -> "playlist_${item.playlist.id}_${item.timestamp}"
-              }
-            },
+            key = { index -> recentlyPlayedItemKey(recentItems[index]) },
             contentType = { index ->
               when (recentItems[index]) {
                 is RecentlyPlayedItem.VideoItem -> "video_item"
@@ -855,6 +973,8 @@ private fun RecentItemsContent(
                       }
                     },
                   isGridMode = false,
+                  thumbnailWidthPx = if (isAudioTab) with(density) { musicCoverArtSize.dp.roundToPx() } else null,
+                  thumbnailHeightPx = if (isAudioTab) with(density) { musicCoverArtSize.dp.roundToPx() } else null,
                   showSubtitleIndicator = showSubtitleIndicator,
                   uiConfig = videoCardUiConfig,
                 )
@@ -929,3 +1049,9 @@ private fun RecentItemsContent(
     }
   }
 }
+
+private fun recentlyPlayedItemKey(item: RecentlyPlayedItem): String =
+  when (item) {
+    is RecentlyPlayedItem.VideoItem -> "video_${item.video.id}_${item.timestamp}_${item.video.path}"
+    is RecentlyPlayedItem.PlaylistItem -> "playlist_${item.playlist.id}_${item.timestamp}_${item.mostRecentVideoPath}"
+  }

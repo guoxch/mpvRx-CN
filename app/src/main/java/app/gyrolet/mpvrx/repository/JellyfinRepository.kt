@@ -90,6 +90,7 @@ class JellyfinRepository(
   suspend fun getItems(
     server: JellyfinServer,
     parentId: String? = null,
+    artistIds: String? = null,
     searchTerm: String? = null,
     sortBy: app.gyrolet.mpvrx.domain.jellyfin.JellyfinSortBy = app.gyrolet.mpvrx.domain.jellyfin.JellyfinSortBy.NAME,
     sortOrder: app.gyrolet.mpvrx.domain.jellyfin.JellyfinSortOrder = app.gyrolet.mpvrx.domain.jellyfin.JellyfinSortOrder.ASCENDING,
@@ -104,6 +105,7 @@ class JellyfinRepository(
       serverUrl = server.serverUrl,
       userId = server.userId,
       parentId = parentId,
+      artistIds = artistIds,
       searchTerm = searchTerm,
       sortBy = sortBy,
       sortOrder = sortOrder,
@@ -113,6 +115,38 @@ class JellyfinRepository(
       includeItemTypes = includeItemTypes,
       startIndex = startIndex,
       limit = limit,
+      token = server.accessToken,
+    )
+
+  suspend fun getArtists(
+    server: JellyfinServer,
+    parentId: String? = null,
+    sortBy: app.gyrolet.mpvrx.domain.jellyfin.JellyfinSortBy = app.gyrolet.mpvrx.domain.jellyfin.JellyfinSortBy.NAME,
+    sortOrder: app.gyrolet.mpvrx.domain.jellyfin.JellyfinSortOrder = app.gyrolet.mpvrx.domain.jellyfin.JellyfinSortOrder.ASCENDING,
+    startIndex: Int = 0,
+    limit: Int = 500,
+    albumArtistsOnly: Boolean = false,
+  ): Result<app.gyrolet.mpvrx.domain.jellyfin.JellyfinQueryResult> =
+    client.getArtists(
+      serverUrl = server.serverUrl,
+      userId = server.userId,
+      parentId = parentId,
+      sortBy = sortBy,
+      sortOrder = sortOrder,
+      startIndex = startIndex,
+      limit = limit,
+      token = server.accessToken,
+      albumArtistsOnly = albumArtistsOnly,
+    )
+
+  suspend fun getGenres(
+    server: JellyfinServer,
+    parentId: String,
+  ): Result<List<String>> =
+    client.getGenres(
+      serverUrl = server.serverUrl,
+      userId = server.userId,
+      parentId = parentId,
       token = server.accessToken,
     )
 
@@ -166,14 +200,21 @@ class JellyfinRepository(
     server: JellyfinServer,
     item: JellyfinItem,
     maxWidth: Int = 400,
-  ): String =
-    client.getImageUrl(
+  ): String {
+    val targetItemId = if (item.primaryImageTag.isNullOrBlank() && !item.albumId.isNullOrBlank() && !item.albumPrimaryImageTag.isNullOrBlank()) {
+      item.albumId
+    } else {
+      item.id
+    }
+    val targetTag = item.primaryImageTag ?: item.albumPrimaryImageTag
+    return client.getImageUrl(
       serverUrl = server.serverUrl,
-      itemId = item.id,
-      imageTag = item.primaryImageTag,
+      itemId = targetItemId,
+      imageTag = targetTag,
       maxWidth = maxWidth,
       token = server.accessToken,
     )
+  }
 
   fun getBackdropUrl(
     server: JellyfinServer,
@@ -243,5 +284,44 @@ class JellyfinRepository(
       itemId = item.id,
       isFavorite = isFavorite,
       token = server.accessToken,
+    )
+
+  suspend fun toggleFavorite(
+    server: JellyfinServer,
+    itemId: String,
+    isFavorite: Boolean,
+  ): Result<Unit> =
+    client.toggleFavorite(
+      serverUrl = server.serverUrl,
+      userId = server.userId,
+      itemId = itemId,
+      isFavorite = isFavorite,
+      token = server.accessToken,
+    )
+
+  suspend fun createPlaylist(
+    server: JellyfinServer,
+    name: String,
+    itemIds: List<String> = emptyList(),
+  ): Result<String> =
+    client.createPlaylist(
+      serverUrl = server.serverUrl,
+      userId = server.userId,
+      token = server.accessToken,
+      name = name,
+      itemIds = itemIds,
+    )
+
+  suspend fun addToPlaylist(
+    server: JellyfinServer,
+    playlistId: String,
+    itemIds: List<String>,
+  ): Result<Unit> =
+    client.addToPlaylist(
+      serverUrl = server.serverUrl,
+      userId = server.userId,
+      token = server.accessToken,
+      playlistId = playlistId,
+      itemIds = itemIds,
     )
 }

@@ -46,6 +46,8 @@ import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.AudioChannels
 import app.gyrolet.mpvrx.preferences.AudioPlayerOrientation
 import app.gyrolet.mpvrx.preferences.AudioPreferences
+import app.gyrolet.mpvrx.preferences.LyricsTranslationDisplayMode
+import app.gyrolet.mpvrx.data.lyrics.LyricsLanguageOptions
 import app.gyrolet.mpvrx.preferences.AudioVisualizerStyle
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
 import app.gyrolet.mpvrx.preferences.MediaLibraryType
@@ -57,6 +59,7 @@ import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.preferences.components.SwitchPreference
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
 import app.gyrolet.mpvrx.ui.utils.LocalShowSettingsBackArrow
+import app.gyrolet.mpvrx.ui.utils.currentMpvConfigOverrideOptions
 import app.gyrolet.mpvrx.ui.utils.popSafely
 import app.gyrolet.mpvrx.utils.media.MediaLibraryEvents
 import kotlinx.serialization.Serializable
@@ -85,6 +88,7 @@ object AudioPreferencesScreen : Screen {
     val resources = LocalResources.current
     val backstack = LocalBackStack.current
     val preferences = koinInject<AudioPreferences>()
+    val configOwnedOptions = currentMpvConfigOverrideOptions()
     val browserPreferences = koinInject<BrowserPreferences>()
     val playerPreferences = koinInject<PlayerPreferences>()
     val notificationPermissionLauncher =
@@ -356,6 +360,7 @@ object AudioPreferencesScreen : Screen {
               TextFieldPreference(
                 modifier = Modifier.settingsSearchTarget(R.string.pref_preferred_languages),
                 value = preferredLanguages,
+                enabled = "alang" !in configOwnedOptions,
                 onValueChange = { preferences.preferredLanguages.set(it) },
                 textToValue = { input ->
                   input
@@ -395,6 +400,7 @@ object AudioPreferencesScreen : Screen {
               SwitchPreference(
                 modifier = Modifier.settingsSearchTarget(R.string.pref_audio_pitch_correction_title),
                 value = audioPitchCorrection,
+                enabled = "audio-pitch-correction" !in configOwnedOptions,
                 onValueChange = { preferences.audioPitchCorrection.set(it) },
                 title = { Text(stringResource(R.string.pref_audio_pitch_correction_title)) },
                 summary = {
@@ -410,6 +416,7 @@ object AudioPreferencesScreen : Screen {
               SwitchPreference(
                 modifier = Modifier.settingsSearchTarget(R.string.pref_audio_volume_normalization_title),
                 value = volumeNormalization,
+                enabled = "af" !in configOwnedOptions,
                 onValueChange = { preferences.volumeNormalization.set(it) },
                 title = { Text(stringResource(R.string.pref_audio_volume_normalization_title)) },
                 summary = {
@@ -424,6 +431,7 @@ object AudioPreferencesScreen : Screen {
               val drcEnabled by preferences.drcEnabled.collectAsState()
               SwitchPreference(
                 value = drcEnabled,
+                enabled = "af" !in configOwnedOptions,
                 onValueChange = { preferences.drcEnabled.set(it) },
                 title = { Text(stringResource(R.string.pref_audio_drc_title)) },
                 summary = {
@@ -484,6 +492,7 @@ object AudioPreferencesScreen : Screen {
                 value = audioChannel,
                 onValueChange = { preferences.audioChannels.set(it) },
                 values = AudioChannels.entries,
+                enabled = setOf("audio-channels", "af").none(configOwnedOptions::contains),
                 valueToText = { AnnotatedString(resources.getString(it.title)) },
                 title = { Text(text = stringResource(id = R.string.pref_audio_channels)) },
                 summary = {
@@ -499,6 +508,7 @@ object AudioPreferencesScreen : Screen {
               SliderPreference(
                 modifier = Modifier.settingsSearchTarget(R.string.pref_audio_volume_boost_cap),
                 value = volumeBoostCap.toFloat(),
+                enabled = "volume-max" !in configOwnedOptions,
                 onValueChange = { preferences.volumeBoostCap.set(it.toInt()) },
                 title = { Text(stringResource(R.string.pref_audio_volume_boost_cap)) },
                 valueRange = 0f..200f,
@@ -514,6 +524,151 @@ object AudioPreferencesScreen : Screen {
                 },
                 onSliderValueChange = { preferences.volumeBoostCap.set(it.toInt()) },
                 sliderValue = volumeBoostCap.toFloat(),
+              )
+
+              PreferenceDivider()
+              Text(
+                text = stringResource(R.string.pref_lyrics_translation_category),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+              )
+
+              val enhancedLyrics by preferences.enhancedLyrics.collectAsState()
+              SwitchPreference(
+                value = enhancedLyrics,
+                onValueChange = preferences.enhancedLyrics::set,
+                title = { Text(stringResource(R.string.pref_enhanced_lyrics)) },
+                summary = { Text(stringResource(R.string.pref_enhanced_lyrics_summary)) },
+              )
+
+              PreferenceDivider()
+              val lyricsClickToSeek by preferences.lyricsClickToSeek.collectAsState()
+              SwitchPreference(
+                value = lyricsClickToSeek,
+                onValueChange = preferences.lyricsClickToSeek::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_click_to_seek)) },
+              )
+
+              PreferenceDivider()
+              val lyricsAutoScroll by preferences.lyricsAutoScroll.collectAsState()
+              SwitchPreference(
+                value = lyricsAutoScroll,
+                onValueChange = preferences.lyricsAutoScroll::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_auto_scroll)) },
+              )
+
+              PreferenceDivider()
+              val lyricsLineBlur by preferences.lyricsLineBlur.collectAsState()
+              SwitchPreference(
+                value = lyricsLineBlur,
+                onValueChange = preferences.lyricsLineBlur::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_line_blur)) },
+              )
+
+              PreferenceDivider()
+              val lyricsWordSync by preferences.lyricsWordSync.collectAsState()
+              SwitchPreference(
+                value = lyricsWordSync,
+                onValueChange = preferences.lyricsWordSync::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_word_sync)) },
+              )
+
+              PreferenceDivider()
+              val romanizeJapanese by preferences.lyricsRomanizeJapanese.collectAsState()
+              SwitchPreference(
+                value = romanizeJapanese,
+                onValueChange = preferences.lyricsRomanizeJapanese::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_romanize_japanese)) },
+              )
+
+              PreferenceDivider()
+              val romanizeKorean by preferences.lyricsRomanizeKorean.collectAsState()
+              SwitchPreference(
+                value = romanizeKorean,
+                onValueChange = preferences.lyricsRomanizeKorean::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_romanize_korean)) },
+              )
+
+              PreferenceDivider()
+              val romanizeChinese by preferences.lyricsRomanizeChinese.collectAsState()
+              SwitchPreference(
+                value = romanizeChinese,
+                onValueChange = preferences.lyricsRomanizeChinese::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_romanize_chinese)) },
+              )
+
+              PreferenceDivider()
+              val romanizeHindi by preferences.lyricsRomanizeHindi.collectAsState()
+              SwitchPreference(
+                value = romanizeHindi,
+                onValueChange = preferences.lyricsRomanizeHindi::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_romanize_hindi)) },
+              )
+
+              PreferenceDivider()
+              val romanizeOther by preferences.lyricsRomanizeOtherLanguages.collectAsState()
+              SwitchPreference(
+                value = romanizeOther,
+                onValueChange = preferences.lyricsRomanizeOtherLanguages::set,
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_romanize_other)) },
+              )
+
+              PreferenceDivider()
+              val lyricsAutoTranslate by preferences.lyricsAutoTranslate.collectAsState()
+              SwitchPreference(
+                value = lyricsAutoTranslate,
+                onValueChange = { preferences.lyricsAutoTranslate.set(it) },
+                enabled = enhancedLyrics,
+                title = { Text(stringResource(R.string.pref_lyrics_auto_translate)) },
+                summary = {
+                  Text(
+                    stringResource(R.string.pref_lyrics_auto_translate_summary),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+
+              PreferenceDivider()
+              val lyricsTargetLanguage by preferences.lyricsTargetLanguage.collectAsState()
+              ListPreference(
+                value = lyricsTargetLanguage,
+                onValueChange = { preferences.lyricsTargetLanguage.set(it) },
+                values = LyricsLanguageOptions.ALL_LANGUAGES.map { it.code },
+                valueToText = { AnnotatedString(LyricsLanguageOptions.getDisplayName(it)) },
+                title = { Text(stringResource(R.string.pref_lyrics_target_language)) },
+                summary = {
+                  Text(
+                    text = LyricsLanguageOptions.getDisplayName(lyricsTargetLanguage),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+
+              PreferenceDivider()
+              val lyricsDisplayMode by preferences.lyricsTranslationDisplayMode.collectAsState()
+              ListPreference(
+                value = lyricsDisplayMode,
+                onValueChange = { preferences.lyricsTranslationDisplayMode.set(it) },
+                values = LyricsTranslationDisplayMode.entries,
+                valueToText = { AnnotatedString(resources.getString(it.title)) },
+                title = { Text(stringResource(R.string.pref_lyrics_display_mode)) },
+                summary = {
+                  Text(
+                    text = stringResource(lyricsDisplayMode.title),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
               )
             }
           }
@@ -627,5 +782,6 @@ object AudioPreferencesScreen : Screen {
         },
       )
     }
+
   }
 }

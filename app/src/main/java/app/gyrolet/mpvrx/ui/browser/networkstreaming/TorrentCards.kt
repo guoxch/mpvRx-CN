@@ -49,6 +49,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,9 +64,10 @@ import androidx.compose.ui.unit.sp
 import app.gyrolet.mpvrx.database.entities.NetworkStreamEntryEntity
 import app.gyrolet.mpvrx.domain.torrent.formatTorrentBytes
 import app.gyrolet.mpvrx.presentation.components.RemoteImage
-import app.gyrolet.mpvrx.utils.media.MediaUtils
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.utils.media.MediaInfoParser
+import app.gyrolet.mpvrx.utils.media.MediaUtils
 import kotlinx.coroutines.delay
 
 /**
@@ -579,7 +581,7 @@ fun TorrentResumeCard(
         )
         if (entry.groupTitle != null && entry.groupTitle != entry.fileName) {
           Text(
-            text = entry.fileName,
+            text = remember(entry.fileName) { MediaInfoParser.episodeLabel(entry.fileName) },
             style = MaterialTheme.typography.labelSmall,
             color = Color.White.copy(alpha = 0.75f),
             maxLines = 1,

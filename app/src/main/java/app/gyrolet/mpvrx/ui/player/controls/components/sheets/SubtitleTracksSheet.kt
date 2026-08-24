@@ -95,6 +95,7 @@ fun SubtitlesSheet(
   realtimeSubsEnabled: Boolean = true,
   subtitlesOff: Boolean = false,
   onDisableSubtitles: () -> Unit = {},
+  delayControlEnabled: Boolean = true,
   modifier: Modifier = Modifier,
 ) {
   val items =
@@ -105,10 +106,10 @@ fun SubtitlesSheet(
       val external = tracks.filter { it.external == true }
 
       if (internal.isNotEmpty() || external.isNotEmpty()) {
-        list.add(SubtitleItem.Header(if (internal.isNotEmpty()) "内嵌字幕" else "本地字幕"))
+        list.add(SubtitleItem.Header(if (internal.isNotEmpty()) "Embedded Subtitles" else "Local Subtitles"))
         list.addAll(internal.map { SubtitleItem.Track(it) })
         if (internal.isNotEmpty() && external.isNotEmpty()) {
-          list.add(SubtitleItem.Header("外挂字幕"))
+          list.add(SubtitleItem.Header("External Subtitles"))
         }
         list.addAll(external.map { SubtitleItem.Track(it) })
       }
@@ -330,7 +331,7 @@ fun SubtitlesSheet(
           IconButton(onClick = onOpenSubtitleSettings) {
             Icon(Icons.RoundedFilled.Palette, null)
           }
-          IconButton(onClick = onOpenSubtitleDelay) {
+          IconButton(onClick = onOpenSubtitleDelay, enabled = delayControlEnabled) {
             Icon(Icons.RoundedFilled.AvTimer, null)
           }
         },

@@ -28,8 +28,12 @@ import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+import app.gyrolet.mpvrx.utils.media.MediaLibraryEvents
+import kotlinx.coroutines.flow.collectLatest
+
 class MusicLibraryViewModel : ViewModel(), KoinComponent {
 
+  private val context: Context by inject()
   private val playlistRepository: PlaylistRepository by inject()
   private val browserPreferences: app.gyrolet.mpvrx.preferences.BrowserPreferences by inject()
   private val audioPreferences: app.gyrolet.mpvrx.preferences.AudioPreferences by inject()
@@ -88,11 +92,14 @@ class MusicLibraryViewModel : ViewModel(), KoinComponent {
 
   val isPlaybackActive: StateFlow<Boolean> =
     PlaybackSession.state
-      .map { session -> session.currentItem != null && !session.paused }
+      .map { session -> session.currentItem != null }
       .distinctUntilChanged()
       .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
   init {
+    viewModelScope.launch {
+      playlistRepository.getOrCreateFavoritesPlaylist(isAudio = true)
+    }
     viewModelScope.launch {
       combine(
         browserPreferences.minimumAudioDurationSeconds.changes(),
@@ -102,6 +109,14 @@ class MusicLibraryViewModel : ViewModel(), KoinComponent {
       }
         .distinctUntilChanged()
         .collect { (minimumSeconds, blacklist) -> applyFilters(minimumSeconds, blacklist) }
+    }
+    viewModelScope.launch {
+      MediaLibraryEvents.changes.collectLatest {
+        refreshLibrary(context)
+      }
+    }
+    viewModelScope.launch {
+      refreshLibrary(context)
     }
   }
 
@@ -233,9 +248,9 @@ class MusicLibraryViewModel : ViewModel(), KoinComponent {
       }
       .sortedBy { it.name.lowercase() }
 
-  fun scanLibrary(context: Context) {
+  fun scanLibrary(context: Context? = null) {
     viewModelScope.launch {
-      refreshLibrary(context)
+      refreshLibrary(context ?: this@MusicLibraryViewModel.context)
     }
   }
 
@@ -288,7 +303,8 @@ class MusicLibraryViewModel : ViewModel(), KoinComponent {
     val queueItems = songList.map { item ->
       PlaybackItem.fromUri(
         uri = item.uri.toString(),
-        title = "${item.artist} - ${item.title}",
+        title = item.title,
+        artist = item.artist,
         mimeType = "audio/*",
         artworkUri = item.albumArtUri?.toString(),
       )
@@ -308,7 +324,7 @@ class MusicLibraryViewModel : ViewModel(), KoinComponent {
       putExtra("launch_source", "music_library")
       putExtra("media_library_audio", true)
       putExtra("is_audio", true)
-      putExtra("title", "${song.artist} - ${song.title}")
+      putExtra("title", song.title)
     }
     context.startActivity(intent)
   }
@@ -321,7 +337,8 @@ class MusicLibraryViewModel : ViewModel(), KoinComponent {
     val queueItems = list.map { item ->
       PlaybackItem.fromUri(
         uri = item.uri.toString(),
-        title = "${item.artist} - ${item.title}",
+        title = item.title,
+        artist = item.artist,
         mimeType = "audio/*",
         artworkUri = item.albumArtUri?.toString(),
       )
@@ -341,7 +358,7 @@ class MusicLibraryViewModel : ViewModel(), KoinComponent {
       putExtra("launch_source", if (shuffle) "music_shuffle" else "music_play_all")
       putExtra("media_library_audio", true)
       putExtra("is_audio", true)
-      putExtra("title", "${firstSong.artist} - ${firstSong.title}")
+      putExtra("title", firstSong.title)
     }
     context.startActivity(intent)
   }
@@ -355,6 +372,7 @@ class MusicLibraryViewModel : ViewModel(), KoinComponent {
   }
 
   fun deletePlaylist(playlist: PlaylistEntity) {
+    if (playlist.name.equals(PlaylistRepository.FAVORITES_PLAYLIST_NAME, ignoreCase = true)) return
     viewModelScope.launch {
       playlistRepository.deletePlaylist(playlist)
     }

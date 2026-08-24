@@ -137,8 +137,8 @@ class AppearancePreferences(
 enum class PortraitPlaybackControlsPosition(
   val displayName: String,
 ) {
-  Center("屏幕中央"),
-  BelowSeekbar("进度条和控件之间"),
+  Center("Center of screen"),
+  BelowSeekbar("Between seekbar and controls"),
 }
 
 @Composable

@@ -142,6 +142,7 @@ import app.gyrolet.mpvrx.ui.player.controls.components.SeekbarWithTimers
 import app.gyrolet.mpvrx.ui.player.controls.components.SlideToUnlock
 import app.gyrolet.mpvrx.ui.player.controls.components.TextPlayerUpdate
 import app.gyrolet.mpvrx.ui.player.controls.components.VolumeSlider
+import app.gyrolet.mpvrx.ui.player.controls.components.rememberBufferingState
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.toFixed
 import app.gyrolet.mpvrx.ui.player.getTrackSelectionId
 import app.gyrolet.mpvrx.ui.player.setTrackSelectionId
@@ -203,12 +204,9 @@ fun PlayerControls(
   val statisticsPage by advancedPreferences.enabledStatisticsPage.collectAsState()
   val areControlsLocked by viewModel.areControlsLocked.collectAsState()
   val seekBarShown by viewModel.seekBarShown.collectAsState()
-  val pausedForCache by PlaybackSession.propBoolean["paused-for-cache"].collectAsState()
-  val cacheBufferingState by PlaybackSession.propInt["cache-buffering-state"].collectAsState()
-  val demuxerCacheDuration by PlaybackSession.propDouble["demuxer-cache-duration"].collectAsState()
-  val isNetworkStream by PlaybackSession.propBoolean["network"].collectAsState()
   val paused by PlaybackSession.propBoolean["pause"].collectAsState()
   val duration by PlaybackSession.propInt["duration"].collectAsState()
+  val playbackQueue by PlaybackSession.queue.collectAsStateWithLifecycle()
   val preciseDuration by viewModel.preciseDuration.collectAsState()
   val demuxerCacheTime by PlaybackSession.propDouble["demuxer-cache-time"].collectAsState()
   val playbackSpeed by PlaybackSession.propFloat["speed"].collectAsState()
@@ -228,13 +226,14 @@ fun PlayerControls(
 
   val isTorrentConnecting = torrentState is TorrentStreamingState.Connecting
   val isTorrentStreaming = torrentState is TorrentStreamingState.Streaming
-  val isMpvBuffering = pausedForCache == true
-  val isPlaybackWaiting = videoOpenAnimState.isWaitingForVideo
-  val showBufferingIndicator = showLoadingCircle && (
-    isMpvBuffering || isTorrentConnecting ||
-    (isTorrentStreaming && isPlaybackWaiting) ||
-    (isNetworkStream == true && isPlaybackWaiting)
-  )
+  val bufferingState =
+    rememberBufferingState(
+      enabled = showLoadingCircle,
+      // A torrent that has not produced a playable range yet never reaches mpv, so the engine's own
+      // connecting phase has to drive the spinner directly.
+      forceVisible = isTorrentConnecting,
+    )
+  val isMpvBuffering = bufferingState.isCacheStall
   val safeAreaWindow by playerPreferences.safeAreaWindow.collectAsState()
   val safeAreaInsetModifier =
     if (safeAreaWindow) {
@@ -251,6 +250,7 @@ fun PlayerControls(
   var isSeeking by remember { mutableStateOf(false) }
   val mpvSeeking by PlaybackSession.propBoolean["seeking"].collectAsState()
   val isPlayerSeeking = isSeeking || (mpvSeeking ?: false)
+  val showBufferingIndicator = bufferingState.visible && controlsShown && !isPlayerSeeking
   var stableDemuxerCacheTime by remember { mutableFloatStateOf(0f) }
   val currentDemuxerCacheTime =
     demuxerCacheTime
@@ -319,9 +319,13 @@ fun PlayerControls(
   if (isAudioOnly) {
     val rawMediaTitle by PlaybackSession.propString["media-title"].collectAsState()
     val activity = LocalActivity.current as? PlayerActivity
+    val queuedTitle =
+      playbackQueue.currentItem?.title?.takeIf { playbackQueue.isExplicitQueue && it.isNotBlank() }
     val mediaTitle =
-      remember(rawMediaTitle, activity) {
-        rawMediaTitle?.takeIf { it.isNotBlank() } ?: activity?.getTitleForControls()
+      remember(queuedTitle, rawMediaTitle, activity) {
+        queuedTitle
+          ?: activity?.getTitleForControls()
+          ?: rawMediaTitle?.takeIf { it.isNotBlank() }
       }
 
     val sheetShown by viewModel.sheetShown.collectAsState()
@@ -549,8 +553,12 @@ fun PlayerControls(
           val currentZoom by viewModel.videoZoom.collectAsState()
 
           val rawMediaTitle by PlaybackSession.propString["media-title"].collectAsState()
-          val mediaTitle = remember(rawMediaTitle, activity) {
-            rawMediaTitle?.takeIf { it.isNotBlank() } ?: activity.getTitleForControls()
+          val queuedTitle =
+            playbackQueue.currentItem?.title?.takeIf { playbackQueue.isExplicitQueue && it.isNotBlank() }
+          val mediaTitle = remember(queuedTitle, rawMediaTitle, activity) {
+            queuedTitle
+              ?: activity.getTitleForControls().takeIf { it.isNotBlank() }
+              ?: rawMediaTitle
           }
 
           // Slider display duration: 1000ms shown + 300ms exit animation = 1300ms total
@@ -1205,24 +1213,25 @@ fun PlayerControls(
               LoadingIndicator(
                 modifier = Modifier.size(76.dp),
               )
+              val cachePercent = bufferingState.cachePercent
+              val cacheSeconds = bufferingState.cacheSeconds
               val bufferText =
                 when {
                   isTorrentConnecting -> {
                     (torrentState as TorrentStreamingState.Connecting).phase
                   }
-                  isTorrentStreaming && isMpvBuffering -> {
+                  isTorrentStreaming -> {
                     val streamState = torrentState as TorrentStreamingState.Streaming
                     val speed = app.gyrolet.mpvrx.domain.torrent.formatTorrentSpeed(streamState.downloadSpeed)
                     val peers = "${streamState.peers} peers"
                     val progress = "${(streamState.bufferProgress * 100).toInt()}%"
                     "$speed | $peers | $progress"
                   }
-                  isNetworkStream == true && isPlaybackWaiting && !isMpvBuffering ->
-                    stringResource(R.string.ui_buffering)
-                  cacheBufferingState != null && cacheBufferingState!! in 1..99 ->
-                    "Buffering ${cacheBufferingState}%"
-                  demuxerCacheDuration != null && demuxerCacheDuration!! > 0.0 ->
-                    "Buffering (${String.format(java.util.Locale.ROOT, "%.1f", demuxerCacheDuration)}s)"
+                  // mpv only reports a fill target while it is actually holding playback for cache.
+                  isMpvBuffering && cachePercent != null && cachePercent in 1..99 ->
+                    "Buffering $cachePercent%"
+                  isMpvBuffering && cacheSeconds != null ->
+                    "Buffering (${String.format(java.util.Locale.ROOT, "%.1f", cacheSeconds)}s)"
                   else -> stringResource(R.string.ui_buffering)
                 }
               Surface(
@@ -1486,7 +1495,7 @@ fun PlayerControls(
           }
 
           AnimatedVisibility(
-            visible = ((controlsShown || showBufferingIndicator) || (!isPortrait && seekBarShown)) && !areControlsLocked,
+            visible = (controlsShown || (!isPortrait && seekBarShown)) && !areControlsLocked,
             enter = buildControlsEnterV(controlsAnimStyle, reduceMotion, enterMs) { it },
             exit = buildControlsExitV(controlsAnimStyle, reduceMotion, exitMs) { it },
             modifier =
@@ -1518,6 +1527,7 @@ fun PlayerControls(
             val position by PlaybackSession.propInt["time-pos"].collectAsStateWithLifecycle()
             val precisePosition by viewModel.precisePosition.collectAsStateWithLifecycle()
             val invertDuration by playerPreferences.invertDuration.collectAsState()
+            val remaining  by PlaybackSession.propFloat["playtime-remaining"].collectAsState()
             val seekbarStyle by appearancePreferences.seekbarStyle.collectAsState()
             val useWavySeekbar by playerPreferences.useWavySeekbar.collectAsState()
             val displayedSeekbarPosition =
@@ -1538,6 +1548,7 @@ fun PlayerControls(
               position = displayedSeekbarPosition,
               committedPosition = precisePosition,
               duration = if (preciseDuration > 0) preciseDuration else duration?.toFloat() ?: 0f,
+              remaining = remaining?.toFloat() ?: 0f,
               onValueChange = {
                 isSeeking = true
                 resetControlsTimestamp = System.currentTimeMillis()
@@ -1546,7 +1557,7 @@ fun PlayerControls(
                 } else {
                   // Legacy mode previews on the actual video surface. The ViewModel conflates
                   // pointer events so this remains responsive instead of issuing a seek per pixel.
-                  viewModel.previewSeekTo(it.toInt())
+                  viewModel.previewSeekTo(it)
                 }
               },
               onValueChangeFinished = { targetPosition ->
@@ -1714,7 +1725,7 @@ fun PlayerControls(
           }
 
           AnimatedVisibility(
-            visible = (controlsShown || showBufferingIndicator) && !areControlsLocked && !areSlidersShown,
+            visible = controlsShown && !areControlsLocked && !areSlidersShown,
             enter = buildControlsEnterH(controlsAnimStyle, reduceMotion, enterMs) { it },
             exit = buildControlsExitH(controlsAnimStyle, reduceMotion, exitMs) { it },
             modifier =

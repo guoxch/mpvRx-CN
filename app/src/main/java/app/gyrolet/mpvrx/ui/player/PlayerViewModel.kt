@@ -46,6 +46,9 @@ import app.gyrolet.mpvrx.preferences.AudioChannels
 import app.gyrolet.mpvrx.preferences.AudioPreferences
 import app.gyrolet.mpvrx.preferences.DecoderPreferences
 import app.gyrolet.mpvrx.preferences.GesturePreferences
+import app.gyrolet.mpvrx.preferences.MpvConfigOverride
+import app.gyrolet.mpvrx.preferences.MpvConfigControlledFeatures
+import app.gyrolet.mpvrx.preferences.MpvConfigOverridePolicy
 import app.gyrolet.mpvrx.preferences.IntroSegmentProvider
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import app.gyrolet.mpvrx.preferences.SubtitlesPreferences
@@ -86,6 +89,8 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -179,6 +184,7 @@ class PlayerViewModel : ViewModel(),
   private val introDbRepository: IntroDbRepository by inject()
   val syncplayManager: app.gyrolet.mpvrx.domain.syncplay.SyncplayManager by inject()
   private val lyricsRepository: app.gyrolet.mpvrx.repository.lyrics.LyricsRepository by inject()
+  private val lyricsTranslationService: app.gyrolet.mpvrx.data.lyrics.LyricsTranslationService by inject()
   private val introMarkerCachePrefs by lazy {
     appContext.getSharedPreferences(INTRO_MARKER_CACHE_PREFS, Context.MODE_PRIVATE)
   }
@@ -291,7 +297,7 @@ class PlayerViewModel : ViewModel(),
   private var playlistMetadataJob: Job? = null
   private var controlsVisibleForPolling = false
   private var seekBarVisibleForPolling = false
-  private val skippedSegmentTypes = mutableSetOf<SkipSegmentType>()
+  private val skippedSegments = mutableSetOf<SkipSegment>()
   private var chapterDerivedSegments: List<SkipSegment> = emptyList()
   private var introDbSegments: List<app.gyrolet.mpvrx.repository.IntroDbSegment> = emptyList()
   private var introDbSourceKey: String = IntroSegmentProvider.INTRO_DB.sourceKey
@@ -583,6 +589,11 @@ class PlayerViewModel : ViewModel(),
       val queuedItem = session.currentItem
       val itemDeclaresAudio =
         queuedItem?.mimeType?.startsWith("audio/", ignoreCase = true) == true ||
+          (queuedItem != null && (
+            queuedItem.originalUri.contains("/Audio/", ignoreCase = true) ||
+            queuedItem.originalUri.contains("includeItemTypes=Audio", ignoreCase = true) ||
+            queuedItem.playableUri.contains("/Audio/", ignoreCase = true)
+          )) ||
           sequenceOf(queuedItem?.originalUri, queuedItem?.playableUri, queuedItem?.title)
             .filterNotNull()
             .any { candidate -> candidate.fileExtension() in FileTypeUtils.AUDIO_EXTENSIONS }
@@ -634,7 +645,11 @@ class PlayerViewModel : ViewModel(),
 
   data class LyricsUiState(
     val isLoading: Boolean = false,
+    val isTranslating: Boolean = false,
+    val isTranslationActive: Boolean = false,
+    val targetLanguage: String = "en",
     val lyrics: app.gyrolet.mpvrx.domain.lyrics.Lyrics? = null,
+    val originalLyrics: app.gyrolet.mpvrx.domain.lyrics.Lyrics? = null,
     val embeddedLyrics: app.gyrolet.mpvrx.domain.lyrics.Lyrics? = null,
     val onlineLyrics: app.gyrolet.mpvrx.domain.lyrics.Lyrics? = null,
     val activeLineIndex: Int = -1,
@@ -691,6 +706,9 @@ class PlayerViewModel : ViewModel(),
       ?: PlaybackSession.getPropertyString("metadata/by-key/album_artist")
       ?: ""
 
+    val album = PlaybackSession.getPropertyString("metadata/by-key/Album")
+      ?: PlaybackSession.getPropertyString("metadata/by-key/ALBUM")
+
     val duration = PlaybackSession.getPropertyInt("duration") ?: 0
 
     lyricsUiState.value = lyricsUiState.value.copy(isLoading = true, errorMessage = null, syncOffsetMs = 0)
@@ -700,6 +718,7 @@ class PlayerViewModel : ViewModel(),
         mediaPath = path,
         title = title,
         artist = artist,
+        album = album,
         durationSeconds = duration,
         forceRefresh = forceRefresh,
       )
@@ -708,9 +727,15 @@ class PlayerViewModel : ViewModel(),
         positionMs = (precisePosition.value * 1000).toLong(),
         offsetMs = 0,
       )
+      val autoTranslate = audioPreferences.lyricsAutoTranslate.get()
+      val defaultTargetLang = audioPreferences.lyricsTargetLanguage.get().ifBlank { "en" }
+
       lyricsUiState.value = lyricsUiState.value.copy(
         isLoading = false,
+        isTranslationActive = false,
+        targetLanguage = defaultTargetLang,
         lyrics = result.activeLyrics,
+        originalLyrics = result.activeLyrics,
         embeddedLyrics = result.embeddedLyrics,
         onlineLyrics = result.onlineLyrics,
         activeLineIndex = activeIndex,
@@ -718,6 +743,12 @@ class PlayerViewModel : ViewModel(),
         availableSources = result.availableSources,
         syncOffsetMs = 0,
       )
+
+      val hasSynced = result.activeLyrics?.synced?.isNotEmpty() == true
+
+      if (autoTranslate && hasSynced) {
+        translateLyrics(defaultTargetLang)
+      }
     }
   }
 
@@ -726,6 +757,9 @@ class PlayerViewModel : ViewModel(),
     if (path.isBlank()) return
 
     val current = lyricsUiState.value
+    val autoTranslate = audioPreferences.lyricsAutoTranslate.get()
+    val defaultTargetLang = audioPreferences.lyricsTargetLanguage.get().ifBlank { "en" }
+
     if (sourceType == app.gyrolet.mpvrx.domain.lyrics.LyricsSourceType.ONLINE && current.onlineLyrics == null) {
       lyricsUiState.value = current.copy(isLoading = true)
       viewModelScope.launch(Dispatchers.IO) {
@@ -737,40 +771,60 @@ class PlayerViewModel : ViewModel(),
           ?: PlaybackSession.getPropertyString("metadata/by-key/ARTIST")
           ?: PlaybackSession.getPropertyString("metadata/by-key/album_artist")
           ?: ""
+        val album = PlaybackSession.getPropertyString("metadata/by-key/Album")
+          ?: PlaybackSession.getPropertyString("metadata/by-key/ALBUM")
         val duration = PlaybackSession.getPropertyInt("duration") ?: 0
 
-        val online = lyricsRepository.fetchOnlineLyrics(title, artist, duration)
-        val updatedSources = (current.availableSources + app.gyrolet.mpvrx.domain.lyrics.LyricsSourceType.ONLINE).distinct()
+        val refreshed = lyricsRepository.refreshOnlineLyrics(path, title, artist, album, duration)
+        val online = refreshed.onlineLyrics
+        val updatedSources = refreshed.availableSources
         val activeLyrics = online ?: current.embeddedLyrics
         val activeIndex = app.gyrolet.mpvrx.utils.media.LyricsUtils.getActiveLineIndex(
           syncedLines = activeLyrics?.synced,
           positionMs = (precisePosition.value * 1000).toLong(),
           offsetMs = current.syncOffsetMs,
         )
+        val hasSynced = activeLyrics?.synced?.isNotEmpty() == true
+
         lyricsUiState.value = current.copy(
           isLoading = false,
+          isTranslationActive = false,
           onlineLyrics = online,
           lyrics = activeLyrics,
+          originalLyrics = activeLyrics,
           selectedSource = if (online != null) app.gyrolet.mpvrx.domain.lyrics.LyricsSourceType.ONLINE else current.selectedSource,
           availableSources = updatedSources,
           activeLineIndex = activeIndex,
         )
+
+        if (autoTranslate && hasSynced) {
+          translateLyrics(defaultTargetLang)
+        }
       }
       return
     }
 
     val updatedResult = lyricsRepository.switchSource(path, sourceType)
     if (updatedResult != null) {
+      val activeLyrics = updatedResult.activeLyrics
       val activeIndex = app.gyrolet.mpvrx.utils.media.LyricsUtils.getActiveLineIndex(
-        syncedLines = updatedResult.activeLyrics?.synced,
+        syncedLines = activeLyrics?.synced,
         positionMs = (precisePosition.value * 1000).toLong(),
         offsetMs = current.syncOffsetMs,
       )
+      val hasSynced = activeLyrics?.synced?.isNotEmpty() == true
+
       lyricsUiState.value = current.copy(
-        lyrics = updatedResult.activeLyrics,
+        lyrics = activeLyrics,
+        originalLyrics = activeLyrics,
+        isTranslationActive = false,
         selectedSource = updatedResult.selectedSource,
         activeLineIndex = activeIndex,
       )
+
+      if (autoTranslate && hasSynced) {
+        translateLyrics(defaultTargetLang)
+      }
     }
   }
 
@@ -792,6 +846,61 @@ class PlayerViewModel : ViewModel(),
     val index = app.gyrolet.mpvrx.utils.media.LyricsUtils.getActiveLineIndex(synced, posMs, state.syncOffsetMs)
     if (index != state.activeLineIndex) {
       lyricsUiState.value = state.copy(activeLineIndex = index)
+    }
+  }
+
+  fun translateLyrics(targetLang: String? = null) {
+    val current = lyricsUiState.value
+    val baseLyrics = current.originalLyrics ?: current.lyrics ?: return
+    val lang = targetLang ?: audioPreferences.lyricsTargetLanguage.get().ifBlank { "en" }
+    val path = PlaybackSession.getPropertyString("path") ?: PlaybackSession.getPropertyString("stream-open-filename") ?: ""
+
+    audioPreferences.lyricsAutoTranslate.set(true)
+    audioPreferences.lyricsTargetLanguage.set(lang)
+
+    lyricsUiState.value = current.copy(
+      isTranslating = true,
+      targetLanguage = lang,
+      originalLyrics = current.originalLyrics ?: current.lyrics,
+    )
+
+    viewModelScope.launch(Dispatchers.IO) {
+      val translated = lyricsTranslationService.translateLyrics(
+        lyrics = baseLyrics,
+        targetLanguage = lang,
+        cacheKey = path,
+      )
+      val activeIndex = app.gyrolet.mpvrx.utils.media.LyricsUtils.getActiveLineIndex(
+        syncedLines = translated.synced,
+        positionMs = (precisePosition.value * 1000).toLong(),
+        offsetMs = current.syncOffsetMs,
+      )
+      lyricsUiState.value = lyricsUiState.value.copy(
+        isTranslating = false,
+        isTranslationActive = true,
+        lyrics = translated,
+        activeLineIndex = activeIndex,
+      )
+    }
+  }
+
+  fun toggleLyricsTranslation() {
+    val current = lyricsUiState.value
+    if (current.isTranslationActive) {
+      audioPreferences.lyricsAutoTranslate.set(false)
+      val orig = current.originalLyrics ?: return
+      val activeIndex = app.gyrolet.mpvrx.utils.media.LyricsUtils.getActiveLineIndex(
+        syncedLines = orig.synced,
+        positionMs = (precisePosition.value * 1000).toLong(),
+        offsetMs = current.syncOffsetMs,
+      )
+      lyricsUiState.value = current.copy(
+        isTranslationActive = false,
+        lyrics = orig,
+        activeLineIndex = activeIndex,
+      )
+    } else {
+      translateLyrics()
     }
   }
 
@@ -1153,16 +1262,6 @@ class PlayerViewModel : ViewModel(),
   private val _shuffleEnabled = MutableStateFlow(false)
   val shuffleEnabled: StateFlow<Boolean> = _shuffleEnabled.asStateFlow()
 
-  // "阅后即焚" — auto-delete network files after playback
-  private val _autoDeleteAfterPlay = MutableStateFlow(playerPreferences.burnAfterReading.get())
-  val autoDeleteAfterPlay: StateFlow<Boolean> = _autoDeleteAfterPlay.asStateFlow()
-
-  fun toggleAutoDeleteAfterPlay() {
-    val newValue = !_autoDeleteAfterPlay.value
-    _autoDeleteAfterPlay.value = newValue
-    playerPreferences.burnAfterReading.set(newValue)
-  }
-
   // A-B Loop state — combined for atomic updates
   data class ABLoopState(
     val a: Double? = null,
@@ -1420,7 +1519,9 @@ class PlayerViewModel : ViewModel(),
         val intervalMs =
           when {
             paused == true -> 1000L // Reduce polling frequency when paused to conserve CPU/battery
-            seekBarVisibleForPolling || controlsVisibleForPolling -> 50L
+            // 100 ms is below the threshold where seek-bar motion reads as stepped, while halving
+            // the JNI reads and state emissions a 50 ms loop caused while controls are visible.
+            seekBarVisibleForPolling || controlsVisibleForPolling -> 100L
             else -> 500L
           }
         delay(intervalMs)
@@ -1453,12 +1554,19 @@ class PlayerViewModel : ViewModel(),
 
     // Update precise duration when the integer duration changes (avoid polling)
     viewModelScope.launch(playbackStateDispatcher) {
-      _duration.collect { _ ->
+      _duration.collect { observedDuration ->
         if (!_isMpvCoreReady.value) return@collect
+        if (observedDuration == null || observedDuration <= 0) {
+          _preciseDuration.value = 0f
+          return@collect
+        }
         val dur = PlaybackSession.getPropertyDouble("duration")
         if (dur != null && dur > 0) {
           _preciseDuration.value = dur.toFloat()
-          mergeSkipSegments()
+          // chapter-list and duration are independent mpv properties. A chapter list can arrive
+          // first (or be identical to the previous file), so always derive its markers again once
+          // the new duration is known.
+          refreshChapterDerivedSegments(chapters.value)
           checkPendingIntroLookup()
           syncplayManager.updateFileInfo(currentSyncplayFileInfo())
 
@@ -1678,6 +1786,22 @@ class PlayerViewModel : ViewModel(),
     hideSeekThumbnailPreview()
     seekThumbnailCache.evictAll()
     seekThumbnailFailureAt.clear()
+    introLookupJob?.cancel()
+    // PlaybackSession is process-wide, while this ViewModel can be recreated. Clear both halves of
+    // the timeline so a stopped file's last position cannot be rendered beside the incoming file's
+    // reset 00:00 duration while mpv is still opening it.
+    _pos.value = null
+    _duration.value = null
+    _precisePosition.value = 0f
+    _preciseDuration.value = 0f
+    chapterDerivedSegments = emptyList()
+    introDbSegments = emptyList()
+    skipSegmentsSnapshot = emptyList()
+    _skipSegments.value = emptyList()
+    _currentSkippableSegment.value = null
+    _showSkipChipAuto.value = false
+    skippedSegments.clear()
+    pendingIntroLookupTitle = currentMediaTitle.takeIf { it.isNotBlank() }
     _videoOpenAnimationState.update {
       it.copy(
         loadToken = it.loadToken + 1,
@@ -2109,29 +2233,27 @@ class PlayerViewModel : ViewModel(),
   private var pendingSeekOffset: Int = 0
   private var seekCoalesceJob: Job? = null
   private val previewSeekLock = Any()
-  private var pendingPreviewSeekPosition: Int? = null
+  private var pendingPreviewSeekPosition: Float? = null
   private var previewSeekJob: Job? = null
 
   private companion object {
     const val TAG = "PlayerViewModel"
     const val AUTO_SHOW_SKIP_CHIP_DURATION = 10.0
     const val SEEK_COALESCE_DELAY_MS = 60L
-    const val PREVIEW_SEEK_INTERVAL_MS = 80L
-    // Tiny coalescing window for the full-screen gesture seek. Kept very small (≈60fps) so the
-    // frame tracks the finger exactly like mpvKt while still avoiding a command per pixel.
-    const val GESTURE_PREVIEW_INTERVAL_MS = 16L
-    const val SEEK_THUMBNAIL_TIMEOUT_MS = 5_000L
+    const val PREVIEW_SEEK_INTERVAL_MS = 25L
+    const val SEEK_THUMBNAIL_TIMEOUT_MS = 2_500L
     const val SEEK_THUMBNAIL_FAILURE_COOLDOWN_MS = 10_000L
     const val SEEK_THUMBNAIL_FAILURE_CACHE_MAX = 128
-    const val SEEK_THUMBNAIL_MAX_SIZE = 240
+    const val SEEK_THUMBNAIL_MAX_SIZE = 320
     const val SEEK_THUMBNAIL_CACHE_KB = 16 * 1024
     const val SEEK_THUMBNAIL_CACHE_BUCKETS_PER_SECOND = 1f
     const val SEEK_THUMBNAIL_PREFETCH_RADIUS = 2
+    val MPV_ONLY_PSEUDO_PROTOCOLS =
+      setOf("fd", "fdclose", "edl", "memory", "null", "av", "lavf", "archive", "slice", "mf", "hex", "bd", "dvd", "dvb")
     const val PLAYLIST_METADATA_PREFETCH_RADIUS = 40
     const val PLAYLIST_METADATA_PREFETCH_LIMIT = 120
-    const val MIN_INTRO_MARKER_DURATION_SEC = 480.0
     const val INTRO_MARKER_CACHE_PREFS = "intro_marker_cache"
-    const val INTRO_MARKER_CACHE_PREFIX = "intro_marker:"
+    const val INTRO_MARKER_CACHE_PREFIX = "intro_marker:v2:"
     const val INTRO_MARKER_CACHE_MAX_ENTRIES = 200
     const val INTRO_MARKER_CACHE_TTL_MS = 30L * 24L * 60L * 60L * 1000L
     const val INTRO_MARKER_CACHE_LOADED = "loaded"
@@ -2712,7 +2834,7 @@ class PlayerViewModel : ViewModel(),
       syncplayManager.updateFileInfo(currentSyncplayFileInfo())
 
       restoreSavedVideoAspect(showUpdate = false)
-      skippedSegmentTypes.clear()
+      skippedSegments.clear()
       chapterDerivedSegments = emptyList()
       introDbSegments = emptyList()
       _skipSegments.value = emptyList()
@@ -2729,6 +2851,7 @@ class PlayerViewModel : ViewModel(),
           )
         }
       lookupIntroSegments(mediaTitle)
+      refreshChapterDerivedSegments(chapters.value)
 
       // 2. Reset Video Zoom
       if (_videoZoom.value != 0f) {
@@ -2752,11 +2875,13 @@ class PlayerViewModel : ViewModel(),
   private fun maybeAutoSkipIntro(positionSeconds: Double) {
     val activeSegment =
       skipSegmentsSnapshot.firstOrNull { segment ->
-        positionSeconds >= segment.startSeconds && positionSeconds < segment.endSeconds && (segment.endSeconds - positionSeconds) >= 0.8
+        positionSeconds >= segment.startSeconds &&
+          positionSeconds < segment.endSeconds &&
+          segment !in skippedSegments
       }
 
     val showChip =
-      activeSegment != null && !skippedSegmentTypes.contains(activeSegment.type) &&
+      activeSegment != null &&
         (positionSeconds - activeSegment.startSeconds) < AUTO_SHOW_SKIP_CHIP_DURATION
     if (_currentSkippableSegment.value != activeSegment) {
       _currentSkippableSegment.value = activeSegment
@@ -2766,7 +2891,6 @@ class PlayerViewModel : ViewModel(),
     }
 
     if (paused == true || activeSegment == null) return
-    if (skippedSegmentTypes.contains(activeSegment.type)) return
     val autoSkipEnabled =
       when (activeSegment.type) {
         SkipSegmentType.INTRO -> playerPreferences.autoSkipIntro.get()
@@ -2777,14 +2901,14 @@ class PlayerViewModel : ViewModel(),
       }
     if (!autoSkipEnabled) return
 
-    skippedSegmentTypes += activeSegment.type
+    skippedSegments += activeSegment
     _showSkipChipAuto.value = false
     seekPastSkipSegment(activeSegment, auto = true)
   }
 
   fun skipActiveSegment() {
     val segment = _currentSkippableSegment.value ?: return
-    skippedSegmentTypes += segment.type
+    skippedSegments += segment
     _showSkipChipAuto.value = false
     seekPastSkipSegment(segment, auto = false)
   }
@@ -2793,9 +2917,10 @@ class PlayerViewModel : ViewModel(),
     segment: SkipSegment,
     auto: Boolean,
   ) {
-    PlaybackSession.setPropertyDouble("time-pos", segment.endSeconds)
+    val seekTarget = SkipMarkerResolver.seekTarget(segment, currentDurationSeconds())
+    PlaybackSession.setPropertyDouble("time-pos", seekTarget)
     syncplayManager.updatePlayerState(
-      segment.endSeconds,
+      seekTarget,
       PlaybackSession.getPropertyBoolean("pause") ?: false,
       doSeek = true,
     )
@@ -2803,11 +2928,7 @@ class PlayerViewModel : ViewModel(),
   }
 
   private fun mergeSkipSegments() {
-    val merged =
-      (resolveIntroDbSegments() + chapterDerivedSegments)
-        .filter { it.isValid }
-        .sortedBy { it.startSeconds }
-        .distinctBy { Triple(it.type, it.startSeconds.toInt(), it.endSeconds.toInt()) }
+    val merged = SkipMarkerResolver.merge(resolveIntroDbSegments() + chapterDerivedSegments)
     skipSegmentsSnapshot = merged
     _skipSegments.value = merged
   }
@@ -2817,7 +2938,18 @@ class PlayerViewModel : ViewModel(),
 
   private fun resolveIntroDbSegments(): List<SkipSegment> {
     val durationSec = currentDurationSeconds()
-    return introDbSegments.mapNotNull { it.toSkipSegment(durationSec) }
+    return SkipMarkerResolver.resolveProviderSegments(
+      markers =
+        introDbSegments.map { segment ->
+          ProviderSkipMarker(
+            type = segment.segmentType,
+            startSeconds = segment.startSecondsOrNull,
+            endSeconds = segment.endSecondsOrNull,
+          )
+        },
+      durationSeconds = durationSec,
+      source = introDbSourceKey,
+    )
   }
 
   private fun lookupIntroSegments(mediaTitle: String) {
@@ -2829,11 +2961,6 @@ class PlayerViewModel : ViewModel(),
     }
 
     val durationSec = currentDurationSeconds()
-    if (durationSec > 0 && durationSec < MIN_INTRO_MARKER_DURATION_SEC) {
-      pendingIntroLookupTitle = null
-      return
-    }
-
     if (durationSec <= 0) {
       pendingIntroLookupTitle = mediaTitle
       return
@@ -2876,50 +3003,41 @@ class PlayerViewModel : ViewModel(),
       viewModelScope.launch {
         val outcome =
           if (provider == IntroSegmentProvider.HYBRID) {
-            val channel = kotlinx.coroutines.channels.Channel<IntroDbLookupOutcome>(4)
-            val lookupJobs =
+            val providers =
               listOf(
                 IntroSegmentProvider.INTRO_DB,
                 IntroSegmentProvider.THE_INTRO_DB,
                 IntroSegmentProvider.ANI_SKIP,
                 IntroSegmentProvider.ANIME_SKIP,
-              ).map { p ->
-                launch(kotlinx.coroutines.Dispatchers.IO) {
-                  try {
-                    val res = introDbRepository.lookupSegments(lookupRequest.copy(provider = p))
-                    channel.send(res)
-                  } catch (e: Exception) {
-                    channel.send(IntroDbLookupOutcome.Error(e.message ?: "unknown", p))
+              )
+            val receivedOutcomes =
+              providers
+                .map { lookupProvider ->
+                  async(Dispatchers.IO) {
+                    try {
+                      introDbRepository.lookupSegments(lookupRequest.copy(provider = lookupProvider))
+                    } catch (cancellation: kotlinx.coroutines.CancellationException) {
+                      throw cancellation
+                    } catch (error: Exception) {
+                      IntroDbLookupOutcome.Error(error.message ?: "unknown", lookupProvider)
+                    }
                   }
-                }
-              }
+                }.awaitAll()
+            val loadedOutcomes = receivedOutcomes.filterIsInstance<IntroDbLookupOutcome.Loaded>()
 
-            var finalOutcome: IntroDbLookupOutcome? = null
-            var loadedOutcome: IntroDbLookupOutcome.Loaded? = null
-            val receivedOutcomes = mutableListOf<IntroDbLookupOutcome>()
-
-            for (i in 0 until 4) {
-              val out = channel.receive()
-              receivedOutcomes.add(out)
-              if (out is IntroDbLookupOutcome.Loaded) {
-                loadedOutcome = out
-                break
-              }
-            }
-
-            // Cancel remaining lookup jobs if we got a loaded outcome
-            lookupJobs.forEach { it.cancel() }
-
-            if (loadedOutcome != null) {
+            if (loadedOutcomes.isNotEmpty()) {
+              val primary = loadedOutcomes.first()
               IntroDbLookupOutcome.Loaded(
-                imdbId = loadedOutcome.imdbId,
-                segments = loadedOutcome.segments,
-                source = loadedOutcome.source,
+                imdbId = primary.imdbId,
+                segments = loadedOutcomes.flatMap(IntroDbLookupOutcome.Loaded::segments).distinct(),
+                source = primary.source,
                 provider = IntroSegmentProvider.HYBRID,
               )
             } else {
-              val firstNonError = receivedOutcomes.firstOrNull { it !is IntroDbLookupOutcome.Error }
-              val fallbackOutcome = firstNonError ?: receivedOutcomes.firstOrNull()
+              val fallbackOutcome =
+                receivedOutcomes.firstOrNull { it is IntroDbLookupOutcome.NoSegments }
+                  ?: receivedOutcomes.firstOrNull { it is IntroDbLookupOutcome.Unresolved }
+                  ?: receivedOutcomes.firstOrNull()
 
               if (fallbackOutcome != null) {
                 when (fallbackOutcome) {
@@ -2973,7 +3091,6 @@ class PlayerViewModel : ViewModel(),
     val durationSec = currentDurationSeconds()
     if (durationSec <= 0) return
     pendingIntroLookupTitle = null
-    if (durationSec < MIN_INTRO_MARKER_DURATION_SEC) return
     lookupIntroSegments(pendingTitle)
   }
 
@@ -3199,113 +3316,38 @@ class PlayerViewModel : ViewModel(),
     }
 
     val derived =
-      chapters.mapIndexedNotNull { index, segment ->
-        val type = chapterTitleToType(segment.name) ?: return@mapIndexedNotNull null
-        val start = segment.start.toDouble()
-        val nextStart = chapters.getOrNull(index + 1)?.start?.toDouble()
-        val isTerminalType =
-          type == SkipSegmentType.OUTRO ||
-            type == SkipSegmentType.CREDITS ||
-            type == SkipSegmentType.PREVIEW
-        // A final terminal chapter has no safe in-file destination after it. Treating
-        // EOF as its end turns "skip" into normal EOF/autoplay and can advance the queue.
-        if (nextStart == null && isTerminalType) return@mapIndexedNotNull null
-        val end = nextStart ?: durationSec
-        val normalizedEnd = end.coerceAtMost(durationSec)
-        if (normalizedEnd - start < 5.0) return@mapIndexedNotNull null
-        val durationFraction = start / durationSec
-        when (type) {
-          SkipSegmentType.INTRO, SkipSegmentType.RECAP -> if (durationFraction > 0.5) return@mapIndexedNotNull null
-          SkipSegmentType.OUTRO, SkipSegmentType.CREDITS, SkipSegmentType.PREVIEW -> if (durationFraction < 0.4) return@mapIndexedNotNull null
-        }
-        SkipSegment(type = type, startSeconds = start, endSeconds = normalizedEnd, source = "chapter")
-      }
+      SkipMarkerResolver.resolveChapters(
+        chapters = chapters.map { ChapterSkipMarker(it.name, it.start.toDouble()) },
+        durationSeconds = durationSec,
+        classify = ::chapterTitleToType,
+      )
 
     chapterDerivedSegments = derived
     mergeSkipSegments()
   }
 
   private fun chapterTitleToType(title: String?): SkipSegmentType? {
-    if (title.isNullOrBlank()) return null
-    val lowered = title.lowercase()
-    val normalizedLatin = lowered.replace(Regex("""[^a-z0-9]+"""), " ").trim()
-    val compactLatin = normalizedLatin.replace(" ", "")
-    val compactRaw = lowered.replace(Regex("""[\s\p{Punct}・_]+"""), "")
-
-    fun hasKeyword(keywords: List<String>): Boolean =
-      keywords.any { rawKeyword ->
-        val keyword = rawKeyword.lowercase()
-        when {
-          keyword.matches(Regex("""[a-z0-9]+""")) -> {
-            normalizedLatin.contains(Regex("""(?:^|\s)${Regex.escape(keyword)}(?:\s|$)""")) ||
-              (keyword.length >= 4 && compactLatin.contains(keyword))
-          }
-          else -> compactRaw.contains(keyword.replace(" ", ""))
-        }
-      }
-
     val introKeywords =
       if (playerPreferences.customIntroKeywordsEnabled.get()) {
-        playerPreferences.customIntroKeywords
-          .get()
-          .split(",")
-          .map { it.trim() }
-          .filter { it.isNotEmpty() }
+        SkipMarkerResolver.parseCustomKeywords(playerPreferences.customIntroKeywords.get())
       } else {
         introKeywordPatterns
       }
 
     val outroKeywords =
       if (playerPreferences.customOutroKeywordsEnabled.get()) {
-        playerPreferences.customOutroKeywords
-          .get()
-          .split(",")
-          .map { it.trim() }
-          .filter { it.isNotEmpty() }
+        SkipMarkerResolver.parseCustomKeywords(playerPreferences.customOutroKeywords.get())
       } else {
         outroKeywordPatterns
       }
 
-    val hasIntro = hasKeyword(introKeywords)
-    val hasRecap = hasKeyword(recapKeywordPatterns)
-    val hasCredits = hasKeyword(creditsKeywordPatterns)
-    val hasPreview = hasKeyword(previewKeywordPatterns)
-    val hasOutro = hasKeyword(outroKeywords)
-    return when {
-      hasRecap -> SkipSegmentType.RECAP
-      hasCredits -> SkipSegmentType.CREDITS
-      hasPreview -> SkipSegmentType.PREVIEW
-      hasOutro && !hasIntro -> SkipSegmentType.OUTRO
-      hasIntro -> SkipSegmentType.INTRO
-      else -> null
-    }
-  }
-
-  private fun app.gyrolet.mpvrx.repository.IntroDbSegment.toSkipSegment(durationSec: Double): SkipSegment? {
-    val loweredType = segmentType?.lowercase().orEmpty().trim()
-    val type =
-      when {
-        "recap" in loweredType || "summary" in loweredType -> SkipSegmentType.RECAP
-        "credit" in loweredType -> SkipSegmentType.CREDITS
-        "preview" in loweredType || "next" in loweredType -> SkipSegmentType.PREVIEW
-        "out" in loweredType || "ending" in loweredType || "ed" == loweredType || "mixed-ed" in loweredType -> SkipSegmentType.OUTRO
-        else -> SkipSegmentType.INTRO
-      }
-    // Do not synthesize EOF for an open-ended provider marker. The last timestamp
-    // from some providers has no end bound, and seeking it to duration triggers EOF.
-    val explicitEnd = endSecondsOrNull ?: return null
-    val normalizedEnd =
-      if (durationSec > 0.0) {
-        explicitEnd.coerceAtMost(durationSec)
-      } else {
-        explicitEnd
-      }
-    if (normalizedEnd <= normalizedStart) return null
-    return SkipSegment(
-      type = type,
-      startSeconds = normalizedStart,
-      endSeconds = normalizedEnd,
-      source = introDbSourceKey,
+    return SkipMarkerResolver.classifyTitle(
+      title = title,
+      introKeywords = introKeywords,
+      outroKeywords = outroKeywords,
+      recapKeywords = recapKeywordPatterns,
+      creditsKeywords = creditsKeywordPatterns,
+      previewKeywords = previewKeywordPatterns,
     )
   }
 
@@ -3902,13 +3944,14 @@ class PlayerViewModel : ViewModel(),
     val bitmap =
       withTimeoutOrNull(SEEK_THUMBNAIL_TIMEOUT_MS) {
         try {
-          // This is the independent ThumbFast engine, not the active playback core. Software
-          // decode avoids fighting the video player for a hardware decoder on lower-end devices.
+          // This is the independent ThumbFast engine, not the active playback core. It decodes
+          // with its own MediaCodec instance and falls back to software automatically, so a
+          // hardware-first decode is both fast and safe alongside the playing video.
           FastThumbnails.generateAsync(
             source,
             thumbnailTime.toDouble(),
             SEEK_THUMBNAIL_MAX_SIZE,
-            useHwDec = false,
+            useHwDec = true,
           )
         } catch (cancellation: kotlinx.coroutines.CancellationException) {
           throw cancellation
@@ -3974,9 +4017,19 @@ class PlayerViewModel : ViewModel(),
   private fun resolveSeekThumbnailSource(): String? =
     // mpv's resolved filename comes first: network-library items are converted to an authenticated
     // loopback range URL by PlaybackSession, while the host may still hold the unplayable logical URI.
-    runCatching { PlaybackSession.getPropertyString("stream-open-filename") }.getOrNull()?.takeIf { it.isNotBlank() }
-      ?: runCatching { PlaybackSession.getPropertyString("path") }.getOrNull()?.takeIf { it.isNotBlank() }
-      ?: host.currentThumbnailSource()?.takeIf { it.isNotBlank() }
+    // Candidates that only mpv itself can open (fd://, edl://, ...) are skipped because the
+    // ThumbFast engine reopens the source with FFmpeg directly.
+    sequenceOf(
+      runCatching { PlaybackSession.getPropertyString("stream-open-filename") }.getOrNull(),
+      runCatching { PlaybackSession.getPropertyString("path") }.getOrNull(),
+      host.currentThumbnailSource(),
+    ).mapNotNull { candidate -> candidate?.takeIf { it.isNotBlank() } }
+      .firstOrNull(::isSeekThumbnailSourceDecodable)
+
+  private fun isSeekThumbnailSourceDecodable(source: String): Boolean {
+    val scheme = source.substringBefore("://", missingDelimiterValue = "").lowercase()
+    return scheme !in MPV_ONLY_PSEUDO_PROTOCOLS
+  }
 
   private fun isNetworkSeekThumbnailSource(source: String): Boolean =
     source.startsWith("http://", ignoreCase = true) || source.startsWith("https://", ignoreCase = true)
@@ -4034,9 +4087,9 @@ class PlayerViewModel : ViewModel(),
    * Pointer events can arrive much faster than a decoder can seek, so only the newest target is
    * applied at a bounded rate. Preview seeks are keyframe-only and never spam Syncplay peers.
    */
-  fun previewSeekTo(position: Int) {
+  fun previewSeekTo(position: Float) {
     synchronized(previewSeekLock) {
-      pendingPreviewSeekPosition = position.coerceAtLeast(0)
+      pendingPreviewSeekPosition = position.coerceAtLeast(0f)
       if (previewSeekJob?.isActive == true) return
       previewSeekJob = viewModelScope.launch(Dispatchers.IO) { runPreviewSeekLoop() }
     }
@@ -4065,63 +4118,11 @@ class PlayerViewModel : ViewModel(),
     }
   }
 
-  /**
-   * Frame-accurate live preview used by the full-screen horizontal seek gesture.
-   *
-   * This mirrors mpvKt's behaviour: while the gesture is active the player is paused (handled in
-   * GestureHandler) and the playhead is moved to the exact target position on every pointer move,
-   * so the displayed frame tracks the finger smoothly and natively instead of snapping between
-   * keyframes. Unlike [seekTo] this does not notify Syncplay peers every frame, and unlike
-   * [previewSeekTo] it is not throttled to keyframes.
-   */
-  private var gesturePreviewJob: Job? = null
-  private val gesturePreviewLock = Any()
-  private var pendingGesturePreviewPosition: Int? = null
-
-  fun gesturePreviewSeekTo(position: Int) {
-    synchronized(gesturePreviewLock) {
-      pendingGesturePreviewPosition = position.coerceAtLeast(0)
-      if (gesturePreviewJob?.isActive == true) return
-      gesturePreviewJob = viewModelScope.launch(Dispatchers.IO) { runGesturePreviewLoop() }
-    }
-  }
-
-  private suspend fun runGesturePreviewLoop() {
-    while (kotlinx.coroutines.currentCoroutineContext().isActive) {
-      val target =
-        synchronized(gesturePreviewLock) {
-          pendingGesturePreviewPosition?.also { pendingGesturePreviewPosition = null }
-            ?: run {
-              gesturePreviewJob = null
-              return
-            }
-        }
-      val maxDuration =
-        (PlaybackSession.getPropertyInt("duration") ?: duration ?: _preciseDuration.value.toInt())
-          .coerceAtLeast(0)
-      val clampedPosition =
-        if (maxDuration > 0) target.coerceIn(0, maxDuration) else target.coerceAtLeast(0)
-      // Frame-accurate seek so the preview matches the finger position exactly.
-      PlaybackSession.command("seek", clampedPosition.toString(), "absolute+exact")
-      delay(GESTURE_PREVIEW_INTERVAL_MS)
-    }
-  }
-
-  fun cancelGesturePreview() {
-    synchronized(gesturePreviewLock) {
-      gesturePreviewJob?.cancel()
-      gesturePreviewJob = null
-      pendingGesturePreviewPosition = null
-    }
-  }
-
   fun seekTo(
     position: Int,
     fast: Boolean = false,
-    precise: Boolean? = null,
   ) {
     cancelPreviewSeek()
-    cancelGesturePreview()
     viewModelScope.launch(Dispatchers.IO) {
       val maxDuration =
         (PlaybackSession.getPropertyInt("duration") ?: duration ?: _preciseDuration.value.toInt())
@@ -4142,11 +4143,10 @@ class PlayerViewModel : ViewModel(),
       seekCoalesceJob?.cancel()
       pendingSeekOffset = 0
 
-      // Exact seeking is intentionally opt-in for general seeks (forcing it on every short clip is
-      // expensive and can leave sparse-keyframe MP4/MKV files on a black frame). The full-screen
-      // gesture always commits an exact frame so the released position matches the preview exactly.
-      val usePrecise = precise ?: (!fast && playerPreferences.usePreciseSeeking.get())
-      val seekMode = if (usePrecise) "absolute+exact" else "absolute+keyframes"
+      // Exact seeking is intentionally opt-in. Forcing it on every short clip is expensive and can
+      // leave sparse-keyframe MP4/MKV files on a black frame. Drag previews always use keyframes.
+      val seekMode =
+        if (!fast && playerPreferences.usePreciseSeeking.get()) "absolute+exact" else "absolute+keyframes"
       PlaybackSession.command("seek", clampedPosition.toString(), seekMode)
       syncplayManager.updatePlayerState(
         clampedPosition.toDouble(),
@@ -4408,6 +4408,7 @@ class PlayerViewModel : ViewModel(),
     aspect: VideoAspect,
     showUpdate: Boolean = true,
   ) {
+    if (MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.VIDEO_ASPECT)) return
     when (aspect) {
       VideoAspect.Fit -> {
         // To FIT: Reset both properties to their defaults.
@@ -4463,6 +4464,7 @@ class PlayerViewModel : ViewModel(),
     ratio: Double,
     showUpdate: Boolean = true,
   ) {
+    if (MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.VIDEO_ASPECT)) return
     PlaybackSession.setPropertyDouble("panscan", 0.0)
     PlaybackSession.setPropertyDouble("video-aspect-override", ratio)
     playerPreferences.lastCustomAspectRatio.set(ratio.toFloat())
@@ -4685,6 +4687,10 @@ class PlayerViewModel : ViewModel(),
   // ==================== Video Zoom ====================
 
   fun setVideoZoom(zoom: Float) {
+    if (MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.VIDEO_ZOOM)) {
+      _videoZoom.value = 0f
+      return
+    }
     _videoZoom.value = zoom
     runCatching { PlaybackSession.setPropertyDouble("video-zoom", zoom.toDouble()) }
   }
@@ -4700,8 +4706,8 @@ class PlayerViewModel : ViewModel(),
     x: Float,
     y: Float,
   ) {
-    _videoPanX.value = x
-    _videoPanY.value = y
+    _videoPanX.value = if (MpvConfigOverridePolicy.isOwnedByMpvConf("video-pan-x")) 0f else x
+    _videoPanY.value = if (MpvConfigOverridePolicy.isOwnedByMpvConf("video-pan-y")) 0f else y
   }
 
   fun resetVideoPan() {
@@ -5390,6 +5396,7 @@ class PlayerViewModel : ViewModel(),
   }
 
   fun toggleHdrScreenOutput() {
+    if (MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.HDR_OUTPUT)) return
     val nextMode =
       if (_hdrScreenMode.value == HdrScreenMode.OFF) {
         val lastMode = decoderPreferences.lastHdrMode.get()
@@ -5406,6 +5413,7 @@ class PlayerViewModel : ViewModel(),
   }
 
   fun setHdrScreenMode(mode: HdrScreenMode) {
+    if (MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.HDR_OUTPUT)) return
     val resolvedMode =
       if (mode == HdrScreenMode.LINEAR && !isLinearHdrAvailable.value) {
         HdrScreenMode.defaultEnabledMode
@@ -5463,6 +5471,11 @@ class PlayerViewModel : ViewModel(),
   }
 
   private fun applyHdrScreenOutput(mode: HdrScreenMode) {
+    if (MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.HDR_OUTPUT)) {
+      _isHdrScreenOutputPipelineReady.value = false
+      _isHdrScreenOutputEnabled.value = false
+      return
+    }
     val pipelineReady = refreshHdrScreenOutputPipelineState()
     runCatching {
       val boostSdr = decoderPreferences.boostSdrToHdr.get()
@@ -5480,6 +5493,7 @@ class PlayerViewModel : ViewModel(),
   }
 
   fun selectAnime4KMode(mode: Anime4KManager.Mode) {
+    if (MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.ANIME4K)) return
     decoderPreferences.anime4kMode.set(mode.name)
     viewModelScope.launch(Dispatchers.Default) {
       runCatching {
@@ -5549,6 +5563,7 @@ class PlayerViewModel : ViewModel(),
   // ==================== Ambient Mode Integration ====================
 
   fun toggleAmbientMode() {
+    if (MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.AMBIENT)) return
     _isAmbientEnabled.value = !_isAmbientEnabled.value
     playerPreferences.isAmbientEnabled.set(_isAmbientEnabled.value)
     if (_isAmbientEnabled.value) {
@@ -5583,7 +5598,7 @@ class PlayerViewModel : ViewModel(),
 
   /** Called when the device orientation changes. Refreshes ambient in both portrait and landscape. */
   fun onOrientationChanged(isPortrait: Boolean) {
-    if (!_isAmbientEnabled.value) return
+    if (!_isAmbientEnabled.value || MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.AMBIENT)) return
 
     // Force shader refresh to adapt to new screen dimensions.
     lastAmbientScaleX = -1.0
@@ -5598,7 +5613,7 @@ class PlayerViewModel : ViewModel(),
 
   /** Removes the old file-specific ambient shader while preserving the user's selected ambient mode. */
   fun prepareAmbientForNewVideo() {
-    if (!_isAmbientEnabled.value) return
+    if (!_isAmbientEnabled.value || MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.AMBIENT)) return
     disableAmbientShader()
     lastAmbientScaleX = -1.0
     lastAmbientScaleY = -1.0
@@ -5609,7 +5624,7 @@ class PlayerViewModel : ViewModel(),
    * Called after shader-stack changes so ambient stays as the last OUTPUT pass.
    */
   fun restartAmbientIfActive() {
-    if (!_isAmbientEnabled.value) return
+    if (!_isAmbientEnabled.value || MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.AMBIENT)) return
     ambientShaderFile?.let { oldFile ->
       runCatching { PlaybackSession.command("change-list", "glsl-shaders", "remove", oldFile.absolutePath) }
       oldFile.delete()
@@ -5698,7 +5713,7 @@ class PlayerViewModel : ViewModel(),
   }
 
   private fun scheduleAmbientUpdate(delayMs: Long = 150L) {
-    if (!_isAmbientEnabled.value) return
+    if (!_isAmbientEnabled.value || MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.AMBIENT)) return
 
     ambientDebounceJob?.cancel()
     ambientDebounceJob =
@@ -5848,7 +5863,7 @@ class PlayerViewModel : ViewModel(),
   }
 
   suspend fun updateAmbientStretch() {
-    if (!_isAmbientEnabled.value) return
+    if (!_isAmbientEnabled.value || MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.AMBIENT)) return
 
     runCatching {
       val osdW = PlaybackSession.getPropertyInt("osd-width") ?: 1920

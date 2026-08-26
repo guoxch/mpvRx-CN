@@ -13,6 +13,7 @@ import app.gyrolet.mpvrx.database.entities.PlaylistEntity
 import app.gyrolet.mpvrx.database.repository.PlaylistRepository
 import app.gyrolet.mpvrx.ui.player.PlaybackItem
 import app.gyrolet.mpvrx.ui.player.PlaybackSession
+import app.gyrolet.mpvrx.ui.player.PreparedPlaybackLaunchStore
 import app.gyrolet.mpvrx.ui.player.PlayerActivity
 import app.gyrolet.mpvrx.utils.history.RecentlyPlayedOps
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -309,7 +310,7 @@ class MusicLibraryViewModel : ViewModel(), KoinComponent {
         artworkUri = item.albumArtUri?.toString(),
       )
     }
-    PlaybackSession.replaceQueue(
+    val launchToken = PreparedPlaybackLaunchStore.stage(
       items = queueItems,
       currentIndex = index,
       isExplicitQueue = true,
@@ -320,6 +321,7 @@ class MusicLibraryViewModel : ViewModel(), KoinComponent {
       addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
       putExtra("internal_launch", true)
       putExtra(PlayerActivity.EXTRA_PREPARED_PLAYBACK_QUEUE, true)
+      putExtra(PlayerActivity.EXTRA_PREPARED_PLAYBACK_TOKEN, launchToken)
       putExtra("playlist_index", index)
       putExtra("launch_source", "music_library")
       putExtra("media_library_audio", true)
@@ -343,7 +345,7 @@ class MusicLibraryViewModel : ViewModel(), KoinComponent {
         artworkUri = item.albumArtUri?.toString(),
       )
     }
-    PlaybackSession.replaceQueue(
+    val launchToken = PreparedPlaybackLaunchStore.stage(
       items = queueItems,
       currentIndex = 0,
       isExplicitQueue = true,
@@ -354,6 +356,7 @@ class MusicLibraryViewModel : ViewModel(), KoinComponent {
       addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
       putExtra("internal_launch", true)
       putExtra(PlayerActivity.EXTRA_PREPARED_PLAYBACK_QUEUE, true)
+      putExtra(PlayerActivity.EXTRA_PREPARED_PLAYBACK_TOKEN, launchToken)
       putExtra("playlist_index", 0)
       putExtra("launch_source", if (shuffle) "music_shuffle" else "music_play_all")
       putExtra("media_library_audio", true)

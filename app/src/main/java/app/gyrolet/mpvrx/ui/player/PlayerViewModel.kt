@@ -71,6 +71,7 @@ import app.gyrolet.mpvrx.ui.player.controls.components.sheets.EQ_MAX_DB
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.EQ_MIN_DB
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.EqualizerPreset
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.EqualizerState
+import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlpManager
 import app.gyrolet.mpvrx.ui.player.screenshot.ScreenshotSaver
 import app.gyrolet.mpvrx.ui.player.screenshot.ScreenshotSettings
 import app.gyrolet.mpvrx.ui.preferences.CustomButton
@@ -87,11 +88,15 @@ import `is`.xyz.mpv.FastThumbnails
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -109,6 +114,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -119,6 +125,8 @@ import java.io.File
 import java.security.MessageDigest
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
@@ -482,6 +490,9 @@ class PlayerViewModel : ViewModel(),
       ): Int = (value.allocationByteCount / 1024).coerceAtLeast(1)
     }
   private val seekThumbnailFailureAt = ConcurrentHashMap<String, Long>()
+  private val seekThumbnailDecodes = ConcurrentHashMap<String, Deferred<Bitmap?>>()
+
+  @Volatile private var pinnedSeekThumbnailSource: String? = null
 
   private fun updateMetadataCache(
     key: String,
@@ -538,6 +549,12 @@ class PlayerViewModel : ViewModel(),
       val forced = PlaybackSession.getPropertyBoolean("track-list/$i/forced")
       val codec = PlaybackSession.getPropertyString("track-list/$i/codec")
       val codecDesc = PlaybackSession.getPropertyString("track-list/$i/codec-desc")
+      val hlsBitrate = PlaybackSession.getPropertyInt("track-list/$i/hls-bitrate")?.toLong()
+      val programId = PlaybackSession.getPropertyInt("track-list/$i/program-id")?.toLong()
+      val demuxW = PlaybackSession.getPropertyInt("track-list/$i/demux-w")?.toLong()
+      val demuxH = PlaybackSession.getPropertyInt("track-list/$i/demux-h")?.toLong()
+      val demuxFps = PlaybackSession.getPropertyDouble("track-list/$i/demux-fps")
+      val demuxBitrate = PlaybackSession.getPropertyInt("track-list/$i/demux-bitrate")?.toLong()
       val externalFilename = PlaybackSession.getPropertyString("track-list/$i/external-filename")
       val image = PlaybackSession.getPropertyBoolean("track-list/$i/image")
       val albumArt = PlaybackSession.getPropertyBoolean("track-list/$i/albumart")
@@ -553,6 +570,12 @@ class PlayerViewModel : ViewModel(),
           forced = forced,
           codec = codec,
           codecDesc = codecDesc,
+          hlsBitrate = hlsBitrate,
+          programId = programId,
+          demuxW = demuxW,
+          demuxH = demuxH,
+          demuxFps = demuxFps,
+          demuxBitrate = demuxBitrate,
           externalFilename = externalFilename,
           image = image,
           albumArt = albumArt,
@@ -577,6 +600,153 @@ class PlayerViewModel : ViewModel(),
     allTracks
       .map { tracks -> tracks.filter { it.isAudio }.toImmutableList() }
       .stateIn(viewModelScope, SharingStarted.Eagerly, persistentListOf())
+
+  val videoQualityTracks: StateFlow<List<TrackNode>> =
+    combine(allTracks, PlaybackSession.state) { tracks, session ->
+      val item = session.currentItem
+      val isNetworkStream =
+        sequenceOf(item?.originalUri, item?.playableUri)
+          .filterNotNull()
+          .any { uri -> uri.startsWith("http://", true) || uri.startsWith("https://", true) }
+      if (!isNetworkStream) {
+        return@combine persistentListOf()
+      }
+
+      tracks
+        .asSequence()
+        .filter { track -> track.isVideo && !track.isAlbumArtwork }
+        .sortedByDescending(TrackNode::isSelected)
+        .distinctBy { track ->
+          listOf(
+            track.programId,
+            track.programIds,
+            track.demuxW,
+            track.demuxH,
+            track.demuxFps,
+            track.effectiveBitrate,
+            track.codec,
+            track.effectiveTitle,
+          )
+        }.sortedWith(
+          compareByDescending<TrackNode>(::videoQualityDimension)
+            .thenByDescending(::videoPixelCount)
+            .thenByDescending { track -> track.demuxFps ?: 0.0 }
+            .thenByDescending { track -> track.effectiveBitrate ?: 0L },
+        ).toList()
+        .toImmutableList()
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, persistentListOf())
+
+  val showVideoQualitySelector: StateFlow<Boolean> =
+    combine(videoQualityTracks, PlaybackSession.state) { qualityTracks, session ->
+      if (qualityTracks.isEmpty()) return@combine false
+
+      val item = session.currentItem
+      val isYtdlpPage =
+        sequenceOf(item?.originalUri, item?.playableUri)
+          .filterNotNull()
+          .any(YtdlpManager::requiresYtdlp)
+      isYtdlpPage || qualityTracks.size > 1
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+  fun selectVideoQuality(track: TrackNode) {
+    if (currentItemRequiresYtdlp() && !MpvConfigOverridePolicy.isOwnedByMpvConf("ytdl-format")) {
+      val selectedAudio = pairedYtdlTrack(track, TrackNode::isAudio)
+        ?: allTracks.value.firstOrNull { candidate -> candidate.isAudio && candidate.isSelected }
+      val selector = buildYtdlFormatSelector(videoTrack = track, audioTrack = selectedAudio)
+      if (selector != null && host.reloadCurrentYtdlFormat(selector)) return
+    }
+
+    val selectedProgramIds = track.effectiveProgramIds.toSet()
+    if (selectedProgramIds.isNotEmpty()) {
+      allTracks.value
+        .asSequence()
+        .filter(TrackNode::isAudio)
+        .filter { audioTrack -> audioTrack.effectiveProgramIds.any(selectedProgramIds::contains) }
+        .sortedByDescending(TrackNode::isSelected)
+        .firstOrNull()
+        ?.let { audioTrack -> PlaybackSession.setPropertyInt("aid", audioTrack.id) }
+    }
+    PlaybackSession.setPropertyInt("vid", track.id)
+  }
+
+  fun selectAudioTrack(track: TrackNode) {
+    if (getTrackSelectionId("aid") == track.id) {
+      setTrackSelectionId("aid", null)
+      return
+    }
+
+    if (currentItemRequiresYtdlp() &&
+      !MpvConfigOverridePolicy.isOwnedByMpvConf("ytdl-format") &&
+      ytdlFormatId(track) != null
+    ) {
+      val selectedVideo = pairedYtdlTrack(track, TrackNode::isVideo)
+        ?: allTracks.value.firstOrNull { candidate -> candidate.isVideo && candidate.isSelected }
+      val selector = buildYtdlFormatSelector(videoTrack = selectedVideo, audioTrack = track)
+      if (selector != null && host.reloadCurrentYtdlFormat(selector)) return
+    }
+
+    setTrackSelectionId("aid", track.id)
+  }
+
+  private fun currentItemRequiresYtdlp(): Boolean {
+    val item = PlaybackSession.state.value.currentItem
+    return sequenceOf(item?.originalUri, item?.playableUri)
+      .filterNotNull()
+      .any(YtdlpManager::requiresYtdlp)
+  }
+
+  private fun pairedYtdlTrack(
+    track: TrackNode,
+    matchesType: (TrackNode) -> Boolean,
+  ): TrackNode? {
+    val programIds = track.effectiveProgramIds.toSet()
+    val formatId = track.ytdlFormatId ?: return null
+    if (programIds.isEmpty()) return null
+    return allTracks.value.firstOrNull { candidate ->
+      matchesType(candidate) &&
+        candidate.ytdlFormatId == formatId &&
+        candidate.effectiveProgramIds.any(programIds::contains)
+    }
+  }
+
+  private fun buildYtdlFormatSelector(
+    videoTrack: TrackNode?,
+    audioTrack: TrackNode?,
+  ): String? {
+    val videoFormatId = videoTrack?.let(::ytdlFormatId)
+    val audioFormatId = audioTrack?.let(::ytdlFormatId)
+    val videoSelector =
+      when {
+        videoFormatId != null -> videoFormatId
+        videoTrack != null && videoQualityDimension(videoTrack) > 0L ->
+          "bestvideo[height<=?${videoQualityDimension(videoTrack)}]"
+        videoTrack != null -> "bestvideo"
+        else -> null
+      }
+
+    return when {
+      videoSelector != null && videoFormatId != null && videoFormatId == audioFormatId -> "$videoSelector/best"
+      videoSelector != null -> "$videoSelector+${audioFormatId ?: "bestaudio"}/best"
+      audioFormatId != null -> "$audioFormatId/best"
+      else -> null
+    }
+  }
+
+  private fun ytdlFormatId(track: TrackNode): String? = track.ytdlFormatId
+
+  private fun videoQualityDimension(track: TrackNode): Long {
+    val width = track.demuxW?.takeIf { it > 0L }
+    val height = track.demuxH?.takeIf { it > 0L }
+    return when {
+      width != null && height != null -> minOf(width, height)
+      height != null -> height
+      width != null -> width
+      else -> QUALITY_HEIGHT_REGEX.find(track.effectiveTitle.orEmpty())?.groupValues?.getOrNull(1)?.toLongOrNull() ?: 0L
+    }
+  }
+
+  private fun videoPixelCount(track: TrackNode): Long =
+    (track.demuxW ?: 0L).coerceAtLeast(0L) * (track.demuxH ?: 0L).coerceAtLeast(0L)
 
   val isAudioOnly: StateFlow<Boolean> =
     combine(
@@ -1301,8 +1471,8 @@ class PlayerViewModel : ViewModel(),
   private val _isAmbientEnabled = MutableStateFlow(playerPreferences.isAmbientEnabled.get())
   val isAmbientEnabled: StateFlow<Boolean> = _isAmbientEnabled.asStateFlow()
 
-  private val _ambientVisualMode = MutableStateFlow(playerPreferences.ambientVisualMode.get())
-  val ambientVisualMode: StateFlow<AmbientVisualMode> = _ambientVisualMode.asStateFlow()
+  private val _ambientStyle = MutableStateFlow(playerPreferences.ambientStyle.get())
+  val ambientStyle: StateFlow<AmbientStyle> = _ambientStyle.asStateFlow()
 
   private val _ambientBlurSamples = MutableStateFlow(playerPreferences.ambientBlurSamples.get())
   val ambientBlurSamples: StateFlow<Int> = _ambientBlurSamples.asStateFlow()
@@ -1316,12 +1486,6 @@ class PlayerViewModel : ViewModel(),
   private val _ambientSatBoost = MutableStateFlow(playerPreferences.ambientSatBoost.get())
   val ambientSatBoost: StateFlow<Float> = _ambientSatBoost.asStateFlow()
 
-  private val _ambientDitherNoise = MutableStateFlow(playerPreferences.ambientDitherNoise.get())
-  val ambientDitherNoise: StateFlow<Float> = _ambientDitherNoise.asStateFlow()
-
-  private val _ambientBezelDepth = MutableStateFlow(playerPreferences.ambientBezelDepth.get())
-  val ambientBezelDepth: StateFlow<Float> = _ambientBezelDepth.asStateFlow()
-
   private val _ambientVignetteStrength = MutableStateFlow(playerPreferences.ambientVignetteStrength.get())
   val ambientVignetteStrength: StateFlow<Float> = _ambientVignetteStrength.asStateFlow()
 
@@ -1334,23 +1498,18 @@ class PlayerViewModel : ViewModel(),
   private val _ambientOpacity = MutableStateFlow(playerPreferences.ambientOpacity.get())
   val ambientOpacity: StateFlow<Float> = _ambientOpacity.asStateFlow()
 
-  private val _frameExtendStrength = MutableStateFlow(playerPreferences.ambientExtendStrength.get())
-  val frameExtendStrength: StateFlow<Float> = _frameExtendStrength.asStateFlow()
-
-  private val _frameExtendDetailProtection = MutableStateFlow(playerPreferences.ambientExtendDetailProtection.get())
-  val frameExtendDetailProtection: StateFlow<Float> = _frameExtendDetailProtection.asStateFlow()
-
-  private val _frameExtendGlowMix = MutableStateFlow(playerPreferences.ambientExtendGlowMix.get())
-  val frameExtendGlowMix: StateFlow<Float> = _frameExtendGlowMix.asStateFlow()
-
   @Volatile private var lastAmbientScaleX = -1.0
   @Volatile private var lastAmbientScaleY = -1.0
   private var ambientDebounceJob: kotlinx.coroutines.Job? = null
-  private var ambientShaderSeq = 0
+  private val ambientScheduleLock = Any()
+  private val ambientRenderLock = Any()
+  private val ambientUpdateGeneration = AtomicLong()
+  @Volatile private var isAmbientLifecycleActive = false
+  private val ambientShaderSeq = AtomicLong()
   @Volatile private var ambientShaderFile: java.io.File? = null
 
   /**
-   * Caches the [AmbientShaderSpec] that was last compiled into a GLSL file.
+  * Caches the [AmbientGlowShaderSpec] that was last compiled into a GLSL file.
    * When [updateAmbientStretch] is called but every parameter is identical to
    * the previously compiled spec, the expensive string-build + file-write +
    * MPV shader-reload cycle is skipped entirely.
@@ -1362,7 +1521,7 @@ class PlayerViewModel : ViewModel(),
    * @Volatile: written on renderPrepDispatcher (background), read and nulled on
    * the main thread in disableAmbientShader() / restartAmbientIfActive().
    */
-  @Volatile private var lastCompiledSpec: AmbientShaderSpec? = null
+  @Volatile private var lastCompiledSpec: AmbientGlowShaderSpec? = null
 
   /**
    * Latest device thermal headroom reading ([0f] = at thermal limit, [1f] = cool).
@@ -1573,13 +1732,8 @@ class PlayerViewModel : ViewModel(),
           // --- AMBIENT FIX: Adapt shader to new file dimensions by @Chinna95P ---
           if (_isAmbientEnabled.value) {
             lastAmbientScaleX = -1.0 // Force a complete shader rewrite
-            ambientDebounceJob?.cancel()
-            ambientDebounceJob =
-              viewModelScope.launch(renderPrepDispatcher) {
-                // Slight delay ensures MPV's video-params (w/h/crop) are fully populated
-                delay(250)
-                updateAmbientStretch()
-              }
+            // Slight delay ensures MPV's video-params (w/h/crop) are fully populated.
+            scheduleAmbientUpdate(250)
           }
           // --------------------------------------------------------
         }
@@ -1689,6 +1843,7 @@ class PlayerViewModel : ViewModel(),
 
   fun onMpvCoreInitialized() {
     _isMpvCoreReady.value = true
+    scheduleAmbientUpdate(0)
     startMpvStateCollectors()
     isMpvReadyForCustomButtons = true
     reloadCustomButtonsScript("mpv_core_initialized")
@@ -1697,6 +1852,7 @@ class PlayerViewModel : ViewModel(),
 
   /** Stops every ViewModel path that can read or write libmpv during native teardown. */
   fun onMpvCoreStopping() {
+    disableAmbientShader()
     _isMpvCoreReady.value = false
     isMpvReadyForCustomButtons = false
     runCatching { syncplayManager.clearPlayerBindings() }
@@ -1784,6 +1940,8 @@ class PlayerViewModel : ViewModel(),
 
   fun onVideoLoadStarted() {
     hideSeekThumbnailPreview()
+    pinnedSeekThumbnailSource = null
+    cancelSeekThumbnailDecodes()
     seekThumbnailCache.evictAll()
     seekThumbnailFailureAt.clear()
     introLookupJob?.cancel()
@@ -2242,12 +2400,16 @@ class PlayerViewModel : ViewModel(),
     const val SEEK_COALESCE_DELAY_MS = 60L
     const val PREVIEW_SEEK_INTERVAL_MS = 25L
     const val SEEK_THUMBNAIL_TIMEOUT_MS = 2_500L
+    const val SEEK_THUMBNAIL_DECODE_MAX_MS = 20_000L
+    const val SEEK_THUMBNAIL_MAX_INFLIGHT_DECODES = 3
     const val SEEK_THUMBNAIL_FAILURE_COOLDOWN_MS = 10_000L
     const val SEEK_THUMBNAIL_FAILURE_CACHE_MAX = 128
     const val SEEK_THUMBNAIL_MAX_SIZE = 320
-    const val SEEK_THUMBNAIL_CACHE_KB = 16 * 1024
+    const val SEEK_THUMBNAIL_CACHE_KB = 32 * 1024
     const val SEEK_THUMBNAIL_CACHE_BUCKETS_PER_SECOND = 1f
+    val QUALITY_HEIGHT_REGEX = Regex("""(?i)(\d{3,4})p""")
     const val SEEK_THUMBNAIL_PREFETCH_RADIUS = 2
+    const val NATIVE_LINEAR_HDR_YOUTUBE_BLUR_RADIUS = 100.0
     val MPV_ONLY_PSEUDO_PROTOCOLS =
       setOf("fd", "fdclose", "edl", "memory", "null", "av", "lavf", "archive", "slice", "mf", "hex", "bd", "dvd", "dvb")
     const val PLAYLIST_METADATA_PREFETCH_RADIUS = 40
@@ -3568,6 +3730,8 @@ class PlayerViewModel : ViewModel(),
         val subtitleHubRequest =
           OnlineSubtitleSearchRequest(
             query = cleanSubHubTitle,
+            season = season,
+            episode = episode,
             year = year,
           )
         onlineSubtitleOrchestrator
@@ -3894,13 +4058,18 @@ class PlayerViewModel : ViewModel(),
               pendingSeekThumbnailRequest.also { pendingSeekThumbnailRequest = null }
             } ?: break
 
+          val cacheKey = seekThumbnailCacheKey(request.source, request.bucket)
           val bitmap = loadSeekThumbnail(request.source, request.bucket, request.durationSeconds)
           if (bitmap != null) {
             publishSeekThumbnail(request, bitmap)
-          } else if (request.requestId == seekThumbnailRequestId) {
+          } else if (
+            request.requestId == seekThumbnailRequestId &&
+            !seekThumbnailDecodes.containsKey(cacheKey)
+          ) {
+            // No decode left in flight to late-publish this bucket; stop the spinner.
             _seekThumbnailPreview.update { it.copy(isLoading = false) }
           }
-          if (lastQueuedSeekThumbnailKey == seekThumbnailCacheKey(request.source, request.bucket)) {
+          if (lastQueuedSeekThumbnailKey == cacheKey) {
             lastQueuedSeekThumbnailKey = null
           }
 
@@ -3939,37 +4108,114 @@ class PlayerViewModel : ViewModel(),
   ): Bitmap? {
     val cacheKey = seekThumbnailCacheKey(source, bucket)
     seekThumbnailCache.get(cacheKey)?.let { return it }
+    val recentlyFailed =
+      seekThumbnailFailureAt[cacheKey]?.let { failedAt ->
+        SystemClock.elapsedRealtime() - failedAt < SEEK_THUMBNAIL_FAILURE_COOLDOWN_MS
+      } == true
+    if (recentlyFailed) return null
+
+    val decode = startSeekThumbnailDecode(cacheKey, source, bucket, durationSeconds) ?: return null
+    // Bounded wait keeps the worker responsive while scrubbing; the decode itself is NOT cancelled
+    // on timeout. Its completion caches and late-publishes the bitmap, which is what lets slow
+    // local decodes and network streams (whose open alone can exceed this window) still show up.
+    return withTimeoutOrNull(SEEK_THUMBNAIL_TIMEOUT_MS) {
+      try {
+        decode.await()
+      } catch (cancellation: kotlinx.coroutines.CancellationException) {
+        currentCoroutineContext().ensureActive()
+        null
+      }
+    }
+  }
+
+  private fun startSeekThumbnailDecode(
+    cacheKey: String,
+    source: String,
+    bucket: Int,
+    durationSeconds: Float,
+  ): Deferred<Bitmap?>? {
+    seekThumbnailDecodes[cacheKey]?.let { return it }
+    if (seekThumbnailDecodes.size >= SEEK_THUMBNAIL_MAX_INFLIGHT_DECODES) return null
 
     val thumbnailTime = seekThumbnailBucketTime(bucket, durationSeconds)
-    val bitmap =
-      withTimeoutOrNull(SEEK_THUMBNAIL_TIMEOUT_MS) {
-        try {
-          // This is the independent ThumbFast engine, not the active playback core. It decodes
-          // with its own MediaCodec instance and falls back to software automatically, so a
-          // hardware-first decode is both fast and safe alongside the playing video.
-          FastThumbnails.generateAsync(
-            source,
-            thumbnailTime.toDouble(),
-            SEEK_THUMBNAIL_MAX_SIZE,
-            useHwDec = true,
-          )
-        } catch (cancellation: kotlinx.coroutines.CancellationException) {
-          throw cancellation
-        } catch (_: Exception) {
-          null
+    val decode =
+      viewModelScope.async(Dispatchers.IO) {
+        val bitmap =
+          try {
+            // This is the independent ThumbFast engine, not the active playback core. It decodes
+            // with its own MediaCodec instance and falls back to software automatically, so a
+            // hardware-first decode is both fast and safe alongside the playing video.
+            withTimeout(SEEK_THUMBNAIL_DECODE_MAX_MS) {
+              FastThumbnails.generateAsync(
+                source,
+                thumbnailTime.toDouble(),
+                SEEK_THUMBNAIL_MAX_SIZE,
+                useHwDec = true,
+              )
+            }
+          } catch (timeout: TimeoutCancellationException) {
+            null
+          } catch (cancellation: kotlinx.coroutines.CancellationException) {
+            throw cancellation
+          } catch (_: Exception) {
+            null
+          }
+        if (bitmap != null) {
+          seekThumbnailCache.put(cacheKey, bitmap)
+          seekThumbnailFailureAt.remove(cacheKey)
+          maybePublishLateSeekThumbnail(source, bucket, bitmap)
+        } else {
+          if (seekThumbnailFailureAt.size >= SEEK_THUMBNAIL_FAILURE_CACHE_MAX) {
+            seekThumbnailFailureAt.clear()
+          }
+          seekThumbnailFailureAt[cacheKey] = SystemClock.elapsedRealtime()
+          clearSeekThumbnailLoadingFor(source, bucket)
         }
+        bitmap
       }
+    seekThumbnailDecodes[cacheKey] = decode
+    decode.invokeOnCompletion { seekThumbnailDecodes.remove(cacheKey, decode) }
+    return decode
+  }
 
-    if (bitmap != null) {
-      seekThumbnailCache.put(cacheKey, bitmap)
-      seekThumbnailFailureAt.remove(cacheKey)
-    } else {
-      if (seekThumbnailFailureAt.size >= SEEK_THUMBNAIL_FAILURE_CACHE_MAX) {
-        seekThumbnailFailureAt.clear()
+  private fun maybePublishLateSeekThumbnail(
+    source: String,
+    bucket: Int,
+    bitmap: Bitmap,
+  ) {
+    if (source != pinnedSeekThumbnailSource) return
+    _seekThumbnailPreview.update { current ->
+      if (!current.visible) return@update current
+      val currentBucket = seekThumbnailBucket(current.positionSeconds)
+      val exactBucket = currentBucket == bucket
+      val nearbyAndEmpty =
+        current.bitmap == null && abs(currentBucket - bucket) <= SEEK_THUMBNAIL_PREFETCH_RADIUS
+      if (exactBucket || nearbyAndEmpty) {
+        current.copy(bitmap = bitmap, isLoading = false)
+      } else {
+        current
       }
-      seekThumbnailFailureAt[cacheKey] = SystemClock.elapsedRealtime()
     }
-    return bitmap
+  }
+
+  private fun clearSeekThumbnailLoadingFor(
+    source: String,
+    bucket: Int,
+  ) {
+    if (source != pinnedSeekThumbnailSource) return
+    _seekThumbnailPreview.update { current ->
+      if (current.visible && seekThumbnailBucket(current.positionSeconds) == bucket) {
+        current.copy(isLoading = false)
+      } else {
+        current
+      }
+    }
+  }
+
+  private fun cancelSeekThumbnailDecodes() {
+    val inFlight = seekThumbnailDecodes.values.toList()
+    seekThumbnailDecodes.clear()
+    inFlight.forEach { it.cancel() }
   }
 
   private fun publishSeekThumbnail(
@@ -4014,17 +4260,25 @@ class PlayerViewModel : ViewModel(),
     }
   }
 
-  private fun resolveSeekThumbnailSource(): String? =
-    // mpv's resolved filename comes first: network-library items are converted to an authenticated
-    // loopback range URL by PlaybackSession, while the host may still hold the unplayable logical URI.
-    // Candidates that only mpv itself can open (fd://, edl://, ...) are skipped because the
-    // ThumbFast engine reopens the source with FFmpeg directly.
-    sequenceOf(
-      runCatching { PlaybackSession.getPropertyString("stream-open-filename") }.getOrNull(),
-      runCatching { PlaybackSession.getPropertyString("path") }.getOrNull(),
-      host.currentThumbnailSource(),
-    ).mapNotNull { candidate -> candidate?.takeIf { it.isNotBlank() } }
-      .firstOrNull(::isSeekThumbnailSourceDecodable)
+  private fun resolveSeekThumbnailSource(): String? {
+    // Pin the first successful resolution for this media item: the mpv property reads below are
+    // volatile (mid-seek they can briefly return null or flip between the logical and resolved
+    // URL), and any drift in this string orphans every bitmap cached under the previous key.
+    pinnedSeekThumbnailSource?.let { return it }
+    val resolved =
+      // mpv's resolved filename comes first: network-library items are converted to an authenticated
+      // loopback range URL by PlaybackSession, while the host may still hold the unplayable logical URI.
+      // Candidates that only mpv itself can open (fd://, edl://, ...) are skipped because the
+      // ThumbFast engine reopens the source with FFmpeg directly.
+      sequenceOf(
+        runCatching { PlaybackSession.getPropertyString("stream-open-filename") }.getOrNull(),
+        runCatching { PlaybackSession.getPropertyString("path") }.getOrNull(),
+        host.currentThumbnailSource(),
+      ).mapNotNull { candidate -> candidate?.takeIf { it.isNotBlank() } }
+        .firstOrNull(::isSeekThumbnailSourceDecodable)
+    if (resolved != null) pinnedSeekThumbnailSource = resolved
+    return resolved
+  }
 
   private fun isSeekThumbnailSourceDecodable(source: String): Boolean {
     val scheme = source.substringBefore("://", missingDelimiterValue = "").lowercase()
@@ -5430,8 +5684,6 @@ class PlayerViewModel : ViewModel(),
       decoderPreferences.lastHdrMode.set(resolvedMode)
     }
     applyHdrScreenOutput(resolvedMode)
-    // Ambient shader encodes IS_LINEAR_HDR at compile time — regenerate it so the
-    // new mode (linear vs SDR/hdr-toys) is immediately reflected in the GLSL output.
     restartAmbientIfActive()
     playerUpdate.value =
       PlayerUpdates.ShowText(
@@ -5562,13 +5814,34 @@ class PlayerViewModel : ViewModel(),
 
   // ==================== Ambient Mode Integration ====================
 
+  fun setAmbientLifecycleActive(active: Boolean) {
+    if (isAmbientLifecycleActive == active) return
+    isAmbientLifecycleActive = active
+    if (active) {
+      scheduleAmbientUpdate(0)
+    } else {
+      disableAmbientShader()
+    }
+  }
+
+  private fun isAmbientRuntimeActive(): Boolean =
+    isAmbientLifecycleActive &&
+      _isMpvCoreReady.value &&
+      _isAmbientEnabled.value &&
+      !MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.AMBIENT)
+
+  private fun isAmbientGlowRuntimeActive(): Boolean =
+    isAmbientRuntimeActive() && _ambientStyle.value == AmbientStyle.Glow
+
   fun toggleAmbientMode() {
     if (MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.AMBIENT)) return
     _isAmbientEnabled.value = !_isAmbientEnabled.value
     playerPreferences.isAmbientEnabled.set(_isAmbientEnabled.value)
     if (_isAmbientEnabled.value) {
-      lastAmbientScaleX = -1.0 // Force rewrite
-      scheduleAmbientUpdate(0)
+      if (_ambientStyle.value == AmbientStyle.Glow) {
+        lastAmbientScaleX = -1.0
+        scheduleAmbientUpdate(0)
+      }
       playerUpdate.value = PlayerUpdates.ShowText(appContext.getString(R.string.player_ambience_on))
     } else {
       disableAmbientShader()
@@ -5576,39 +5849,59 @@ class PlayerViewModel : ViewModel(),
     }
   }
 
-  /** Disables the ambient shader and resets video scale. Safe to call from any state. */
-  private fun disableAmbientShader() {
-    ambientDebounceJob?.cancel()
-    ambientShaderFile?.let { file ->
-      runCatching { PlaybackSession.command("change-list", "glsl-shaders", "remove", file.absolutePath) }
-      file.delete()
-    }
-    ambientShaderFile = null
-    // Reset the shader cache and scale tracking so a subsequent enable always
-    // compiles a fresh shader and recalculates the correct video-scale offsets.
-    lastCompiledSpec = null
-    lastAmbientScaleX = -1.0
-    lastAmbientScaleY = -1.0
-    runCatching {
-      PlaybackSession.setPropertyDouble("video-scale-x", 1.0)
-      PlaybackSession.setPropertyDouble("video-scale-y", 1.0)
-      PlaybackSession.setPropertyString("blend-subtitles", "no")
+  /** Switches between the shader-backed Glow and frame-captured YouTube styles. */
+  fun setAmbientStyle(style: AmbientStyle) {
+    if (MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.AMBIENT)) return
+    if (_ambientStyle.value == style) return
+    _ambientStyle.value = style
+    playerPreferences.ambientStyle.set(style)
+    playerUpdate.value =
+      PlayerUpdates.ShowText(
+        appContext.getString(R.string.ambient_style_update, appContext.getString(style.titleRes)),
+      )
+    if (style == AmbientStyle.Glow) {
+      lastAmbientScaleX = -1.0
+      scheduleAmbientUpdate(0)
+    } else {
+      disableAmbientShader()
     }
   }
 
-  /** Called when the device orientation changes. Refreshes ambient in both portrait and landscape. */
-  fun onOrientationChanged(isPortrait: Boolean) {
-    if (!_isAmbientEnabled.value || MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.AMBIENT)) return
+  /** Disables the ambient shader and resets video scale. Safe to call from any state. */
+  private fun disableAmbientShader() {
+    synchronized(ambientScheduleLock) {
+      ambientUpdateGeneration.incrementAndGet()
+      ambientDebounceJob?.cancel()
+      ambientDebounceJob = null
+    }
+    synchronized(ambientRenderLock) {
+      ambientShaderFile?.let { file ->
+        runCatching { PlaybackSession.command("change-list", "glsl-shaders", "remove", file.absolutePath) }
+        file.delete()
+      }
+      ambientShaderFile = null
+      // Reset the shader cache and scale tracking so a subsequent enable always
+      // compiles a fresh shader and recalculates the correct video-scale offsets.
+      lastCompiledSpec = null
+      lastAmbientScaleX = -1.0
+      lastAmbientScaleY = -1.0
+      runCatching {
+        PlaybackSession.setPropertyDouble("video-scale-x", 1.0)
+        PlaybackSession.setPropertyDouble("video-scale-y", 1.0)
+        PlaybackSession.setPropertyString("blend-subtitles", "no")
+      }
+    }
+  }
 
-    // Force shader refresh to adapt to new screen dimensions.
+  /** Called when the device orientation changes. Refreshes Glow for the new output dimensions. */
+  fun onOrientationChanged() {
+    if (!isAmbientGlowRuntimeActive()) return
+
+    // The compiled spec is the cache key; scale sentinels alone do not force a rebuild.
+    lastCompiledSpec = null
     lastAmbientScaleX = -1.0
     lastAmbientScaleY = -1.0
-    ambientDebounceJob?.cancel()
-    ambientDebounceJob =
-      viewModelScope.launch(renderPrepDispatcher) {
-        delay(200)
-        updateAmbientStretch()
-      }
+    scheduleAmbientUpdate(200)
   }
 
   /** Removes the old file-specific ambient shader while preserving the user's selected ambient mode. */
@@ -5624,34 +5917,10 @@ class PlayerViewModel : ViewModel(),
    * Called after shader-stack changes so ambient stays as the last OUTPUT pass.
    */
   fun restartAmbientIfActive() {
-    if (!_isAmbientEnabled.value || MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.AMBIENT)) return
-    ambientShaderFile?.let { oldFile ->
-      runCatching { PlaybackSession.command("change-list", "glsl-shaders", "remove", oldFile.absolutePath) }
-      oldFile.delete()
-    }
-    ambientShaderFile = null
-    lastAmbientScaleX = -1.0 // Force scale recalculation
-    lastAmbientScaleY = -1.0
-    lastCompiledSpec = null // Invalidate cache — the old file is gone, must recompile
-    // Small delay to let Anime4K shaders settle
-    ambientDebounceJob?.cancel()
-    ambientDebounceJob =
-      viewModelScope.launch(renderPrepDispatcher) {
-        delay(200)
-        updateAmbientStretch()
-      }
-  }
-
-  fun updateAmbientVisualMode(mode: AmbientVisualMode) {
-    if (_ambientVisualMode.value == mode) return
-
-    _ambientVisualMode.value = mode
-    playerPreferences.ambientVisualMode.set(mode)
-
-    if (_isAmbientEnabled.value) {
-      playerUpdate.value = PlayerUpdates.ShowText(appContext.getString(R.string.ambient_style_update, mode.label))
-      scheduleAmbientUpdate(75)
-    }
+    if (!isAmbientGlowRuntimeActive()) return
+    disableAmbientShader()
+    // Small delay to let Anime4K shaders settle.
+    scheduleAmbientUpdate(200)
   }
 
   fun updateAmbientParams(
@@ -5659,8 +5928,6 @@ class PlayerViewModel : ViewModel(),
     maxRadius: Float = _ambientMaxRadius.value,
     glowIntensity: Float = _ambientGlowIntensity.value,
     satBoost: Float = _ambientSatBoost.value,
-    ditherNoise: Float = _ambientDitherNoise.value,
-    bezelDepth: Float = _ambientBezelDepth.value,
     vignetteStrength: Float = _ambientVignetteStrength.value,
     warmth: Float = _ambientWarmth.value,
     fadeCurve: Float = _ambientFadeCurve.value,
@@ -5670,8 +5937,6 @@ class PlayerViewModel : ViewModel(),
     _ambientMaxRadius.value = maxRadius
     _ambientGlowIntensity.value = glowIntensity
     _ambientSatBoost.value = satBoost
-    _ambientDitherNoise.value = ditherNoise
-    _ambientBezelDepth.value = bezelDepth
     _ambientVignetteStrength.value = vignetteStrength
     _ambientWarmth.value = warmth
     _ambientFadeCurve.value = fadeCurve
@@ -5682,8 +5947,6 @@ class PlayerViewModel : ViewModel(),
     playerPreferences.ambientMaxRadius.set(maxRadius)
     playerPreferences.ambientGlowIntensity.set(glowIntensity)
     playerPreferences.ambientSatBoost.set(satBoost)
-    playerPreferences.ambientDitherNoise.set(ditherNoise)
-    playerPreferences.ambientBezelDepth.set(bezelDepth)
     playerPreferences.ambientVignetteStrength.set(vignetteStrength)
     playerPreferences.ambientWarmth.set(warmth)
     playerPreferences.ambientFadeCurve.set(fadeCurve)
@@ -5692,124 +5955,62 @@ class PlayerViewModel : ViewModel(),
     scheduleAmbientUpdate()
   }
 
-  /** Fast profile — low GPU cost, still visually solid. */
-  fun updateFrameExtendParams(
-    extendStrength: Float = _frameExtendStrength.value,
-    detailProtection: Float = _frameExtendDetailProtection.value,
-    glowMix: Float = _frameExtendGlowMix.value,
-    ditherNoise: Float = _ambientDitherNoise.value,
-  ) {
-    _frameExtendStrength.value = extendStrength
-    _frameExtendDetailProtection.value = detailProtection
-    _frameExtendGlowMix.value = glowMix
-    _ambientDitherNoise.value = ditherNoise
-
-    playerPreferences.ambientExtendStrength.set(extendStrength)
-    playerPreferences.ambientExtendDetailProtection.set(detailProtection)
-    playerPreferences.ambientExtendGlowMix.set(glowMix)
-    playerPreferences.ambientDitherNoise.set(ditherNoise)
-
-    scheduleAmbientUpdate()
-  }
-
   private fun scheduleAmbientUpdate(delayMs: Long = 150L) {
-    if (!_isAmbientEnabled.value || MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.AMBIENT)) return
+    synchronized(ambientScheduleLock) {
+      if (!isAmbientGlowRuntimeActive()) return
 
-    ambientDebounceJob?.cancel()
-    ambientDebounceJob =
-      viewModelScope.launch(renderPrepDispatcher) {
-        delay(delayMs)
-        updateAmbientStretch()
-      }
-  }
-
-  private fun setAmbientSampleBudget(sampleBudget: Int) {
-    _ambientBlurSamples.value = sampleBudget
-    playerPreferences.ambientBlurSamples.set(sampleBudget)
-  }
-
-  private fun applyFrameExtendPreset(preset: AmbientFrameExtendPreset) {
-    setAmbientSampleBudget(preset.sampleBudget)
-
-    _frameExtendStrength.value = preset.extendStrength
-    _frameExtendDetailProtection.value = preset.detailProtection
-    _frameExtendGlowMix.value = preset.glowMix
-    _ambientDitherNoise.value = preset.ditherNoise
-    playerPreferences.ambientExtendStrength.set(preset.extendStrength)
-    playerPreferences.ambientExtendDetailProtection.set(preset.detailProtection)
-    playerPreferences.ambientExtendGlowMix.set(preset.glowMix)
-    playerPreferences.ambientDitherNoise.set(preset.ditherNoise)
-
-    _ambientBezelDepth.value = preset.bezelDepth
-    _ambientVignetteStrength.value = preset.vignetteStrength
-    _ambientOpacity.value = preset.opacity
-    playerPreferences.ambientBezelDepth.set(preset.bezelDepth)
-    playerPreferences.ambientVignetteStrength.set(preset.vignetteStrength)
-    playerPreferences.ambientOpacity.set(preset.opacity)
-
-    scheduleAmbientUpdate()
+      val generation = ambientUpdateGeneration.incrementAndGet()
+      ambientDebounceJob?.cancel()
+      ambientDebounceJob =
+        viewModelScope.launch(renderPrepDispatcher) {
+          delay(delayMs)
+          updateAmbientStretch(generation)
+        }
+    }
   }
 
   fun applyAmbientProfileFast() {
-    when (_ambientVisualMode.value) {
-      AmbientVisualMode.GLOW -> {
-        val preset = AmbientShaderPresets.glowFast
-        updateAmbientParams(
-          blurSamples = preset.blurSamples,
-          maxRadius = preset.maxRadius,
-          glowIntensity = preset.glowIntensity,
-          satBoost = preset.satBoost,
-          vignetteStrength = preset.vignetteStrength,
-          warmth = preset.warmth,
-          fadeCurve = preset.fadeCurve,
-          opacity = preset.opacity,
-        )
-      }
-      AmbientVisualMode.FRAME_EXTEND -> applyFrameExtendPreset(AmbientShaderPresets.frameExtendFast)
-      AmbientVisualMode.YOUTUBE -> {}
-    }
+    val preset = AmbientShaderPresets.glowFast
+    updateAmbientParams(
+      blurSamples = preset.blurSamples,
+      maxRadius = preset.maxRadius,
+      glowIntensity = preset.glowIntensity,
+      satBoost = preset.satBoost,
+      vignetteStrength = preset.vignetteStrength,
+      warmth = preset.warmth,
+      fadeCurve = preset.fadeCurve,
+      opacity = preset.opacity,
+    )
   }
 
   /** Balanced profile — good quality/performance trade-off for most devices. */
   fun applyAmbientProfileBalanced() {
-    when (_ambientVisualMode.value) {
-      AmbientVisualMode.GLOW -> {
-        val preset = AmbientShaderPresets.glowBalanced
-        updateAmbientParams(
-          blurSamples = preset.blurSamples,
-          maxRadius = preset.maxRadius,
-          glowIntensity = preset.glowIntensity,
-          satBoost = preset.satBoost,
-          vignetteStrength = preset.vignetteStrength,
-          warmth = preset.warmth,
-          fadeCurve = preset.fadeCurve,
-          opacity = preset.opacity,
-        )
-      }
-      AmbientVisualMode.FRAME_EXTEND -> applyFrameExtendPreset(AmbientShaderPresets.frameExtendBalanced)
-      AmbientVisualMode.YOUTUBE -> {}
-    }
+    val preset = AmbientShaderPresets.glowBalanced
+    updateAmbientParams(
+      blurSamples = preset.blurSamples,
+      maxRadius = preset.maxRadius,
+      glowIntensity = preset.glowIntensity,
+      satBoost = preset.satBoost,
+      vignetteStrength = preset.vignetteStrength,
+      warmth = preset.warmth,
+      fadeCurve = preset.fadeCurve,
+      opacity = preset.opacity,
+    )
   }
 
   /** High Quality profile — maximum visual fidelity for high-end devices. */
   fun applyAmbientProfileHighQuality() {
-    when (_ambientVisualMode.value) {
-      AmbientVisualMode.GLOW -> {
-        val preset = AmbientShaderPresets.glowHighQuality
-        updateAmbientParams(
-          blurSamples = preset.blurSamples,
-          maxRadius = preset.maxRadius,
-          glowIntensity = preset.glowIntensity,
-          satBoost = preset.satBoost,
-          vignetteStrength = preset.vignetteStrength,
-          warmth = preset.warmth,
-          fadeCurve = preset.fadeCurve,
-          opacity = preset.opacity,
-        )
-      }
-      AmbientVisualMode.FRAME_EXTEND -> applyFrameExtendPreset(AmbientShaderPresets.frameExtendHighQuality)
-      AmbientVisualMode.YOUTUBE -> {}
-    }
+    val preset = AmbientShaderPresets.glowHighQuality
+    updateAmbientParams(
+      blurSamples = preset.blurSamples,
+      maxRadius = preset.maxRadius,
+      glowIntensity = preset.glowIntensity,
+      satBoost = preset.satBoost,
+      vignetteStrength = preset.vignetteStrength,
+      warmth = preset.warmth,
+      fadeCurve = preset.fadeCurve,
+      opacity = preset.opacity,
+    )
   }
 
   fun updateAmbientBatterySaver(enabled: Boolean) {
@@ -5862,8 +6063,8 @@ class PlayerViewModel : ViewModel(),
     }
   }
 
-  suspend fun updateAmbientStretch() {
-    if (!_isAmbientEnabled.value || MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.AMBIENT)) return
+  private suspend fun updateAmbientStretch(generation: Long) {
+    if (!isAmbientGlowRuntimeActive() || generation != ambientUpdateGeneration.get()) return
 
     runCatching {
       val osdW = PlaybackSession.getPropertyInt("osd-width") ?: 1920
@@ -5906,20 +6107,9 @@ class PlayerViewModel : ViewModel(),
       val scaleX = if (screenAr > vidAr) screenAr / vidAr else 1.0
       val scaleY = if (vidAr > screenAr) vidAr / screenAr else 1.0
 
-      if (Math.abs(scaleX - lastAmbientScaleX) > 0.001 ||
-        Math.abs(scaleY - lastAmbientScaleY) > 0.001
-      ) {
-        lastAmbientScaleX = scaleX
-        lastAmbientScaleY = scaleY
-        PlaybackSession.setPropertyDouble("video-scale-x", scaleX)
-        PlaybackSession.setPropertyDouble("video-scale-y", scaleY)
-      }
-      val blendMode = if (subtitlesPreferences.blendSubtitlesWithVideo.get()) "video" else "no"
-      PlaybackSession.setPropertyString("blend-subtitles", blendMode)
-
       // ── Snapshot current parameter values ─────────────────────────────────
-      val sx = lastAmbientScaleX
-      val sy = lastAmbientScaleY
+      val sx = scaleX
+      val sy = scaleY
       // Thermal-aware sample budget: cap shader complexity before the device enters
       // hard CPU/GPU throttling.  On a cool device this is a no-op.
       val rawSamples = _ambientBlurSamples.value
@@ -5927,8 +6117,6 @@ class PlayerViewModel : ViewModel(),
       val radius = _ambientMaxRadius.value
       val glow = _ambientGlowIntensity.value
       val sat = _ambientSatBoost.value
-      val dither = _ambientDitherNoise.value
-      val bezel = _ambientBezelDepth.value
       val vignette = _ambientVignetteStrength.value
       val warmth = _ambientWarmth.value
       val curve = _ambientFadeCurve.value
@@ -5943,8 +6131,6 @@ class PlayerViewModel : ViewModel(),
           maxRadius = radius,
           glowIntensity = glow,
           satBoost = sat,
-          ditherNoise = dither,
-          bezelDepth = bezel,
           vignetteStrength = vignette,
           warmth = warmth,
           fadeCurve = curve,
@@ -5952,20 +6138,23 @@ class PlayerViewModel : ViewModel(),
         )
 
       // ── Shader parameter cache ──────────────────────────────────────────────────────
-      // Compare the AmbientShaderSpec data class (cheap equality) before building
+      // Compare the AmbientGlowShaderSpec data class (cheap equality) before building
       // the GLSL string. This avoids allocating the multi-KB shader string and
       // running buildSpiralTapTable trig math on no-op refreshes (e.g. thermal
       // monitor ticks that don't change the effective sample budget, orientation
       // callbacks that fire with unchanged video dimensions).
-      if (spec == lastCompiledSpec && ambientShaderFile?.exists() == true) {
+      val shaderIsCurrent =
+        synchronized(ambientRenderLock) {
+          spec == lastCompiledSpec && ambientShaderFile?.exists() == true
+        }
+      if (shaderIsCurrent) {
         return
       }
-      lastCompiledSpec = spec
 
       // Each reload gets a unique filename so MPV never reuses a cached
       // compiled shader — incrementing seq guarantees a fresh compile every time.
-      val shaderCode = AmbientShaderBuilder.build(spec)
-      val newFile = File(appContext.cacheDir, "ambient_${++ambientShaderSeq}.glsl")
+      val shaderCode = AmbientShaderBuilder.build(appContext, spec)
+      val newFile = File(appContext.cacheDir, "ambient_${ambientShaderSeq.incrementAndGet()}.glsl")
       // Blocking file write — dispatched to IO pool to avoid stalling renderPrepDispatcher.
       // Catch CancellationException here: IO is not preemptible, so the write always
       // completes fully even when the job is cancelled mid-flight. Without this guard,
@@ -5973,16 +6162,31 @@ class PlayerViewModel : ViewModel(),
       // superseded debounced update — fast slider drags, orientation flips, etc.).
       try {
         withContext(kotlinx.coroutines.Dispatchers.IO) { newFile.writeText(shaderCode) }
-      } catch (e: kotlinx.coroutines.CancellationException) {
-        newFile.delete() // Orphan cleanup — job cancelled after write completed.
-        throw e
+      } catch (error: Throwable) {
+        newFile.delete()
+        throw error
       }
-      ambientShaderFile?.let { oldFile ->
-        runCatching { PlaybackSession.command("change-list", "glsl-shaders", "remove", oldFile.absolutePath) }
-        oldFile.delete()
+      currentCoroutineContext().ensureActive()
+
+      synchronized(ambientRenderLock) {
+        if (!isAmbientGlowRuntimeActive() || generation != ambientUpdateGeneration.get()) {
+          newFile.delete()
+          return@synchronized
+        }
+        ambientShaderFile?.let { oldFile ->
+          runCatching { PlaybackSession.command("change-list", "glsl-shaders", "remove", oldFile.absolutePath) }
+          oldFile.delete()
+        }
+        PlaybackSession.setPropertyDouble("video-scale-x", scaleX)
+        PlaybackSession.setPropertyDouble("video-scale-y", scaleY)
+        val blendMode = if (subtitlesPreferences.blendSubtitlesWithVideo.get()) "video" else "no"
+        PlaybackSession.setPropertyString("blend-subtitles", blendMode)
+        PlaybackSession.command("change-list", "glsl-shaders", "append", newFile.absolutePath)
+        lastAmbientScaleX = scaleX
+        lastAmbientScaleY = scaleY
+        ambientShaderFile = newFile
+        lastCompiledSpec = spec
       }
-      PlaybackSession.command("change-list", "glsl-shaders", "append", newFile.absolutePath)
-      ambientShaderFile = newFile
     }.onFailure { e ->
       // runCatching catches Throwable including CancellationException — rethrow it so
       // structured concurrency is not broken and debounce cancellation does not log
@@ -5993,7 +6197,7 @@ class PlayerViewModel : ViewModel(),
   }
 
   /**
-   * Builds an [AmbientShaderSpec] from the current ambient parameter values.
+  * Builds an [AmbientGlowShaderSpec] from the current ambient parameter values.
    * The spec is a lightweight data class that captures all shader inputs;
    * [AmbientShaderBuilder.build] converts it to a GLSL string only when the
    * spec has actually changed from the last compiled version.
@@ -6005,49 +6209,29 @@ class PlayerViewModel : ViewModel(),
     maxRadius: Float,
     glowIntensity: Float,
     satBoost: Float,
-    ditherNoise: Float,
-    bezelDepth: Float,
     vignetteStrength: Float,
     warmth: Float,
     fadeCurve: Float,
     opacity: Float,
-  ): AmbientShaderSpec {
-    val context = AmbientRenderContext(scaleX = sx, scaleY = sy, isLinearHdr = _hdrScreenMode.value == HdrScreenMode.LINEAR)
+  ): AmbientGlowShaderSpec {
+    val context = AmbientRenderContext(scaleX = sx, scaleY = sy)
     val shared =
       AmbientSharedShaderConfig(
-        bezelDepth = if (_ambientVisualMode.value == AmbientVisualMode.FRAME_EXTEND) bezelDepth else 0f,
+        bezelDepth = 0f,
         vignetteStrength = vignetteStrength,
         opacity = opacity,
       )
 
-    return when (_ambientVisualMode.value) {
-      AmbientVisualMode.GLOW ->
-        AmbientGlowShaderSpec(
-          context = context,
-          shared = shared,
-          blurSamples = blurSamples,
-          maxRadius = maxRadius,
-          glowIntensity = glowIntensity,
-          satBoost = satBoost,
-          warmth = warmth,
-          fadeCurve = fadeCurve,
-        )
-      AmbientVisualMode.FRAME_EXTEND ->
-        AmbientFrameExtendShaderSpec(
-          context = context,
-          shared = shared,
-          sampleBudget = blurSamples,
-          extendStrength = _frameExtendStrength.value,
-          detailProtection = _frameExtendDetailProtection.value,
-          glowMix = _frameExtendGlowMix.value,
-          ditherNoise = ditherNoise,
-        )
-      AmbientVisualMode.YOUTUBE ->
-        AmbientYouTubeShaderSpec(
-          context = context,
-          shared = shared,
-        )
-    }
+    return AmbientGlowShaderSpec(
+      context = context,
+      shared = shared,
+      blurSamples = blurSamples,
+      maxRadius = maxRadius,
+      glowIntensity = glowIntensity,
+      satBoost = satBoost,
+      warmth = warmth,
+      fadeCurve = fadeCurve,
+    )
   }
 
   // ==================== Utility ====================
@@ -6081,6 +6265,8 @@ class PlayerViewModel : ViewModel(),
 
     runCatching { syncplayManager.clearPlayerBindings() }
     runCatching { audioEqualizerManager.release() }
+    isAmbientLifecycleActive = false
+    runCatching { disableAmbientShader() }
 
     super.onCleared()
   }

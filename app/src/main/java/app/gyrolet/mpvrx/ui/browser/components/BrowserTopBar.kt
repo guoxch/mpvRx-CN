@@ -43,8 +43,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
@@ -72,6 +76,7 @@ fun BrowserTopBar(
   onBackClick: (() -> Unit)? = null,
   onSortClick: (() -> Unit)? = null,
   onSearchClick: (() -> Unit)? = null,
+  onRequestClick: (() -> Unit)? = null,
   onSettingsClick: (() -> Unit)? = null,
   onDeleteClick: (() -> Unit)? = null,
   onRenameClick: (() -> Unit)? = null,
@@ -93,6 +98,7 @@ fun BrowserTopBar(
   onRestoreClick: (() -> Unit)? = null,
   colors: TopAppBarColors? = null,
   forceHeadlineSmall: Boolean = false,
+  showBetaBadge: Boolean = false,
 ) {
   if (isInSelectionMode) {
     SelectionTopBar(
@@ -124,6 +130,7 @@ fun BrowserTopBar(
       onBackClick = onBackClick,
       onSortClick = onSortClick,
       onSearchClick = onSearchClick,
+      onRequestClick = onRequestClick,
       onSettingsClick = onSettingsClick,
       additionalActions = additionalActions,
       modifier = modifier,
@@ -131,6 +138,7 @@ fun BrowserTopBar(
       onTitleDoubleTap = onTitleDoubleTap,
       colors = colors,
       forceHeadlineSmall = forceHeadlineSmall,
+      showBetaBadge = showBetaBadge,
     )
   }
 }
@@ -145,6 +153,7 @@ private fun NormalTopBar(
   onBackClick: (() -> Unit)?,
   onSortClick: (() -> Unit)?,
   onSearchClick: (() -> Unit)?,
+  onRequestClick: (() -> Unit)? = null,
   onSettingsClick: (() -> Unit)?,
   additionalActions: @Composable RowScope.() -> Unit,
   modifier: Modifier = Modifier,
@@ -152,6 +161,7 @@ private fun NormalTopBar(
   onTitleDoubleTap: (() -> Unit)? = null,
   colors: TopAppBarColors? = null,
   forceHeadlineSmall: Boolean = false,
+  showBetaBadge: Boolean = false,
 ) {
   val preferences = koinInject<AppearancePreferences>()
   val darkMode by preferences.darkMode.collectAsState()
@@ -197,6 +207,12 @@ private fun NormalTopBar(
           },
       ),
     title = {
+      val betaBadgeSuffix =
+        if (showBetaBadge) {
+          stringResource(R.string.ui_beta_badge_suffix)
+        } else {
+          ""
+        }
       val titleModifier =
         Modifier
           .onGloballyPositioned { coordinates ->
@@ -236,7 +252,20 @@ private fun NormalTopBar(
           }
 
       Text(
-        title,
+        buildAnnotatedString {
+          append(title)
+          if (showBetaBadge) {
+            withStyle(
+              SpanStyle(
+                fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                fontWeight = FontWeight.SemiBold,
+                baselineShift = BaselineShift.Superscript,
+              ),
+            ) {
+              append(betaBadgeSuffix)
+            }
+          }
+        },
         style =
           if (forceHeadlineSmall || onBackClick != null) {
             MaterialTheme.typography.headlineSmall
@@ -283,6 +312,22 @@ private fun NormalTopBar(
             contentDescription =
               androidx.compose.ui.res.stringResource(
                 app.gyrolet.mpvrx.R.string.settings_search_title,
+              ),
+            modifier = Modifier.size(24.dp),
+            tint = MaterialTheme.colorScheme.secondary,
+          )
+        }
+      }
+      if (onRequestClick != null) {
+        IconButton(
+          onClick = onRequestClick,
+          modifier = Modifier.padding(horizontal = 2.dp),
+        ) {
+          Icon(
+            Icons.RoundedFilled.Explore,
+            contentDescription =
+              androidx.compose.ui.res.stringResource(
+                app.gyrolet.mpvrx.R.string.seerr_discover,
               ),
             modifier = Modifier.size(24.dp),
             tint = MaterialTheme.colorScheme.secondary,

@@ -90,6 +90,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.gyrolet.mpvrx.BuildConfig
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.browser.FileSystemItem
 import app.gyrolet.mpvrx.domain.media.model.Video
@@ -139,6 +140,7 @@ import app.gyrolet.mpvrx.utils.sort.SortUtils
 import app.gyrolet.mpvrx.utils.storage.FileTypeUtils
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionStatus
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -250,7 +252,24 @@ object FolderListScreen : Screen {
     var isSearchLoading by remember { mutableStateOf(false) }
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
+    var searchIndexJob by remember { mutableStateOf<Job?>(null) }
     val foldersBlacklistedMessage = stringResource(app.gyrolet.mpvrx.R.string.pref_folders_blacklisted)
+
+    LaunchedEffect(internalIsSearching) {
+      if (internalIsSearching) focusRequester.requestFocus()
+    }
+
+    // Rebuilds when folders change so incrementally discovered hidden folders become searchable;
+    // chained on the previous job because buildIndex resets the shared index maps.
+    LaunchedEffect(effectiveIsSearching, videoFolders, audioOnly) {
+      if (audioOnly || !effectiveIsSearching) return@LaunchedEffect
+      val previous = searchIndexJob
+      searchIndexJob =
+        coroutineScope.launch {
+          previous?.join()
+          buildSearchIndex(context, videoFolders, audioOnly)
+        }
+    }
 
     // Search logic
     LaunchedEffect(effectiveSearchQuery, effectiveIsSearching, audioOnly, videoFolders) {
@@ -285,6 +304,7 @@ object FolderListScreen : Screen {
                 }
               matchingFolders + matchingAudioFiles
             } else {
+              searchIndexJob?.join()
               searchFoldersAndVideos(context, effectiveSearchQuery)
             }
         } catch (e: Exception) {
@@ -602,15 +622,14 @@ object FolderListScreen : Screen {
               onSortClick = { sortDialogOpen.value = true },
               onSearchClick = {
                 internalIsSearching = !internalIsSearching
-                coroutineScope.launch {
-                  buildSearchIndex(context)
-                }
+                if (!internalIsSearching) internalSearchQuery = ""
               },
               onSettingsClick = {
                 backstack.add(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
               },
               onTitleDoubleTap = { backstack.add(SecureFolderGateScreen) },
               onTitleLongPress = { backstack.add(SecureFolderGateScreen) },
+              showBetaBadge = BuildConfig.IS_PREVIEW_BUILD,
               onRenameClick = null,
               isSingleSelection = selectionManager.isSingleSelection,
               onInfoClick = null,
@@ -635,13 +654,7 @@ object FolderListScreen : Screen {
                     if (allVideos.size == 1) {
                       MediaUtils.playFile(allVideos.first(), context)
                     } else {
-                      val intent = Intent(Intent.ACTION_VIEW, allVideos.first().uri)
-                      intent.setClass(context, app.gyrolet.mpvrx.ui.player.PlayerActivity::class.java)
-                      intent.putExtra("internal_launch", true)
-                      intent.putParcelableArrayListExtra("playlist", ArrayList(allVideos.map { it.uri }))
-                      intent.putExtra("playlist_index", 0)
-                      intent.putExtra("launch_source", "playlist")
-                      context.startActivity(intent)
+                      MediaUtils.playFiles(allVideos, context)
                     }
                     selectionManager.clear()
                   }
@@ -1717,15 +1730,21 @@ object SearchManager {
   val engine = MediaSearchEngine
 }
 
-private suspend fun buildSearchIndex(context: Context) {
-  val folders =
-    app.gyrolet.mpvrx.repository.MediaFileRepository
-      .getAllVideoFoldersFast(context)
+/** Indexes the folders already on screen, so hidden (dot/.nomedia) folders stay searchable. */
+private suspend fun buildSearchIndex(
+  context: Context,
+  folders: List<VideoFolder>,
+  audioOnly: Boolean,
+) {
   val videosByFolder =
     folders.associate { folder ->
       folder.bucketId to
         app.gyrolet.mpvrx.repository.MediaFileRepository
-          .getVideosInFolder(context, folder.bucketId)
+          .getVideosInFolder(
+            context,
+            folder.bucketId,
+            includeAudioOverride = if (audioOnly) true else null,
+          )
     }
   SearchManager.engine.buildIndex(folders, videosByFolder)
 }

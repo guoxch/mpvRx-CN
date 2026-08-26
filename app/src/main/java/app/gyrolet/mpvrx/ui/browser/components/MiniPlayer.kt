@@ -85,15 +85,15 @@ import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.browser.NavigationBarState
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.player.DeclaredPlaybackMediaKind
 import app.gyrolet.mpvrx.ui.player.MediaPlaybackService
 import app.gyrolet.mpvrx.ui.player.PlaybackPhase
 import app.gyrolet.mpvrx.ui.player.PlaybackSession
 import app.gyrolet.mpvrx.ui.player.PlayerActivity
 import app.gyrolet.mpvrx.ui.player.TrackNode
+import app.gyrolet.mpvrx.ui.player.declaredMediaKind
 import app.gyrolet.mpvrx.ui.player.toObject
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
-import app.gyrolet.mpvrx.utils.media.fileExtension
-import app.gyrolet.mpvrx.utils.storage.FileTypeUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -124,16 +124,11 @@ fun MiniPlayer(modifier: Modifier = Modifier) {
   val hasRealVideo = tracks.any { it.isVideo && !it.isAlbumArtwork }
   val hasAlbumArt = tracks.any { it.isAlbumArtwork }
 
-  val ext = (currentItem?.originalUri ?: currentItem?.title ?: "").fileExtension()
-  val mimeIsAudio = currentItem?.mimeType?.startsWith("audio/", ignoreCase = true) == true
-  val extIsAudio = ext in FileTypeUtils.AUDIO_EXTENSIONS
-  val extIsVideo = ext in FileTypeUtils.VIDEO_EXTENSIONS
-
   val isAudioOnlyItem =
-    if (hasRealVideo || extIsVideo) {
-      false
-    } else {
-      mimeIsAudio || extIsAudio || hasAlbumArt || tracks.any { it.isAudio }
+    when (currentItem?.declaredMediaKind() ?: DeclaredPlaybackMediaKind.UNKNOWN) {
+      DeclaredPlaybackMediaKind.AUDIO -> true
+      DeclaredPlaybackMediaKind.VIDEO -> false
+      DeclaredPlaybackMediaKind.UNKNOWN -> !hasRealVideo && (hasAlbumArt || tracks.any { it.isAudio })
     }
 
   val isMiniPlayerAllowed = isAudioOnlyItem || enableVideoMiniPlayer
@@ -142,6 +137,7 @@ fun MiniPlayer(modifier: Modifier = Modifier) {
     !isSettingsScreen &&
     isMiniPlayerAllowed &&
     sessionState.phase != PlaybackPhase.IDLE &&
+    sessionState.phase != PlaybackPhase.STOPPING &&
     sessionState.phase != PlaybackPhase.UNINITIALIZED &&
     sessionState.phase != PlaybackPhase.ERROR
 
@@ -161,6 +157,8 @@ fun MiniPlayer(modifier: Modifier = Modifier) {
       context = context,
       enableVideoMiniPlayer = enableVideoMiniPlayer,
       isAudioOnlyItem = isAudioOnlyItem,
+      hasRealVideo = hasRealVideo,
+      detachedPlaybackActive = isServiceRunning,
     )
   }
 }
@@ -170,6 +168,8 @@ private fun MiniPlayerContent(
   context: Context,
   enableVideoMiniPlayer: Boolean,
   isAudioOnlyItem: Boolean,
+  hasRealVideo: Boolean,
+  detachedPlaybackActive: Boolean,
 ) {
   val sessionState by PlaybackSession.state.collectAsStateWithLifecycle()
   val queueState by PlaybackSession.queue.collectAsStateWithLifecycle()
@@ -189,7 +189,7 @@ private fun MiniPlayerContent(
       ?: currentItem?.title?.takeIf { it.isNotBlank() }
       ?: "Media Track"
 
-  val isVideoMode = !isAudioOnlyItem && enableVideoMiniPlayer
+  val isVideoMode = detachedPlaybackActive && hasRealVideo && !isAudioOnlyItem && enableVideoMiniPlayer
 
   DisposableEffect(isVideoMode) {
     if (isVideoMode) {
@@ -318,8 +318,13 @@ private fun MiniPlayerContent(
                 setZOrderMediaOverlay(true)
                 holder.addCallback(object : SurfaceHolder.Callback {
                   override fun surfaceCreated(holder: SurfaceHolder) {
-                    PlaybackSession.bindSurface(holder.surface, owner = this@apply)
-                    PlaybackSession.setPropertyBoolean("sub-visibility", false)
+                    val attached =
+                      PlaybackSession.bindSurface(
+                        surface = holder.surface,
+                        owner = this@apply,
+                        ownerIsActive = { MediaPlaybackService.isForegroundActive() },
+                      )
+                    if (attached) PlaybackSession.setPropertyBoolean("sub-visibility", false)
                   }
 
                   override fun surfaceChanged(
@@ -329,13 +334,14 @@ private fun MiniPlayerContent(
                     height: Int,
                   ) {
                     if (holder.surface.isValid) {
-                      PlaybackSession.resizeSurface(width, height)
+                      PlaybackSession.resizeSurface(width, height, owner = this@apply)
                     }
                   }
 
                   override fun surfaceDestroyed(holder: SurfaceHolder) {
-                    PlaybackSession.unbindSurface(this@apply)
-                    PlaybackSession.setPropertyBoolean("sub-visibility", true)
+                    if (PlaybackSession.unbindSurface(this@apply)) {
+                      PlaybackSession.setPropertyBoolean("sub-visibility", true)
+                    }
                   }
                 })
               }

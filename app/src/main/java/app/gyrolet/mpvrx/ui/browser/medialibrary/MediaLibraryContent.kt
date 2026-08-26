@@ -93,6 +93,8 @@ import app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight
 import app.gyrolet.mpvrx.ui.browser.NavigationBarState
 import app.gyrolet.mpvrx.ui.browser.components.BrowserBottomBar
 import app.gyrolet.mpvrx.ui.browser.components.BrowserTopBar
+import app.gyrolet.mpvrx.ui.browser.components.QueueInsertion
+import app.gyrolet.mpvrx.ui.browser.components.addVideosToPlaybackQueue
 import app.gyrolet.mpvrx.ui.browser.dialogs.AddToPlaylistDialog
 import app.gyrolet.mpvrx.ui.browser.dialogs.DeleteConfirmationDialog
 import app.gyrolet.mpvrx.ui.browser.dialogs.FileOperationProgressDialog
@@ -109,7 +111,7 @@ import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.player.PlaybackIdentity
 import app.gyrolet.mpvrx.ui.player.PlaybackItem
-import app.gyrolet.mpvrx.ui.player.PlaybackSession
+import app.gyrolet.mpvrx.ui.player.PreparedPlaybackLaunchStore
 import app.gyrolet.mpvrx.ui.player.PlayerActivity
 import app.gyrolet.mpvrx.ui.securefolder.SecureFolderGateScreen
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
@@ -338,7 +340,7 @@ fun MediaLibraryContent(forceAudio: Boolean = false) {
         mimeType = item.mimeType,
       )
     }
-    PlaybackSession.replaceQueue(
+    val launchToken = PreparedPlaybackLaunchStore.stage(
       items = queueItems,
       currentIndex = index,
       isExplicitQueue = true,
@@ -350,6 +352,7 @@ fun MediaLibraryContent(forceAudio: Boolean = false) {
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         putExtra("internal_launch", true)
         putExtra(PlayerActivity.EXTRA_PREPARED_PLAYBACK_QUEUE, true)
+        putExtra(PlayerActivity.EXTRA_PREPARED_PLAYBACK_TOKEN, launchToken)
         putExtra("playlist_id", ALL_VIDEOS_PLAYLIST_ID)
         putExtra("playlist_index", index)
         putExtra("launch_source", "media_library")
@@ -752,6 +755,16 @@ fun MediaLibraryContent(forceAudio: Boolean = false) {
           onRenameClick = { renameDialogOpen.value = true },
           onDeleteClick = { deleteDialogOpen.value = true },
           onAddToPlaylistClick = { addToPlaylistDialogOpen.value = true },
+          onPlayNextClick = {
+            if (addVideosToPlaybackQueue(context, selectionManager.getSelectedItems(), QueueInsertion.PlayNext)) {
+              selectionManager.clear()
+            }
+          },
+          onAddToQueueClick = {
+            if (addVideosToPlaybackQueue(context, selectionManager.getSelectedItems(), QueueInsertion.AddToEnd)) {
+              selectionManager.clear()
+            }
+          },
           showCopy = true,
           showMove = true,
           showDownscale = selectionManager.getSelectedItems().let { items -> items.isNotEmpty() && items.none { it.isAudio } },

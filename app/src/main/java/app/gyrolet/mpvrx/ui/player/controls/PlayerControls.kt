@@ -9,6 +9,7 @@
 
 package app.gyrolet.mpvrx.ui.player.controls
 
+import app.gyrolet.mpvrx.ui.player.PlaybackPhase
 import app.gyrolet.mpvrx.ui.player.PlaybackSession
 import app.gyrolet.mpvrx.domain.torrent.TorrentStreamingState
 
@@ -114,6 +115,7 @@ import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.AiPreferences
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.AudioPreferences
+import app.gyrolet.mpvrx.preferences.PlayerButton
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import app.gyrolet.mpvrx.preferences.PortraitPlaybackControlsPosition
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
@@ -144,8 +146,6 @@ import app.gyrolet.mpvrx.ui.player.controls.components.TextPlayerUpdate
 import app.gyrolet.mpvrx.ui.player.controls.components.VolumeSlider
 import app.gyrolet.mpvrx.ui.player.controls.components.rememberBufferingState
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.toFixed
-import app.gyrolet.mpvrx.ui.player.getTrackSelectionId
-import app.gyrolet.mpvrx.ui.player.setTrackSelectionId
 import app.gyrolet.mpvrx.ui.theme.AppMotion
 import app.gyrolet.mpvrx.ui.theme.controlColor
 import app.gyrolet.mpvrx.ui.theme.playerRippleConfiguration
@@ -205,6 +205,7 @@ fun PlayerControls(
   val areControlsLocked by viewModel.areControlsLocked.collectAsState()
   val seekBarShown by viewModel.seekBarShown.collectAsState()
   val paused by PlaybackSession.propBoolean["pause"].collectAsState()
+  val playbackSessionState by PlaybackSession.state.collectAsStateWithLifecycle()
   val duration by PlaybackSession.propInt["duration"].collectAsState()
   val playbackQueue by PlaybackSession.queue.collectAsStateWithLifecycle()
   val preciseDuration by viewModel.preciseDuration.collectAsState()
@@ -231,7 +232,7 @@ fun PlayerControls(
       enabled = showLoadingCircle,
       // A torrent that has not produced a playable range yet never reaches mpv, so the engine's own
       // connecting phase has to drive the spinner directly.
-      forceVisible = isTorrentConnecting,
+      forceVisible = isTorrentConnecting || playbackSessionState.phase == PlaybackPhase.LOADING,
     )
   val isMpvBuffering = bufferingState.isCacheStall
   val safeAreaWindow by playerPreferences.safeAreaWindow.collectAsState()
@@ -250,7 +251,10 @@ fun PlayerControls(
   var isSeeking by remember { mutableStateOf(false) }
   val mpvSeeking by PlaybackSession.propBoolean["seeking"].collectAsState()
   val isPlayerSeeking = isSeeking || (mpvSeeking ?: false)
-  val showBufferingIndicator = bufferingState.visible && controlsShown && !isPlayerSeeking
+  val showBufferingIndicator =
+    bufferingState.visible &&
+      (controlsShown || playbackSessionState.phase == PlaybackPhase.LOADING) &&
+      !isPlayerSeeking
   var stableDemuxerCacheTime by remember { mutableFloatStateOf(0f) }
   val currentDemuxerCacheTime =
     demuxerCacheTime
@@ -286,6 +290,7 @@ fun PlayerControls(
   val haptic = LocalHapticFeedback.current
 
   val customButtons by viewModel.customButtons.collectAsState()
+  val showVideoQualitySelector by viewModel.showVideoQualitySelector.collectAsState()
 
   val abLoop by viewModel.abLoopState.collectAsState()
   val abLoopA = abLoop.a
@@ -355,13 +360,7 @@ fun PlayerControls(
         onRemoveSubtitle = viewModel::removeSubtitle,
         audioTracks = audioTracks.toImmutableList(),
         onAddAudio = viewModel::addAudio,
-        onSelectAudio = {
-          if (getTrackSelectionId("aid") == it.id) {
-            setTrackSelectionId("aid", null)
-          } else {
-            setTrackSelectionId("aid", it.id)
-          }
-        },
+        onSelectAudio = viewModel::selectAudioTrack,
         chapter = chapters.getOrNull(currentChapter ?: 0),
         chapters = chapters.toImmutableList(),
         onSeekToChapter = {
@@ -419,6 +418,13 @@ fun PlayerControls(
     remember(portraitBottomControlsPref) {
       appearancePreferences.parseButtons(portraitBottomControlsPref, mutableSetOf())
     }
+  val landscapeHasConfiguredQualityButton =
+    remember(topRightButtons, bottomRightButtons, bottomLeftButtons) {
+      PlayerButton.VIDEO_QUALITY in topRightButtons ||
+        PlayerButton.VIDEO_QUALITY in bottomRightButtons ||
+        PlayerButton.VIDEO_QUALITY in bottomLeftButtons
+    }
+  val portraitHasConfiguredQualityButton = PlayerButton.VIDEO_QUALITY in portraitBottomButtons
 
   var isUnlockSliderDragging by remember { mutableStateOf(false) }
 
@@ -893,6 +899,7 @@ fun PlayerControls(
           val showPortraitCustomButtons = areButtonsVisible && isPortrait && customButtons.isNotEmpty()
           val customButtonsRowVerticalPadding = 2.dp
           val skipChipToButtonsSpacing = 4.dp
+          val bottomControlsToSeekbarSpacing = spacing.smaller
           val bottomRightControlsBottomOffset =
             if (bottomRightControlsTopPx != null && controlsLayoutHeightPx > 0) {
               with(density) {
@@ -1548,7 +1555,7 @@ fun PlayerControls(
               position = displayedSeekbarPosition,
               committedPosition = precisePosition,
               duration = if (preciseDuration > 0) preciseDuration else duration?.toFloat() ?: 0f,
-              remaining = remaining?.toFloat() ?: 0f,
+              remaining = remaining ?: 0f,
               onValueChange = {
                 isSeeking = true
                 resetControlsTimestamp = System.currentTimeMillis()
@@ -1580,6 +1587,7 @@ fun PlayerControls(
               paused = paused ?: false,
               seekbarStyle = seekbarStyle,
               useWavySeekbar = useWavySeekbar,
+              timerTextColor = Color.White,
               loopStart = abLoopA?.toFloat(),
               loopEnd = abLoopB?.toFloat(),
               bufferDuration = stableDemuxerCacheTime.takeIf { showBufferedRange && it > 0f },
@@ -1747,7 +1755,7 @@ fun PlayerControls(
                     end.linkTo(parent.end, spacing.large)
                     width = Dimension.fillToConstraints
                   } else {
-                    bottom.linkTo(seekbar.top, spacing.medium)
+                    bottom.linkTo(seekbar.top, bottomControlsToSeekbarSpacing)
                     end.linkTo(parent.end, spacing.large)
                   }
                 }.onGloballyPositioned { coordinates ->
@@ -1757,6 +1765,7 @@ fun PlayerControls(
             if (isPortrait) {
               BottomPlayerControlsPortrait(
                 buttons = portraitBottomButtons,
+                showVideoQualitySelector = showVideoQualitySelector && !portraitHasConfiguredQualityButton,
                 chapters = chapters,
                 currentChapter = currentChapter,
                 isSpeedNonOne = isSpeedNonOne,
@@ -1775,6 +1784,7 @@ fun PlayerControls(
             } else {
               BottomRightPlayerControlsLandscape(
                 buttons = bottomRightButtons,
+                showVideoQualitySelector = showVideoQualitySelector && !landscapeHasConfiguredQualityButton,
                 chapters = chapters,
                 currentChapter = currentChapter,
                 isSpeedNonOne = isSpeedNonOne,
@@ -1810,7 +1820,7 @@ fun PlayerControls(
                     Modifier
                   },
                 ).constrainAs(bottomLeftControls) {
-                  bottom.linkTo(seekbar.top, spacing.medium)
+                  bottom.linkTo(seekbar.top, bottomControlsToSeekbarSpacing)
                   start.linkTo(parent.start, spacing.large)
                   width = Dimension.fillToConstraints
                   end.linkTo(bottomRightControls.start, spacing.small)
@@ -1859,13 +1869,7 @@ fun PlayerControls(
       onRemoveSubtitle = viewModel::removeSubtitle,
       audioTracks = audioTracks.toImmutableList(),
       onAddAudio = viewModel::addAudio,
-      onSelectAudio = {
-        if (getTrackSelectionId("aid") == it.id) {
-          setTrackSelectionId("aid", null)
-        } else {
-          setTrackSelectionId("aid", it.id)
-        }
-      },
+      onSelectAudio = viewModel::selectAudioTrack,
       chapter = chapters.getOrNull(currentChapter ?: 0),
       chapters = chapters.toImmutableList(),
       onSeekToChapter = {

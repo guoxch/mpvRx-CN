@@ -40,6 +40,7 @@ import app.gyrolet.mpvrx.ui.player.controls.components.sheets.PlaybackSpeedSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.PlaylistSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.SubtitlesSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.VideoZoomSheet
+import app.gyrolet.mpvrx.ui.player.controls.components.sheets.VideoQualitySheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.VisualizerStyleSheet
 import app.gyrolet.mpvrx.ui.player.setTrackSelectionId
 import dev.vivvvek.seeker.Segment
@@ -344,6 +345,15 @@ fun PlayerSheets(
         audioChannelsEnabled = "audio-channels" !in configOwnedOptions,
         reverseStereoEnabled = "af" !in configOwnedOptions,
         audioEffectsEnabled = "af" !in configOwnedOptions,
+        onDismissRequest = onDismissRequest,
+      )
+    }
+
+    Sheets.VideoQuality -> {
+      val videoQualityTracks by viewModel.videoQualityTracks.collectAsState()
+      VideoQualitySheet(
+        tracks = videoQualityTracks,
+        onSelect = viewModel::selectVideoQuality,
         onDismissRequest = onDismissRequest,
       )
     }

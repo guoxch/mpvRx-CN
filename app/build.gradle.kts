@@ -21,6 +21,12 @@ val activeAbis =
     else -> listOf("arm64-v8a", "armeabi-v7a") + x86Abis
   }
 val universalOnlyDistributions = setOf("noVulkan", "fongmi")
+val releaseVersionCode = 230
+val versionCodeBandSize = 10_000
+val stableVersionCode = releaseVersionCode * versionCodeBandSize + (versionCodeBandSize - 1)
+val previewVersionCode =
+  (releaseVersionCode + 1) * versionCodeBandSize +
+    (getCommitCount().toIntOrNull() ?: 1).coerceIn(1, versionCodeBandSize - 2)
 
 plugins {
   alias(libs.plugins.android.application)
@@ -40,8 +46,10 @@ android {
     applicationId = "app.gyrolet.mpvrx"
     minSdk = 26
     targetSdk = 36
-    versionCode = 222
-    versionName = "2.2.2"
+    // Stable occupies the top of its version band. Preview uses the next band's commit-count
+    // offset, so Stable -> Preview -> newer Preview -> next Stable is always an Android upgrade.
+    versionCode = stableVersionCode
+    versionName = "2.3.0"
 
     vectorDrawables {
       useSupportLibrary = true
@@ -108,6 +116,7 @@ android {
 
   buildTypes {
     named("release") {
+      buildConfigField("boolean", "IS_PREVIEW_BUILD", "false")
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(
@@ -122,11 +131,12 @@ android {
     create("preview") {
       initWith(getByName("release"))
       signingConfig = null
-      applicationIdSuffix = ".preview"
-      versionNameSuffix = "-${getCommitCount()}"
+      buildConfigField("boolean", "IS_PREVIEW_BUILD", "true")
+      versionNameSuffix = "-beta.r${getCommitCount()}"
     }
 
     named("debug") {
+      buildConfigField("boolean", "IS_PREVIEW_BUILD", "false")
       applicationIdSuffix = ".debug"
       versionNameSuffix = "-${getCommitCount()}"
       resValue("string", "app_name", "mpvRx-Debug")
@@ -199,9 +209,9 @@ androidComponents {
         output.enabled.set(false)
       }
 
-      output.versionCode.set(
-        (output.versionCode.orNull ?: 0) * 10 + (abiCodes[abi] ?: 0),
-      )
+      val channelVersionCode =
+        if (variant.buildType == "preview") previewVersionCode else (output.versionCode.orNull ?: stableVersionCode)
+      output.versionCode.set(channelVersionCode * 10 + (abiCodes[abi] ?: 0))
     }
   }
 }

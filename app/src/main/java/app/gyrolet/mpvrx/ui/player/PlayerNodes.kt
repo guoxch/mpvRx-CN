@@ -37,6 +37,7 @@ data class TrackNode(
   @SerialName("hearing-impaired") val hearingImpaired: Boolean? = null,
   @SerialName("hls-bitrate") val hlsBitrate: Long? = null,
   @SerialName("program-id") val programId: Long? = null,
+  @SerialName("program-ids") val programIds: List<Long>? = null,
   val selected: Boolean? = null,
   @SerialName("main-selection") val mainSelection: Long? = null,
   val external: Boolean? = null,
@@ -76,6 +77,12 @@ data class TrackNode(
   val isSubtitle = type == "sub"
   val isSelected = selected == true
 
+  val effectiveBitrate: Long?
+    get() = demuxBitrate?.takeIf { it > 0L } ?: hlsBitrate?.takeIf { it > 0L }
+
+  val effectiveProgramIds: List<Long>
+    get() = programIds?.takeIf { it.isNotEmpty() } ?: listOfNotNull(programId)
+
   val effectiveTitle: String?
     get() =
       title?.takeIf { it.isNotBlank() }
@@ -86,4 +93,12 @@ data class TrackNode(
     get() =
       lang?.takeIf { it.isNotBlank() }
         ?: metadata?.entries?.firstOrNull { it.key.equals("language", ignoreCase = true) || it.key.equals("lang", ignoreCase = true) }?.value?.takeIf { it.isNotBlank() }
+
+  val ytdlFormatId: String?
+    get() =
+      YTDL_FORMAT_ID_REGEX.find(effectiveTitle.orEmpty())?.groupValues?.getOrNull(1)
+        ?: YTDL_MUXED_FORMAT_ID_REGEX.find(effectiveTitle.orEmpty())?.groupValues?.getOrNull(1)
 }
+
+private val YTDL_FORMAT_ID_REGEX = Regex("""^\s*([^\s]+)\s+-\s+""")
+private val YTDL_MUXED_FORMAT_ID_REGEX = Regex("""(?:^|\s)muxed-([^\s]+)(?:\s|$)""")

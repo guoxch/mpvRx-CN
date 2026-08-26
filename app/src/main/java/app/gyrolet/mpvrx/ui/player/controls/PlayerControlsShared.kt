@@ -49,15 +49,18 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.AudioPreferences
 import app.gyrolet.mpvrx.preferences.MpvConfigControlledFeatures
@@ -70,6 +73,7 @@ import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.player.Panels
 import app.gyrolet.mpvrx.ui.player.PlayerActivity
 import app.gyrolet.mpvrx.ui.player.PlayerViewModel
+import app.gyrolet.mpvrx.ui.player.clip.ClipOverlayView
 import app.gyrolet.mpvrx.ui.player.Sheets
 import app.gyrolet.mpvrx.ui.player.VideoAspect
 import app.gyrolet.mpvrx.ui.player.controls.components.AbLoopIcon
@@ -661,6 +665,19 @@ fun RenderPlayerButton(
       )
     }
 
+    PlayerButton.VIDEO_QUALITY -> {
+      val showVideoQualitySelector by viewModel.showVideoQualitySelector.collectAsState()
+      if (showVideoQualitySelector) {
+        ControlsButton(
+          icon = button.icon,
+          onClick = { onOpenSheet(Sheets.VideoQuality) },
+          title = stringResource(R.string.player_video_quality_button),
+          color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
+          modifier = Modifier.size(buttonSize),
+        )
+      }
+    }
+
     PlayerButton.AUDIO_TRACK -> {
       val outputConfigOwned = isMpvOptionOwnedByConfig("audio-delay")
       ControlsButton(
@@ -689,6 +706,19 @@ fun RenderPlayerButton(
         Icons.RoundedFilled.MoreVert,
         onClick = { onOpenSheet(Sheets.More) },
         onLongClick = { onOpenPanel(Panels.VideoFilters) },
+        color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.size(buttonSize),
+      )
+    }
+
+    PlayerButton.CLIP -> {
+      val clipOverlay = remember(activity) { ClipOverlayView.ensureAttached(activity) }
+      ControlsButton(
+        icon = button.icon,
+        onClick = {
+          if (clipOverlay.openClip()) onOpenPanel(Panels.Clip)
+        },
+        title = androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.clip_action),
         color = if (hideBackground) controlColor else MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.size(buttonSize),
       )

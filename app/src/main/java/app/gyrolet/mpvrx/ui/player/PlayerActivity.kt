@@ -3748,8 +3748,6 @@ class PlayerActivity :
   /** "阅后即焚" — auto-delete network files after playback ends. */
   private fun burnAfterReadingIfEnabled(burnedIdx: Int) {
     if (!viewModel.autoDeleteAfterPlay.value) return
-    val uri = intent.data ?: return
-    if (!HttpUtils.isNetworkStream(uri)) return
     val queueItem = PlaybackSession.queue.value.items.getOrNull(burnedIdx)
     val networkSource = queueItem?.networkSource
     val networkFilePath =

@@ -208,18 +208,39 @@ class WebDavClient(
   override suspend fun getFileSize(path: String): Result<Long> =
     withContext(Dispatchers.IO) {
       try {
-        val client = sardine ?: return@withContext Result.failure(IOException("Not connected"))
-        val resources = client.list(buildUrl(NetworkPath.from(path).value), 0)
-        val resource = resources.firstOrNull()
-        if (resource == null || resource.isDirectory) {
-          Result.failure(IOException("File not found or is a directory"))
+        val url = buildUrl(NetworkPath.from(path).value)
+        val xmlBody =
+          """<?xml version="1.0" encoding="utf-8"?>
+          |<D:propfind xmlns:D="DAV:">
+          |  <D:prop>
+          |    <D:getcontentlength/>
+          |  </D:prop>
+          |</D:propfind>""".trimMargin()
+
+        val requestBuilder =
+          Request
+            .Builder()
+            .url(url)
+            .addHeader("Depth", "0")
+            .method("PROPFIND", xmlBody.toRequestBody("application/xml".toMediaType()))
+
+        if (!connection.isAnonymous) {
+          requestBuilder.addHeader("Authorization", Credentials.basic(connection.username, connection.password))
+        }
+
+        val response = rangeHttpClient.newCall(requestBuilder.build()).execute()
+        val body = response.use { it.body.string() }
+        val size =
+          Regex("<D:getcontentlength>(\\d+)</D:getcontentlength>")
+            .find(body)
+            ?.groupValues
+            ?.get(1)
+            ?.toLongOrNull()
+
+        if (size != null && size >= 0L) {
+          Result.success(size)
         } else {
-          val size = resource.contentLength
-          if (size == null || size < 0L) {
-            Result.failure(IOException("WebDAV server did not provide a file size"))
-          } else {
-            Result.success(size)
-          }
+          Result.failure(IOException("File not found or size unavailable"))
         }
       } catch (cancellation: CancellationException) {
         throw cancellation

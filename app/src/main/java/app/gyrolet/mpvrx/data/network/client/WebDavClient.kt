@@ -169,7 +169,7 @@ class WebDavClient(
       }
 
       val response = rangeHttpClient.newCall(requestBuilder.build()).execute()
-      val body = response.use { it.body?.string() } ?: return emptyList()
+      val body = response.use { it.body.string() }
 
       // Regex-based extraction — avoids XML parser issues with special chars
       val responseBlocks = body.split("<D:response>").drop(1)

@@ -228,6 +228,31 @@ internal object PlaybackQueueReducer {
     additions: List<PlaybackItem>,
   ): PlaybackQueueState? = insert(previous, additions, playNext = false)
 
+  fun remove(
+    previous: PlaybackQueueState,
+    index: Int,
+  ): PlaybackQueueState? {
+    if (index !in previous.items.indices) return null
+    val removed = previous.items.toMutableList().apply { removeAt(index) }
+    if (removed.isEmpty()) {
+      return previous.copy(
+        items = emptyList(),
+        currentIndex = -1,
+        isExplicitQueue = false,
+        isM3u = false,
+        shuffleOrder = emptyList(),
+        shufflePosition = -1,
+      )
+    }
+    val newCurrentIndex =
+      when {
+        index == previous.currentIndex -> index.coerceAtMost(removed.lastIndex)
+        index < previous.currentIndex -> previous.currentIndex - 1
+        else -> previous.currentIndex
+      }
+    return rebuildShuffle(previous.copy(items = removed, currentIndex = newCurrentIndex))
+  }
+
   fun setRepeatMode(
     previous: PlaybackQueueState,
     repeatMode: RepeatMode,

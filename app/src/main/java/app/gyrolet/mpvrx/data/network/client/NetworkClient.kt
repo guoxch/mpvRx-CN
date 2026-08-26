@@ -58,4 +58,12 @@ interface NetworkClient {
    * so secrets never enter intents, playlists, history, or logs.
    */
   suspend fun getFileUri(path: String): Result<Uri>
+
+  /**
+   * Delete a file on the remote server.
+   *
+   * Default: unsupported. Override in clients that support it (e.g. WebDAV).
+   */
+  suspend fun deleteFile(path: String): Result<Unit> =
+    Result.failure(UnsupportedOperationException("Delete is not supported by this client"))
 }

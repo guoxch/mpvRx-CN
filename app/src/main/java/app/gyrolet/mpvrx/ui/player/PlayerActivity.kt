@@ -83,6 +83,7 @@ import app.gyrolet.mpvrx.domain.playbackstate.repository.PlaybackStateRepository
 import app.gyrolet.mpvrx.domain.torrent.TorrentStreamRequest
 import app.gyrolet.mpvrx.domain.torrent.TorrentStreamException
 import app.gyrolet.mpvrx.domain.torrent.TorrentStreamResult
+import app.gyrolet.mpvrx.repository.NetworkRepository
 import app.gyrolet.mpvrx.domain.torrent.TorrentStreamingEngine
 import app.gyrolet.mpvrx.domain.torrent.canonicalInfoHash
 import app.gyrolet.mpvrx.domain.torrent.isTorrentSource
@@ -220,6 +221,8 @@ class PlayerActivity :
   private val torrentStreamingEngine: TorrentStreamingEngine by inject()
 
   private val networkStreamEntryRepository: NetworkStreamEntryRepository by inject()
+
+  private val networkRepository: NetworkRepository by inject()
 
   private val networkHttpClient: OkHttpClient by inject()
 
@@ -3679,8 +3682,11 @@ class PlayerActivity :
     if (isAdvancingAtEof) return
     if (isBackgroundPlaybackSessionActive || !MediaPlaybackService.activityForeground) return
 
+    val burnedIdx = playlistIndex
+
     val repeatMode = viewModel.repeatMode.value
     if (repeatMode == RepeatMode.ONE) {
+      burnAfterReadingIfEnabled(burnedIdx)
       restartCurrentAtEof()
       return
     }
@@ -3697,6 +3703,7 @@ class PlayerActivity :
       } else {
         finishAtEofIfRequested()
       }
+      burnAfterReadingIfEnabled(burnedIdx)
       return
     }
 
@@ -3714,6 +3721,7 @@ class PlayerActivity :
                 repeatAll -> restartCurrentAtEof()
                 else -> finishAtEofIfRequested()
               }
+              burnAfterReadingIfEnabled(burnedIdx)
             }
           }
         return
@@ -3721,6 +3729,7 @@ class PlayerActivity :
     }
 
     if (repeatAll) restartCurrentAtEof() else finishAtEofIfRequested()
+    burnAfterReadingIfEnabled(burnedIdx)
   }
 
   private fun restartCurrentAtEof() {
@@ -3733,6 +3742,56 @@ class PlayerActivity :
     isAdvancingAtEof = false
     if (playerPreferences.closeAfterReachingEndOfVideo.get()) {
       finishAndRemoveTask()
+    }
+  }
+
+  /** "阅后即焚" — auto-delete network files after playback ends. */
+  private fun burnAfterReadingIfEnabled(burnedIdx: Int) {
+    if (!viewModel.autoDeleteAfterPlay.value) return
+    val uri = intent.data ?: return
+    if (!HttpUtils.isNetworkStream(uri)) return
+    val queueItem = PlaybackSession.queue.value.items.getOrNull(burnedIdx)
+    val networkSource = queueItem?.networkSource
+    val networkFilePath =
+      networkSource?.relativePath
+        ?: networkPlaylistPaths.getOrNull(burnedIdx)?.takeIf { it.isNotBlank() }
+        ?: intent.getStringExtra("network_file_path") ?: return
+    val connId =
+      networkSource?.connectionId
+        ?: if (networkPlaylistConnectionId != -1L) networkPlaylistConnectionId
+        else intent.getLongExtra("network_connection_id", -1L)
+    if (connId == -1L) return
+    lifecycleScope.launch(Dispatchers.IO) {
+      val conn = networkRepository.getConnectionById(connId) ?: return@launch
+      suspend fun doDelete() = networkRepository.deleteFile(conn, networkFilePath)
+      var result = doDelete()
+      if (result.isFailure) {
+        result =
+          networkRepository.connect(conn).fold(
+            onSuccess = { doDelete() },
+            onFailure = { Result.failure(it) },
+          )
+      }
+      withContext(Dispatchers.Main) {
+        result.fold(
+          onSuccess = {
+            Toast.makeText(
+              this@PlayerActivity,
+              getString(R.string.burn_after_reading_deleted, networkFilePath.substringAfterLast("/")),
+              Toast.LENGTH_SHORT,
+            ).show()
+            PlaybackSession.removeQueueItem(burnedIdx)
+            viewModel.refreshPlaylistItems()
+          },
+          onFailure = {
+            Toast.makeText(
+              this@PlayerActivity,
+              "${getString(R.string.toast_playback_load_failed)}: ${it.message}",
+              Toast.LENGTH_LONG,
+            ).show()
+          },
+        )
+      }
     }
   }
 

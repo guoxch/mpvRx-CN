@@ -1927,4 +1927,7 @@
   <string name="queue_added_next">已将 %1$d 项添加到播放队列</string>
   <string name="queue_requires_playback">请先开始播放，再向队列添加项目</string>
   <string name="ui_audio_tab">音频</string>
+  <string name="burn_after_reading">阅后即焚</string>
+  <string name="burn_after_reading_desc">播放结束后自动删除网络视频文件</string>
+  <string name="burn_after_reading_deleted">文件已删除: %s</string>
 </resources>

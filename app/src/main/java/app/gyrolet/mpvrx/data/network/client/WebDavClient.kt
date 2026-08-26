@@ -321,4 +321,31 @@ class WebDavClient(
         Result.failure(error)
       }
     }
+
+  override suspend fun deleteFile(path: String): Result<Unit> =
+    withContext(Dispatchers.IO) {
+      try {
+        val url = buildUrl(NetworkPath.from(path).value)
+        val requestBuilder =
+          Request
+            .Builder()
+            .url(url)
+            .delete()
+
+        if (!connection.isAnonymous) {
+          requestBuilder.addHeader("Authorization", Credentials.basic(connection.username, connection.password))
+        }
+
+        val response = rangeHttpClient.newCall(requestBuilder.build()).execute()
+        if (response.isSuccessful) {
+          Result.success(Unit)
+        } else {
+          Result.failure(IOException("WebDAV delete failed with HTTP ${response.code}"))
+        }
+      } catch (cancellation: CancellationException) {
+        throw cancellation
+      } catch (error: Exception) {
+        Result.failure(error)
+      }
+    }
 }

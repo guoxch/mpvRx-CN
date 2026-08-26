@@ -286,6 +286,73 @@ class NetworkRepository(
       }
     }
 
+  suspend fun deleteFile(
+    connection: NetworkConnection,
+    path: String,
+  ): Result<Unit> =
+    withContext(Dispatchers.IO) {
+      clientLifecycleMutex.withLock {
+        try {
+          val stored = dao.getConnectionById(connection.id) ?: connection
+          val resolved = resolveCredential(stored)
+          var client = activeClients[connection.id]
+
+          if (client == null || !client.isConnected()) {
+            activeClients.remove(connection.id)?.let { closeClient(it) }
+            val candidate = clientFactory(resolved)
+            try {
+              candidate.connect().getOrThrow()
+              activeClients[connection.id] = candidate
+              client = candidate
+              updateConnectionStatus(
+                connection.id,
+                ConnectionStatus(connectionId = connection.id, isConnected = true),
+              )
+            } catch (e: CancellationException) {
+              closeClient(candidate)
+              throw e
+            } catch (e: Exception) {
+              closeClient(candidate)
+              throw e
+            }
+          }
+
+          val readyClient = checkNotNull(client)
+          readyClient.deleteFile(path).also { result ->
+            result.exceptionOrNull()?.let { error ->
+              if (error is CancellationException) throw error
+              val stillConnected = readyClient.isConnected()
+              if (!stillConnected) {
+                activeClients.remove(connection.id, readyClient)
+                closeClient(readyClient)
+              }
+              updateConnectionStatus(
+                connection.id,
+                ConnectionStatus(
+                  connectionId = connection.id,
+                  isConnected = stillConnected,
+                  error = error.safeMessage(),
+                ),
+              )
+            }
+          }
+        } catch (e: CancellationException) {
+          restoreIdleStatus(connection.id)
+          throw e
+        } catch (e: Exception) {
+          updateConnectionStatus(
+            connection.id,
+            ConnectionStatus(
+              connectionId = connection.id,
+              isConnected = hasConnectedClient(connection.id),
+              error = e.safeMessage(),
+            ),
+          )
+          Result.failure(e)
+        }
+      }
+    }
+
   fun getActiveClient(connectionId: Long): NetworkClient? = activeClients[connectionId]
 
   fun isConnected(connectionId: Long): Boolean = hasConnectedClient(connectionId)

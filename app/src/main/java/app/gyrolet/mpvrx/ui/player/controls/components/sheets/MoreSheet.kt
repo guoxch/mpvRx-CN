@@ -14,6 +14,7 @@ import app.gyrolet.mpvrx.ui.player.PlaybackSession
 import android.content.res.Configuration
 import android.text.format.DateUtils
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -37,6 +38,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimeInput
@@ -79,6 +81,8 @@ fun MoreSheet(
   filtersEnabled: Boolean = true,
   equalizerEnabled: Boolean = true,
   anime4KEnabled: Boolean = true,
+  onAutoDeleteToggle: ((Boolean) -> Unit)? = null,
+  autoDeleteAfterPlay: Boolean = false,
   modifier: Modifier = Modifier,
 ) {
   val advancedPreferences = koinInject<AdvancedPreferences>()
@@ -271,6 +275,35 @@ fun MoreSheet(
             },
             selected = statisticsPage == page,
             leadingIcon = null,
+          )
+        }
+      }
+
+      // Burn-after-reading toggle
+      if (onAutoDeleteToggle != null) {
+        Row(
+          modifier =
+            Modifier
+              .fillMaxWidth()
+              .clickable { onAutoDeleteToggle(!autoDeleteAfterPlay) }
+              .padding(vertical = 12.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = stringResource(R.string.burn_after_reading),
+              style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+              text = stringResource(R.string.burn_after_reading_desc),
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
+          Switch(
+            checked = autoDeleteAfterPlay,
+            onCheckedChange = onAutoDeleteToggle,
           )
         }
       }

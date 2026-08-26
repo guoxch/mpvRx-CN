@@ -377,6 +377,7 @@ fun PlayerSheets(
 
     Sheets.More -> {
       val anime4KUiState by viewModel.anime4KUiState.composeCollectAsState()
+      val autoDeleteAfterPlay by viewModel.autoDeleteAfterPlay.composeCollectAsState()
       MoreSheet(
         remainingTime = sleepTimerTimeRemaining,
         onStartTimer = onStartSleepTimer,
@@ -389,6 +390,8 @@ fun PlayerSheets(
         filtersEnabled = !MpvConfigOverride.VIDEO_FILTERS.optionNames.all(configOwnedOptions::contains),
         equalizerEnabled = "af" !in configOwnedOptions,
         anime4KEnabled = MpvConfigControlledFeatures.ANIME4K.none(configOwnedOptions::contains),
+        onAutoDeleteToggle = { viewModel.toggleAutoDeleteAfterPlay() },
+        autoDeleteAfterPlay = autoDeleteAfterPlay,
       )
     }
 

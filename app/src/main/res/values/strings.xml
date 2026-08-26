@@ -1920,4 +1920,7 @@
   <string name="seerr_tab_movies">Movies</string>
   <string name="seerr_tab_tv">TV Shows</string>
   <string name="seerr_tab_my_requests">My Requests</string>
+  <string name="burn_after_reading">Burn After Reading</string>
+  <string name="burn_after_reading_desc">Auto-delete network video files after playback ends</string>
+  <string name="burn_after_reading_deleted">File deleted: %s</string>
 </resources>

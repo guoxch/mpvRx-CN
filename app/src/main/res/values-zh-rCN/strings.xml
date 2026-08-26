@@ -1916,4 +1916,15 @@
   <string name="player_video_quality">视频质量</string>
   <string name="player_video_quality_summary">选择此流可用的视频质量。</string>
   <string name="player_video_quality_button">视频质量</string>
+  <string name="ambient_style_youtube">YouTube</string>
+  <string name="ambient_youtube_auto_hint">YouTube 模式完全自动——光条由当前帧的柔和模糊投影点亮，就像 YouTube 的 Ambient Mode 一样。</string>
+  <string name="clip_end_short">结束</string>
+  <string name="clip_start_short">开始</string>
+  <string name="pref_mpv_conf_ownership_active">%1$d 个选项遵循 mpv.conf</string>
+  <string name="pref_mpv_conf_ownership_hint">勾选的选项将从 mpv.conf 读取并在应用中锁定。</string>
+  <string name="pref_mpv_conf_ownership_inactive">所有设置由应用控制</string>
+  <string name="queue_added_end">已将 %1$d 项添加到队列末尾</string>
+  <string name="queue_added_next">已将 %1$d 项添加到播放队列</string>
+  <string name="queue_requires_playback">请先开始播放，再向队列添加项目</string>
+  <string name="ui_audio_tab">音频</string>
 </resources>

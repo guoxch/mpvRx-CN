@@ -22,7 +22,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Credentials
 import okhttp3.HttpUrl
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.io.InputStream
 import java.util.concurrent.TimeUnit
@@ -120,13 +122,88 @@ class WebDavClient(
               }.getOrNull()
             }
 
-        Result.success(files)
+        val result =
+          if (files.isEmpty()) {
+            rawPropfindFiles(directory, directoryUrl)
+          } else {
+            files
+          }
+
+        Result.success(result)
       } catch (cancellation: CancellationException) {
         throw cancellation
       } catch (error: Exception) {
         Result.failure(error)
       }
     }
+
+  /**
+   * Raw PROPFIND fallback — bypasses Sardine's XML parser which may drop entries with [ ] in filenames.
+   */
+  private fun rawPropfindFiles(
+    directory: NetworkPath,
+    url: String,
+  ): List<NetworkFile> {
+    return try {
+      val xmlBody =
+        """<?xml version="1.0" encoding="utf-8"?>
+        |<D:propfind xmlns:D="DAV:">
+        |  <D:prop>
+        |    <D:displayname/>
+        |    <D:getcontentlength/>
+        |    <D:getlastmodified/>
+        |    <D:getcontenttype/>
+        |    <D:resourcetype/>
+        |  </D:prop>
+        |</D:propfind>""".trimMargin()
+
+      val requestBuilder =
+        Request
+          .Builder()
+          .url(url)
+          .addHeader("Depth", "1")
+          .method("PROPFIND", xmlBody.toRequestBody("application/xml".toMediaType()))
+
+      if (!connection.isAnonymous) {
+        requestBuilder.addHeader("Authorization", Credentials.basic(connection.username, connection.password))
+      }
+
+      val response = rangeHttpClient.newCall(requestBuilder.build()).execute()
+      val body = response.use { it.body?.string() } ?: return emptyList()
+
+      // Regex-based extraction — avoids XML parser issues with special chars
+      val responseBlocks = body.split("<D:response>").drop(1)
+      val dirName = directory.segments.lastOrNull().orEmpty()
+
+      responseBlocks.mapNotNull { block ->
+        val href = Regex("<D:href>(.*?)</D:href>").find(block)?.groupValues?.get(1) ?: return@mapNotNull null
+        val name =
+          Regex("<D:displayname>(.*?)</D:displayname>").find(block)?.groupValues?.get(1)
+            ?: href.substringAfterLast('/').trim('/')
+        val isDir = block.contains("<D:collection/>")
+        val size =
+          Regex("<D:getcontentlength>(\\d+)</D:getcontentlength>").find(block)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+        val mime = Regex("<D:getcontenttype>(.*?)</D:getcontenttype>").find(block)?.groupValues?.get(1)
+
+        // Skip self directory entry
+        if (name.isEmpty() || name == dirName) return@mapNotNull null
+
+        runCatching {
+          val filePath = directory.child(name)
+          NetworkFile(
+            name = name,
+            path = filePath.value,
+            isDirectory = isDir,
+            size = size,
+            lastModified = 0,
+            mimeType = if (!isDir) mime?.takeIf { it.isNotBlank() } ?: NetworkMimeTypes.forFileName(name) else null,
+          )
+        }.getOrNull()
+      }
+    } catch (e: Exception) {
+      emptyList()
+    }
+  }
 
   override suspend fun getFileSize(path: String): Result<Long> =
     withContext(Dispatchers.IO) {

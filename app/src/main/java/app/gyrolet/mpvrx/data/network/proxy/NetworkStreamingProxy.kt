@@ -355,7 +355,16 @@ class NetworkStreamingProxy private constructor() :
   private fun parseRoute(uri: String): Route? {
     val withoutLeadingSlash = uri.removePrefix("/")
     val token = withoutLeadingSlash.substringBefore('/').takeIf(String::isNotBlank) ?: return null
-    val pathText = withoutLeadingSlash.substringAfter('/', missingDelimiterValue = "")
+    val rawPathText = withoutLeadingSlash.substringAfter('/', missingDelimiterValue = "")
+    // The loopback URL is percent-encoded by URI.toASCIIString(); decode it once so the
+    // downstream WebDAV/SMB client does not re-encode it (which would double-encode non-ASCII names).
+    val pathText =
+      if (rawPathText.isBlank()) {
+        ""
+      } else {
+        runCatching { java.net.URLDecoder.decode(rawPathText.replace("+", "%2B"), "UTF-8") }
+          .getOrDefault(rawPathText)
+      }
     val path =
       if (pathText.isBlank()) {
         null

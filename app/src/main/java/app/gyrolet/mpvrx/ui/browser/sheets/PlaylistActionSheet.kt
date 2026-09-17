@@ -34,9 +34,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,8 +49,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import app.gyrolet.mpvrx.ui.browser.dialogs.AddXtreamPlaylistDialog
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.utils.media.SharedUrlExtractor
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,15 +63,17 @@ fun PlaylistActionSheet(
   onCreatePlaylist: suspend (String) -> Long,
   onCreateM3UPlaylistFromFile: suspend (Uri) -> Result<Long>,
   onCreateM3UPlaylist: suspend (String, String?) -> Result<Long>,
+  onCreateXtreamPlaylist: suspend (String, String, String) -> Result<Long>,
   context: android.content.Context,
   modifier: Modifier = Modifier,
 ) {
   var showCreateDialog by remember { mutableStateOf(false) }
   var showM3UDialog by remember { mutableStateOf(false) }
+  var showXtreamDialog by remember { mutableStateOf(false) }
 
   if (!isOpen) return
 
-  val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+  val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
 
   ModalBottomSheet(
     onDismissRequest = onDismiss,
@@ -168,7 +173,7 @@ fun PlaylistActionSheet(
             Text(
               text =
                 androidx.compose.ui.res
-                  .stringResource(app.gyrolet.mpvrx.R.string.ui_add_m3u_playlist_from_url),
+                  .stringResource(app.gyrolet.mpvrx.R.string.ui_add_playlist_from_url),
               style = MaterialTheme.typography.bodyLarge,
               fontWeight = FontWeight.Medium,
             )
@@ -177,6 +182,44 @@ fun PlaylistActionSheet(
                 androidx.compose.ui.res.stringResource(
                   app.gyrolet.mpvrx.R.string.ui_import_a_playlist_from_a_web_url,
                 ),
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
+        }
+      }
+
+      Card(
+        onClick = { showXtreamDialog = true },
+        modifier = Modifier.fillMaxWidth(),
+        colors =
+          CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+          ),
+      ) {
+        Row(
+          modifier = Modifier.fillMaxWidth().padding(16.dp),
+          horizontalArrangement = Arrangement.spacedBy(16.dp),
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          Icon(
+            imageVector = Icons.RoundedFilled.Tv,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp),
+          )
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text =
+                androidx.compose.ui.res
+                  .stringResource(app.gyrolet.mpvrx.R.string.playlist_xtream_add_action),
+              style = MaterialTheme.typography.bodyLarge,
+              fontWeight = FontWeight.Medium,
+            )
+            Text(
+              text =
+                androidx.compose.ui.res
+                  .stringResource(app.gyrolet.mpvrx.R.string.playlist_xtream_add_action_description),
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -314,14 +357,7 @@ fun PlaylistActionSheet(
         }
       }
 
-    Dialog(
-      onDismissRequest =
-        if (isLoading) {
-          {}
-        } else {
-          { showM3UDialog = false }
-        },
-    ) {
+    Dialog(onDismissRequest = { showM3UDialog = false }) {
       Card(
         modifier =
           Modifier
@@ -336,7 +372,7 @@ fun PlaylistActionSheet(
           Text(
             text =
               androidx.compose.ui.res
-                .stringResource(app.gyrolet.mpvrx.R.string.playlist_add_m3u_title),
+                .stringResource(app.gyrolet.mpvrx.R.string.playlist_add_remote_title),
             style = MaterialTheme.typography.headlineSmall,
           )
 
@@ -354,6 +390,14 @@ fun PlaylistActionSheet(
               maxLines = 3,
               modifier = Modifier.fillMaxWidth(),
               enabled = !isLoading,
+            )
+
+            Text(
+              text =
+                androidx.compose.ui.res
+                  .stringResource(app.gyrolet.mpvrx.R.string.playlist_remote_url_hint),
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             OutlinedTextField(
@@ -425,7 +469,6 @@ fun PlaylistActionSheet(
           ) {
             TextButton(
               onClick = { showM3UDialog = false },
-              enabled = !isLoading,
               shape = MaterialTheme.shapes.extraLarge,
             ) {
               Text(
@@ -436,12 +479,13 @@ fun PlaylistActionSheet(
             Spacer(modifier = Modifier.width(8.dp))
             Button(
               onClick = {
-                if (playlistUrl.isNotBlank()) {
+                val normalizedPlaylistUrl = SharedUrlExtractor.normalizeInput(playlistUrl)
+                if (normalizedPlaylistUrl.isNotBlank()) {
                   isLoading = true
                   coroutineScope.launch {
                     val result =
                       onCreateM3UPlaylist(
-                        playlistUrl.trim(),
+                        normalizedPlaylistUrl,
                         playlistUserAgent.trim().takeIf { it.isNotEmpty() },
                       )
                     result
@@ -449,7 +493,7 @@ fun PlaylistActionSheet(
                         android.widget.Toast
                           .makeText(
                             context,
-                            context.getString(app.gyrolet.mpvrx.R.string.playlist_add_success),
+                            context.getString(app.gyrolet.mpvrx.R.string.playlist_import_success),
                             android.widget.Toast.LENGTH_SHORT,
                           ).show()
                         showM3UDialog = false
@@ -458,7 +502,10 @@ fun PlaylistActionSheet(
                         android.widget.Toast
                           .makeText(
                             context,
-                            "Failed to add M3U playlist: ${error.message}",
+                            context.getString(
+                              app.gyrolet.mpvrx.R.string.playlist_import_error,
+                              error.message ?: context.getString(app.gyrolet.mpvrx.R.string.generic_unknown_error),
+                            ),
                             android.widget.Toast.LENGTH_LONG,
                           ).show()
                       }
@@ -479,4 +526,14 @@ fun PlaylistActionSheet(
       }
     }
   }
+
+  AddXtreamPlaylistDialog(
+    isOpen = showXtreamDialog,
+    onDismiss = { showXtreamDialog = false },
+    onImported = {
+      showXtreamDialog = false
+      onDismiss()
+    },
+    onCreateXtreamPlaylist = onCreateXtreamPlaylist,
+  )
 }

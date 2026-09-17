@@ -18,26 +18,49 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import app.gyrolet.mpvrx.preferences.AppearancePreferences
-import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.icons.AppIcon
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.player.controls.LocalPlayerButtonsClickEvent
+import app.gyrolet.mpvrx.ui.theme.LocalDarkAppColorScheme
 import app.gyrolet.mpvrx.ui.theme.spacing
-import org.koin.compose.koinInject
+
+@Suppress("CompositionLocalAllowlist")
+internal val LocalForceDarkPlayerButtonsBackground = staticCompositionLocalOf { false }
+
+@Suppress("CompositionLocalAllowlist")
+internal val LocalHidePlayerButtonsBackground = staticCompositionLocalOf { false }
+
+@Composable
+private fun playerButtonColorScheme(
+  forceDark: Boolean =
+    LocalForceDarkPlayerButtonsBackground.current && !LocalHidePlayerButtonsBackground.current,
+): ColorScheme =
+  if (forceDark) LocalDarkAppColorScheme.current ?: MaterialTheme.colorScheme else MaterialTheme.colorScheme
+
+@Composable
+internal fun playerButtonContainerColor(): Color =
+  playerButtonColorScheme().surfaceContainer.copy(alpha = 0.55f)
+
+@Composable
+internal fun playerButtonContentColor(): Color = playerButtonColorScheme().onSurface
+
+@Composable
+internal fun playerButtonBorderColor(): Color =
+  playerButtonColorScheme().outlineVariant.copy(alpha = 0.4f)
 
 @Suppress("ModifierClickableOrder")
 @OptIn(ExperimentalFoundationApi::class)
@@ -52,13 +75,14 @@ fun ControlsButton(
   enabled: Boolean = true,
 ) {
   val interactionSource = remember { MutableInteractionSource() }
-  val appearancePreferences = koinInject<AppearancePreferences>()
-  val hideBackground by appearancePreferences.hidePlayerButtonsBackground.collectAsState()
+  val hideBackground = LocalHidePlayerButtonsBackground.current
+  val resolvedColor = color ?: playerButtonContentColor()
 
   val clickEvent = LocalPlayerButtonsClickEvent.current
   Surface(
     modifier =
       modifier
+        .tvFocusHighlight(CircleShape, enabled)
         .clip(CircleShape)
         .combinedClickable(
           enabled = enabled,
@@ -66,13 +90,16 @@ fun ControlsButton(
             clickEvent()
             onClick()
           },
-          onLongClick = onLongClick,
+          onLongClick = {
+            clickEvent()
+            onLongClick()
+          },
           interactionSource = interactionSource,
           indication = ripple(),
         ),
     shape = CircleShape,
-    color = if (hideBackground) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
-    contentColor = color ?: MaterialTheme.colorScheme.onSurface,
+    color = if (hideBackground) Color.Transparent else playerButtonContainerColor(),
+    contentColor = resolvedColor,
     tonalElevation = 0.dp,
     shadowElevation = 0.dp,
     border =
@@ -81,20 +108,14 @@ fun ControlsButton(
       } else {
         BorderStroke(
           1.dp,
-          MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+          playerButtonBorderColor(),
         )
       },
   ) {
-    val resolvedColor =
-      if (enabled) {
-        color ?: MaterialTheme.colorScheme.onSurface
-      } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-      }
     Icon(
       imageVector = icon,
       contentDescription = title,
-      tint = resolvedColor,
+      tint = if (enabled) resolvedColor else resolvedColor.copy(alpha = 0.38f),
       modifier =
         Modifier
           .padding(MaterialTheme.spacing.small)

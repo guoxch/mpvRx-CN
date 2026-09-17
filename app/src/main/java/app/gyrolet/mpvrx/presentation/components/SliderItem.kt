@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -25,13 +26,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.ui.theme.spacing
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
+import app.gyrolet.mpvrx.ui.utils.rememberAdjustmentHaptics
 import kotlin.math.roundToInt
 
 @Composable
@@ -44,9 +45,12 @@ fun SliderItem(
   modifier: Modifier = Modifier,
   min: Int = 0,
   enabled: Boolean = true,
+  hapticLandmarks: List<Int> = emptyList(),
   icon: @Composable () -> Unit = {},
 ) {
-  val haptic = LocalHapticFeedback.current
+  val haptics = rememberAdjustmentHaptics(
+    min.toFloat(), max.toFloat(), (max - min - 1).coerceAtLeast(0), hapticLandmarks.map(Int::toFloat),
+  )
 
   Row(
     modifier =
@@ -85,10 +89,13 @@ fun SliderItem(
           val newValue = it.roundToInt()
           if (newValue != value) {
             onChange(newValue)
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            haptics.move(value.toFloat(), newValue.toFloat())
           }
         },
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+          Modifier
+            .fillMaxWidth()
+            .tvFocusHighlight(RoundedCornerShape(12.dp), enabled = enabled, focusedScale = 1.01f),
         valueRange = min.toFloat()..max.toFloat(),
         steps = (max - min - 1).coerceAtLeast(0),
         enabled = enabled,
@@ -108,9 +115,10 @@ fun SliderItem(
   steps: Int = 0,
   min: Float = 0f,
   enabled: Boolean = true,
+  hapticLandmarks: List<Float> = emptyList(),
   icon: @Composable () -> Unit = {},
 ) {
-  val haptic = LocalHapticFeedback.current
+  val haptics = rememberAdjustmentHaptics(min, max, steps, hapticLandmarks)
 
   Row(
     modifier =
@@ -149,10 +157,13 @@ fun SliderItem(
           val newValue = it
           if (newValue != value) {
             onChange(newValue)
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            haptics.move(value, newValue)
           }
         },
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+          Modifier
+            .fillMaxWidth()
+            .tvFocusHighlight(RoundedCornerShape(12.dp), enabled = enabled, focusedScale = 1.01f),
         valueRange = min..max,
         steps = steps,
         enabled = enabled,
@@ -172,7 +183,7 @@ fun VerticalSliderItem(
   min: Int = 0,
   icon: @Composable () -> Unit = {},
 ) {
-  val haptic = LocalHapticFeedback.current
+  val haptics = rememberAdjustmentHaptics(min.toFloat(), max.toFloat())
 
   Column(
     modifier =
@@ -191,8 +202,10 @@ fun VerticalSliderItem(
       min = min,
       max = max,
       onValueChange = {
-        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        onChange(it)
+        if (it != value) {
+          onChange(it)
+          haptics.move(value.toFloat(), it.toFloat())
+        }
       },
       modifier = Modifier.weight(1f),
     )
@@ -217,6 +230,7 @@ fun VerticalSlider(
   Slider(
     modifier =
       modifier
+        .tvFocusHighlight(RoundedCornerShape(12.dp), focusedScale = 1.01f)
         .graphicsLayer {
           rotationZ = 270f
           transformOrigin = TransformOrigin(0f, 0f)

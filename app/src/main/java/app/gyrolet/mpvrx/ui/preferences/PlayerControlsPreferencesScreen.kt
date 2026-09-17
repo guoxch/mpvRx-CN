@@ -62,6 +62,7 @@ import app.gyrolet.mpvrx.ui.player.controls.components.SeekbarStyleLivePreview
 import app.gyrolet.mpvrx.ui.preferences.components.PlayerButtonChip
 import app.gyrolet.mpvrx.ui.preferences.components.SwitchPreference
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
+import app.gyrolet.mpvrx.ui.utils.navigateTo
 import app.gyrolet.mpvrx.ui.utils.LocalShowSettingsBackArrow
 import app.gyrolet.mpvrx.ui.utils.popSafely
 import kotlinx.serialization.Serializable
@@ -163,7 +164,7 @@ object PlayerControlsPreferencesScreen : Screen {
                 modifier = Modifier.settingsSearchTarget(R.string.pref_layout_top_right_controls),
                 title = stringResource(id = R.string.pref_layout_top_right_controls),
                 onClick = {
-                  backstack.add(ControlLayoutEditorScreen(ControlRegion.TOP_RIGHT))
+                  backstack.navigateTo(ControlLayoutEditorScreen(ControlRegion.TOP_RIGHT))
                 },
               )
               PreferenceIconSummary(buttons = topRightButtons)
@@ -174,7 +175,7 @@ object PlayerControlsPreferencesScreen : Screen {
                 modifier = Modifier.settingsSearchTarget(R.string.pref_layout_bottom_right_controls),
                 title = stringResource(id = R.string.pref_layout_bottom_right_controls),
                 onClick = {
-                  backstack.add(ControlLayoutEditorScreen(ControlRegion.BOTTOM_RIGHT))
+                  backstack.navigateTo(ControlLayoutEditorScreen(ControlRegion.BOTTOM_RIGHT))
                 },
               )
               PreferenceIconSummary(buttons = bottomRightButtons)
@@ -185,7 +186,7 @@ object PlayerControlsPreferencesScreen : Screen {
                 modifier = Modifier.settingsSearchTarget(R.string.pref_layout_bottom_left_controls),
                 title = stringResource(id = R.string.pref_layout_bottom_left_controls),
                 onClick = {
-                  backstack.add(ControlLayoutEditorScreen(ControlRegion.BOTTOM_LEFT))
+                  backstack.navigateTo(ControlLayoutEditorScreen(ControlRegion.BOTTOM_LEFT))
                 },
               )
               PreferenceIconSummary(buttons = bottomLeftButtons)
@@ -203,7 +204,7 @@ object PlayerControlsPreferencesScreen : Screen {
                 modifier = Modifier.settingsSearchTarget(R.string.pref_layout_portrait_bottom_controls),
                 title = stringResource(id = R.string.pref_layout_portrait_bottom_controls),
                 onClick = {
-                  backstack.add(ControlLayoutEditorScreen(ControlRegion.PORTRAIT_BOTTOM))
+                  backstack.navigateTo(ControlLayoutEditorScreen(ControlRegion.PORTRAIT_BOTTOM))
                 },
               )
               PreferenceIconSummary(buttons = portraitBottomButtons)
@@ -212,7 +213,10 @@ object PlayerControlsPreferencesScreen : Screen {
 
           // Seekbar Section
           item {
-            PreferenceSectionHeader(title = stringResource(R.string.pref_section_seekbar_style))
+            PreferenceSectionHeader(
+              title = stringResource(R.string.pref_section_seekbar_style),
+              modifier = Modifier.settingsSearchTarget(R.string.pref_section_seekbar_style),
+            )
           }
 
           item {
@@ -222,7 +226,7 @@ object PlayerControlsPreferencesScreen : Screen {
             PreferenceCard {
               SeekbarStyle.entries.forEachIndexed { index, style ->
                 ListItem(
-                  headlineContent = {
+                  content = {
                     Text(text = style.name)
                   },
                   supportingContent = {
@@ -263,6 +267,7 @@ object PlayerControlsPreferencesScreen : Screen {
 
           item {
             val hidePlayerButtonsBackground by appearancePrefs.hidePlayerButtonsBackground.collectAsState()
+            val forceDarkPlayerButtonsBackground by appearancePrefs.forceDarkPlayerButtonsBackground.collectAsState()
             val portraitPlaybackControlsPosition by
               appearancePrefs.portraitPlaybackControlsPosition.collectAsState()
             val playerTimeToDisappear by playerPrefs.playerTimeToDisappear.collectAsState()
@@ -275,6 +280,7 @@ object PlayerControlsPreferencesScreen : Screen {
 
             PreferenceCard {
               ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.ui_portrait_playback_buttons),
                 value = portraitPlaybackControlsPosition,
                 onValueChange = { appearancePrefs.portraitPlaybackControlsPosition.set(it) },
                 values = PortraitPlaybackControlsPosition.entries,
@@ -302,6 +308,27 @@ object PlayerControlsPreferencesScreen : Screen {
                 summary = {
                   Text(
                     text = stringResource(id = R.string.pref_appearance_hide_player_buttons_background_summary),
+                  )
+                },
+              )
+
+              PreferenceDivider()
+
+              SwitchPreference(
+                modifier =
+                  Modifier.settingsSearchTarget(
+                    R.string.pref_appearance_force_dark_player_buttons_background_title,
+                  ),
+                value = forceDarkPlayerButtonsBackground,
+                onValueChange = { appearancePrefs.forceDarkPlayerButtonsBackground.set(it) },
+                title = {
+                  Text(
+                    text = stringResource(R.string.pref_appearance_force_dark_player_buttons_background_title),
+                  )
+                },
+                summary = {
+                  Text(
+                    text = stringResource(R.string.pref_appearance_force_dark_player_buttons_background_summary),
                   )
                 },
               )
@@ -343,6 +370,7 @@ object PlayerControlsPreferencesScreen : Screen {
               PreferenceDivider()
 
               ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.ui_time_network_clock),
                 value = clockFormat,
                 onValueChange = { playerPrefs.clockFormat.set(it) },
                 values = PlayerClockFormat.entries,

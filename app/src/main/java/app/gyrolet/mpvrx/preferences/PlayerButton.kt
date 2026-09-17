@@ -49,8 +49,10 @@ enum class PlayerButton(
   CUSTOM_SKIP(Icons.RoundedFilled.FastForward),
   BACKGROUND_PLAYBACK(Icons.RoundedFilled.Headset),
   AMBIENT_MODE(Icons.RoundedFilled.BlurOff),
+  POST_PROCESSING(Icons.RoundedFilled.PostProcessing),   // lens aperture + sparkle
   TIME_NETWORK(Icons.RoundedFilled.AccessTime),
   EQUALIZER(Icons.RoundedFilled.Equalizer),
+  SCOPES(Icons.RoundedFilled.Mystery),
   NONE(Icons.RoundedFilled.Bookmarks),
 }
 
@@ -98,7 +100,9 @@ fun getPlayerButtonLabel(button: PlayerButton): String =
     PlayerButton.CUSTOM_SKIP -> stringResource(R.string.btn_label_custom_skip)
     PlayerButton.BACKGROUND_PLAYBACK -> stringResource(R.string.btn_label_background_playback)
     PlayerButton.AMBIENT_MODE -> stringResource(R.string.btn_label_ambient)
+    PlayerButton.POST_PROCESSING -> stringResource(R.string.btn_label_post_processing)
     PlayerButton.TIME_NETWORK -> stringResource(R.string.btn_label_time_network)
     PlayerButton.EQUALIZER -> stringResource(R.string.btn_label_equalizer)
+    PlayerButton.SCOPES -> stringResource(R.string.btn_label_scopes)
     PlayerButton.NONE -> stringResource(R.string.btn_label_none)
   }

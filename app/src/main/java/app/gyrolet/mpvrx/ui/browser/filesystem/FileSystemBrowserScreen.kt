@@ -12,7 +12,7 @@ package app.gyrolet.mpvrx.ui.browser.filesystem
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import androidx.activity.compose.BackHandler
+import app.gyrolet.mpvrx.ui.utils.NavigationBackHandler as BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -43,6 +43,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButtonMenu
@@ -51,8 +52,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
@@ -88,7 +87,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.gyrolet.mpvrx.BuildConfig
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.browser.FileSystemItem
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
@@ -98,7 +96,6 @@ import app.gyrolet.mpvrx.preferences.MediaLayoutMode
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.presentation.components.pullrefresh.PullRefreshBox
 import app.gyrolet.mpvrx.ui.browser.cards.FolderCard
-import app.gyrolet.mpvrx.ui.browser.cards.SwipeableVideoActions
 import app.gyrolet.mpvrx.ui.browser.cards.VideoCard
 import app.gyrolet.mpvrx.ui.browser.cards.VideoCardUiConfig
 import app.gyrolet.mpvrx.ui.browser.components.BrowserBottomBar
@@ -118,10 +115,13 @@ import app.gyrolet.mpvrx.ui.browser.selection.rememberSelectionManager
 import app.gyrolet.mpvrx.ui.browser.sheets.PlayLinkSheet
 import app.gyrolet.mpvrx.ui.browser.states.EmptyState
 import app.gyrolet.mpvrx.ui.browser.states.PermissionDeniedState
+import app.gyrolet.mpvrx.ui.components.InlineSearchBar
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
 import app.gyrolet.mpvrx.ui.theme.AppMotion
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
+import app.gyrolet.mpvrx.ui.utils.navigateTo
 import app.gyrolet.mpvrx.ui.utils.calculateResponsiveGridSpans
 import app.gyrolet.mpvrx.ui.utils.popSafely
 import app.gyrolet.mpvrx.utils.media.CopyPasteOps
@@ -219,8 +219,6 @@ fun FileSystemBrowserScreen(path: String? = null) {
   val sortDialogOpen = rememberSaveable { mutableStateOf(false) }
   var deleteDialogOpen by rememberSaveable { mutableStateOf(false) }
   val renameDialogOpen = rememberSaveable { mutableStateOf(false) }
-  var swipeRenameVideo by remember { mutableStateOf<app.gyrolet.mpvrx.domain.media.model.Video?>(null) }
-  var swipeDeleteVideo by remember { mutableStateOf<app.gyrolet.mpvrx.domain.media.model.Video?>(null) }
   val addToPlaylistDialogOpen = rememberSaveable { mutableStateOf(false) }
   val compressorDialogOpen = rememberSaveable { mutableStateOf(false) }
 
@@ -329,50 +327,29 @@ fun FileSystemBrowserScreen(path: String? = null) {
     )
 
   var isPermissionSetupCompleted by androidx.compose.runtime.saveable.rememberSaveable {
-    androidx.compose.runtime.mutableStateOf(permissionState.status == com.google.accompanist.permissions.PermissionStatus.Granted)
+    androidx.compose.runtime.mutableStateOf(
+      permissionState.status == com.google.accompanist.permissions.PermissionStatus.Granted ||
+        browserPreferences.onboardingCompleted.get(),
+    )
   }
 
-  // Combined MainScreen updates for better performance and responsiveness
-  LaunchedEffect(
-    showBottomNavigation,
-    isInSelectionMode,
-    onlyVideosSelected,
-    permissionState.status,
-    isPermissionSetupCompleted,
-  ) {
-    if (isAtRoot) {
+  app.gyrolet.mpvrx.ui.browser.NavigationBarSelectionEffect(isInSelectionMode)
+  val isActiveRoot = isAtRoot && app.gyrolet.mpvrx.ui.utils.LocalNavigationPageActive.current
+  androidx.lifecycle.compose.LifecycleResumeEffect(isActiveRoot, showBottomNavigation, isPermissionSetupCompleted) {
+    if (isActiveRoot) {
       try {
         val mainScreenObj = app.gyrolet.mpvrx.ui.browser.MainScreen
 
         // Update all MainScreen states in one call to reduce overhead
         mainScreenObj.updateBottomBarVisibility(showBottomNavigation)
-        mainScreenObj.updateSelectionState(
-          isInSelectionMode = isInSelectionMode,
-          isOnlyVideosSelected = true,
-          selectionManager = if (onlyVideosSelected) selectionManager else null,
-        )
         mainScreenObj.updatePermissionState(
-          isDenied = !isPermissionSetupCompleted || permissionState.status is PermissionStatus.Denied,
+          isDenied = !isPermissionSetupCompleted,
         )
       } catch (e: Exception) {
         Log.e("FileSystemBrowserScreen", "Failed to update MainScreen state", e)
       }
     }
-  }
-
-  // Cleanup: Restore bottom navigation bar when leaving the screen
-  DisposableEffect(Unit) {
-    onDispose {
-      if (isAtRoot) {
-        try {
-          val mainScreenObj = app.gyrolet.mpvrx.ui.browser.MainScreen
-          // Restore bottom navigation when leaving the screen
-          mainScreenObj.updateBottomBarVisibility(true)
-        } catch (e: Exception) {
-          Log.e("FileSystemBrowserScreen", "Failed to restore MainScreen bottom bar visibility", e)
-        }
-      }
-    }
+    onPauseOrDispose { }
   }
 
   // File picker
@@ -510,65 +487,56 @@ fun FileSystemBrowserScreen(path: String? = null) {
   // Main content
   Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
+      containerColor = app.gyrolet.mpvrx.ui.theme.wallpaperAwareBackgroundColor(),
       topBar = {
         if (isSearching) {
           // Search mode - show search bar instead of top bar
-          SearchBar(
-            inputField = {
-              SearchBarDefaults.InputField(
-                query = searchQuery,
-                onQueryChange = { searchQuery = it },
-                onSearch = { },
-                expanded = false,
-                onExpandedChange = { },
-                placeholder = {
-                  Text(
-                    if (isAtRoot) {
-                      "Search in all storage volumes..."
-                    } else {
-                      "Search in ${breadcrumbs.lastOrNull()?.name ?: "folder"}..."
-                    },
-                  )
-                },
-                leadingIcon = {
-                  Icon(
-                    imageVector = Icons.RoundedFilled.Search,
-                    contentDescription =
-                      androidx.compose.ui.res.stringResource(
-                        app.gyrolet.mpvrx.R.string.settings_search_title,
-                      ),
-                  )
-                },
-                trailingIcon = {
-                  IconButton(
-                    onClick = {
-                      isSearching = false
-                      searchQuery = ""
-                    },
-                  ) {
-                    Icon(
-                      imageVector = Icons.RoundedFilled.Close,
-                      contentDescription =
-                        androidx.compose.ui.res.stringResource(
-                          app.gyrolet.mpvrx.R.string.generic_cancel,
-                        ),
-                    )
-                  }
-                },
-                modifier = Modifier.focusRequester(focusRequester),
-              )
-            },
-            expanded = false,
-            onExpandedChange = { },
+          InlineSearchBar(
+            query = searchQuery,
+            onQueryChange = { searchQuery = it },
+            onSearch = { },
             modifier =
               Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
+            inputFieldModifier = Modifier.focusRequester(focusRequester),
+            placeholder = {
+              Text(
+                if (isAtRoot) {
+                  "Search in all storage volumes..."
+                } else {
+                  "Search in ${breadcrumbs.lastOrNull()?.name ?: "folder"}..."
+                },
+              )
+            },
+            leadingIcon = {
+              Icon(
+                imageVector = Icons.RoundedFilled.Search,
+                contentDescription =
+                  androidx.compose.ui.res.stringResource(
+                    app.gyrolet.mpvrx.R.string.settings_search_title,
+                  ),
+              )
+            },
+            trailingIcon = {
+              IconButton(
+                onClick = {
+                  isSearching = false
+                  searchQuery = ""
+                },
+              ) {
+                Icon(
+                  imageVector = Icons.RoundedFilled.Close,
+                  contentDescription =
+                    androidx.compose.ui.res.stringResource(
+                      app.gyrolet.mpvrx.R.string.generic_cancel,
+                    ),
+                )
+              }
+            },
             shape = RoundedCornerShape(28.dp),
             tonalElevation = 6.dp,
-          ) {
-            // Empty content for SearchBar
-          }
+          )
         } else {
           BrowserTopBar(
             title =
@@ -592,7 +560,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
               isSearching = !isSearching
             },
             onSettingsClick = {
-              backstack.add(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
+              backstack.navigateTo(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
             },
             isSingleSelection = selectionManager.isSingleSelection,
             onInfoClick =
@@ -631,12 +599,6 @@ fun FileSystemBrowserScreen(path: String? = null) {
             onSelectAll = { selectionManager.selectAll() },
             onInvertSelection = { selectionManager.invertSelection() },
             onDeselectAll = { selectionManager.clear() },
-            onAddToPlaylistClick =
-              if (!BuildConfig.ENABLE_UPDATE_FEATURE && onlyVideosSelected) {
-                { addToPlaylistDialogOpen.value = true }
-              } else {
-                null
-              },
           )
         }
       },
@@ -801,7 +763,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                   MediaUtils.playFile(video, context, "search")
                 },
                 onFolderClick = { folder ->
-                  backstack.add(FileSystemDirectoryScreen(folder.path))
+                  backstack.navigateTo(FileSystemDirectoryScreen(folder.path))
                   isSearching = false
                   searchQuery = ""
                 },
@@ -827,9 +789,9 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 onRefresh = { viewModel.refresh() },
                 onFolderClick = { folder ->
                   if (isInSelectionMode) {
-                    selectionManager.toggle(folder)
+                    selectionManager.toggleFromUser(folder)
                   } else {
-                    backstack.add(FileSystemDirectoryScreen(folder.path))
+                    backstack.navigateTo(FileSystemDirectoryScreen(folder.path))
                   }
                 },
                 onFolderLongClick = { folder ->
@@ -838,7 +800,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 onVideoClick = { videoFile ->
                   val video = videoFile.video
                   if (isInSelectionMode) {
-                    selectionManager.toggle(videoFile)
+                    selectionManager.toggleFromUser(videoFile)
                   } else {
                     // If playlist mode is enabled, play all videos in current folder starting from clicked one
                     if (playlistMode) {
@@ -862,19 +824,20 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 onVideoLongClick = { videoFile ->
                   selectionManager.handleLongClick(videoFile)
                 },
-                onWatchedChange = { videoFile, watched -> viewModel.setWatched(videoFile.video, watched) },
-                onRename = { video -> swipeRenameVideo = video },
-                onDelete = { video -> swipeDeleteVideo = video },
                 onBreadcrumbClick = { component ->
                   // Navigate to the breadcrumb by popping until we reach it
                   // or pushing if it's a new path
-                  backstack.add(FileSystemDirectoryScreen(component.fullPath))
+                  backstack.navigateTo(FileSystemDirectoryScreen(component.fullPath))
                 },
                 selectionManager = selectionManager,
                 modifier = Modifier,
                 isInSelectionMode = isInSelectionMode,
               )
             }
+        } else if (isPermissionSetupCompleted) {
+          app.gyrolet.mpvrx.ui.browser.states.StoragePermissionPrompt(
+            onRequestPermission = { permissionState.launchPermissionRequest() },
+          )
         } else {
           PermissionDeniedState(
             onRequestPermission = { permissionState.launchPermissionRequest() },
@@ -962,7 +925,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
         showDownscale =
           selectedVideos.isNotEmpty() && selectedVideos.none { it.isAudio } && selectedFolders.isEmpty(),
         showRename = selectionManager.isSingleSelection,
-        showAddToPlaylist = !BuildConfig.ENABLE_UPDATE_FEATURE && onlyVideosSelected,
+        showAddToPlaylist = onlyVideosSelected,
         modifier = Modifier.padding(bottom = 0.dp),
       )
     }
@@ -996,23 +959,6 @@ fun FileSystemBrowserScreen(path: String? = null) {
           },
         itemCount = selectedCount,
         itemNames = selectedItems.map { it.name },
-      )
-    }
-
-    swipeDeleteVideo?.let { video ->
-      DeleteConfirmationDialog(
-        isOpen = true,
-        onDismiss = { swipeDeleteVideo = null },
-        onConfirm = {
-          swipeDeleteVideo = null
-          coroutineScope.launch {
-            viewModel.deleteVideos(listOf(video))
-            viewModel.refresh()
-          }
-        },
-        itemType = "video",
-        itemCount = 1,
-        itemNames = listOf(video.displayName),
       )
     }
 
@@ -1052,27 +998,6 @@ fun FileSystemBrowserScreen(path: String? = null) {
 
         null -> Unit
       }
-    }
-
-    swipeRenameVideo?.let { video ->
-      val extension =
-        video.displayName.substringAfterLast('.', "")
-          .takeIf { it.isNotBlank() }
-          ?.let { ".$it" }
-      RenameDialog(
-        isOpen = true,
-        onDismiss = { swipeRenameVideo = null },
-        onConfirm = { newName ->
-          swipeRenameVideo = null
-          coroutineScope.launch {
-            viewModel.renameVideo(video, newName)
-            viewModel.refresh()
-          }
-        },
-        currentName = video.displayName.substringBeforeLast('.'),
-        itemType = "video",
-        extension = extension,
-      )
     }
 
     // Video Compressor Overlay (for file system browser)
@@ -1324,9 +1249,6 @@ private fun FileSystemBrowserContent(
   onFolderLongClick: (FileSystemItem.Folder) -> Unit,
   onVideoClick: (FileSystemItem.VideoFile) -> Unit,
   onVideoLongClick: (FileSystemItem.VideoFile) -> Unit,
-  onWatchedChange: ((FileSystemItem.VideoFile, Boolean) -> Unit)? = null,
-  onRename: ((app.gyrolet.mpvrx.domain.media.model.Video) -> Unit)? = null,
-  onDelete: ((app.gyrolet.mpvrx.domain.media.model.Video) -> Unit)? = null,
   onBreadcrumbClick: (app.gyrolet.mpvrx.domain.browser.PathComponent) -> Unit,
   selectionManager: app.gyrolet.mpvrx.ui.browser.selection.SelectionManager<FileSystemItem, String>,
   modifier: Modifier = Modifier,
@@ -1336,6 +1258,7 @@ private fun FileSystemBrowserContent(
   val browserPreferences = koinInject<BrowserPreferences>()
   val appearancePreferences = koinInject<AppearancePreferences>()
   val thumbnailRepository = koinInject<app.gyrolet.mpvrx.domain.thumbnail.ThumbnailRepository>()
+  val mediaLayoutMode by browserPreferences.mediaLayoutMode.collectAsState()
   val tapThumbnailToSelect by gesturePreferences.tapThumbnailToSelect.collectAsState()
   val showVideoThumbnails by browserPreferences.showVideoThumbnails.collectAsState()
   val unlimitedNameLines by appearancePreferences.unlimitedNameLines.collectAsState()
@@ -1350,6 +1273,7 @@ private fun FileSystemBrowserContent(
   val showExtensionField by browserPreferences.showExtensionField.collectAsState()
   val showDurationField by browserPreferences.showDurationField.collectAsState()
   val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
+  val thumbnailQuality by browserPreferences.thumbnailQuality.collectAsState()
   val videoCardUiConfig =
     remember(
       unlimitedNameLines,
@@ -1365,6 +1289,7 @@ private fun FileSystemBrowserContent(
       showDurationField,
       centerGridTitles,
       showCodecSupportIndicator,
+      thumbnailQuality,
     ) {
       VideoCardUiConfig(
         unlimitedNameLines = unlimitedNameLines,
@@ -1380,13 +1305,14 @@ private fun FileSystemBrowserContent(
         showExtensionField = showExtensionField,
         showDurationField = showDurationField,
         centerGridTitles = centerGridTitles,
+        thumbnailQuality = thumbnailQuality,
       )
     }
 
   // Calculate thumbnail dimensions for list mode
   val thumbWidthDp = 160.dp
   val density = androidx.compose.ui.platform.LocalDensity.current
-  val aspect = 16f / 9f
+  val aspect = if (mediaLayoutMode == MediaLayoutMode.GRID) 16f / 10f else 16f / 9f
   val thumbWidthPx = with(density) { thumbWidthDp.roundToPx() }
   val thumbHeightPx = ((thumbWidthPx.toFloat() / aspect).toInt())
 
@@ -1477,7 +1403,6 @@ private fun FileSystemBrowserContent(
         label = "scrollbarAlpha",
       )
 
-      val mediaLayoutMode by browserPreferences.mediaLayoutMode.collectAsState()
       val isGridMode = mediaLayoutMode == app.gyrolet.mpvrx.preferences.MediaLayoutMode.GRID
 
       val folderItems = remember(items) { items.filterIsInstance<FileSystemItem.Folder>() }
@@ -1508,6 +1433,7 @@ private fun FileSystemBrowserContent(
                   PaddingValues(
                     start = 8.dp,
                     end = 8.dp,
+                    top = 4.dp,
                     bottom = navigationBarHeight,
                   ),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -1549,7 +1475,7 @@ private fun FileSystemBrowserContent(
                     onLongClick = { onFolderLongClick(folder) },
                     onThumbClick =
                       if (tapThumbnailToSelect) {
-                        { selectionManager.toggle(folder) }
+                        { selectionManager.toggleFromUser(folder) }
                       } else {
                         { onFolderClick(folder) }
                       },
@@ -1565,15 +1491,7 @@ private fun FileSystemBrowserContent(
                   contentType = { "video_item" },
                   span = { GridItemSpan(spansInfo.videoSpan) },
                 ) { videoFile ->
-                  SwipeableVideoActions(
-                    itemKey = videoFile.video.path,
-                    enabled = !isInSelectionMode && onWatchedChange != null,
-                    isWatched = watchedVideoIds.contains(videoFile.video.id),
-                    onWatchedChange = { watched -> onWatchedChange?.invoke(videoFile, watched) },
-                    onRename = { onRename?.invoke(videoFile.video) },
-                    onDelete = { onDelete?.invoke(videoFile.video) },
-                  ) {
-                    VideoCard(
+                  VideoCard(
                       video = videoFile.video,
                       progressPercentage = videoFilesWithPlayback[videoFile.video.id],
                       isRecentlyPlayed = false,
@@ -1582,7 +1500,7 @@ private fun FileSystemBrowserContent(
                       onLongClick = { onVideoLongClick(videoFile) },
                       onThumbClick =
                         if (tapThumbnailToSelect) {
-                          { selectionManager.toggle(videoFile) }
+                          { selectionManager.toggleFromUser(videoFile) }
                         } else {
                           { onVideoClick(videoFile) }
                         },
@@ -1594,8 +1512,7 @@ private fun FileSystemBrowserContent(
                       overrideShowResolutionChip = null,
                       useFolderNameStyle = false,
                       uiConfig = videoCardUiConfig,
-                    )
-                  }
+                  )
                 }
               }
 
@@ -1630,6 +1547,7 @@ private fun FileSystemBrowserContent(
                 PaddingValues(
                   start = 8.dp,
                   end = 8.dp,
+                  top = 4.dp,
                   bottom = navigationBarHeight,
                 ),
             ) {
@@ -1668,7 +1586,7 @@ private fun FileSystemBrowserContent(
                   onLongClick = { onFolderLongClick(folder) },
                   onThumbClick =
                     if (tapThumbnailToSelect) {
-                      { selectionManager.toggle(folder) }
+                      { selectionManager.toggleFromUser(folder) }
                     } else {
                       { onFolderClick(folder) }
                     },
@@ -1683,15 +1601,7 @@ private fun FileSystemBrowserContent(
                 key = { "${it.video.id}_${it.video.path}" },
                 contentType = { "video_item" },
               ) { videoFile ->
-                SwipeableVideoActions(
-                  itemKey = videoFile.video.path,
-                  enabled = !isInSelectionMode && onWatchedChange != null,
-                  isWatched = watchedVideoIds.contains(videoFile.video.id),
-                  onWatchedChange = { watched -> onWatchedChange?.invoke(videoFile, watched) },
-                  onRename = { onRename?.invoke(videoFile.video) },
-                  onDelete = { onDelete?.invoke(videoFile.video) },
-                ) {
-                  VideoCard(
+                VideoCard(
                     video = videoFile.video,
                     progressPercentage = videoFilesWithPlayback[videoFile.video.id],
                     isRecentlyPlayed = false,
@@ -1700,7 +1610,7 @@ private fun FileSystemBrowserContent(
                     onLongClick = { onVideoLongClick(videoFile) },
                     onThumbClick =
                       if (tapThumbnailToSelect) {
-                        { selectionManager.toggle(videoFile) }
+                        { selectionManager.toggleFromUser(videoFile) }
                       } else {
                         { onVideoClick(videoFile) }
                       },
@@ -1712,8 +1622,7 @@ private fun FileSystemBrowserContent(
                     overrideShowResolutionChip = null,
                     useFolderNameStyle = false,
                     uiConfig = videoCardUiConfig,
-                  )
-                }
+                )
               }
             }
 
@@ -1780,6 +1689,7 @@ private fun FileSystemSearchContent(
   val showExtensionField by browserPreferences.showExtensionField.collectAsState()
   val showDurationField by browserPreferences.showDurationField.collectAsState()
   val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
+  val thumbnailQuality by browserPreferences.thumbnailQuality.collectAsState()
   val videoCardUiConfig =
     remember(
       unlimitedNameLines,
@@ -1795,6 +1705,7 @@ private fun FileSystemSearchContent(
       showDurationField,
       centerGridTitles,
       showCodecSupportIndicator,
+      thumbnailQuality,
     ) {
       VideoCardUiConfig(
         unlimitedNameLines = unlimitedNameLines,
@@ -1810,6 +1721,7 @@ private fun FileSystemSearchContent(
         showExtensionField = showExtensionField,
         showDurationField = showDurationField,
         centerGridTitles = centerGridTitles,
+        thumbnailQuality = thumbnailQuality,
       )
     }
 

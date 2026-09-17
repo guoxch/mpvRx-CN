@@ -10,6 +10,7 @@
 package app.gyrolet.mpvrx.ui.browser.jellyfin.seerr
 
 import androidx.compose.animation.AnimatedVisibility
+import app.gyrolet.mpvrx.data.network.ServerUrlUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -44,10 +45,11 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -95,7 +97,11 @@ fun SeerrConnectionDialog(
   onConnectWithCredentials: (serverUrl: String, user: String, pass: String, useJellyfin: Boolean) -> Unit,
   onConnectWithApiKey: (serverUrl: String, apiKey: String) -> Unit,
   onDisconnect: () -> Unit,
-  sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+  sheetState: SheetState =
+    rememberBottomSheetState(
+      initialValue = SheetValue.Hidden,
+      enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    ),
 ) {
   if (!isOpen) return
 
@@ -183,7 +189,7 @@ fun SeerrConnectionDialog(
               fontWeight = FontWeight.Bold,
             )
             Text(
-              text = if (isConnected) "Active Connection" else "Overseerr / Jellyseerr",
+              text = if (isConnected) "Active Connection" else "Seerr",
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -338,6 +344,7 @@ fun SeerrConnectionDialog(
           Icon(Icons.RoundedFilled.Language, contentDescription = null)
         },
         singleLine = true,
+        supportingText = { Text(ServerUrlUtils.getConnectionHint(serverUrl)) },
         shape = RoundedCornerShape(12.dp),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
         modifier = Modifier.fillMaxWidth(),
@@ -441,8 +448,10 @@ fun SeerrConnectionDialog(
           shape = RoundedCornerShape(12.dp),
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
           keyboardActions = KeyboardActions(onDone = {
-            if (serverUrl.isNotBlank() && username.isNotBlank()) {
-              onConnectWithCredentials(serverUrl, username, password, authType == SeerrAuthType.JELLYFIN)
+            val trimmedUrl = serverUrl.trim()
+            val trimmedUser = username.trim()
+            if (trimmedUrl.isNotBlank() && trimmedUser.isNotBlank()) {
+              onConnectWithCredentials(trimmedUrl, trimmedUser, password, authType == SeerrAuthType.JELLYFIN)
             }
           }),
           modifier = Modifier.fillMaxWidth(),
@@ -482,10 +491,11 @@ fun SeerrConnectionDialog(
 
       Button(
         onClick = {
+          val trimmedUrl = serverUrl.trim()
           if (authType == SeerrAuthType.API_KEY) {
-            onConnectWithApiKey(serverUrl, apiKey)
+            onConnectWithApiKey(trimmedUrl, apiKey.trim())
           } else {
-            onConnectWithCredentials(serverUrl, username, password, authType == SeerrAuthType.JELLYFIN)
+            onConnectWithCredentials(trimmedUrl, username.trim(), password, authType == SeerrAuthType.JELLYFIN)
           }
         },
         enabled = !isConnecting && serverUrl.isNotBlank() && (

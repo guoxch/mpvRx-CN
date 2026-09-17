@@ -9,7 +9,7 @@
 
 package app.gyrolet.mpvrx.ui.browser.playlist
 
-import androidx.activity.compose.BackHandler
+import app.gyrolet.mpvrx.ui.utils.NavigationBackHandler as BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -33,12 +33,9 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,9 +67,11 @@ import app.gyrolet.mpvrx.ui.browser.dialogs.DeleteConfirmationDialog
 import app.gyrolet.mpvrx.ui.browser.selection.rememberSelectionManager
 import app.gyrolet.mpvrx.ui.browser.sheets.PlaylistActionSheet
 import app.gyrolet.mpvrx.ui.browser.states.EmptyState
+import app.gyrolet.mpvrx.ui.components.InlineSearchBar
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
+import app.gyrolet.mpvrx.ui.utils.navigateTo
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.koin.compose.koinInject
@@ -143,6 +142,8 @@ object PlaylistScreen : Screen {
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     // Playlist action sheet state
     var showPlaylistActionSheet by remember { mutableStateOf(false) }
+    val hasProtectedSelection =
+      selectionManager.getSelectedItems().any { item -> viewModel.isProtectedPlaylist(item.playlist) }
 
     // FAB visibility for scroll-based hiding
     val isFabVisible = remember { mutableStateOf(true) }
@@ -160,12 +161,7 @@ object PlaylistScreen : Screen {
     }
 
     // Synchronize NavigationBarState when selection mode changes
-    SideEffect {
-      app.gyrolet.mpvrx.ui.browser.NavigationBarState.updateSelectionState(
-        inSelectionMode = selectionManager.isInSelectionMode,
-        onlyVideos = true,
-      )
-    }
+    app.gyrolet.mpvrx.ui.browser.NavigationBarSelectionEffect(selectionManager.isInSelectionMode)
 
     // Track scroll for FAB visibility
     val mediaLayoutMode by browserPreferences.mediaLayoutMode.collectAsState()
@@ -178,62 +174,53 @@ object PlaylistScreen : Screen {
     )
 
     Scaffold(
+      containerColor = app.gyrolet.mpvrx.ui.theme.wallpaperAwareBackgroundColor(),
       topBar = {
         if (isSearching) {
           // Search mode - show search bar
-          SearchBar(
-            inputField = {
-              SearchBarDefaults.InputField(
-                query = searchQuery,
-                onQueryChange = { searchQuery = it },
-                onSearch = { },
-                expanded = false,
-                onExpandedChange = { },
-                placeholder = {
-                  Text(
-                    androidx.compose.ui.res
-                      .stringResource(app.gyrolet.mpvrx.R.string.ui_search_playlists),
-                  )
-                },
-                leadingIcon = {
-                  Icon(
-                    imageVector = Icons.RoundedFilled.Search,
-                    contentDescription =
-                      androidx.compose.ui.res.stringResource(
-                        app.gyrolet.mpvrx.R.string.settings_search_title,
-                      ),
-                  )
-                },
-                trailingIcon = {
-                  IconButton(
-                    onClick = {
-                      isSearching = false
-                      searchQuery = ""
-                    },
-                  ) {
-                    Icon(
-                      imageVector = Icons.RoundedFilled.Close,
-                      contentDescription =
-                        androidx.compose.ui.res.stringResource(
-                          app.gyrolet.mpvrx.R.string.generic_cancel,
-                        ),
-                    )
-                  }
-                },
-                modifier = Modifier.focusRequester(focusRequester),
-              )
-            },
-            expanded = false,
-            onExpandedChange = { },
+          InlineSearchBar(
+            query = searchQuery,
+            onQueryChange = { searchQuery = it },
+            onSearch = { },
             modifier =
               Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
+            inputFieldModifier = Modifier.focusRequester(focusRequester),
+            placeholder = {
+              Text(
+                androidx.compose.ui.res
+                  .stringResource(app.gyrolet.mpvrx.R.string.ui_search_playlists),
+              )
+            },
+            leadingIcon = {
+              Icon(
+                imageVector = Icons.RoundedFilled.Search,
+                contentDescription =
+                  androidx.compose.ui.res.stringResource(
+                    app.gyrolet.mpvrx.R.string.settings_search_title,
+                  ),
+              )
+            },
+            trailingIcon = {
+              IconButton(
+                onClick = {
+                  isSearching = false
+                  searchQuery = ""
+                },
+              ) {
+                Icon(
+                  imageVector = Icons.RoundedFilled.Close,
+                  contentDescription =
+                    androidx.compose.ui.res.stringResource(
+                      app.gyrolet.mpvrx.R.string.generic_cancel,
+                    ),
+                )
+              }
+            },
             shape = RoundedCornerShape(28.dp),
             tonalElevation = 6.dp,
-          ) {
-            // Empty content for SearchBar
-          }
+          )
         } else {
           BrowserTopBar(
             title = stringResource(R.string.ui_playlists),
@@ -245,15 +232,15 @@ object PlaylistScreen : Screen {
             isSingleSelection = selectionManager.isSingleSelection,
             onSearchClick = { isSearching = true },
             onSettingsClick = {
-              backStack.add(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
+              backStack.navigateTo(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
             },
             onRenameClick =
-              if (selectionManager.isSingleSelection) {
+              if (selectionManager.isSingleSelection && !hasProtectedSelection) {
                 { showRenameDialog = true }
               } else {
                 null
               },
-            onDeleteClick = { showDeleteDialog = true },
+            onDeleteClick = if (hasProtectedSelection) null else ({ showDeleteDialog = true }),
             onSelectAll = { selectionManager.selectAll() },
             onInvertSelection = { selectionManager.invertSelection() },
             onDeselectAll = { selectionManager.clear() },
@@ -307,7 +294,7 @@ object PlaylistScreen : Screen {
             EmptyState(
               icon = Icons.RoundedFilled.PlaylistAdd,
               title = stringResource(R.string.ui_no_playlists_yet),
-              message = "Create a playlist or add one from an m3u URL",
+              message = stringResource(R.string.playlist_empty_description),
             )
           }
         }
@@ -321,9 +308,9 @@ object PlaylistScreen : Screen {
           selectionManager = selectionManager,
           onPlaylistClick = { playlistWithCount ->
             if (selectionManager.isInSelectionMode) {
-              selectionManager.toggle(playlistWithCount)
+              selectionManager.toggleFromUser(playlistWithCount)
             } else {
-              backStack.add(PlaylistDetailScreen(playlistWithCount.playlist.id))
+              backStack.navigateTo(PlaylistDetailScreen(playlistWithCount.playlist.id))
             }
           },
           onPlaylistLongClick = { playlistWithCount ->
@@ -344,6 +331,7 @@ object PlaylistScreen : Screen {
       onCreatePlaylist = viewModel::createPlaylist,
       onCreateM3UPlaylistFromFile = viewModel::createM3UPlaylistFromFile,
       onCreateM3UPlaylist = viewModel::createM3UPlaylist,
+      onCreateXtreamPlaylist = viewModel::createXtreamPlaylist,
       context = context,
     )
 
@@ -478,7 +466,7 @@ object PlaylistScreen : Screen {
               folderGridColumnsPref.coerceAtLeast(1)
             } else {
               val contentHorizontalPadding = 8.dp
-              val itemSpacing = 8.dp
+              val itemSpacing = 2.dp
               val usableWidth = maxWidth - (contentHorizontalPadding * 2) - itemSpacing
               val folderMinWidth = 100.dp
               (usableWidth / folderMinWidth).toInt().coerceAtLeast(1)
@@ -494,8 +482,8 @@ object PlaylistScreen : Screen {
                 end = 8.dp,
                 bottom = if (isInSelectionMode) 88.dp else navigationBarHeight,
               ),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
           ) {
             items(
               count = playlistsWithCount.size,

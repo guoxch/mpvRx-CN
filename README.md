@@ -1,8 +1,14 @@
 <p align="center">
-  <img src="fastlane\metadata\android\en-US\images\icon.png" width="250" height="250" />
+  <img src="fastlane/metadata/android/en-US/images/icon.png" width="250" height="250" alt="mpvRx app icon" />
 </p>
 
 <h1 align="center">mpvRx</h1>
+
+<p align="center">
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22app.gyrolet.mpvrx%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2FRiteshp2001%2FmpvRx%22%2C%22author%22%3A%22Riteshp2001%22%2C%22name%22%3A%22mpvRx%22%2C%22preferredApkIndex%22%3A0%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Afalse%2C%5C%22fallbackToOlderReleases%5C%22%3Atrue%2C%5C%22filterReleaseTitlesByRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22filterReleaseNotesByRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22verifyLatestTag%5C%22%3Afalse%2C%5C%22sortMethodChoice%5C%22%3A%5C%22date%5C%22%2C%5C%22useLatestAssetDateAsReleaseDate%5C%22%3Afalse%2C%5C%22releaseTitleAsVersion%5C%22%3Afalse%2C%5C%22trackOnly%5C%22%3Afalse%2C%5C%22versionExtractionRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22matchGroupToUse%5C%22%3A%5C%22%5C%22%2C%5C%22versionDetection%5C%22%3Atrue%2C%5C%22releaseDateAsVersion%5C%22%3Afalse%2C%5C%22useVersionCodeAsOSVersion%5C%22%3Afalse%2C%5C%22apkFilterRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22invertAPKFilter%5C%22%3Afalse%2C%5C%22autoApkFilterByArch%5C%22%3Atrue%2C%5C%22minimumUpdateAgeDays%5C%22%3A%5C%22%5C%22%2C%5C%22appName%5C%22%3A%5C%22%5C%22%2C%5C%22appAuthor%5C%22%3A%5C%22%5C%22%2C%5C%22shizukuPretendToBeGooglePlay%5C%22%3Afalse%2C%5C%22allowInsecure%5C%22%3Afalse%2C%5C%22exemptFromBackgroundUpdates%5C%22%3Afalse%2C%5C%22skipUpdateNotifications%5C%22%3Afalse%2C%5C%22about%5C%22%3A%5C%22%5C%22%2C%5C%22refreshBeforeDownload%5C%22%3Afalse%2C%5C%22includeZips%5C%22%3Afalse%2C%5C%22zippedApkFilterRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22includeTarballs%5C%22%3Afalse%2C%5C%22tarballedApkFilterRegEx%5C%22%3A%5C%22%5C%22%7D%22%2C%22overrideSource%22%3Anull%7D">
+    <img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="80" />
+  </a>
+</p>
 
 <p align="center">
   <b>Feature-rich, Efficient Powerful Android video player based on libmpv.</b>
@@ -26,22 +32,23 @@
 ## Showcase
 
 <div align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/player.png" width="92%">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/tanjiro-playback.jpg" width="100%" alt="Video playback in mpvRx">
 </div>
 
-<br>
-
 <div align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/videoscreen.png" width="31%">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/pip.png" width="31%">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/about.jpg" width="31%">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/player-controls.jpg" width="100%" alt="mpvRx player controls">
 </div>
 
-<br>
+<div align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/playlist-window.jpg" width="49%" alt="mpvRx visual playlist">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/chapter-navigation.jpg" width="49%" alt="mpvRx chapter navigation">
+</div>
+
 
 <div align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/playlistwindow.png" width="48%">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/chapters.png" width="48%">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/pip.png" width="32%" alt="mpvRx picture-in-picture mode">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/music-player.jpg" width="32%" alt="mpvRx music player">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/about-screen.jpg" width="32%" alt="mpvRx About screen">
 </div>
 
 ---
@@ -81,7 +88,7 @@ mpvRx pushes the mpv-android experience further with deep customization, thermal
 
 </details>
 
-<details close>
+<details>
 <summary><b>📺 HDR & Video Pipeline</b></summary>
 
 | Feature | Description |
@@ -91,6 +98,7 @@ mpvRx pushes the mpv-android experience further with deep customization, thermal
 | **SDR-to-HDR Boost** | Boost SDR content into HDR range when using Linear HDR pipeline |
 | **GPU Deband** | CPU (gradfun) or GPU deband with configurable iterations, threshold, range, grain |
 | **Smart Render Backend** | Auto-selects between OpenGL/Vulkan and gpu/gpu-next based on device support |
+| **Automatic Black-Bar Cropping** | Optional analysis detects and removes encoded black borders on supported videos |
 
 </details>
 
@@ -155,7 +163,8 @@ mpvRx pushes the mpv-android experience further with deep customization, thermal
 | **25+ Button Types** | Cast, Mirror, Vertical Flip, A-B Loop, Custom Skip, Background Playback, Ambient, and more |
 | **Custom User Buttons** | Create arbitrary buttons executing Lua, JavaScript, or mpv commands |
 | **Landscape/Portrait Adaptive Layouts** | Completely different control layouts per orientation |
-| **"Slide to Unlock" Controls** | Slide mechanism when controls are locked |
+| **One-Tap Control Unlock** | When playback controls are locked, tap the unlock button at the top-left or top-right according to the side you touch |
+| **Double-Back Unlock** | While controls are locked, the first Back press shows a reminder; a second quick press unlocks them |
 | **Hide Button Backgrounds** | Transparent buttons with only icons visible |
 | **Centralized "More Sheet"** | Quick access to all player buttons and custom controls |
 | **In-Player Settings** | Toggle 10+ settings (gestures, PiP, UI behavior) without leaving playback |
@@ -205,6 +214,41 @@ mpvRx pushes the mpv-android experience further with deep customization, thermal
 | **Syncplay Rooms** | Join a Syncplay server room to synchronize pause, resume, seeking, and playback position with other viewers |
 | **Responsive & Dual-Pane Layouts** | Automatic grid sizing plus optional folder/settings dual-pane views on tablets |
 | **Audio Library Mode** | MediaStore and filesystem audio browsing with square artwork, metadata titles, and mixed sibling playlists |
+| **Home-First Back Navigation** | Main tabs return to Home before Back exits the app; selection, search, and nested screens handle Back first |
+| **Swipeable Main Tabs** | Swipe between main destinations with a sliding dock highlight; nested category tabs remain selectable by tapping |
+</details>
+
+<details close>
+<summary><b>🎵 Music Library & Audio Player</b></summary>
+
+| Feature | Description |
+|---|---|
+| **Local Music Library** | Browse songs, albums, artists, and audio playlists with cover art, search, sorting, and grid/list views |
+| **Choose Your Music Source** | Switch the Music tab between local storage, Jellyfin, and Navidrome |
+| **Library Filters** | Exclude selected audio folders and set a minimum track duration |
+| **Dedicated Now Playing View** | Artwork, track metadata, playback controls, and an up-next queue in a music-focused layout |
+| **Lyrics** | View local or embedded lyrics, fetch online lyrics from LRCLIB, and switch between available sources |
+| **Four Audio Visualizers** | Choose Blob, Galaxy, Cuboid, or Particle visualizations, with an optional audio-reactive wavy seekbar |
+| **Audio Playlists & Favorites** | Create local audio playlists, keep favorite tracks together, and start normal or shuffled playback |
+
+</details>
+
+<details close>
+<summary><b>🎧 Navidrome / Subsonic Music Streaming</b></summary>
+
+| Feature | Description |
+|---|---|
+| **Subsonic API Integration** | Stream music from Navidrome and compatible Subsonic servers using token/salt authentication |
+| **Multiple Servers** | Save named servers, switch the active server, and manage connections from the app |
+| **Flexible Sign-In** | Connect with a username and password, or a supported app password/token |
+| **Music Discovery** | Quick mixes, recently added albums, artist browsing, and artwork-rich album and playlist detail views |
+| **Library Search** | Search the server for songs, albums, and artists |
+| **Server Playlists & Favorites** | Browse server playlists and sync favorite songs, albums, and artists; starred songs appear in a Favorites collection |
+| **Play All & Shuffle** | Start an album or playlist as a playback queue with track titles, artists, and cover art |
+| **Display Preferences** | Choose grid/list views and track sorting preferences |
+
+> Requires a music-server account and a reachable server. Available functionality depends on the server's Subsonic API and authentication support.
+
 </details>
 
 <details close>
@@ -213,7 +257,7 @@ mpvRx pushes the mpv-android experience further with deep customization, thermal
 | Feature | Description |
 |---|---|
 | **Native Server Integration** | Direct connection with Jellyfin accounts, fast token authentication, and multi-server management |
-| **Material 3 Expressive UI** | Cinematic interface with spring-based transitions and fluid layout hierarchy |
+| **Material 3 Expressive UI** | Cinematic interface with artwork-rich browsing, detail sheets, and dedicated music views |
 | **Featured Hero Banner** | Auto-advancing 16:9 backdrop banner with smooth gradient scrims, ratings, badges, and quick play |
 | **Continue Watching & Recently Watched** | Horizontal resume carousels with relative timestamps and progress bars tracking playback progress |
 | **Library Filter Chips** | Instant switching between Movies, TV Shows, Anime, Music, and BoxSets with dynamic item counts |
@@ -275,7 +319,7 @@ mpvRx pushes the mpv-android experience further with deep customization, thermal
 | **Stats Page 6** | Live system monitor: FPS, dropped frames, codecs, network sparkline, battery |
 | **Video Compressor** | Built-in FFmpeg-based compression with presets |
 | **12 Video Filter Presets** | Vivid, Cinematic, Dramatic, Ghibli Style, Neon Pop, Deep Black, and more |
-| **Custom Skip Segments** | Intro/outro/recap/credits/preview detection from IntroDB, TIDB, AniSkip, Anime Skip |
+| **Custom Skip Segments** | Intro/outro/recap/credits/preview detection from IntroDB, TIDB v3, AniSkip v2, Anime Skip, and SkipDB (requires an IMDb ID). Hybrid uses one validated provider result; duration-aware caches keep release versions separate. |
 | **A-B Loop** | In-player looping with visual markers on seekbar |
 | **Frame Navigation** | Frame-by-frame forward/backward with frame number display |
 | **Sleep Timer** | Built-in with quick presets (15/30/45/60 min) |
@@ -289,7 +333,7 @@ mpvRx pushes the mpv-android experience further with deep customization, thermal
 | **yt-dlp Integration** | High-performance streaming support for YouTube, Twitch, Bilibili, and more via a native Python bridge (SDK 29+ bypass) |
 | **yt-dlp Quality Controls** | Independent codec, resolution, FPS, HDR, container, and audio-bitrate preferences |
 | **Dynamic Refresh Rate** | Matches supported display refresh rates to the current video's frame rate for smoother motion |
-| **Audio Blob Visualizer** | OpenGL ES 3.0 FFT-reactive blob with bloom, touch rotation, pinch zoom, and an Audio Settings toggle |
+| **Secure Folder** | PIN-protected access with optional biometrics, media move/restore actions, and a hideable entry point |
 | **Screenshot Templates** | Filename placeholders for source name, playback position, and millisecond-accurate timestamps |
 
 </details>
@@ -325,8 +369,7 @@ _Just a Pro tip if your battery consumption stays within 200 mAh and belwo 0.9W 
   <i>Note: Previews may be unstable and are intended for testing purposes only.</i>
 </div> -->
 
-If something breaks, feels off, or deserves another pass, _don't be Dumb and ask for Trash Features which only you require it wll be auto deleted_, 
-report it in the [Issues](https://github.com/Riteshp2001/mpvRx/issues).
+For help, reproducible bug reports, or feature suggestions, start with the [support guide](SUPPORT.md) and [existing issues](https://github.com/Riteshp2001/mpvRx/issues).
 
 ---
 
@@ -349,6 +392,8 @@ report it in the [Issues](https://github.com/Riteshp2001/mpvRx/issues).
 | Variant | Description |
 |---|---|
 | `standard` | Main release with in-app update support |
+| `noVulkan` | Vulkan-free native distribution, packaged as a universal APK |
+| `fongmi` | Alternate native distribution with MediaCodec/Vulkan support, packaged as a universal APK |
 
 ### APK Variants
 
@@ -417,17 +462,35 @@ git push origin v1.3.1-preview.1
 
 ## Acknowledgments
 
-- [mpv-android](https://github.com/mpv-android)
-- [mpvExtended](https://github.com/marlboro-advance/mpvEx)
-- [mpvKt](https://github.com/abdallahmehiz/mpvKt)
-- [PixelPlayer](https://github.com/theovilardo/PixelPlayer) 
-- [MpvRex](https://github.com/sfsakhawat999/mpvRex)
-- [Next Player](https://github.com/anilbeesetti/nextplayer)
-- [Gramophone](https://github.com/FoedusProgramme/Gramophone)
-- [hdr-toys](https://github.com/natural-harmonia-gropius/hdr-toys)
-- [AFinity](https://github.com/MakD/AFinity)
-- [anacrolix/torrent](https://github.com/anacrolix/torrent)
-- [**SunnyVishnu3**](https://github.com/SunnyVishnu3) for the `yt-dlp` native integration and SDK 29+ bypass logic.
+### Built with open source
+
+Thank you to the player projects, music apps, libraries, and individual contributors whose work makes projects like mpvRx possible.
+
+| Explore the credits | Includes |
+|---|---|
+| [Playback & player projects](CITATION.md#playback--player-projects) | mpv-android, mpvExtended, mpvKt, MpvRex, Next Player |
+| [Music & media apps](CITATION.md#music--media-apps) | PixelPlayer, Gramophone, AFinity, Chora |
+| [Video processing & streaming](CITATION.md#video-processing--streaming) | hdr-toys, anacrolix/torrent |
+
+> Special thanks to [SunnyVishnu3](https://github.com/SunnyVishnu3) for the `yt-dlp` native integration and SDK 29+ bypass logic.
+
+[Full acknowledgments & citation information](CITATION.md) · [All contributors](https://github.com/Riteshp2001/mpvRx/graphs/contributors)
+
+### Contributors
+
+Thank you to everyone who helps build and improve mpvRx.
+
+<div align="center">
+  <a href="https://github.com/Riteshp2001/mpvRx/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=Riteshp2001/mpvRx" alt="mpvRx contributors" width="800" />
+  </a>
+</div>
+
+---
+
+## Community
+
+[Get help](SUPPORT.md) · [Report a bug](https://github.com/Riteshp2001/mpvRx/issues/new?template=bug_report.md) · [Suggest a feature](https://github.com/Riteshp2001/mpvRx/issues/new?template=feature_request.md) · [Code of conduct](CODE_OF_CONDUCT.md)
 
 ---
 

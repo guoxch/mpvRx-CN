@@ -72,6 +72,7 @@ import app.gyrolet.mpvrx.ui.browser.states.EmptyState
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
+import app.gyrolet.mpvrx.ui.utils.navigateTo
 import app.gyrolet.mpvrx.ui.utils.popSafely
 import app.gyrolet.mpvrx.utils.media.MediaInfoOps
 import app.gyrolet.mpvrx.utils.media.MediaUtils
@@ -130,6 +131,7 @@ data object SecureFolderScreen : Screen {
     val showExtensionField by browserPreferences.showExtensionField.collectAsState()
     val showDurationField by browserPreferences.showDurationField.collectAsState()
     val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
+    val thumbnailQuality by browserPreferences.thumbnailQuality.collectAsState()
 
     val manualGridColumnsEnabled by browserPreferences.manualGridColumnsEnabled.collectAsState()
     val videoGridColumnsPortrait by browserPreferences.videoGridColumnsPortrait.collectAsState()
@@ -150,6 +152,7 @@ data object SecureFolderScreen : Screen {
         showExtensionField,
         showDurationField,
         centerGridTitles,
+        thumbnailQuality,
       ) {
         VideoCardUiConfig(
           unlimitedNameLines = unlimitedNameLines,
@@ -165,6 +168,7 @@ data object SecureFolderScreen : Screen {
           showExtensionField = showExtensionField,
           showDurationField = showDurationField,
           centerGridTitles = centerGridTitles,
+          thumbnailQuality = thumbnailQuality,
         )
       }
 
@@ -361,7 +365,7 @@ data object SecureFolderScreen : Screen {
       floatingActionButton = {
         if (!isInSelectionMode) {
           ExtendedFloatingActionButton(
-            onClick = { backstack.add(SecureFolderAddFilesScreen) },
+            onClick = { backstack.navigateTo(SecureFolderAddFilesScreen) },
             icon = { Icon(Icons.RoundedFilled.Add, contentDescription = null) },
             text = { Text(stringResource(R.string.secure_folder_add_files)) },
           )
@@ -389,7 +393,7 @@ data object SecureFolderScreen : Screen {
             val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
             val videoGridColumnsPref = if (isLandscape) videoGridColumnsLandscape else videoGridColumnsPortrait
             val contentHorizontalPadding = 8.dp
-            val itemSpacing = 4.dp
+            val itemSpacing = 2.dp
             val usableWidth = maxWidth - (contentHorizontalPadding * 2) - itemSpacing
             val videoGridColumns =
               if (manualGridColumnsEnabled) {
@@ -401,12 +405,14 @@ data object SecureFolderScreen : Screen {
 
             val thumbWidthDp =
               if (mediaLayoutMode == MediaLayoutMode.GRID) {
-                (usableWidth / videoGridColumns)
+                val cellWidth =
+                  (maxWidth - contentHorizontalPadding * 2 - itemSpacing * (videoGridColumns - 1)) / videoGridColumns
+                (cellWidth - 8.dp).coerceAtLeast(1.dp)
               } else {
                 128.dp
               }
             val thumbWidthPx = with(density) { thumbWidthDp.roundToPx() }
-            val aspect = 16f / 9f
+            val aspect = if (mediaLayoutMode == MediaLayoutMode.GRID) 16f / 10f else 16f / 9f
             val thumbHeightPx = (thumbWidthPx / aspect).roundToInt()
 
             val hasEnoughItems = sortedSecureMediaVideos.size > 10
@@ -428,8 +434,8 @@ data object SecureFolderScreen : Screen {
                   columns = GridCells.Fixed(videoGridColumns),
                   state = gridState,
                   contentPadding = PaddingValues(start = 8.dp, end = 8.dp, bottom = 16.dp),
-                  horizontalArrangement = Arrangement.spacedBy(4.dp),
-                  verticalArrangement = Arrangement.spacedBy(4.dp),
+                  horizontalArrangement = Arrangement.spacedBy(2.dp),
+                  verticalArrangement = Arrangement.spacedBy(2.dp),
                   modifier = Modifier.fillMaxSize(),
                 ) {
                   items(sortedSecureMediaVideos, key = { it.first.id }) { (entity, video) ->
@@ -674,7 +680,6 @@ private fun formatResolutionWithFps(
 
   return "$baseResolution@${fps.toInt()}"
 }
-
 
 
 

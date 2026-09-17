@@ -10,6 +10,7 @@
 package app.gyrolet.mpvrx.repository
 
 import android.util.Log
+import app.gyrolet.mpvrx.data.network.ServerUrlUtils
 import app.gyrolet.mpvrx.domain.seerr.ApproveRequestBody
 import app.gyrolet.mpvrx.domain.seerr.CreateRequestBody
 import app.gyrolet.mpvrx.domain.seerr.DiscoverSlider
@@ -23,8 +24,14 @@ import app.gyrolet.mpvrx.domain.seerr.MediaType
 import app.gyrolet.mpvrx.domain.seerr.PublicSettings
 import app.gyrolet.mpvrx.domain.seerr.RequestsResponse
 import app.gyrolet.mpvrx.domain.seerr.SearchResultItem
+import app.gyrolet.mpvrx.domain.seerr.SeerrRadarrServer
+import app.gyrolet.mpvrx.domain.seerr.SeerrRadarrServerResponse
+import app.gyrolet.mpvrx.domain.seerr.SeerrSonarrServer
+import app.gyrolet.mpvrx.domain.seerr.SeerrSonarrServerResponse
 import app.gyrolet.mpvrx.domain.seerr.UserQuotaResponse
+import app.gyrolet.mpvrx.network.awaitResponse
 import app.gyrolet.mpvrx.preferences.SeerrPreferences
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -32,6 +39,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -51,8 +60,11 @@ class SeerrRepository(
   private val preferences: SeerrPreferences,
 ) {
   private val mediaDetailsCache = ConcurrentHashMap<Pair<String, Int>, MediaDetails>()
+  private val mediaDetailsEnrichmentSemaphore = Semaphore(MAX_CONCURRENT_MEDIA_ENRICHMENTS)
+
   companion object {
     private const val TAG = "SeerrRepository"
+    private const val MAX_CONCURRENT_MEDIA_ENRICHMENTS = 4
     private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
   }
 
@@ -68,22 +80,7 @@ class SeerrRepository(
     .build()
 
   fun generateCandidateUrls(input: String): List<String> {
-    val trimmed = input.trim().removeSuffix("/")
-    if (trimmed.isBlank()) return emptyList()
-    val hasScheme = trimmed.startsWith("http://", ignoreCase = true) || trimmed.startsWith("https://", ignoreCase = true)
-    val withScheme = if (hasScheme) trimmed else "http://$trimmed"
-    val uri = runCatching { URI(withScheme) }.getOrNull()
-    val host = uri?.host?.takeIf { it.isNotBlank() } ?: trimmed
-    val port = uri?.port ?: -1
-    val scheme = if (hasScheme) uri?.scheme else null
-
-    return when {
-      hasScheme && port != -1 -> listOf(trimmed)
-      !hasScheme && port != -1 -> listOf("https://$trimmed", "http://$trimmed")
-      hasScheme && scheme.equals("https", ignoreCase = true) -> listOf(trimmed, "https://$host:5055")
-      hasScheme && scheme.equals("http", ignoreCase = true) -> listOf(trimmed, "http://$host:5055")
-      else -> listOf("https://$host", "https://$host:5055", "http://$host:5055", "http://$host")
-    }
+    return ServerUrlUtils.generateCandidateUrls(input, defaultPort = 5055)
   }
 
   suspend fun verifyServer(url: String): Boolean = withContext(Dispatchers.IO) {
@@ -97,7 +94,9 @@ class SeerrRepository(
         .header("User-Agent", "mpvRx Android")
         .get()
         .build()
-      shortClient.newCall(request).execute().use { it.isSuccessful }
+      shortClient.newCall(request).awaitResponse().use { it.isSuccessful }
+    } catch (cancellation: CancellationException) {
+      throw cancellation
     } catch (e: Exception) {
       Log.d(TAG, "verifyServer failed for $url: ${e.message}")
       false
@@ -149,7 +148,7 @@ class SeerrRepository(
     errorMessage: String,
   ): Result<T> = withContext(Dispatchers.IO) {
     try {
-      httpClient.newCall(request).execute().use { response ->
+      httpClient.newCall(request).awaitResponse().use { response ->
         val bodyStr = response.body.string()
         if (response.isSuccessful) {
           val parsed = json.decodeFromString<T>(bodyStr)
@@ -159,6 +158,8 @@ class SeerrRepository(
           Result.failure(Exception("$errorMessage (HTTP ${response.code}): $bodyStr"))
         }
       }
+    } catch (cancellation: CancellationException) {
+      throw cancellation
     } catch (e: Exception) {
       Log.e(TAG, "$errorMessage: ${e.message}", e)
       Result.failure(e)
@@ -191,7 +192,7 @@ class SeerrRepository(
     )
 
     try {
-      httpClient.newCall(req).execute().use { resp ->
+      httpClient.newCall(req).awaitResponse().use { resp ->
         val bodyStr = resp.body.string()
         if (resp.isSuccessful) {
           val user = json.decodeFromString<JellyseerrUser>(bodyStr)
@@ -211,6 +212,8 @@ class SeerrRepository(
           Result.failure(Exception("Login failed (HTTP ${resp.code}): $bodyStr"))
         }
       }
+    } catch (cancellation: CancellationException) {
+      throw cancellation
     } catch (e: Exception) {
       Result.failure(e)
     }
@@ -232,7 +235,7 @@ class SeerrRepository(
     )
 
     try {
-      httpClient.newCall(req).execute().use { resp ->
+      httpClient.newCall(req).awaitResponse().use { resp ->
         val bodyStr = resp.body.string()
         if (resp.isSuccessful) {
           val user = json.decodeFromString<JellyseerrUser>(bodyStr)
@@ -251,6 +254,8 @@ class SeerrRepository(
           Result.failure(Exception("API Key validation failed (HTTP ${resp.code}): $bodyStr"))
         }
       }
+    } catch (cancellation: CancellationException) {
+      throw cancellation
     } catch (e: Exception) {
       preferences.apiKey.set("")
       Result.failure(e)
@@ -260,7 +265,9 @@ class SeerrRepository(
   suspend fun logout(): Result<Unit> = withContext(Dispatchers.IO) {
     try {
       val req = buildRequest(path = "api/v1/auth/logout", method = "POST")
-      httpClient.newCall(req).execute().close()
+      httpClient.newCall(req).awaitResponse().close()
+    } catch (cancellation: CancellationException) {
+      throw cancellation
     } catch (e: Exception) {
       Log.d(TAG, "Logout network call failed: ${e.message}")
     } finally {
@@ -438,48 +445,56 @@ class SeerrRepository(
   }
 
   suspend fun enrichRequest(request: JellyseerrRequest): JellyseerrRequest {
-    val tmdbId = request.media.tmdbId ?: return request
-    if (!request.media.title.isNullOrBlank() || !request.media.name.isNullOrBlank()) {
-      return request
-    }
-    val mediaTypeStr = request.media.mediaType.lowercase()
-    val cacheKey = mediaTypeStr to tmdbId
-    val cached = mediaDetailsCache[cacheKey]
-    if (cached != null) {
-      return request.copy(
-        media = request.media.copy(
-          title = cached.title,
-          name = cached.name,
-          posterPath = cached.posterPath,
-          backdropPath = cached.backdropPath,
-          releaseDate = cached.releaseDate,
-          firstAirDate = cached.firstAirDate,
-        ),
-      )
-    }
-
-    val detailsRes = if (mediaTypeStr == "tv") getTvDetails(tmdbId) else getMovieDetails(tmdbId)
-    val details = detailsRes.getOrNull() ?: return request
-    mediaDetailsCache[cacheKey] = details
-    return request.copy(
-      media = request.media.copy(
-        title = details.title,
-        name = details.name,
-        posterPath = details.posterPath,
-        backdropPath = details.backdropPath,
-        releaseDate = details.releaseDate,
-        firstAirDate = details.firstAirDate,
-      ),
-    )
+    val key = request.mediaDetailsKey() ?: return request
+    val details = mediaDetailsEnrichmentSemaphore.withPermit { fetchMediaDetails(key) } ?: return request
+    return request.withMediaDetails(details)
   }
 
   suspend fun enrichRequests(requests: List<JellyseerrRequest>): List<JellyseerrRequest> = withContext(Dispatchers.IO) {
-    coroutineScope {
-      requests.map { req ->
-        async { enrichRequest(req) }
-      }.awaitAll()
+    val keys = requests.mapNotNull { request -> request.mediaDetailsKey() }.distinct()
+    val detailsByKey =
+      coroutineScope {
+        keys
+          .map { key ->
+            async {
+              mediaDetailsEnrichmentSemaphore.withPermit {
+                key to fetchMediaDetails(key)
+              }
+            }
+          }.awaitAll()
+          .mapNotNull { (key, details) -> details?.let { key to it } }
+          .toMap()
+      }
+
+    requests.map { request ->
+      request.mediaDetailsKey()?.let(detailsByKey::get)?.let { details -> request.withMediaDetails(details) } ?: request
     }
   }
+
+  private fun JellyseerrRequest.mediaDetailsKey(): Pair<String, Int>? {
+    if (!media.title.isNullOrBlank() || !media.name.isNullOrBlank()) return null
+    val tmdbId = media.tmdbId ?: return null
+    return media.mediaType.lowercase() to tmdbId
+  }
+
+  private suspend fun fetchMediaDetails(key: Pair<String, Int>): MediaDetails? {
+    mediaDetailsCache[key]?.let { return it }
+    val (mediaType, tmdbId) = key
+    return (if (mediaType == "tv") getTvDetails(tmdbId) else getMovieDetails(tmdbId)).getOrNull()
+  }
+
+  private fun JellyseerrRequest.withMediaDetails(details: MediaDetails): JellyseerrRequest =
+    copy(
+      media =
+        media.copy(
+          title = details.title,
+          name = details.name,
+          posterPath = details.posterPath,
+          backdropPath = details.backdropPath,
+          releaseDate = details.releaseDate,
+          firstAirDate = details.firstAirDate,
+        ),
+    )
 
   suspend fun getRequests(
     take: Int = 50,
@@ -496,18 +511,59 @@ class SeerrRepository(
 
     val req = buildRequest(path = "api/v1/request", queryParameters = queryParams)
     try {
-      httpClient.newCall(req).execute().use { response ->
-        val bodyStr = response.body.string()
-        if (response.isSuccessful) {
-          val res = json.decodeFromString<RequestsResponse>(bodyStr)
-          val enriched = enrichRequests(res.results)
-          Result.success(enriched)
-        } else {
-          Result.failure(Exception("Failed to load requests (HTTP ${response.code}): $bodyStr"))
+      val responseBody =
+        httpClient.newCall(req).awaitResponse().use { response ->
+          val bodyStr = response.body.string()
+          if (!response.isSuccessful) {
+            return@withContext Result.failure(Exception("Failed to load requests (HTTP ${response.code}): $bodyStr"))
+          }
+          json.decodeFromString<RequestsResponse>(bodyStr)
         }
-      }
+      Result.success(enrichRequests(responseBody.results))
+    } catch (cancellation: CancellationException) {
+      throw cancellation
     } catch (e: Exception) {
       Result.failure(e)
+    }
+  }
+
+  suspend fun getRadarrServers(): Result<List<SeerrRadarrServer>> = withContext(Dispatchers.IO) {
+    val req = buildRequest(path = "api/v1/service/radarr")
+    val res = executeCall<List<SeerrRadarrServer>>(req, "Failed to load Radarr servers")
+    res.map { servers ->
+      servers.map { server ->
+        val serverId = server.id ?: return@map server
+        val detailReq = buildRequest(path = "api/v1/service/radarr/$serverId")
+        val detailRes = executeCall<SeerrRadarrServerResponse>(detailReq, "Failed to load Radarr server details").getOrNull()
+        if (detailRes != null) {
+          server.copy(
+            profiles = detailRes.profiles,
+            rootFolders = detailRes.rootFolders,
+          )
+        } else {
+          server
+        }
+      }
+    }
+  }
+
+  suspend fun getSonarrServers(): Result<List<SeerrSonarrServer>> = withContext(Dispatchers.IO) {
+    val req = buildRequest(path = "api/v1/service/sonarr")
+    val res = executeCall<List<SeerrSonarrServer>>(req, "Failed to load Sonarr servers")
+    res.map { servers ->
+      servers.map { server ->
+        val serverId = server.id ?: return@map server
+        val detailReq = buildRequest(path = "api/v1/service/sonarr/$serverId")
+        val detailRes = executeCall<SeerrSonarrServerResponse>(detailReq, "Failed to load Sonarr server details").getOrNull()
+        if (detailRes != null) {
+          server.copy(
+            profiles = detailRes.profiles,
+            rootFolders = detailRes.rootFolders,
+          )
+        } else {
+          server
+        }
+      }
     }
   }
 
@@ -516,12 +572,18 @@ class SeerrRepository(
     mediaType: MediaType,
     seasons: List<Int>? = null,
     is4k: Boolean = false,
+    serverId: Int? = null,
+    profileId: Int? = null,
+    rootFolder: String? = null,
   ): Result<JellyseerrRequest> = withContext(Dispatchers.IO) {
     val body = CreateRequestBody(
       mediaType = mediaType.value,
       mediaId = mediaId,
       seasons = seasons,
       is4k = is4k,
+      serverId = serverId,
+      profileId = profileId,
+      rootFolder = rootFolder,
     )
     val payload = json.encodeToString(CreateRequestBody.serializer(), body)
     val req = buildRequest(path = "api/v1/request", method = "POST", bodyJson = payload)
@@ -574,13 +636,15 @@ class SeerrRepository(
       method = "DELETE",
     )
     try {
-      httpClient.newCall(req).execute().use { response ->
+      httpClient.newCall(req).awaitResponse().use { response ->
         if (response.isSuccessful) {
           Result.success(Unit)
         } else {
           Result.failure(Exception("Failed to delete media $mediaId (HTTP ${response.code})"))
         }
       }
+    } catch (cancellation: CancellationException) {
+      throw cancellation
     } catch (e: Exception) {
       Result.failure(e)
     }
@@ -594,13 +658,15 @@ class SeerrRepository(
       method = "DELETE",
     )
     try {
-      httpClient.newCall(req).execute().use { response ->
+      httpClient.newCall(req).awaitResponse().use { response ->
         if (response.isSuccessful) {
           Result.success(Unit)
         } else {
           Result.failure(Exception("Failed to delete request $requestId (HTTP ${response.code})"))
         }
       }
+    } catch (cancellation: CancellationException) {
+      throw cancellation
     } catch (e: Exception) {
       Result.failure(e)
     }

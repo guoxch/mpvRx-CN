@@ -44,7 +44,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +51,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import app.gyrolet.mpvrx.ui.utils.ReorderFeedback
+import app.gyrolet.mpvrx.ui.utils.dragElevation
+import app.gyrolet.mpvrx.ui.utils.rememberReorderFeedback
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -64,11 +67,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.domain.thumbnail.ThumbnailRepository
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.presentation.components.PlayerSheet
 import app.gyrolet.mpvrx.presentation.components.RemoteImage
+import app.gyrolet.mpvrx.ui.browser.dialogs.AddToPlaylistDialog
 import app.gyrolet.mpvrx.ui.player.PlaybackSession
 import app.gyrolet.mpvrx.ui.player.controls.components.MiniAudioVisualizer
 import app.gyrolet.mpvrx.ui.icons.Icon
@@ -79,13 +86,45 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
+import kotlin.math.abs
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
+fun PlaylistItem.toVideo(): Video {
+  val cleanPath =
+    if (path.startsWith("file://", ignoreCase = true)) {
+      runCatching { Uri.parse(path).path }.getOrNull() ?: path.removePrefix("file://")
+    } else {
+      path.ifBlank { uri.path.orEmpty().ifBlank { uri.toString() } }
+    }
+  return Video(
+    id = uri.toString().hashCode().toLong(),
+    title = title,
+    displayName = title,
+    path = cleanPath,
+    uri = uri,
+    duration = 0L,
+    durationFormatted = duration,
+    size = 0L,
+    sizeFormatted = "",
+    dateModified = 0L,
+    dateAdded = 0L,
+    mimeType = if (isAudio) "audio/*" else "video/*",
+    bucketId = "",
+    bucketDisplayName = "",
+    width = 0,
+    height = 0,
+    fps = 0f,
+    resolution = resolution,
+    isAudio = isAudio,
+  )
+}
+
 data class PlaylistItem(
   val uri: Uri,
   val title: String,
+  val artist: String = "",
   val index: Int,
   val isPlaying: Boolean,
   val progressPercent: Float = 0f, // 0-100, progress of video watched
@@ -95,6 +134,8 @@ data class PlaylistItem(
   val resolution: String = "", // Resolution (e.g., "1920x1080")
   val isAudio: Boolean = false,
   val tvgLogo: String = "", // M3U channel logo URL for fallback
+  val networkConnectionId: Long? = null,
+  val networkPath: String = "",
 )
 
 @Composable
@@ -105,8 +146,23 @@ private fun PlaylistThumbnail(
   modifier: Modifier = Modifier,
   contentScale: ContentScale = ContentScale.Crop,
 ) {
+  val hasArtwork = item.tvgLogo.isNotBlank()
+  val isYouTubeArtwork =
+    remember(item.tvgLogo) {
+      val host = runCatching { Uri.parse(item.tvgLogo).host.orEmpty().lowercase() }.getOrDefault("")
+      host == "i.ytimg.com" || host.endsWith(".ytimg.com")
+    }
+  val cleanPath =
+    remember(item.path, item.uri) {
+      val raw = item.path.ifBlank { item.uri.toString() }
+      if (raw.startsWith("file://", ignoreCase = true)) {
+        runCatching { Uri.parse(raw).path }.getOrNull() ?: raw.removePrefix("file://")
+      } else {
+        raw
+      }
+    }
   val video =
-    remember(item.uri, item.path, item.title) {
+    remember(item.uri, cleanPath, item.title) {
       Video(
         id =
           item.uri
@@ -115,7 +171,7 @@ private fun PlaylistThumbnail(
             .toLong(),
         title = item.title,
         displayName = item.title,
-        path = item.path.ifBlank { item.uri.toString() },
+        path = cleanPath,
         uri = item.uri,
         duration = 0L,
         durationFormatted = item.duration,
@@ -137,46 +193,57 @@ private fun PlaylistThumbnail(
       if (item.isAudio) 512 to 512 else PLAYLIST_THUMBNAIL_WIDTH to PLAYLIST_THUMBNAIL_HEIGHT
     }
   val thumbnailKey =
-    remember(video, thumbWidth, thumbHeight) {
-      thumbnailRepository.thumbnailKey(video, thumbWidth, thumbHeight)
+    remember(video, item.networkConnectionId, item.networkPath, thumbWidth, thumbHeight) {
+      if (item.networkConnectionId != null && item.networkPath.isNotBlank()) {
+        "network-playlist|${item.networkConnectionId}|${item.networkPath}|$thumbWidth|$thumbHeight"
+      } else {
+        thumbnailRepository.thumbnailKey(video, thumbWidth, thumbHeight)
+      }
     }
   var bitmap by remember(thumbnailKey) {
     mutableStateOf(
-      thumbnailRepository.getThumbnailFromMemory(
-        video,
-        thumbWidth,
-        thumbHeight,
-      ),
+      if (!hasArtwork && (item.networkConnectionId == null || item.networkPath.isBlank())) {
+        thumbnailRepository.getThumbnailFromMemory(video, thumbWidth, thumbHeight)
+      } else {
+        null
+      },
     )
   }
 
   LaunchedEffect(thumbnailKey) {
-    if (bitmap == null) {
+    if (!hasArtwork && bitmap == null) {
       bitmap =
         withContext(Dispatchers.IO) {
-          thumbnailRepository.getThumbnail(
-            video,
-            thumbWidth,
-            thumbHeight,
-          )
+          val connectionId = item.networkConnectionId
+          if (connectionId != null && item.networkPath.isNotBlank()) {
+            thumbnailRepository.getThumbnailForNetworkSource(
+              connectionId = connectionId,
+              path = item.networkPath,
+              widthPx = thumbWidth,
+              heightPx = thumbHeight,
+            )
+          } else {
+            thumbnailRepository.getThumbnail(video, thumbWidth, thumbHeight)
+          }
         }
     }
   }
 
   val currentImageBitmap = remember(bitmap) { bitmap?.asImageBitmap() }
-  if (currentImageBitmap != null) {
+  val isEdgeToEdge = item.isAudio || isYouTubeArtwork
+  if (hasArtwork) {
+    RemoteImage(
+      url = item.tvgLogo,
+      contentDescription = contentDescription,
+      contentScale = if (isEdgeToEdge) ContentScale.Crop else contentScale,
+      modifier = if (isEdgeToEdge) modifier else modifier.padding(4.dp),
+    )
+  } else if (currentImageBitmap != null) {
     androidx.compose.foundation.Image(
       bitmap = currentImageBitmap,
       contentDescription = contentDescription,
       modifier = modifier,
       contentScale = contentScale,
-    )
-  } else if (item.tvgLogo.isNotBlank()) {
-    RemoteImage(
-      url = item.tvgLogo,
-      contentDescription = contentDescription,
-      contentScale = ContentScale.Fit,
-      modifier = modifier.padding(4.dp),
     )
   }
 }
@@ -227,16 +294,31 @@ fun PlaylistSheet(
   val lazyListState = rememberLazyListState()
 
   // Find the currently playing item index - tracks changes in playlist items
-  val playingItemIndex by remember {
-    derivedStateOf {
-      playlist.indexOfFirst { it.isPlaying }
-    }
-  }
+  val playingItemIndex = remember(playlist) { playlist.indexOfFirst { it.isPlaying } }
 
-  // Scroll to the currently playing item when the playing item changes or when sheet opens
+  var hasPositionedInitialPlayingItem by remember { mutableStateOf(false) }
+
+  // Position the initial item without competing with the sheet entrance animation. Animate only
+  // later track changes, when the sheet is already settled and visible.
   LaunchedEffect(playingItemIndex) {
     if (playingItemIndex >= 0) {
-      lazyListState.animateScrollToItem(playingItemIndex)
+      if (hasPositionedInitialPlayingItem) {
+        val distanceFromVisibleItem = playingItemIndex - lazyListState.firstVisibleItemIndex
+        if (abs(distanceFromVisibleItem) > PLAYLIST_SCROLL_APPROACH_ITEMS) {
+          val approachOffset =
+            if (distanceFromVisibleItem > 0) {
+              PLAYLIST_SCROLL_APPROACH_ITEMS
+            } else {
+              -PLAYLIST_SCROLL_APPROACH_ITEMS
+            }
+          val approachIndex = playingItemIndex - approachOffset
+          lazyListState.scrollToItem(approachIndex.coerceIn(0, playlist.lastIndex))
+        }
+        lazyListState.animateScrollToItem(playingItemIndex)
+      } else {
+        lazyListState.scrollToItem(playingItemIndex)
+        hasPositionedInitialPlayingItem = true
+      }
     }
   }
 
@@ -251,6 +333,8 @@ fun PlaylistSheet(
     } else {
       screenWidth * 0.85f
     }
+
+  var showAddToPlaylistDialog by rememberSaveable { mutableStateOf(false) }
 
   PlayerSheet(
     onDismissRequest = onDismissRequest,
@@ -321,16 +405,31 @@ fun PlaylistSheet(
             )
           }
 
-          // Toggle button for list/grid view (only in landscape)
-          if (!isPortrait) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+          ) {
             IconButton(
-              onClick = { isListMode = !isListMode },
+              onClick = { showAddToPlaylistDialog = true },
             ) {
               Icon(
-                imageVector = if (isListMode) Icons.RoundedFilled.GridView else Icons.RoundedFilled.ViewList,
-                contentDescription = if (isListMode) "Switch to Grid View" else "Switch to List View",
+                imageVector = Icons.RoundedFilled.PlaylistAdd,
+                contentDescription = stringResource(R.string.save_queue_as_playlist),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
               )
+            }
+
+            // Toggle button for list/grid view (only in landscape)
+            if (!isPortrait) {
+              IconButton(
+                onClick = { isListMode = !isListMode },
+              ) {
+                Icon(
+                  imageVector = if (isListMode) Icons.RoundedFilled.GridView else Icons.RoundedFilled.ViewList,
+                  contentDescription = if (isListMode) "Switch to Grid View" else "Switch to List View",
+                  tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+              }
             }
           }
         }
@@ -347,6 +446,7 @@ fun PlaylistSheet(
 
           var dragStartIndex by remember { mutableIntStateOf(-1) }
           var dragEndIndex by remember { mutableIntStateOf(-1) }
+          val reorderFeedback = rememberReorderFeedback()
 
           val reorderableLazyListState =
             rememberReorderableLazyListState(lazyListState) { from, to ->
@@ -358,6 +458,7 @@ fun PlaylistSheet(
                 displayPlaylist = displayPlaylist.toMutableList().apply {
                   add(to.index, removeAt(from.index))
                 }.toImmutableList()
+                reorderFeedback.move(from.index, to.index)
               }
             }
 
@@ -384,13 +485,18 @@ fun PlaylistSheet(
 
                   PlaylistTrackListItem(
                     item = item,
+                    modifier = Modifier.shadow(
+                      dragElevation(isDragging, app.gyrolet.mpvrx.ui.theme.AppMotion.playerReducedMotion()),
+                      MaterialTheme.shapes.medium,
+                      clip = false,
+                    ),
                     thumbnailRepository = thumbnailRepository,
                     onClick = { onItemClick(item) },
                     skipThumbnail = false,
                     accentColor = accentColor,
                     isAudioOnly = isAudioOnly,
                     dragHandle = {
-                      DragHandle(scope = this, isDragging = isDragging)
+                      DragHandle(scope = this, isDragging = isDragging, feedback = reorderFeedback)
                     },
                   )
                 }
@@ -433,12 +539,23 @@ fun PlaylistSheet(
       }
     }
   }
+
+  if (showAddToPlaylistDialog && playlist.isNotEmpty()) {
+    val queueVideos = remember(playlist) { playlist.map { it.toVideo() } }
+    AddToPlaylistDialog(
+      isOpen = true,
+      videos = queueVideos,
+      onDismiss = { showAddToPlaylistDialog = false },
+      onSuccess = { showAddToPlaylistDialog = false },
+    )
+  }
 }
 
 @Composable
 private fun DragHandle(
   scope: ReorderableCollectionItemScope,
   isDragging: Boolean,
+  feedback: ReorderFeedback,
   modifier: Modifier = Modifier,
 ) {
   val alpha by animateFloatAsState(
@@ -456,7 +573,10 @@ private fun DragHandle(
       with(scope) {
         modifier
           .size(40.dp)
-          .draggableHandle()
+          .draggableHandle(
+            interactionSource = feedback.interactions,
+            onDragStarted = { feedback.start() },
+          )
       },
     contentAlignment = Alignment.Center,
   ) {
@@ -485,7 +605,7 @@ fun PlaylistTrackListItem(
   modifier: Modifier = Modifier,
   dragHandle: @Composable () -> Unit = {},
 ) {
-  val isAudioItem = item.isAudio
+  val isAudioItem = item.isAudio || isAudioOnly
   val effectiveItem =
     remember(item, isAudioItem) {
       if (item.isAudio != isAudioItem) item.copy(isAudio = isAudioItem) else item
@@ -609,6 +729,16 @@ fun PlaylistTrackListItem(
           overflow = TextOverflow.Ellipsis,
         )
 
+        if (item.artist.isNotBlank()) {
+          Text(
+            text = item.artist,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+          )
+        }
+
         // Duration and resolution chips - always show with loading state if empty
         Row(
           horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -706,7 +836,7 @@ fun PlaylistTrackGridItem(
   isAudioOnly: Boolean = false,
   modifier: Modifier = Modifier,
 ) {
-  val isAudioItem = item.isAudio
+  val isAudioItem = item.isAudio || isAudioOnly
   val effectiveItem =
     remember(item, isAudioItem) {
       if (item.isAudio != isAudioItem) item.copy(isAudio = isAudioItem) else item
@@ -875,6 +1005,16 @@ fun PlaylistTrackGridItem(
           overflow = TextOverflow.Ellipsis,
         )
 
+        if (item.artist.isNotBlank()) {
+          Text(
+            text = item.artist,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+          )
+        }
+
         // Resolution and status
         Row(
           horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -994,3 +1134,5 @@ private fun String.stripExtension(): String {
   val ext = substring(dotIndex + 1)
   return if (ext.length in 2..5 && ext.none { it.isWhitespace() }) substring(0, dotIndex) else this
 }
+
+private const val PLAYLIST_SCROLL_APPROACH_ITEMS = 6

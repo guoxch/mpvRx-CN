@@ -68,11 +68,7 @@ class PlaylistViewModel(
         if (cachedPlaylists.isNotEmpty()) {
           // Show cached data immediately (without video counts for speed)
           val quickLoad =
-            cachedPlaylists
-              .sortedWith(
-                compareByDescending<PlaylistEntity> { repository.isProtectedPlaylist(it) }
-                  .thenBy { it.name.lowercase() }
-              )
+            visiblePlaylists(cachedPlaylists)
               .map { playlist ->
                 PlaylistWithCount(playlist, 0) // Show 0 count initially
               }
@@ -87,14 +83,8 @@ class PlaylistViewModel(
     // Then observe for updates with actual counts
     viewModelScope.launch(Dispatchers.IO) {
       repository.observeAllPlaylists().collectLatest { playlistsFromDb ->
-        val sortedPlaylists =
-          playlistsFromDb.sortedWith(
-            compareByDescending<PlaylistEntity> { repository.isProtectedPlaylist(it) }
-              .thenBy { it.name.lowercase() }
-          )
-
         val playlistsWithCounts =
-          sortedPlaylists.map { playlist ->
+          visiblePlaylists(playlistsFromDb).map { playlist ->
             val count = getActualVideoCount(playlist.id)
             PlaylistWithCount(playlist, count)
           }
@@ -132,15 +122,17 @@ class PlaylistViewModel(
     }
   }
 
+  private fun visiblePlaylists(playlists: List<PlaylistEntity>): List<PlaylistEntity> =
+    repository.prioritizeFavorites(playlists)
+
   fun refresh() {
     viewModelScope.launch(Dispatchers.IO) {
       try {
         _isLoading.value = true
         val playlistsFromDb = repository.getAllPlaylists()
-        val sortedPlaylists = playlistsFromDb.sortedBy { it.name.lowercase() }
 
         val playlistsWithCounts =
-          sortedPlaylists.map { playlist ->
+          visiblePlaylists(playlistsFromDb).map { playlist ->
             val count = getActualVideoCount(playlist.id)
             PlaylistWithCount(playlist, count)
           }
@@ -161,10 +153,18 @@ class PlaylistViewModel(
     userAgent: String? = null,
   ): Result<Long> = repository.createM3UPlaylist(url, userAgent)
 
+  suspend fun createXtreamPlaylist(
+    serverUrl: String,
+    username: String,
+    password: String,
+  ): Result<Long> = repository.createXtreamPlaylist(serverUrl, username, password)
+
   suspend fun createM3UPlaylistFromFile(uri: android.net.Uri): Result<Long> =
     repository.createM3UPlaylistFromFile(getApplication(), uri)
 
   suspend fun refreshM3UPlaylist(playlistId: Int): Result<Unit> = repository.refreshM3UPlaylist(playlistId)
+
+  fun isProtectedPlaylist(playlist: PlaylistEntity): Boolean = repository.isProtectedPlaylist(playlist)
 
   suspend fun deletePlaylist(playlist: PlaylistEntity) {
     repository.deletePlaylist(playlist)

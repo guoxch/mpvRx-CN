@@ -2,6 +2,130 @@
 
 These notes are written in plain English and focus on what changed for real use.
 
+## 2.5.0 - Frame Review, Auto Crop & Library Performance
+
+> [!IMPORTANT]
+> **Project hiatus:** Following version 2.5.0, mpvRx development will be paused until further notice.
+
+### 🎬 Frame Review, Seeking & Playback
+- **Frame-Level Review**: Added a full-player Frame Review mode with horizontal frame swipes, previous/next-frame controls, precise frame and millisecond readouts, snapshots with optional subtitles, and a transparent responsive layout.
+- **Frame-Addressed Timeline**: The Frame Review slider now selects integer video frames. Dragging uses throttled keyframe previews, while release performs an exact mpv seek with bounded refinement and adjacent-frame correction for precision without sustained decoder load.
+- **Reliable Forward and Backward Seeking**: Backward seeks use exact targets to keep audio and video aligned. Forward seeks stop safely before EOF and a subsequent forward action can finish playback instead of becoming unresponsive near the end.
+- **Safer Surface Recovery**: MediaCodec video is suspended before an Android playback surface is destroyed and restored only for the matching playback generation, reducing black frames and decoder failures after surface recreation.
+- **thumbfast Seek Preview Removal**: Removed the separate ThumbFast overlay engine, frame-decode cache, preference, and UI. Scrubbing now uses one throttled live-video preview path, reducing duplicate decoder work and stale preview races.
+- **Smoother Startup and Controls**: Reduced startup control flicker, replaced overshooting control springs with predictable timed transitions, and improved seek coalescing so rapid gestures settle on the latest requested position.
+- **Correct Orientation from the First Frame**: Local videos pass their known dimensions into the player so portrait and landscape orientation can be selected before playback appears instead of rotating after startup.
+- **Correct Audio State Across Transitions**: Playback teardown no longer carries a temporary seek mute into the next file, and terminal playback state is persisted immediately when a file reaches EOF.
+- **Persistent Video Geometry**: Video zoom survives file loads, while crop, pan, zoom, stretch, and ambient rendering now share one consistent geometry path.
+- **Immediate Runtime Changes**: Clearing playback history updates repository-backed state immediately, and edited enabled Lua scripts reload with the next player core.
+
+### ✂️ Automatic Crop & Video Output
+- **Automatic Black-Bar Cropping**: Added an Auto Crop aspect mode that samples multiple frames, detects persistent black borders conservatively, and caches results for repeat playback.
+- **Variable-Aspect Safety**: Auto Crop now handles changing aspect ratios, source rotation, and short or dark scenes without retaining stale crop measurements.
+- **Stretch and Ambient Compatibility**: Cropping works correctly in stretch layouts and updates the ambient background from the same final video geometry.
+- **Translated Auto Crop Experience**: Auto Crop status, actions, results, and error messages are available across every supported app language.
+- **Cleaner HDR Configuration**: Removed redundant tone-mapping and gamut-mapping overrides so HDR output follows the selected pipeline without conflicting transformations.
+
+### 🎛️ Player Controls, PiP & Navigation
+- **Onboarding Never Blocks the App**: "Get started" now always enters the app, even when permissions were skipped — the finish page lists any missing permissions in an amber warning instead of the quick-tour toggle, and screens that need storage show a compact in-place "Grant access" prompt.
+- **Search Bar Respects the Status Bar**: The inline search bar (folders, videos, music, playlists, network, Jellyfin) no longer renders under the status bar and camera cutout — the system-inset padding lost in the Material search migration is back.
+- **Streaming Link Handling Toggle**: New "Open streaming site links" switch in player settings controls whether mpvRx registers for YouTube, Vimeo, Twitch, Odysee, and Bilibili links — turn it off and those links go straight to their own apps while direct media URLs keep working.
+- **Correct First Playlist Entry**: Opening any video other than the first from a folder no longer shows the opened video's name on the playlist sheet's first row — stale launch metadata from the temporary one-item queue is now cleared before the folder playlist is published.
+- **Right-Edge Action Panel**: Added a bare right-edge pull handle that opens the complete player action set in the app's movable `DraggablePanel`.
+- **Consistent Action Tiles**: Player actions use a responsive three-column tile layout with normalized icon sizes, no nested circular backgrounds, dynamic colors, and full-tile indicators for active settings such as Background Playback, HDR, Ambient, Repeat, Shuffle, transforms, speed, and zoom.
+- **Swipe Speed Lock**: Added a hold-speed swipe gesture with locking, haptic feedback, and reliable restoration to 1x when the lock is released.
+- **Configurable Audio Seeking**: Music-player rewind and forward controls now use the configured double-tap seek duration.
+- **Reliable PiP Handoffs**: Expanding PiP restores the full player without interrupting playback, Back opens the mini player where appropriate, and the PiP close action stops playback cleanly.
+- **Supported-Link Routing**: Expanded Open by default coverage for supported YouTube domains.
+### 🌐 Network Streaming & Protocols
+- **Auto-Next at End of File Restored**: Videos and music advance to the next queue item again when a file finishes — in the player and during background playback. A 2.5.0 change suppressed the end-of-file signal that keep-open builds rely on; it now flows again and is validated against the playback position so a dropped network stream can't fake it and skip mid-file.
+- **Proxy Connection Slot Leak**: Timed-out network proxy operations no longer leave their late-arriving upstream streams open, which could exhaust small servers' connection limits and fail every following request.
+- **WebDAV Playback Reliability**: Playback no longer fails outright on servers whose share root rejects or empties a depth-0 PROPFIND (common behind reverse proxies) — only credential rejections abort the connection now, and file sizes fall back to an HTTP HEAD/ranged probe when PROPFIND can't provide them. Failed proxy streams also recover: a dead upstream session is evicted so the next seek reconnects instead of buffering forever, and upstream failures are now logged (redacted) instead of silently returning 503.
+- **No yt-dlp for Local Proxy Streams**: Loopback proxy URLs (all SMB/FTP/SFTP/WebDAV/torrent playback) are excluded from the yt-dlp hook outright, so extensionless network files can't be misrouted through the extractor.
+- **YouTube on 32-bit and x86 Devices**: Fixed shared YouTube links failing with "could not load this link" on armeabi-v7a and x86 devices — the bundled Python runtime only shipped its arm64 build configuration, so yt-dlp crashed with "No module named \_sysconfigdata\_\_android\_..." before extraction could start.
+- **SFTP Support**: Added SFTP as a full network protocol alongside SMB, FTP, and WebDAV — browse folders, stream with seeking through the secure loopback proxy, and manage connections from the same add/edit dialogs (default port 22).
+- **Large-File Freeze & EOF Seek Fix**: Network reconnect options now reach the primary playback stream, so a dropped connection or a failed seek-reopen recovers automatically instead of freezing large files or showing endless buffering when seeking back after the end of a file.
+- **Proxy Hang Guard**: A network body that ends early now surfaces as a recoverable disconnect instead of leaving the player waiting forever for missing bytes.
+- **More Robust WebDAV Streaming**: Full-file streams reuse the shared HTTP client (consistent timeouts, no per-request client leak), and servers that ignore byte-range requests fall back to skip-to-offset streaming so seeking keeps working everywhere.
+- **Music on Network Shares**: WebDAV, SMB, FTP, and SFTP browsers now show and play audio files when "Show audio in browser" is enabled, including folder queues and the audio-player interface.
+- **Fewer Duplicate Requests**: Prevented duplicate network request bursts during playback startup.
+
+### 🎬 Playback & Stability
+- **Precise End-of-File Seeks**: Avoided non-precise seeks into EOF that could end playback unexpectedly.
+- **Ambient Sheet Theming**: Fixed the Ambient sheet appearance in light mode.
+- **Cleaner Builds**: Resolved Kotlin and Material API warnings and updated dependencies.
+
+### � Onboarding & Quick Tour
+- **Step-by-Step Permission Setup**: The first-run permission page is now a guided stepper — one permission per screen with progress dots, so everything fits any display without clipping. Optional permissions (notifications, audio) can be skipped individually, and skipping storage skips the whole permission flow.
+- **Quick Tour Opt-In**: The final setup step offers a quick-tour toggle; the in-app tour itself ships in an upcoming release.
+
+### �📋 Media Info
+- **Image Details**: JPG, PNG, WebP, GIF, TIFF and other images now get a dedicated Image tab with resolution, format, bit depth, color space, compression, and orientation — including embedded cover images found inside audio and video files.
+- **Other & Raw Tabs**: Timecode tracks, programs, and future MediaInfo section kinds appear in a new Other tab together with MKV attachment names, and the complete MediaInfo report is readable in-app from a Raw tab.
+- **Full-Value Reader**: Tapping any field opens a scrollable, selectable popup with its complete value and a copy action, so long values are never lost to truncation.
+- **Kind-Aware Overview**: Images show resolution, format, bit depth, and size; music shows duration, channels, sample rate, and bitrate; irrelevant placeholders such as "No Video" no longer appear.
+- **Complete Container Metadata**: Every General field MediaInfo reports is listed, and the file's system path is shown both under the title and in the container card.
+
+### 🌐 Network, Storage & Subtitles
+- **Network Folder Bookmarks**: Save, open, and manage frequently used folders from saved SMB, FTP, and WebDAV connections without duplicating credentials.
+- **Hardened WebDAV Playback**: Long-running streams are no longer cut off by a whole-call timeout, reserved filename characters are encoded exactly once, duplicate server entries are removed, and reverse-proxy hrefs resolve safely.
+- **Network Subtitle Refresh**: External subtitles are discovered and refreshed correctly for WebDAV and other network media. Next/previous queue navigation now follows the current network item instead of reusing the first item's cached path.
+- **Configurable Hidden Folders**: Added controls for including dot-prefixed and `.nomedia` folders that Android MediaStore normally omits.
+- **Incremental Hidden Scanning**: Hidden-folder discovery now reuses indexed scan state and refreshes changed roots instead of repeatedly traversing the full storage tree.
+- **Android 10 File Operations**: Restored rename, move, delete, and storage permission behavior on Android 10 while retaining scoped-storage handling on newer Android versions.
+- **Cleaner Subtitle Colors**: Removed the duplicated subtitle background-color control so one setting owns the rendered value.
+
+### 🎵 Music, Notifications, Lyrics & Playlists
+- **Colloquial Hinglish Romanization**: Added a casual Latin-script lyrics option for Indic languages, including per-line mixed-script detection, Hindi schwa deletion, long-vowel handling, nasalization fixes, and cleaner Punjabi apostrophes.
+- **No Stale Lyrics After Track Changes**: In-flight lyrics loading, source switching, and translation are cancelled and identity-checked so a slow previous track cannot overwrite the current song.
+- **Reliable Notification Favorites**: Music notification favorites use the same stable identity as the app, update immediately, and stay synchronized with playlist changes.
+- **Isolated Notification Controls**: Media notification actions now target the active playback session, include a close action, and avoid duplicate or cross-session commands.
+- **Save Queue as Playlist**: The current player queue can be saved directly as a named playlist.
+- **Faster Playlist Artwork**: Playlist rows reuse cached video thumbnails instead of regenerating artwork while browsing.
+- **Relevant Queue Actions Only**: Play Next and Add to Queue remain available for audio selections without appearing in video selection menus where those actions are not supported.
+
+### 📦 Installation
+- **Obtainium Access**: Added a direct Obtainium badge and corrected setup link in the project README for easier installation and update tracking.
+
+### ⚡ Library, Documentation & Stability
+- **Smooth Large Libraries**: Lists containing hundreds of videos suspend thumbnail decoding, disk reads, and cache-key work during flings, then resume a bounded viewport batch after scrolling settles.
+- **Incremental Playback Progress**: Five-second playback persistence updates only the affected library row instead of rebuilding and re-sorting every video, preserving stable lazy-list items and reducing mid-scroll jank.
+- **Lower Per-Card Overhead**: Thumbnail preferences are observed once per screen, repository work runs off the main thread, and large video pickers use stable content types and scroll-aware loading.
+- **Documentation Crash Fixed**: Fixed issue #571, where scrolling through mpv Input Command documentation crashed on the duplicated `COMMAND:playlist-next` lazy-list key. Playlist commands now appear once and all documentation rows have category-qualified unique keys.
+- **More Reliable Player State**: Fixed playback-state updates that could lag behind user actions and improved queue, notification, and playlist synchronization during repeated media changes.
+
+## 2.4.0 — Playlists, Playback Reliability & Expressive Navigation
+
+### 🎬 Playback, PiP & Performance
+- **Faster Video Startup**: Removed blocking external asset synchronization from the launch path. Validated internal mpv assets are reused immediately while external assets refresh after playback begins.
+- **Reliable Seek Thumbnails**: Hardened ThumbFast-style preview initialization, request ordering, caching, and decode behavior so scrubbing shows the newest requested frame without stale replacements.
+- **Clean PiP Dismissal**: Consolidated PiP close handling into one idempotent teardown path, preventing lingering playback, duplicated audio, and brief audio glitches after the PiP window is dismissed.
+- **Safer Playback Transitions**: Improved yt-dlp, ambient-mode, clip-editor, renderer, queue, and audio-player lifecycle handling across repeated media changes.
+- **Actionable Player Diagnostics**: Expanded statistics Page 6 with real process memory, Java/native heap, mpv cache, buffered duration, packet/file cache, torrent, and playback-health data.
+
+### 📚 Playlists, Queues & Web Media
+- **YouTube Playlist Support**: YouTube and other supported web playlist links can be imported from the Playlists tab with ordered videos, titles, channel metadata, and thumbnails alongside existing M3U/M3U8 support.
+- **Metadata-Rich Player Queues**: Pasting a YouTube playlist into a link field now starts its first video and preloads every entry into the in-player playlist drawer with title, channel, artwork, duration, and stable URL metadata.
+- **More Flexible Queues**: Added Play Next and Add to Queue actions, mixed audio/video playlist support, reliable local M3U path resolution, and safer queue ownership during media handoffs.
+- **Shared Favorites Playlists**: Video favorites now appear as Favorite Videos in the main Playlists tab, while the same Favorite Songs collection is available from both Music and Playlists with consistent configured cover-art sizing.
+- **Cleaner Playlist Browsing**: Favorite collections are clearly separated by media type, remote cards have consistent selection styling, and network playlist thumbnails and folder queues are restored.
+- **Clear yt-dlp Setup**: First-time web playback now prompts before installing yt-dlp and shows installation progress instead of appearing to buffer indefinitely.
+
+### 🔎 Search, Lyrics & Discovery
+- **Production Settings Search**: Expanded settings coverage with ranked fuzzy matching, typo tolerance, subsequence matching, direct conditional-setting routing, precise scrolling, and highlighted matches.
+- **Better Lyrics Coverage**: Added embedded ID3v2 lyrics extraction for MP3 files and improved online lyrics lookup for YouTube media.
+- **Focused Browser Actions**: Queue selection actions now appear only in modes where they are valid, avoiding video-mode actions that depend on audio inclusion.
+
+### 🧭 Navigation & Interface
+- **Responsive Tab Navigation**: Added a smooth one-to-one sliding navigation pill and cancellable page transitions so rapid or random tab taps always settle on the latest selected destination.
+- **Stable Swipe Navigation**: Restored predictable tab swipes and removed competing page-state writers that could leave the browser between screens.
+- **Refined Player Controls**: Added always-dark player control backgrounds, unified light/dark button palettes, refreshed segmented controls, and improved audio-player controls.
+
+### 🔔 Notifications & Remote Controls
+- **Stateful Media Actions**: Media notifications now use Material Symbol transport icons, visibly distinguish saved Favorites, cycle Repeat states correctly, and expose expanded playback controls.
+- **Reliable Notification Ownership**: Prevented duplicate media cards, restored the correct audio route, and kept notification state synchronized with the active playback session.
+- **Clear PiP Seeking**: PiP controls now use dedicated Replay 10 and Forward 10 Material Symbols for precise ten-second seeking.
+
 ## 2.3.0 — Playback, Streaming Quality & Media Experience
 
 ### 🎬 Playback Reliability & Native Tools

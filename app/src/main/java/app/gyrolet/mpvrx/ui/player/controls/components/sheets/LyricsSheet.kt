@@ -50,12 +50,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.gyrolet.mpvrx.domain.lyrics.LyricsSourceType
 import app.gyrolet.mpvrx.domain.lyrics.SyncedLine
-import app.gyrolet.mpvrx.preferences.AudioPreferences
-import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.player.PlayerViewModel
-import org.koin.compose.koinInject
+import app.gyrolet.mpvrx.ui.theme.fontFamilyForText
 
 @Composable
 fun LyricsSheet(
@@ -63,10 +61,6 @@ fun LyricsSheet(
   onDismiss: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
-  val audioPreferences = koinInject<AudioPreferences>()
-  val enhancedLyrics by audioPreferences.enhancedLyrics.collectAsState()
-  val lyricsClickToSeek by audioPreferences.lyricsClickToSeek.collectAsState()
-  val lyricsAutoScroll by audioPreferences.lyricsAutoScroll.collectAsState()
   val state by viewModel.lyricsUiState.collectAsState()
   val mediaTitle by PlaybackSession.propString["media-title"].collectAsState()
   val artistName by PlaybackSession.propString["metadata/by-key/Artist"].collectAsState()
@@ -76,8 +70,7 @@ fun LyricsSheet(
   val listState = rememberLazyListState()
 
   // Auto-scroll to active line
-  LaunchedEffect(state.activeLineIndex, enhancedLyrics, lyricsAutoScroll) {
-    if (!enhancedLyrics || !lyricsAutoScroll) return@LaunchedEffect
+  LaunchedEffect(state.activeLineIndex) {
     if (state.activeLineIndex >= 0) {
       val targetItem = (state.activeLineIndex - 2).coerceAtLeast(0)
       runCatching {
@@ -128,6 +121,7 @@ fun LyricsSheet(
               text = displayTitle,
               style = MaterialTheme.typography.titleMedium,
               fontWeight = FontWeight.Bold,
+              fontFamily = fontFamilyForText(displayTitle),
               maxLines = 1,
               overflow = TextOverflow.Ellipsis,
             )
@@ -136,6 +130,7 @@ fun LyricsSheet(
             Text(
               text = displayArtist,
               style = MaterialTheme.typography.bodySmall,
+              fontFamily = fontFamilyForText(displayArtist),
               color = MaterialTheme.colorScheme.onSurfaceVariant,
               maxLines = 1,
               overflow = TextOverflow.Ellipsis,
@@ -180,7 +175,7 @@ fun LyricsSheet(
           selected = state.selectedSource == LyricsSourceType.ONLINE,
           onClick = { viewModel.switchLyricsSource(LyricsSourceType.ONLINE) },
           label = {
-            Text("Online (${state.onlineLyrics?.provider?.displayName ?: "Providers"})")
+            Text("Online (LRCLIB)")
           },
           colors = FilterChipDefaults.filterChipColors(
             selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -196,6 +191,17 @@ fun LyricsSheet(
             color = MaterialTheme.colorScheme.primary,
           )
         }
+      }
+
+      state.errorMessage?.let { message ->
+        Text(
+          text = message,
+          style = MaterialTheme.typography.bodySmall,
+          fontFamily = fontFamilyForText(message),
+          color = MaterialTheme.colorScheme.error,
+          textAlign = TextAlign.Center,
+          modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        )
       }
 
       Spacer(modifier = Modifier.height(12.dp))
@@ -251,10 +257,8 @@ fun LyricsSheet(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
                     .clickable {
-                      if (lyricsClickToSeek) {
-                        val targetSeconds = line.time / 1000f
-                        PlaybackSession.command("seek", targetSeconds.toString(), "absolute+exact")
-                      }
+                      val targetSeconds = line.time / 1000f
+                      PlaybackSession.command("seek", targetSeconds.toString(), "absolute+exact")
                     }
                     .padding(vertical = 4.dp, horizontal = 8.dp),
                   horizontalAlignment = Alignment.CenterHorizontally,
@@ -264,6 +268,7 @@ fun LyricsSheet(
                     color = textColor,
                     fontSize = if (isActive) 20.sp else 16.sp,
                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                    fontFamily = fontFamilyForText(line.line),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                   )
@@ -275,18 +280,7 @@ fun LyricsSheet(
                       color = if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f),
                       fontSize = if (isActive) 15.sp else 13.sp,
                       fontWeight = FontWeight.Medium,
-                      textAlign = TextAlign.Center,
-                      modifier = Modifier.fillMaxWidth(),
-                    )
-                  }
-                  val romanization = line.romanization?.trim()
-                  if (!romanization.isNullOrBlank() && !romanization.equals(line.line.trim(), ignoreCase = true)) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                      text = romanization,
-                      color = if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.72f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
-                      fontSize = if (isActive) 14.sp else 12.sp,
-                      fontWeight = FontWeight.Medium,
+                      fontFamily = fontFamilyForText(trans),
                       textAlign = TextAlign.Center,
                       modifier = Modifier.fillMaxWidth(),
                     )
@@ -310,6 +304,7 @@ fun LyricsSheet(
                   text = lineText,
                   color = MaterialTheme.colorScheme.onSurface,
                   fontSize = 16.sp,
+                  fontFamily = fontFamilyForText(lineText),
                   textAlign = TextAlign.Center,
                   modifier = Modifier.fillMaxWidth(),
                 )

@@ -56,8 +56,10 @@ import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.player.NotificationStyle
 import app.gyrolet.mpvrx.ui.player.PlayerOrientation
+import app.gyrolet.mpvrx.ui.player.ResumePlaybackMode
 import app.gyrolet.mpvrx.ui.player.screenshot.ScreenshotFormat
 import app.gyrolet.mpvrx.ui.preferences.components.SwitchPreference
+import app.gyrolet.mpvrx.ui.player.PlayerActivity
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
 import app.gyrolet.mpvrx.ui.utils.LocalShowSettingsBackArrow
 import app.gyrolet.mpvrx.ui.utils.currentMpvConfigOverrideOptions
@@ -148,7 +150,25 @@ object PlayerPreferencesScreen : Screen {
 
               PreferenceDivider()
 
-              val savePositionOnQuit by preferences.savePositionOnQuit.collectAsState()
+val resumePlaybackMode by preferences.resumePlaybackMode.collectAsState()
+ListPreference(
+  modifier = Modifier.settingsSearchTarget(R.string.pref_player_resume_playback_title),
+  value = resumePlaybackMode,
+  onValueChange = preferences.resumePlaybackMode::set,
+  values = ResumePlaybackMode.entries,
+  valueToText = { AnnotatedString(resources.getString(it.titleRes)) },
+  title = { Text(stringResource(R.string.pref_player_resume_playback_title)) },
+  summary = {
+    Text(
+      stringResource(resumePlaybackMode.summaryRes),
+      color = MaterialTheme.colorScheme.outline,
+    )
+  },
+)
+
+PreferenceDivider()
+
+val savePositionOnQuit by preferences.savePositionOnQuit.collectAsState()
               SwitchPreference(
                 modifier = Modifier.settingsSearchTarget(R.string.pref_player_save_position_on_quit),
                 value = savePositionOnQuit,
@@ -189,6 +209,25 @@ object PlayerPreferencesScreen : Screen {
                 summary = {
                   Text(
                     stringResource(R.string.pref_video_background_playback_summary),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+
+              PreferenceDivider()
+
+              val externalDisplayProjection by preferences.externalDisplayProjection.collectAsState()
+              SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_player_external_display_projection_title),
+                value = externalDisplayProjection,
+                onValueChange = { enabled ->
+                  preferences.externalDisplayProjection.set(enabled)
+                  (context as? PlayerActivity)?.setExternalDisplayProjectionEnabled(enabled)
+                },
+                title = { Text(stringResource(R.string.pref_player_external_display_projection_title)) },
+                summary = {
+                  Text(
+                    stringResource(R.string.pref_player_external_display_projection_summary),
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },
@@ -241,28 +280,9 @@ object PlayerPreferencesScreen : Screen {
 
               PreferenceDivider()
 
-              val autoplayNextAudio by preferences.autoplayNextAudio.collectAsState()
-              SwitchPreference(
-                modifier = Modifier.settingsSearchTarget(R.string.pref_autoplay_next_audio_title),
-                value = autoplayNextAudio,
-                onValueChange = preferences.autoplayNextAudio::set,
-                title = { Text(stringResource(R.string.pref_autoplay_next_audio_title)) },
-                summary = {
-                  Text(
-                    if (autoplayNextAudio) {
-                      stringResource(R.string.pref_autoplay_next_audio_summary)
-                    } else {
-                      stringResource(R.string.pref_autoplay_next_audio_summary_disabled)
-                    },
-                    color = MaterialTheme.colorScheme.outline,
-                  )
-                },
-              )
-
-              PreferenceDivider()
-
               val playlistMode by preferences.playlistMode.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_playlist_mode_title),
                 value = playlistMode,
                 onValueChange = preferences.playlistMode::set,
                 title = { Text(stringResource(R.string.pref_playlist_mode_title)) },
@@ -306,8 +326,26 @@ object PlayerPreferencesScreen : Screen {
 
               PreferenceDivider()
 
+              val pipOnHomeGestureOnly by preferences.pipOnHomeGestureOnly.collectAsState()
+              SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_auto_pip_home_only_title),
+                value = pipOnHomeGestureOnly,
+                onValueChange = preferences.pipOnHomeGestureOnly::set,
+                enabled = autoPiPOnNavigation,
+                title = { Text(stringResource(R.string.pref_auto_pip_home_only_title)) },
+                summary = {
+                  Text(
+                    stringResource(R.string.pref_auto_pip_home_only_summary),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+
+              PreferenceDivider()
+
               val enableVideoMiniPlayer by preferences.enableVideoMiniPlayer.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_enable_video_mini_player_title),
                 value = enableVideoMiniPlayer,
                 onValueChange = { enabled ->
                   when {
@@ -372,6 +410,7 @@ object PlayerPreferencesScreen : Screen {
 
               val enableMediaInfoIntent by preferences.enableMediaInfoIntent.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.ui_show_media_info_in_chooser),
                 value = enableMediaInfoIntent,
                 onValueChange = { enabled ->
                   preferences.enableMediaInfoIntent.set(enabled)
@@ -406,6 +445,40 @@ object PlayerPreferencesScreen : Screen {
                   )
                 },
               )
+
+              PreferenceDivider()
+
+              val enableWebStreamLinkIntents by preferences.enableWebStreamLinkIntents.collectAsState()
+              SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_player_web_stream_links_title),
+                value = enableWebStreamLinkIntents,
+                onValueChange = { enabled ->
+                  preferences.enableWebStreamLinkIntents.set(enabled)
+                  val componentName = ComponentName(context, "app.gyrolet.mpvrx.ui.player.WebStreamLinksActivityAlias")
+                  val newState =
+                    if (enabled) {
+                      PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                    } else {
+                      PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                    }
+                  try {
+                    context.packageManager.setComponentEnabledSetting(
+                      componentName,
+                      newState,
+                      PackageManager.DONT_KILL_APP,
+                    )
+                  } catch (e: Exception) {
+                    android.util.Log.e("PlayerPreferencesScreen", "Failed to set alias state", e)
+                  }
+                },
+                title = { Text(stringResource(R.string.pref_player_web_stream_links_title)) },
+                summary = {
+                  Text(
+                    stringResource(R.string.pref_player_web_stream_links_summary),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
             }
           }
 
@@ -435,6 +508,7 @@ object PlayerPreferencesScreen : Screen {
 
               val showBufferedRange by preferences.showBufferedRange.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_player_show_buffered_range_title),
                 value = showBufferedRange,
                 onValueChange = preferences.showBufferedRange::set,
                 title = { Text(stringResource(R.string.pref_player_show_buffered_range_title)) },
@@ -450,6 +524,7 @@ object PlayerPreferencesScreen : Screen {
 
               val showChapterIndicators by preferences.showChapterIndicators.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_player_show_chapter_indicators_title),
                 value = showChapterIndicators,
                 onValueChange = preferences.showChapterIndicators::set,
                 title = { Text(stringResource(R.string.pref_player_show_chapter_indicators_title)) },
@@ -470,22 +545,6 @@ object PlayerPreferencesScreen : Screen {
                 enabled = setOf("hr-seek", "hr-seek-framedrop").none(configOwnedOptions::contains),
                 onValueChange = preferences.usePreciseSeeking::set,
                 title = { Text(stringResource(R.string.pref_player_use_precise_seeking)) },
-              )
-
-              PreferenceDivider()
-
-              val useThumbFastSeekPreview by preferences.useThumbFastSeekPreview.collectAsState()
-              SwitchPreference(
-                modifier = Modifier.settingsSearchTarget(R.string.pref_player_seek_preview_thumbfast_title),
-                value = useThumbFastSeekPreview,
-                onValueChange = preferences.useThumbFastSeekPreview::set,
-                title = { Text(stringResource(R.string.pref_player_seek_preview_thumbfast_title)) },
-                summary = {
-                  Text(
-                    stringResource(R.string.pref_player_seek_preview_thumbfast_summary),
-                    color = MaterialTheme.colorScheme.outline,
-                  )
-                },
               )
 
               PreferenceDivider()
@@ -699,6 +758,22 @@ object PlayerPreferencesScreen : Screen {
           item { PreferenceSectionHeader(title = stringResource(R.string.pref_section_display_controls)) }
           item {
             PreferenceCard {
+              val showControlsDrawer by preferences.showControlsDrawer.collectAsState()
+              SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_player_controls_drawer_title),
+                value = showControlsDrawer,
+                onValueChange = preferences.showControlsDrawer::set,
+                title = { Text(stringResource(R.string.pref_player_controls_drawer_title)) },
+                summary = {
+                  Text(
+                    stringResource(R.string.pref_player_controls_drawer_summary),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+
+              PreferenceDivider()
+
               val showSystemStatusBar by preferences.showSystemStatusBar.collectAsState()
               SwitchPreference(
                 modifier = Modifier.settingsSearchTarget(R.string.pref_player_display_show_status_bar),
@@ -727,6 +802,7 @@ object PlayerPreferencesScreen : Screen {
 
               val safeAreaWindow by preferences.safeAreaWindow.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_player_safe_area_window_title),
                 value = safeAreaWindow,
                 onValueChange = preferences.safeAreaWindow::set,
                 title = { Text(stringResource(R.string.pref_player_safe_area_window_title)) },
@@ -786,6 +862,7 @@ object PlayerPreferencesScreen : Screen {
             PreferenceCard {
               val screenshotFormat by preferences.screenshotFormat.collectAsState()
               ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.ui_image_format),
                 value = screenshotFormat,
                 onValueChange = preferences.screenshotFormat::set,
                 values = ScreenshotFormat.entries,
@@ -808,6 +885,7 @@ object PlayerPreferencesScreen : Screen {
 
               val includeSubtitles by preferences.includeSubtitlesInSnapshot.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.ui_include_subtitles_in_screenshots),
                 value = includeSubtitles,
                 onValueChange = preferences.includeSubtitlesInSnapshot::set,
                 title = {
@@ -823,6 +901,7 @@ object PlayerPreferencesScreen : Screen {
 
               val screenshotTemplate by preferences.screenshotTemplate.collectAsState()
               Preference(
+                modifier = Modifier.settingsSearchTarget(R.string.ui_filename_template),
                 title = {
                   Text(
                     androidx.compose.ui.res
@@ -840,6 +919,7 @@ object PlayerPreferencesScreen : Screen {
 
               val screenshotQuality by preferences.screenshotQuality.collectAsState()
               SliderPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.ui_jpeg_webp_quality),
                 value = screenshotQuality.toFloat(),
                 onValueChange = { preferences.screenshotQuality.set(it.roundToInt().coerceIn(1, 100)) },
                 title = {
@@ -858,6 +938,7 @@ object PlayerPreferencesScreen : Screen {
 
               val pngCompression by preferences.screenshotPngCompression.collectAsState()
               SliderPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.ui_png_compression),
                 value = pngCompression.toFloat(),
                 onValueChange = { preferences.screenshotPngCompression.set(it.roundToInt().coerceIn(0, 9)) },
                 title = {
@@ -904,6 +985,7 @@ object PlayerPreferencesScreen : Screen {
             PreferenceCard {
               val showVolumeGestureOverlay by preferences.showVolumeGestureOverlay.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_volume_overlay_title),
                 value = showVolumeGestureOverlay,
                 onValueChange = preferences.showVolumeGestureOverlay::set,
                 title = { Text(stringResource(R.string.pref_volume_overlay_title)) },
@@ -919,6 +1001,7 @@ object PlayerPreferencesScreen : Screen {
 
               val showBrightnessGestureOverlay by preferences.showBrightnessGestureOverlay.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_brightness_overlay_title),
                 value = showBrightnessGestureOverlay,
                 onValueChange = preferences.showBrightnessGestureOverlay::set,
                 title = { Text(stringResource(R.string.pref_brightness_overlay_title)) },
@@ -934,6 +1017,7 @@ object PlayerPreferencesScreen : Screen {
 
               val showHoldSpeedOverlay by preferences.showHoldSpeedOverlay.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_hold_speed_overlay_pref_title),
                 value = showHoldSpeedOverlay,
                 onValueChange = preferences.showHoldSpeedOverlay::set,
                 title = { Text(stringResource(R.string.pref_hold_speed_overlay_pref_title)) },
@@ -949,6 +1033,7 @@ object PlayerPreferencesScreen : Screen {
 
               val showAspectRatioOverlay by preferences.showAspectRatioOverlay.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_aspect_ratio_overlay_title),
                 value = showAspectRatioOverlay,
                 onValueChange = preferences.showAspectRatioOverlay::set,
                 title = { Text(stringResource(R.string.pref_aspect_ratio_overlay_title)) },
@@ -964,6 +1049,7 @@ object PlayerPreferencesScreen : Screen {
 
               val showZoomLevelOverlay by preferences.showZoomLevelOverlay.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_zoom_overlay_title),
                 value = showZoomLevelOverlay,
                 onValueChange = preferences.showZoomLevelOverlay::set,
                 title = { Text(stringResource(R.string.pref_zoom_overlay_title)) },
@@ -979,6 +1065,7 @@ object PlayerPreferencesScreen : Screen {
 
               val showRepeatShuffleOverlay by preferences.showRepeatShuffleOverlay.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_repeat_shuffle_overlay_title),
                 value = showRepeatShuffleOverlay,
                 onValueChange = preferences.showRepeatShuffleOverlay::set,
                 title = { Text(stringResource(R.string.pref_repeat_shuffle_overlay_title)) },
@@ -994,6 +1081,7 @@ object PlayerPreferencesScreen : Screen {
 
               val showActionFeedbackOverlay by preferences.showActionFeedbackOverlay.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_action_feedback_overlay_title),
                 value = showActionFeedbackOverlay,
                 onValueChange = preferences.showActionFeedbackOverlay::set,
                 title = { Text(stringResource(R.string.pref_action_feedback_overlay_title)) },
@@ -1007,8 +1095,25 @@ object PlayerPreferencesScreen : Screen {
 
               PreferenceDivider()
 
-              val showProviderStatusOverlay by preferences.showProviderStatusOverlay.collectAsState()
+val showResumeIndicatorOverlay by preferences.showResumeIndicatorOverlay.collectAsState()
+SwitchPreference(
+  modifier = Modifier.settingsSearchTarget(R.string.pref_resume_indicator_overlay_title),
+  value = showResumeIndicatorOverlay,
+  onValueChange = preferences.showResumeIndicatorOverlay::set,
+  title = { Text(stringResource(R.string.pref_resume_indicator_overlay_title)) },
+  summary = {
+    Text(
+      stringResource(R.string.pref_resume_indicator_overlay_summary),
+      color = MaterialTheme.colorScheme.outline,
+    )
+  },
+)
+
+PreferenceDivider()
+
+val showProviderStatusOverlay by preferences.showProviderStatusOverlay.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_provider_status_overlay_title),
                 value = showProviderStatusOverlay,
                 onValueChange = preferences.showProviderStatusOverlay::set,
                 title = { Text(stringResource(R.string.pref_provider_status_overlay_title)) },

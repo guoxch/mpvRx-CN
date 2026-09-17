@@ -14,10 +14,14 @@ import android.net.Uri
 import android.os.Build
 import android.util.Log
 import app.gyrolet.mpvrx.BuildConfig
+import app.gyrolet.mpvrx.data.network.ServerUrlUtils
 import app.gyrolet.mpvrx.domain.jellyfin.JellyfinAuthResult
 import app.gyrolet.mpvrx.domain.jellyfin.JellyfinItem
+import app.gyrolet.mpvrx.domain.jellyfin.JellyfinPerson
 import app.gyrolet.mpvrx.domain.jellyfin.JellyfinUser
+import app.gyrolet.mpvrx.network.awaitResponse
 import app.gyrolet.mpvrx.utils.media.PlaybackSubtitleTrack
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -85,35 +89,14 @@ class JellyfinClient(
 
     private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
-    private fun isLocalHostOrIp(host: String): Boolean {
-      val h = host.substringBefore(":").substringBefore("/")
-      return h.equals("localhost", ignoreCase = true) ||
-        h == "127.0.0.1" ||
-        h.startsWith("192.168.") ||
-        h.startsWith("10.") ||
-        (h.startsWith("172.") && (h.substringAfter("172.").substringBefore(".").toIntOrNull() in 16..31)) ||
-        h.endsWith(".local", ignoreCase = true) ||
-        h.endsWith(".lan", ignoreCase = true)
-    }
+    fun isLocalHostOrIp(host: String): Boolean =
+      ServerUrlUtils.isLocalOrPrivateHost(host)
 
-    fun normalizeUrlCandidates(rawUrl: String): List<String> {
-      val trimmed = rawUrl.trim().removeSuffix("/")
-      if (trimmed.startsWith("http://", ignoreCase = true) || trimmed.startsWith("https://", ignoreCase = true)) {
-        return listOf(trimmed)
-      }
-      val clean = trimmed.removePrefix("//")
-      val port = clean.substringAfterLast(":", "").substringBefore("/").toIntOrNull()
-      val isLocal = isLocalHostOrIp(clean)
-      return if (isLocal || port == 80 || port == 8096) {
-        listOf("http://$clean", "https://$clean")
-      } else {
-        listOf("https://$clean", "http://$clean")
-      }
-    }
+    fun normalizeUrlCandidates(rawUrl: String): List<String> =
+      ServerUrlUtils.generateCandidateUrls(rawUrl, defaultPort = 8096)
 
-    fun normalizeUrl(rawUrl: String): String {
-      return normalizeUrlCandidates(rawUrl).first()
-    }
+    fun normalizeUrl(rawUrl: String): String =
+      ServerUrlUtils.normalizeUrl(rawUrl, defaultPort = 8096)
 
     fun authHeader(token: String? = null, context: Context? = null): String {
       val deviceId = getDeviceId(context)
@@ -201,7 +184,7 @@ class JellyfinClient(
               .build()
 
           val result =
-            httpClient.newCall(request).execute().use { response ->
+            httpClient.newCall(request).awaitResponse().use { response ->
               if (!response.isSuccessful) {
                 throw IOException("Authentication failed: HTTP ${response.code} ${response.message}")
               }
@@ -227,6 +210,8 @@ class JellyfinClient(
               )
             }
           return@withContext Result.success(result)
+        } catch (cancellation: CancellationException) {
+          throw cancellation
         } catch (e: Throwable) {
           lastError = e
         }
@@ -254,7 +239,7 @@ class JellyfinClient(
               .build()
 
           val result =
-            httpClient.newCall(request).execute().use { response ->
+            httpClient.newCall(request).awaitResponse().use { response ->
               if (!response.isSuccessful) {
                 throw IOException("Token validation failed: HTTP ${response.code} ${response.message}")
               }
@@ -278,6 +263,8 @@ class JellyfinClient(
               )
             }
           return@withContext Result.success(result)
+        } catch (cancellation: CancellationException) {
+          throw cancellation
         } catch (e: Throwable) {
           lastError = e
         }
@@ -302,7 +289,7 @@ class JellyfinClient(
             .get()
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) {
             throw IOException("Failed to load libraries: HTTP ${response.code}")
           }
@@ -333,7 +320,7 @@ class JellyfinClient(
             .get()
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) {
             throw IOException("Failed to load genres: HTTP ${response.code}")
           }
@@ -354,7 +341,7 @@ class JellyfinClient(
       runCatching {
         val base = normalizeUrl(serverUrl)
         val endpoint =
-          "$base/Users/$userId/Items/Resume?Limit=$limit&Fields=Overview,PrimaryImageAspectRatio,UserData,SeriesName,SeasonName,IndexNumber,ParentIndexNumber,MediaSources,MediaStreams,Genres,OfficialRating,CommunityRating,CriticRating,ProductionYear,Taglines,PremiereDate,Status"
+          "$base/Users/$userId/Items/Resume?Limit=$limit&Fields=Overview,PrimaryImageAspectRatio,UserData,SeriesName,SeriesId,SeriesPrimaryImageTag,SeasonName,IndexNumber,ParentIndexNumber,MediaSources,MediaStreams,Genres,OfficialRating,CommunityRating,CriticRating,ProductionYear,Taglines,PremiereDate,Status"
         val request =
           Request
             .Builder()
@@ -363,7 +350,7 @@ class JellyfinClient(
             .get()
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) {
             throw IOException("Failed to load resume items: HTTP ${response.code}")
           }
@@ -381,13 +368,15 @@ class JellyfinClient(
     parentId: String? = null,
     limit: Int = 16,
     token: String,
+    groupItems: Boolean = true,
   ): Result<List<JellyfinItem>> =
     withContext(Dispatchers.IO) {
       runCatching {
         val base = normalizeUrl(serverUrl)
         val parentParam = if (!parentId.isNullOrBlank()) "&ParentId=$parentId" else ""
+        val groupParam = "&GroupItems=$groupItems"
         val endpoint =
-          "$base/Users/$userId/Items/Latest?Limit=$limit$parentParam&Fields=Overview,PrimaryImageAspectRatio,UserData,SeriesName,SeasonName,IndexNumber,ParentIndexNumber,MediaSources,MediaStreams,Genres,OfficialRating,CommunityRating,CriticRating,ProductionYear,Taglines,ChildCount,PremiereDate,Status"
+          "$base/Users/$userId/Items/Latest?Limit=$limit$parentParam$groupParam&Fields=Overview,PrimaryImageAspectRatio,UserData,SeriesName,SeriesId,SeriesPrimaryImageTag,SeasonName,IndexNumber,ParentIndexNumber,MediaSources,MediaStreams,Genres,OfficialRating,CommunityRating,CriticRating,ProductionYear,Taglines,ChildCount,PremiereDate,Status"
         val request =
           Request
             .Builder()
@@ -396,7 +385,7 @@ class JellyfinClient(
             .get()
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) {
             throw IOException("Failed to load latest media: HTTP ${response.code}")
           }
@@ -423,7 +412,7 @@ class JellyfinClient(
       runCatching {
         val base = normalizeUrl(serverUrl)
         val endpoint =
-          "$base/Users/$userId/Suggestions?Limit=$limit&Fields=Overview,PrimaryImageAspectRatio,UserData,SeriesName,SeasonName,IndexNumber,ParentIndexNumber,MediaSources,MediaStreams,Genres,OfficialRating,CommunityRating,CriticRating,ProductionYear,Taglines,ChildCount,PremiereDate,Status"
+          "$base/Users/$userId/Suggestions?Limit=$limit&Fields=Overview,PrimaryImageAspectRatio,UserData,SeriesName,SeriesId,SeriesPrimaryImageTag,SeasonName,IndexNumber,ParentIndexNumber,MediaSources,MediaStreams,Genres,OfficialRating,CommunityRating,CriticRating,ProductionYear,Taglines,ChildCount,PremiereDate,Status"
         val request =
           Request
             .Builder()
@@ -432,7 +421,7 @@ class JellyfinClient(
             .get()
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) {
             throw IOException("Failed to load suggestions: HTTP ${response.code}")
           }
@@ -469,7 +458,7 @@ class JellyfinClient(
             .get()
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) {
             throw IOException("Failed to load similar items: HTTP ${response.code}")
           }
@@ -491,7 +480,7 @@ class JellyfinClient(
       runCatching {
         val base = normalizeUrl(serverUrl)
         val endpoint =
-          "$base/Users/$userId/Items/$itemId?Fields=Overview,PrimaryImageAspectRatio,UserData,SeriesName,SeasonName,IndexNumber,ParentIndexNumber,MediaSources,MediaStreams,Genres,OfficialRating,CommunityRating,CriticRating,ProductionYear,Taglines,ChildCount,PremiereDate,Status,People,RemoteTrailers"
+          "$base/Users/$userId/Items/$itemId?Fields=Overview,PrimaryImageAspectRatio,UserData,SeriesName,SeriesId,SeriesPrimaryImageTag,SeasonName,IndexNumber,ParentIndexNumber,MediaSources,MediaStreams,Genres,OfficialRating,CommunityRating,CriticRating,ProductionYear,Taglines,ChildCount,PremiereDate,Status,People,RemoteTrailers"
         val request =
           Request
             .Builder()
@@ -500,7 +489,7 @@ class JellyfinClient(
             .get()
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) {
             throw IOException("Failed to load item: HTTP ${response.code}")
           }
@@ -532,7 +521,7 @@ class JellyfinClient(
         val base = normalizeUrl(serverUrl)
         val urlBuilder =
           StringBuilder(
-            "$base/Users/$userId/Items?Fields=Overview,PrimaryImageAspectRatio,UserData,ChildCount,MediaSources,MediaStreams,ProductionYear,CommunityRating,CriticRating,Genres,OfficialRating,Taglines,SeriesName,SeasonName,IndexNumber,ParentIndexNumber,PremiereDate,Status,RemoteTrailers&StartIndex=$startIndex&Limit=$limit&SortBy=${sortBy.apiValue}&SortOrder=${sortOrder.apiValue}",
+            "$base/Users/$userId/Items?Fields=Overview,PrimaryImageAspectRatio,UserData,ChildCount,CumulativeRunTimeTicks,MediaSources,MediaStreams,ProductionYear,CommunityRating,CriticRating,Genres,OfficialRating,Taglines,SeriesName,SeriesId,SeriesPrimaryImageTag,SeasonName,IndexNumber,ParentIndexNumber,PremiereDate,Status,RemoteTrailers&StartIndex=$startIndex&Limit=$limit&SortBy=${sortBy.apiValue}&SortOrder=${sortOrder.apiValue}",
           )
 
         if (!parentId.isNullOrBlank()) {
@@ -569,7 +558,7 @@ class JellyfinClient(
             .get()
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) {
             throw IOException("Failed to load items: HTTP ${response.code}")
           }
@@ -589,6 +578,77 @@ class JellyfinClient(
             totalRecordCount = if (totalRecordCount > 0) totalRecordCount else items.size,
             startIndex = startIndex,
           )
+        }
+      }
+    }
+
+  suspend fun getPerson(
+    serverUrl: String,
+    userId: String,
+    personName: String,
+    token: String,
+  ): Result<JellyfinItem> =
+    withContext(Dispatchers.IO) {
+      runCatching {
+        val base = normalizeUrl(serverUrl)
+        val endpoint = "$base/Persons/${java.net.URLEncoder.encode(personName, "UTF-8")}?userId=$userId"
+        val request =
+          Request
+            .Builder()
+            .url(endpoint)
+            .addJellyfinHeaders(token)
+            .get()
+            .build()
+
+        httpClient.newCall(request).awaitResponse().use { response ->
+          if (!response.isSuccessful) {
+            throw IOException("Failed to load person: HTTP ${response.code}")
+          }
+          val bodyStr = response.body.string()
+          val root = json.parseToJsonElement(bodyStr).jsonObject
+          parseItem(root)
+        }
+      }
+    }
+
+  suspend fun getPersonMedia(
+    serverUrl: String,
+    userId: String,
+    personId: String? = null,
+    personName: String? = null,
+    token: String,
+    limit: Int = 100,
+  ): Result<List<JellyfinItem>> =
+    withContext(Dispatchers.IO) {
+      runCatching {
+        val base = normalizeUrl(serverUrl)
+        val urlBuilder =
+          StringBuilder(
+            "$base/Users/$userId/Items?Recursive=true&IncludeItemTypes=Movie,Series&Fields=Overview,PrimaryImageAspectRatio,UserData,ChildCount,CumulativeRunTimeTicks,MediaSources,MediaStreams,ProductionYear,CommunityRating,CriticRating,Genres,OfficialRating,Taglines,SeriesName,SeriesId,SeriesPrimaryImageTag,SeasonName,IndexNumber,ParentIndexNumber,PremiereDate,Status,RemoteTrailers&SortBy=PremiereDate,ProductionYear,SortName&SortOrder=Descending&Limit=$limit",
+          )
+        if (!personId.isNullOrBlank()) {
+          urlBuilder.append("&PersonIds=${java.net.URLEncoder.encode(personId, "UTF-8")}")
+        }
+        if (!personName.isNullOrBlank()) {
+          urlBuilder.append("&Person=${java.net.URLEncoder.encode(personName, "UTF-8")}")
+        }
+
+        val request =
+          Request
+            .Builder()
+            .url(urlBuilder.toString())
+            .addJellyfinHeaders(token)
+            .get()
+            .build()
+
+        httpClient.newCall(request).awaitResponse().use { response ->
+          if (!response.isSuccessful) {
+            throw IOException("Failed to load person media: HTTP ${response.code}")
+          }
+          val bodyStr = response.body.string()
+          val root = json.parseToJsonElement(bodyStr).jsonObject
+          val itemsArray = root["Items"]?.jsonArray ?: JsonArray(emptyList())
+          itemsArray.map { parseItem(it.jsonObject) }
         }
       }
     }
@@ -624,7 +684,7 @@ class JellyfinClient(
             .get()
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) {
             throw IOException("Failed to load artists: HTTP ${response.code}")
           }
@@ -661,7 +721,7 @@ class JellyfinClient(
             .get()
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) {
             throw IOException("Failed to load seasons: HTTP ${response.code}")
           }
@@ -693,7 +753,7 @@ class JellyfinClient(
             .get()
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) {
             throw IOException("Failed to load episodes: HTTP ${response.code}")
           }
@@ -747,7 +807,7 @@ class JellyfinClient(
             .get()
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) {
             return@use emptyList<PlaybackSubtitleTrack>()
           }
@@ -814,7 +874,7 @@ class JellyfinClient(
           .post(payload.toRequestBody(JSON_MEDIA_TYPE))
           .build()
 
-      httpClient.newCall(request).execute().close()
+      httpClient.newCall(request).awaitResponse().close()
     }.onFailure { Log.w(TAG, "Failed reporting playback start: ${it.message}") }
   }
 
@@ -846,7 +906,7 @@ class JellyfinClient(
           .post(payload.toRequestBody(JSON_MEDIA_TYPE))
           .build()
 
-      httpClient.newCall(request).execute().close()
+      httpClient.newCall(request).awaitResponse().close()
     }.onFailure { Log.w(TAG, "Failed reporting playback progress: ${it.message}") }
   }
 
@@ -876,7 +936,7 @@ class JellyfinClient(
           .post(payload.toRequestBody(JSON_MEDIA_TYPE))
           .build()
 
-      httpClient.newCall(request).execute().close()
+      httpClient.newCall(request).awaitResponse().close()
     }.onFailure { Log.w(TAG, "Failed reporting playback stop: ${it.message}") }
   }
 
@@ -897,7 +957,7 @@ class JellyfinClient(
             .addJellyfinHeaders(token)
             .post(ByteArray(0).toRequestBody(null))
             .build()
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) throw IOException("Failed to mark as played: HTTP ${response.code}")
         }
       }
@@ -920,7 +980,7 @@ class JellyfinClient(
             .addJellyfinHeaders(token)
             .delete()
             .build()
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) throw IOException("Failed to mark as unplayed: HTTP ${response.code}")
         }
       }
@@ -953,7 +1013,7 @@ class JellyfinClient(
               .delete()
               .build()
           }
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) throw IOException("Failed to toggle favorite: HTTP ${response.code}")
         }
       }
@@ -965,7 +1025,7 @@ class JellyfinClient(
     val type = obj["Type"]?.jsonPrimitive?.content ?: obj["CollectionType"]?.jsonPrimitive?.content ?: "Folder"
     val collectionType = obj["CollectionType"]?.jsonPrimitive?.content
     val overview = obj["Overview"]?.jsonPrimitive?.content
-    val runTimeTicks = obj["RunTimeTicks"]?.jsonPrimitive?.longOrNull
+    val runTimeTicks = obj["RunTimeTicks"]?.jsonPrimitive?.longOrNull ?: obj["CumulativeRunTimeTicks"]?.jsonPrimitive?.longOrNull
     val isFolder = obj["IsFolder"]?.jsonPrimitive?.booleanOrNull ?: (type == "CollectionFolder" || type == "Folder" || type == "Series" || type == "Season")
     val productionYear = obj["ProductionYear"]?.jsonPrimitive?.intOrNull
     val communityRating = obj["CommunityRating"]?.jsonPrimitive?.content?.toDoubleOrNull()
@@ -982,6 +1042,8 @@ class JellyfinClient(
       ?: obj["Artists"]?.jsonArray?.firstOrNull()?.let { element ->
         if (element is JsonObject) element["Name"]?.jsonPrimitive?.content else element.jsonPrimitive.content
       }
+    val seriesId = obj["SeriesId"]?.jsonPrimitive?.content
+    val seriesPrimaryImageTag = obj["SeriesPrimaryImageTag"]?.jsonPrimitive?.content
     val seasonName = obj["SeasonName"]?.jsonPrimitive?.content
     val indexNumber = obj["IndexNumber"]?.jsonPrimitive?.intOrNull
     val parentIndexNumber = obj["ParentIndexNumber"]?.jsonPrimitive?.intOrNull
@@ -1078,6 +1140,24 @@ class JellyfinClient(
       }
     } ?: obj["RemoteTrailerUrl"]?.jsonPrimitive?.content
 
+    val peopleList =
+      obj["People"]?.jsonArray?.mapNotNull { element ->
+        if (element is JsonObject) {
+          val personId = element["Id"]?.jsonPrimitive?.content ?: return@mapNotNull null
+          val personName = element["Name"]?.jsonPrimitive?.content ?: ""
+          val personRole = element["Role"]?.jsonPrimitive?.content
+          val personType = element["Type"]?.jsonPrimitive?.content
+          val personImageTag = element["PrimaryImageTag"]?.jsonPrimitive?.content
+          JellyfinPerson(
+            id = personId,
+            name = personName,
+            role = personRole,
+            type = personType,
+            primaryImageTag = personImageTag,
+          )
+        } else null
+      } ?: emptyList()
+
     return JellyfinItem(
       id = id,
       name = name,
@@ -1089,6 +1169,8 @@ class JellyfinClient(
       isPlayed = isPlayed,
       isFavorite = isFavorite,
       seriesName = seriesName,
+      seriesId = seriesId,
+      seriesPrimaryImageTag = seriesPrimaryImageTag,
       seasonName = seasonName,
       indexNumber = indexNumber,
       parentIndexNumber = parentIndexNumber,
@@ -1115,6 +1197,7 @@ class JellyfinClient(
       lastPlayedDate = lastPlayedDate,
       remoteTrailerUrl = remoteTrailerUrl,
       canDelete = obj["CanDelete"]?.jsonPrimitive?.booleanOrNull ?: true,
+      people = peopleList,
     )
   }
 
@@ -1138,7 +1221,7 @@ class JellyfinClient(
             .post("".toRequestBody(JSON_MEDIA_TYPE))
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) {
             return@withContext Result.failure(IOException("Create playlist failed: ${response.code} ${response.message}"))
           }
@@ -1172,7 +1255,7 @@ class JellyfinClient(
             .post("".toRequestBody(JSON_MEDIA_TYPE))
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful) {
             return@withContext Result.failure(IOException("Add to playlist failed: ${response.code} ${response.message}"))
           }
@@ -1200,7 +1283,7 @@ class JellyfinClient(
             .delete()
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).awaitResponse().use { response ->
           if (!response.isSuccessful && response.code != 204) {
             return@withContext Result.failure(IOException("Delete item failed: ${response.code} ${response.message}"))
           }

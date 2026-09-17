@@ -58,9 +58,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -106,9 +107,14 @@ fun TorrentDetailSheet(
 ) {
   if (group == null) return
 
-  val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+  val sheetState =
+    rememberBottomSheetState(
+      initialValue = SheetValue.Hidden,
+      enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
   val context = LocalContext.current
-  var isOverviewExpanded by remember { mutableStateOf(false) }
+  var isOverviewExpanded by remember(group.id) { mutableStateOf(false) }
+  var canExpandOverview by remember(group.id) { mutableStateOf(false) }
   var searchQuery by remember { mutableStateOf("") }
   var isSearchOpen by remember { mutableStateOf(false) }
   var sortDescending by remember { mutableStateOf(false) }
@@ -491,7 +497,7 @@ fun TorrentDetailSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .clickable { isOverviewExpanded = !isOverviewExpanded },
+                .clickable(enabled = canExpandOverview) { isOverviewExpanded = !isOverviewExpanded },
           ) {
             Text(
               text = "Storyline",
@@ -506,14 +512,21 @@ fun TorrentDetailSheet(
               color = MaterialTheme.colorScheme.onSurfaceVariant,
               maxLines = if (isOverviewExpanded) Int.MAX_VALUE else 3,
               overflow = TextOverflow.Ellipsis,
+              onTextLayout = { textLayoutResult ->
+                if (!isOverviewExpanded) {
+                  canExpandOverview = textLayoutResult.hasVisualOverflow
+                }
+              },
             )
-            Text(
-              text = if (isOverviewExpanded) "Show less" else "Read more",
-              style = MaterialTheme.typography.labelSmall,
-              fontWeight = FontWeight.Bold,
-              color = MaterialTheme.colorScheme.primary,
-              modifier = Modifier.padding(top = 4.dp),
-            )
+            if (canExpandOverview) {
+              Text(
+                text = if (isOverviewExpanded) "Show less" else "Read more",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 4.dp),
+              )
+            }
           }
         }
       }

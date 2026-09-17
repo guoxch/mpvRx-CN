@@ -11,7 +11,12 @@ package app.gyrolet.mpvrx.ui.browser.jellyfin
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -58,9 +63,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -75,14 +81,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.content.Intent
 import android.net.Uri
+import android.text.format.DateUtils
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.data.jellyfin.JellyfinClient
 import app.gyrolet.mpvrx.domain.jellyfin.JellyfinItem
+import app.gyrolet.mpvrx.domain.jellyfin.JellyfinPerson
 import app.gyrolet.mpvrx.domain.jellyfin.JellyfinServer
 import app.gyrolet.mpvrx.presentation.components.RemoteImage
 import app.gyrolet.mpvrx.ui.icons.Icon
@@ -90,6 +101,7 @@ import app.gyrolet.mpvrx.ui.icons.Icons
 import kotlin.math.roundToInt
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.gyrolet.mpvrx.ui.browser.music.SharedMusicDetailHeader
 import app.gyrolet.mpvrx.ui.browser.music.SharedMusicTrackListItem
 import app.gyrolet.mpvrx.ui.player.PlaybackSession
 
@@ -110,8 +122,18 @@ fun JellyfinDetailSheet(
   onToggleFavorite: (JellyfinItem) -> Unit,
   onTogglePlayed: (JellyfinItem) -> Unit,
   onItemClick: (JellyfinItem) -> Unit,
+  onPersonClick: ((JellyfinPerson) -> Unit)? = null,
   onDeleteItem: ((JellyfinItem) -> Unit)? = null,
-  sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+  onDownload: ((JellyfinItem) -> Unit)? = null,
+  onDownloadSeason: (() -> Unit)? = null,
+  onDownloadSeries: (() -> Unit)? = null,
+  downloadedItemIds: Set<String> = emptySet(),
+  activeDownloadItemIds: Set<String> = emptySet(),
+  sheetState: SheetState =
+    rememberBottomSheetState(
+      initialValue = SheetValue.Hidden,
+      enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    ),
 ) {
   if (item == null) return
 
@@ -133,94 +155,40 @@ fun JellyfinDetailSheet(
         verticalArrangement = Arrangement.spacedBy(16.dp),
       ) {
         // Header Row (Avatar / Artwork + Title + Play Button)
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          verticalAlignment = Alignment.CenterVertically,
-        ) {
-          val imageUrl = remember(server.serverUrl, item.id, item.primaryImageTag, server.accessToken) {
-            JellyfinClient.getImageUrl(
-              serverUrl = server.serverUrl,
-              itemId = item.id,
-              imageTag = item.primaryImageTag,
-              maxWidth = 300,
-              token = server.accessToken,
-            )
-          }
-          Box(
-            modifier = Modifier
-              .size(64.dp)
-              .clip(if (item.type == "MusicArtist" || item.type == "Artist" || item.type == "AlbumArtist") CircleShape else RoundedCornerShape(8.dp))
-              .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center,
-          ) {
-            if (!item.primaryImageTag.isNullOrBlank()) {
-              RemoteImage(
-                url = imageUrl,
-                contentDescription = item.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-              )
-            } else {
-              Icon(
-                imageVector = when (item.type) {
-                  "MusicArtist", "Artist", "AlbumArtist" -> Icons.RoundedFilled.Person
-                  "Playlist" -> Icons.RoundedFilled.QueueMusic
-                  else -> Icons.RoundedFilled.Audiotrack
-                },
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(32.dp),
-              )
-            }
-          }
-
-          Spacer(modifier = Modifier.width(14.dp))
-
-          Column(modifier = Modifier.weight(1f)) {
-            Text(
-              text = item.name,
-              style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-              maxLines = 1,
-              overflow = TextOverflow.Ellipsis,
-            )
-            val isArtist = item.type == "MusicArtist" || item.type == "Artist" || item.type == "AlbumArtist"
-            if (!isArtist) {
-              val subtitle = item.seriesName ?: item.overview ?: ""
-              if ((item.type == "MusicAlbum" || item.type == "Album") && subtitle.isNotBlank()) {
-                Text(
-                  text = subtitle,
-                  style = MaterialTheme.typography.bodyMedium,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant,
-                  maxLines = 1,
-                  overflow = TextOverflow.Ellipsis,
-                )
-              }
-              Text(
-                text = "${episodes.size} ${if (item.type == "Playlist") "Items" else "Tracks"}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-              )
-            }
-          }
-
-          if (episodes.isNotEmpty()) {
-            Button(onClick = { onPlay(episodes.first(), false) }) {
-              Icon(imageVector = Icons.RoundedFilled.PlayArrow, contentDescription = null)
-              Spacer(modifier = Modifier.width(4.dp))
-              Text(if (item.type == "MusicArtist" || item.type == "Artist" || item.type == "AlbumArtist") "Play All" else "Play")
-            }
-          }
+        val imageUrl = remember(server.serverUrl, item.id, item.primaryImageTag, server.accessToken) {
+          JellyfinClient.getImageUrl(
+            serverUrl = server.serverUrl,
+            itemId = item.id,
+            imageTag = item.primaryImageTag,
+            maxWidth = 300,
+            token = server.accessToken,
+          )
         }
+        val isArtist = item.type == "MusicArtist" || item.type == "Artist" || item.type == "AlbumArtist"
+        val subtitle = if (isArtist) null else (item.seriesName ?: item.overview)?.takeIf { it.isNotBlank() }
+        val totalSec = item.durationSeconds.takeIf { it > 0 }
+          ?: episodes.sumOf { it.durationSeconds }.takeIf { it > 0 }
+        val durationFormatted = totalSec?.let { DateUtils.formatElapsedTime(it) }
+        val countText = if (isArtist) null else "${episodes.size} ${if (item.type == "Playlist") "Items" else "Tracks"}"
+        val itemCountText = listOfNotNull(countText, durationFormatted).joinToString(" • ").takeIf { it.isNotBlank() }
+
+        SharedMusicDetailHeader(
+          title = item.name,
+          subtitle = subtitle,
+          itemCountText = itemCountText,
+          artworkUrl = if (!item.primaryImageTag.isNullOrBlank()) imageUrl else null,
+          fallbackIcon = when {
+            isArtist -> Icons.RoundedFilled.Person
+            item.type == "Playlist" -> Icons.RoundedFilled.QueueMusic
+            else -> Icons.RoundedFilled.Audiotrack
+          },
+          isCircular = isArtist,
+          onPlayAll = if (episodes.isNotEmpty()) ({ onPlay(episodes.first(), false) }) else null,
+          playButtonText = if (isArtist) "Play All" else "Play",
+        )
 
         if (isLoading) {
-          Box(
-            modifier = Modifier
-              .fillMaxWidth()
-              .height(150.dp),
-            contentAlignment = Alignment.Center,
-          ) {
-            CircularProgressIndicator()
-          }
+          GhostDetailSections()
         } else {
           // Albums section for Artist Sheet
           if ((item.type == "MusicArtist" || item.type == "Artist" || item.type == "AlbumArtist") && seasons.isNotEmpty()) {
@@ -294,7 +262,8 @@ fun JellyfinDetailSheet(
     return
   }
 
-  var isOverviewExpanded by remember { mutableStateOf(false) }
+  var isOverviewExpanded by remember(item.id) { mutableStateOf(false) }
+  var canExpandOverview by remember(item.id) { mutableStateOf(false) }
   val context = LocalContext.current
 
   ModalBottomSheet(
@@ -609,38 +578,135 @@ fun JellyfinDetailSheet(
           }
         }
 
-        // Action Buttons Row
-        Row(
+        // Action Buttons: play on its own row, secondary icons below (one row was cramped)
+        Column(
           modifier = Modifier.fillMaxWidth(),
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(10.dp),
+          verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-          // Play / Resume Button
-          Button(
-            onClick = { onPlay(item, false) },
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(vertical = 12.dp),
-          ) {
-            Icon(
-              imageVector = Icons.RoundedFilled.PlayArrow,
-              contentDescription = null,
-              modifier = Modifier.size(20.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-              text =
-                when {
-                  item.progressPercent > 0.05f -> "Resume"
-                  item.isSeries -> "Watch S1:E1"
-                  else -> "Play Movie"
-                },
-              fontWeight = FontWeight.Bold,
-              style = MaterialTheme.typography.labelLarge,
-            )
+          // Compute playback state for Series, Episode, or Movie
+          val inProgressEpisode = remember(episodes) {
+            episodes
+              .filter { it.progressPercent > 0.05f }
+              .maxWithOrNull(
+                compareBy<JellyfinItem> { it.lastPlayedDate ?: "" }
+                  .thenBy { it.parentIndexNumber ?: 1 }
+                  .thenBy { it.indexNumber ?: 1 },
+              )
+          }
+          val nextUnplayedEpisode = remember(episodes) { episodes.firstOrNull { !it.isPlayed } }
+          val isAllEpisodesPlayed = remember(episodes) { episodes.isNotEmpty() && episodes.all { it.isPlayed } }
+
+          val targetItem: JellyfinItem
+          val playLabel: String
+          val isResumeMode: Boolean
+          val isRestartSeriesMode: Boolean
+
+          if (item.isSeries) {
+            when {
+              inProgressEpisode != null -> {
+                targetItem = inProgressEpisode
+                val s = inProgressEpisode.parentIndexNumber ?: 1
+                val e = inProgressEpisode.indexNumber ?: 1
+                playLabel = "Resume S$s:E$e"
+                isResumeMode = true
+                isRestartSeriesMode = false
+              }
+              nextUnplayedEpisode != null -> {
+                targetItem = nextUnplayedEpisode
+                val s = nextUnplayedEpisode.parentIndexNumber ?: 1
+                val e = nextUnplayedEpisode.indexNumber ?: 1
+                playLabel = "Watch S$s:E$e"
+                isResumeMode = false
+                isRestartSeriesMode = false
+              }
+              isAllEpisodesPlayed || item.isPlayed -> {
+                targetItem = episodes.firstOrNull() ?: item
+                playLabel = "Restart Series"
+                isResumeMode = false
+                isRestartSeriesMode = true
+              }
+              else -> {
+                targetItem = episodes.firstOrNull() ?: item
+                val s = targetItem.parentIndexNumber ?: 1
+                val e = targetItem.indexNumber ?: 1
+                playLabel = "Watch S$s:E$e"
+                isResumeMode = false
+                isRestartSeriesMode = false
+              }
+            }
+          } else {
+            targetItem = item
+            isRestartSeriesMode = false
+            when {
+              item.progressPercent > 0.05f -> {
+                playLabel = "Resume"
+                isResumeMode = true
+              }
+              item.isPlayed -> {
+                playLabel = "Watch Again"
+                isResumeMode = false
+              }
+              item.type == "Episode" -> {
+                val s = item.parentIndexNumber ?: 1
+                val e = item.indexNumber ?: 1
+                playLabel = "Watch S$s:E$e"
+                isResumeMode = false
+              }
+              else -> {
+                playLabel = "Play Movie"
+                isResumeMode = false
+              }
+            }
           }
 
+          // Play / Resume Row
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+          ) {
+            Button(
+              onClick = { onPlay(targetItem, isRestartSeriesMode) },
+              shape = RoundedCornerShape(14.dp),
+              colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+              modifier = Modifier.weight(1f),
+              contentPadding = PaddingValues(vertical = 12.dp),
+            ) {
+              Icon(
+                imageVector = if (isRestartSeriesMode) Icons.RoundedFilled.Refresh else Icons.RoundedFilled.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+              )
+              Spacer(modifier = Modifier.width(8.dp))
+              Text(
+                text = playLabel,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.labelLarge,
+              )
+            }
+
+            // Play from Beginning icon button if in progress
+            if (isResumeMode) {
+              FilledTonalIconButton(
+                onClick = { onPlay(targetItem, true) },
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.size(48.dp),
+              ) {
+                Icon(
+                  imageVector = Icons.RoundedFilled.Refresh,
+                  contentDescription = "Play from Beginning",
+                  tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                  modifier = Modifier.size(22.dp),
+                )
+              }
+            }
+          }
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+          ) {
           // Trailer Button for Movies & Series
           if (item.type == "Movie" || item.isSeries || item.type == "Series") {
             FilledTonalIconButton(
@@ -669,6 +735,65 @@ fun JellyfinDetailSheet(
             }
           }
 
+          // Download Button (movie: direct; series: season / all-seasons menu)
+          if (onDownload != null && (item.type == "Movie" || item.isSeries)) {
+            var isDownloadMenuOpen by remember { mutableStateOf(false) }
+            val isItemDownloaded = item.id in downloadedItemIds
+            val isItemDownloading = item.id in activeDownloadItemIds
+            Box {
+              FilledTonalIconButton(
+                onClick = {
+                  when {
+                    item.isSeries -> isDownloadMenuOpen = true
+                    isItemDownloaded || isItemDownloading -> {}
+                    else -> onDownload(item)
+                  }
+                },
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.size(48.dp),
+              ) {
+                when {
+                  isItemDownloading ->
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                  isItemDownloaded ->
+                    Icon(
+                      imageVector = Icons.RoundedFilled.CheckCircle,
+                      contentDescription = stringResource(R.string.downloads_downloaded),
+                      tint = MaterialTheme.colorScheme.primary,
+                      modifier = Modifier.size(22.dp),
+                    )
+                  else ->
+                    Icon(
+                      imageVector = Icons.RoundedFilled.Download,
+                      contentDescription = stringResource(R.string.downloads_download),
+                      tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                      modifier = Modifier.size(22.dp),
+                    )
+                }
+              }
+
+              DropdownMenu(
+                expanded = isDownloadMenuOpen,
+                onDismissRequest = { isDownloadMenuOpen = false },
+              ) {
+                DropdownMenuItem(
+                  text = { Text(stringResource(R.string.downloads_download_season)) },
+                  onClick = {
+                    isDownloadMenuOpen = false
+                    onDownloadSeason?.invoke()
+                  },
+                )
+                DropdownMenuItem(
+                  text = { Text(stringResource(R.string.downloads_download_series)) },
+                  onClick = {
+                    isDownloadMenuOpen = false
+                    onDownloadSeries?.invoke()
+                  },
+                )
+              }
+            }
+          }
+
           // Favorite Toggle Button
           FilledTonalIconButton(
             onClick = { onToggleFavorite(item) },
@@ -678,7 +803,7 @@ fun JellyfinDetailSheet(
             Icon(
               imageVector = if (item.isFavorite) Icons.RoundedFilled.Favorite else Icons.RoundedFilled.FavoriteBorder,
               contentDescription = "Favorite",
-              tint = if (item.isFavorite) Color(0xFFE91E63) else MaterialTheme.colorScheme.onSurfaceVariant,
+              tint = MaterialTheme.colorScheme.onSecondaryContainer,
               modifier = Modifier.size(22.dp),
             )
           }
@@ -692,7 +817,7 @@ fun JellyfinDetailSheet(
             Icon(
               imageVector = if (item.isPlayed) Icons.RoundedFilled.Check else Icons.RoundedFilled.Visibility,
               contentDescription = "Watched",
-              tint = if (item.isPlayed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+              tint = MaterialTheme.colorScheme.onSecondaryContainer,
               modifier = Modifier.size(22.dp),
             )
           }
@@ -744,22 +869,6 @@ fun JellyfinDetailSheet(
               )
             }
           }
-        }
-
-        // Restart from Beginning option if in progress
-        if (item.progressPercent > 0.05f) {
-          OutlinedButton(
-            onClick = { onPlay(item, true) },
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth(),
-          ) {
-            Icon(
-              imageVector = Icons.RoundedFilled.Refresh,
-              contentDescription = null,
-              modifier = Modifier.size(16.dp),
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Play from Beginning", style = MaterialTheme.typography.labelMedium)
           }
         }
 
@@ -771,7 +880,7 @@ fun JellyfinDetailSheet(
               Modifier
                 .fillMaxWidth()
                 .animateContentSize()
-                .clickable { isOverviewExpanded = !isOverviewExpanded },
+                .clickable(enabled = canExpandOverview) { isOverviewExpanded = !isOverviewExpanded },
             verticalArrangement = Arrangement.spacedBy(4.dp),
           ) {
             Text(
@@ -786,13 +895,195 @@ fun JellyfinDetailSheet(
               color = MaterialTheme.colorScheme.onSurfaceVariant,
               maxLines = if (isOverviewExpanded) Int.MAX_VALUE else 3,
               overflow = TextOverflow.Ellipsis,
+              onTextLayout = { textLayoutResult ->
+                if (!isOverviewExpanded) {
+                  canExpandOverview = textLayoutResult.hasVisualOverflow
+                }
+              },
             )
+            if (canExpandOverview) {
+              Text(
+                text = if (isOverviewExpanded) "Show less" else "Read more",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+              )
+            }
+          }
+        }
+
+        // Directors, Writers, Producers
+        val directors = remember(item.people) { item.directors }
+        val writers = remember(item.people) { item.writers }
+        val producers = remember(item.people) { item.producers }
+
+        if (directors.isNotEmpty() || writers.isNotEmpty() || producers.isNotEmpty()) {
+          Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+          ) {
+            if (directors.isNotEmpty()) {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                Text(
+                  text = if (directors.size > 1) "Directors: " else "Director: ",
+                  style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                  color = MaterialTheme.colorScheme.onSurface,
+                )
+                directors.forEachIndexed { index, person ->
+                  Text(
+                    text = person.name + if (index < directors.lastIndex) ", " else "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (onPersonClick != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.clickable(enabled = onPersonClick != null) {
+                      onPersonClick?.invoke(person)
+                    },
+                  )
+                }
+              }
+            }
+
+            if (writers.isNotEmpty()) {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                Text(
+                  text = if (writers.size > 1) "Writers: " else "Writer: ",
+                  style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                  color = MaterialTheme.colorScheme.onSurface,
+                )
+                writers.forEachIndexed { index, person ->
+                  Text(
+                    text = person.name + if (index < writers.lastIndex) ", " else "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (onPersonClick != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.clickable(enabled = onPersonClick != null) {
+                      onPersonClick?.invoke(person)
+                    },
+                  )
+                }
+              }
+            }
+
+            if (producers.isNotEmpty()) {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                Text(
+                  text = if (producers.size > 1) "Producers: " else "Producer: ",
+                  style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                  color = MaterialTheme.colorScheme.onSurface,
+                )
+                producers.forEachIndexed { index, person ->
+                  Text(
+                    text = person.name + if (index < producers.lastIndex) ", " else "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (onPersonClick != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.clickable(enabled = onPersonClick != null) {
+                      onPersonClick?.invoke(person)
+                    },
+                  )
+                }
+              }
+            }
+          }
+        }
+
+        // Cast Section
+        val cast = remember(item.people) { item.actors }
+        if (cast.isNotEmpty()) {
+          Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
             Text(
-              text = if (isOverviewExpanded) "Show less" else "Read more",
-              style = MaterialTheme.typography.labelSmall,
-              color = MaterialTheme.colorScheme.primary,
-              fontWeight = FontWeight.SemiBold,
+              text = "Cast",
+              style = MaterialTheme.typography.titleMedium,
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.onSurface,
             )
+
+            LazyRow(
+              horizontalArrangement = Arrangement.spacedBy(14.dp),
+              contentPadding = PaddingValues(vertical = 4.dp),
+              modifier = Modifier.fillMaxWidth(),
+            ) {
+              items(cast, key = { "${it.id}|${it.role ?: ""}" }) { person ->
+                Column(
+                  horizontalAlignment = Alignment.CenterHorizontally,
+                  modifier = Modifier
+                    .width(72.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(enabled = onPersonClick != null) { onPersonClick?.invoke(person) }
+                    .padding(vertical = 4.dp),
+                  verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                  val personImageUrl = remember(person.id, person.primaryImageTag, server.serverUrl, server.accessToken) {
+                    JellyfinClient.getImageUrl(
+                      serverUrl = server.serverUrl,
+                      itemId = person.id,
+                      imageTag = person.primaryImageTag,
+                      maxWidth = 200,
+                      token = server.accessToken,
+                    )
+                  }
+
+                  if (!person.primaryImageTag.isNullOrBlank()) {
+                    RemoteImage(
+                      url = personImageUrl,
+                      contentDescription = person.name,
+                      contentScale = ContentScale.Crop,
+                      modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape),
+                    )
+                  } else {
+                    Box(
+                      modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                      contentAlignment = Alignment.Center,
+                    ) {
+                      Text(
+                        text = person.name.take(1).uppercase(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                      )
+                    }
+                  }
+
+                  Text(
+                    text = person.name,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                  )
+
+                  person.role?.takeIf { it.isNotBlank() }?.let { role ->
+                    Text(
+                      text = role,
+                      style = MaterialTheme.typography.labelSmall,
+                      color = MaterialTheme.colorScheme.onSurfaceVariant,
+                      maxLines = 1,
+                      overflow = TextOverflow.Ellipsis,
+                      textAlign = TextAlign.Center,
+                    )
+                  }
+                }
+              }
+            }
           }
         }
 
@@ -904,15 +1195,7 @@ fun JellyfinDetailSheet(
 
             // Episode List
             if (isEpisodesLoading) {
-              Box(
-                modifier =
-                  Modifier
-                    .fillMaxWidth()
-                    .height(100.dp),
-                contentAlignment = Alignment.Center,
-              ) {
-                CircularProgressIndicator(modifier = Modifier.size(32.dp))
-              }
+              GhostEpisodeRows()
             } else {
               Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -923,6 +1206,14 @@ fun JellyfinDetailSheet(
                     item = episode,
                     server = server,
                     onPlay = { onPlay(episode, false) },
+                    downloadState =
+                      when {
+                        onDownload == null -> null
+                        episode.id in downloadedItemIds -> EpisodeDownloadState.DOWNLOADED
+                        episode.id in activeDownloadItemIds -> EpisodeDownloadState.ACTIVE
+                        else -> EpisodeDownloadState.NOT_DOWNLOADED
+                      },
+                    onDownload = { onDownload?.invoke(episode) },
                   )
                 }
               }
@@ -1030,6 +1321,73 @@ fun JellyfinDetailSheet(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+      }
+    }
+  }
+}
+
+/** Pulsing placeholder block used while sheet sections stream in. */
+@Composable
+private fun GhostBlock(modifier: Modifier = Modifier) {
+  val transition = rememberInfiniteTransition(label = "ghost_pulse")
+  val alpha by transition.animateFloat(
+    initialValue = 0.35f,
+    targetValue = 0.8f,
+    animationSpec =
+      infiniteRepeatable(
+        animation = tween(durationMillis = 650),
+        repeatMode = RepeatMode.Reverse,
+      ),
+    label = "ghost_alpha",
+  )
+  Box(
+    modifier =
+      modifier.background(
+        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = alpha),
+        RoundedCornerShape(10.dp),
+      ),
+  )
+}
+
+/** Skeleton for the episode list while a season's episodes load. */
+@Composable
+private fun GhostEpisodeRows(count: Int = 4) {
+  Column(
+    modifier = Modifier.fillMaxWidth(),
+    verticalArrangement = Arrangement.spacedBy(10.dp),
+  ) {
+    repeat(count) {
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
+        GhostBlock(Modifier.width(128.dp).height(72.dp))
+        Column(
+          modifier = Modifier.weight(1f),
+          verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+          GhostBlock(Modifier.fillMaxWidth(0.72f).height(14.dp))
+          GhostBlock(Modifier.fillMaxWidth(0.45f).height(12.dp))
+        }
+      }
+    }
+  }
+}
+
+/** Skeleton for the seasons/similar area while the full item detail loads. */
+@Composable
+private fun GhostDetailSections() {
+  Column(
+    modifier = Modifier.fillMaxWidth(),
+    verticalArrangement = Arrangement.spacedBy(14.dp),
+  ) {
+    GhostBlock(Modifier.width(160.dp).height(36.dp))
+    GhostEpisodeRows(count = 3)
+    GhostBlock(Modifier.width(140.dp).height(16.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+      repeat(3) {
+        GhostBlock(Modifier.width(120.dp).height(180.dp))
       }
     }
   }

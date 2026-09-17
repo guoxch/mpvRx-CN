@@ -34,8 +34,14 @@ import androidx.compose.ui.semantics.semantics
 import app.gyrolet.mpvrx.preferences.preference.PreferenceStore
 import app.gyrolet.mpvrx.preferences.preference.getEnum
 import app.gyrolet.mpvrx.ui.theme.AppTheme
+import app.gyrolet.mpvrx.ui.theme.CustomThemeDefinition
 import app.gyrolet.mpvrx.ui.theme.DarkMode
+import app.gyrolet.mpvrx.ui.theme.WallpaperScaleMode
 import app.gyrolet.mpvrx.ui.theme.spacing
+import app.gyrolet.mpvrx.ui.player.controls.components.rememberTvInitialFocusRequester
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusGroup
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
+import app.gyrolet.mpvrx.ui.player.controls.components.tvInitialFocus
 import kotlinx.collections.immutable.ImmutableList
 
 class AppearancePreferences(
@@ -43,17 +49,26 @@ class AppearancePreferences(
 ) {
   val darkMode = preferenceStore.getEnum("dark_mode", DarkMode.System)
   val appTheme = preferenceStore.getEnum("app_theme", AppTheme.Dynamic)
+  val customTheme = preferenceStore.getString("custom_theme", "")
+  val selectedCustomThemeName = preferenceStore.getString("selected_custom_theme_name", "")
+  val customWallpaperUri = preferenceStore.getString("custom_wallpaper_uri", "")
+  val customWallpaperZoom = preferenceStore.getFloat("custom_wallpaper_zoom", 1f)
+  val customWallpaperOffsetX = preferenceStore.getFloat("custom_wallpaper_offset_x", 0f)
+  val customWallpaperOffsetY = preferenceStore.getFloat("custom_wallpaper_offset_y", 0f)
+  val customWallpaperScaleMode = preferenceStore.getEnum("custom_wallpaper_scale_mode", WallpaperScaleMode.Fit)
+  val customWallpaperBlur = preferenceStore.getFloat("custom_wallpaper_blur", 0f)
+  val customWallpaperAlpha = preferenceStore.getFloat("custom_wallpaper_alpha", 1f)
   val amoledMode = preferenceStore.getBoolean("amoled_mode", false)
   val useSystemFont = preferenceStore.getBoolean("use_system_font", false)
   val unlimitedNameLines = preferenceStore.getBoolean("unlimited_name_lines", false)
   val hidePlayerButtonsBackground = preferenceStore.getBoolean("hide_player_buttons_background", false)
+  val forceDarkPlayerButtonsBackground = preferenceStore.getBoolean("force_dark_player_buttons_background", false)
   val showUnplayedOldVideoLabel = preferenceStore.getBoolean("show_unplayed_old_video_label", true)
   val unplayedOldVideoDays = preferenceStore.getInt("unplayed_old_video_days", 7)
   val showNetworkThumbnails = preferenceStore.getBoolean("show_network_thumbnails", false)
   val seekbarStyle = preferenceStore.getEnum("seekbar_style", SeekbarStyle.Thick)
   val portraitPlaybackControlsPosition =
     preferenceStore.getEnum("portrait_playback_controls_position", PortraitPlaybackControlsPosition.Center)
-  val showHomeTab = preferenceStore.getBoolean("show_home_tab", true)
   val showMusicTab = preferenceStore.getBoolean("show_music_tab", true)
   val showRecentsTab = preferenceStore.getBoolean("show_recents_tab", true)
   val showPlaylistsTab = preferenceStore.getBoolean("show_playlists_tab", true)
@@ -77,7 +92,7 @@ class AppearancePreferences(
   val bottomRightControls =
     preferenceStore.getString(
       "bottom_right_controls",
-      "FRAME_NAVIGATION,CLIP,VIDEO_ZOOM,PICTURE_IN_PICTURE,ASPECT_RATIO",
+      "FRAME_NAVIGATION,CLIP,SCOPES,VIDEO_ZOOM,PICTURE_IN_PICTURE,ASPECT_RATIO",
     )
 
   val bottomLeftControls =
@@ -89,7 +104,7 @@ class AppearancePreferences(
   val portraitBottomControls =
     preferenceStore.getString(
       "portrait_bottom_controls",
-      "CAST,SCREEN_ROTATION,DECODER,AUDIO_TRACK,SUBTITLES,BOOKMARKS_CHAPTERS,PLAYBACK_SPEED,BACKGROUND_PLAYBACK,REPEAT_MODE,SHUFFLE,VIDEO_ZOOM,FRAME_NAVIGATION,CLIP,ASPECT_RATIO,PICTURE_IN_PICTURE,LOCK_CONTROLS,MORE_OPTIONS",
+      "CAST,SCREEN_ROTATION,DECODER,AUDIO_TRACK,SUBTITLES,BOOKMARKS_CHAPTERS,PLAYBACK_SPEED,BACKGROUND_PLAYBACK,REPEAT_MODE,SHUFFLE,VIDEO_ZOOM,FRAME_NAVIGATION,CLIP,SCOPES,ASPECT_RATIO,PICTURE_IN_PICTURE,LOCK_CONTROLS,MORE_OPTIONS",
     )
 
   private val castButtonMigrationComplete =
@@ -98,6 +113,12 @@ class AppearancePreferences(
     preferenceStore.getBoolean("clip_button_migration_complete", false)
 
   init {
+    if (selectedCustomThemeName.get().isBlank()) {
+      CustomThemeDefinition.parse(customTheme.get())?.let { legacyTheme ->
+        selectedCustomThemeName.set(legacyTheme.name)
+      }
+    }
+
     if (!castButtonMigrationComplete.get()) {
       val landscapeButtons =
         listOf(
@@ -169,10 +190,16 @@ fun MultiChoiceSegmentedButton(
   onClick: (Int, Offset) -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  val initialFocusRequester =
+    rememberTvInitialFocusRequester(
+      enabled = choices.isNotEmpty(),
+      requestKey = selectedIndices,
+    )
   Row(
     modifier =
       modifier
         .fillMaxWidth()
+        .tvFocusGroup()
         .padding(MaterialTheme.spacing.medium),
     horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
   ) {
@@ -184,11 +211,18 @@ fun MultiChoiceSegmentedButton(
         modifier =
           Modifier
             .weight(1f)
+            .then(
+              if (index == selectedIndices.firstOrNull()) {
+                Modifier.tvInitialFocus(initialFocusRequester)
+              } else {
+                Modifier
+              },
+            ).tvFocusHighlight(MaterialTheme.shapes.medium, focusedScale = 1.03f)
             .defaultMinSize(minHeight = MaterialTheme.spacing.extraLarge)
             .onGloballyPositioned { buttonCenter = it.boundsInWindow().center }
             .semantics { role = Role.RadioButton },
         colors =
-          ToggleButtonDefaults.toggleButtonColors(
+          ToggleButtonDefaults.colors(
             checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
             checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),

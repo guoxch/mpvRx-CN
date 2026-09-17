@@ -61,9 +61,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import app.gyrolet.mpvrx.ui.components.themedSegmentedButtonColors
 import app.gyrolet.mpvrx.ui.icons.AppIcon
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
+import app.gyrolet.mpvrx.ui.player.controls.components.rememberTvInitialFocusRequester
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusGroup
+import app.gyrolet.mpvrx.ui.player.controls.components.tvInitialFocus
 import app.gyrolet.mpvrx.ui.theme.AppShapeScale
 import kotlin.math.roundToInt
 
@@ -143,11 +148,7 @@ fun SortDialog(
                   selected = option.isSelected,
                   onClick = { if (enableViewModeOptions) option.onClick() },
                   shape = SegmentedButtonDefaults.itemShape(index = index, count = viewModeSelector.options.size),
-                  colors =
-                    SegmentedButtonDefaults.colors(
-                      activeContentColor = MaterialTheme.colorScheme.primary,
-                      activeBorderColor = MaterialTheme.colorScheme.primary,
-                    ),
+                  colors = themedSegmentedButtonColors(),
                 ) {
                   Text(text = option.label)
                 }
@@ -166,11 +167,7 @@ fun SortDialog(
                 selected = isFirstSelected,
                 onClick = { if (enableLayoutModeOptions) layoutModeSelector.onViewModeChange(true) },
                 shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                colors =
-                  SegmentedButtonDefaults.colors(
-                    activeContentColor = MaterialTheme.colorScheme.primary,
-                    activeBorderColor = MaterialTheme.colorScheme.primary,
-                  ),
+                colors = themedSegmentedButtonColors(),
                 icon = {
                   Icon(
                     imageVector = layoutModeSelector.firstOptionIcon,
@@ -185,11 +182,7 @@ fun SortDialog(
                 selected = !isFirstSelected,
                 onClick = { if (enableLayoutModeOptions) layoutModeSelector.onViewModeChange(false) },
                 shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                colors =
-                  SegmentedButtonDefaults.colors(
-                    activeContentColor = MaterialTheme.colorScheme.primary,
-                    activeBorderColor = MaterialTheme.colorScheme.primary,
-                  ),
+                colors = themedSegmentedButtonColors(),
                 icon = {
                   Icon(
                     imageVector = layoutModeSelector.secondOptionIcon,
@@ -280,10 +273,11 @@ fun SortDialog(
                     FilterChip(
                       selected = toggle.checked,
                       onClick = { toggle.onCheckedChange(!toggle.checked) },
+                      enabled = toggle.enabled,
                       label = { Text(text = toggle.label) },
                       border =
                         FilterChipDefaults.filterChipBorder(
-                          enabled = true,
+                          enabled = toggle.enabled,
                           selected = toggle.checked,
                           selectedBorderWidth = 1.dp,
                           selectedBorderColor = MaterialTheme.colorScheme.primary,
@@ -330,10 +324,12 @@ private fun SortTypeSelector(
   icons: List<AppIcon>,
   modifier: Modifier = Modifier,
 ) {
+  val initialFocusRequester = rememberTvInitialFocusRequester(types.isNotEmpty(), requestKey = sortType)
   Row(
     modifier =
       modifier
         .fillMaxWidth()
+        .tvFocusGroup()
         .horizontalScroll(rememberScrollState()),
     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     verticalAlignment = Alignment.CenterVertically,
@@ -357,7 +353,9 @@ private fun SortTypeSelector(
                   } else {
                     MaterialTheme.colorScheme.surfaceContainerHighest
                   },
-              ).clickable(
+              ).then(if (selected) Modifier.tvInitialFocus(initialFocusRequester) else Modifier)
+              .tvFocusHighlight(AppShapeScale.large, focusedScale = 1.04f)
+              .clickable(
                 onClick = { onSortTypeChange(type) },
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(bounded = true),
@@ -411,11 +409,7 @@ private fun SortOrderSelector(
         selected = index == selectedIndex,
         onClick = { onSortOrderChange(index == 0) },
         shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-        colors =
-          SegmentedButtonDefaults.colors(
-            activeContentColor = MaterialTheme.colorScheme.primary,
-            activeBorderColor = MaterialTheme.colorScheme.primary,
-          ),
+        colors = themedSegmentedButtonColors(),
         icon = {
           Icon(
             imageVector =
@@ -494,7 +488,7 @@ private fun GridColumnsNextSection(
           },
           valueRange = folderGridColumnSelector.valueRange,
           steps = folderGridColumnSelector.steps,
-          modifier = Modifier.fillMaxWidth(),
+          modifier = Modifier.fillMaxWidth().tvFocusHighlight(RoundedCornerShape(8.dp), focusedScale = 1.01f),
         )
       }
 
@@ -529,7 +523,7 @@ private fun GridColumnsNextSection(
           },
           valueRange = videoGridColumnSelector.valueRange,
           steps = videoGridColumnSelector.steps,
-          modifier = Modifier.fillMaxWidth(),
+          modifier = Modifier.fillMaxWidth().tvFocusHighlight(RoundedCornerShape(8.dp), focusedScale = 1.01f),
         )
       }
     }
@@ -559,7 +553,7 @@ private fun GridColumnsNextSection(
       },
       valueRange = selector.valueRange,
       steps = selector.steps,
-      modifier = Modifier.fillMaxWidth(),
+      modifier = Modifier.fillMaxWidth().tvFocusHighlight(RoundedCornerShape(8.dp), focusedScale = 1.01f),
     )
   }
 }
@@ -568,6 +562,7 @@ data class VisibilityToggle(
   val label: String,
   val checked: Boolean,
   val onCheckedChange: (Boolean) -> Unit,
+  val enabled: Boolean = true,
 )
 
 data class ViewModeOption(

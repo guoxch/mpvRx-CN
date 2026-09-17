@@ -23,16 +23,21 @@ import app.gyrolet.mpvrx.ui.browser.base.BaseBrowserViewModel
 import app.gyrolet.mpvrx.ui.player.PlaybackIdentity
 import app.gyrolet.mpvrx.utils.media.MediaLibraryEvents
 import app.gyrolet.mpvrx.utils.media.MetadataRetrieval
+import app.gyrolet.mpvrx.utils.permission.PermissionUtils.StorageOps
 import app.gyrolet.mpvrx.utils.storage.FolderViewScanner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -91,6 +96,7 @@ class FolderListViewModel(
 
     companion object {
     private const val TAG = "FolderListViewModel"
+    private const val MEDIA_LIBRARY_REFRESH_DEBOUNCE_MS = 750L
 
     fun factory(
       application: Application,
@@ -115,9 +121,20 @@ class FolderListViewModel(
       }
     }
 
-    // Refresh folders on global media library changes
+    // Refresh on media events and every preference that changes scan/index semantics. Settings UI
+    // may emit both; collectLatest plus the debounce collapses them into one refresh.
     viewModelScope.launch(Dispatchers.IO) {
-      MediaLibraryEvents.changes.collectLatest {
+      val scanPreferenceChanges =
+        combine(
+          foldersPreferences.includeNoMediaFolders.changes(),
+          foldersPreferences.hiddenFolderMarkerNames.changes(),
+          browserPreferences.includeAudioBrowser.changes(),
+          browserPreferences.minimumAudioDurationSeconds.changes(),
+        ) { _, _, _, _ -> Unit }
+          .drop(1)
+
+      merge(MediaLibraryEvents.changes, scanPreferenceChanges).collectLatest {
+        delay(MEDIA_LIBRARY_REFRESH_DEBOUNCE_MS)
         // A media event affects the MediaStore snapshot, not the tree cache or persisted
         // .nomedia fingerprints. Known hidden roots will be checked incrementally below.
         MediaFileRepository.invalidateFolderCache()
@@ -262,10 +279,15 @@ class FolderListViewModel(
           val foldersWithCounts =
             folders.map { folder ->
               try {
-                // Get all videos in this folder
+                // MediaStore can lag behind files copied by other apps. Merge this known folder's
+                // direct filesystem entries so its NEW count does not require a manual refresh.
                 val videos =
                   app.gyrolet.mpvrx.repository.MediaFileRepository
-                    .getVideosInFolder(getApplication(), folder.bucketId)
+                    .getVideosInFolder(
+                      context = getApplication(),
+                      bucketId = folder.bucketId,
+                      forceFileSystemCheck = true,
+                    )
 
                 // Count new unplayed videos
                 val newCount =
@@ -319,30 +341,26 @@ class FolderListViewModel(
     MediaFileRepository.clearCache()
     FolderViewScanner.clearCache()
 
-    // Trigger media scan to ensure MediaStore is up-to-date
-    triggerMediaScan()
-
+    // Force the direct hidden index first; MediaScanner cannot see .nomedia trees.
     loadVideoFolders(forceFileSystemCheck = true)
+
+    // Preserve full Refresh semantics for ordinary files copied by other apps. Completion emits a
+    // debounced MediaLibraryEvents update, while this asynchronous pass never blocks hidden results.
+    triggerMediaScan()
   }
 
-  /**
-   * Trigger a comprehensive media scan to update MediaStore
-   */
   private fun triggerMediaScan() {
     try {
       val externalStorage = android.os.Environment.getExternalStorageDirectory()
-
       android.media.MediaScannerConnection.scanFile(
         getApplication(),
         arrayOf(externalStorage.absolutePath),
-        null, // Let MediaScanner detect all media types
+        null,
       ) { path, uri ->
         Log.d(TAG, "Media scan completed for: $path -> $uri")
       }
-
-      Log.d(TAG, "Triggered comprehensive media scan")
-    } catch (e: Exception) {
-      Log.e(TAG, "Failed to trigger media scan", e)
+    } catch (error: Exception) {
+      Log.e(TAG, "Failed to trigger media scan", error)
     }
   }
 
@@ -358,12 +376,8 @@ class FolderListViewModel(
     folder: VideoFolder,
     newName: String,
   ): Boolean {
-    val src = java.io.File(folder.path)
-    val dst = java.io.File(src.parent ?: return false, newName)
-    if (dst.exists()) return false
-    val ok = src.renameTo(dst)
+    val ok = StorageOps.renameFolder(getApplication(), folder.path, newName)
     if (ok) {
-      android.media.MediaScannerConnection.scanFile(getApplication(), arrayOf(dst.absolutePath), null, null)
       _foldersWereDeleted.value = true
     }
     return ok
@@ -384,16 +398,22 @@ class FolderListViewModel(
                 context = getApplication(),
                 minimumAudioDurationSeconds = browserPreferences.minimumAudioDurationSeconds.get(),
               )
+            ensureActive()
             _allVideoFolders.value = folders
             _isLoading.value = false
             _hasCompletedInitialLoad.value = true
+          } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
           } catch (e: Exception) {
+            ensureActive()
             Log.e(TAG, "Error loading audio folders", e)
             _hasCompletedInitialLoad.value = true
           } finally {
-            _isLoading.value = false
-            _isEnriching.value = false
-            _scanStatus.value = null
+            if (isActive) {
+              _isLoading.value = false
+              _isEnriching.value = false
+              _scanStatus.value = null
+            }
           }
         }
       return
@@ -418,12 +438,14 @@ class FolderListViewModel(
               forceFileSystemCheck = forceFileSystemCheck,
               includeAudioOverride = browserPreferences.includeAudioBrowser.get(),
             )
+          ensureActive()
           // This is the important latency boundary: never wait for a filesystem walk.
           _allVideoFolders.value = mediaStoreFolders
           _isLoading.value = false
           _hasCompletedInitialLoad.value = true
 
           val indexedFolders = MediaFileRepository.getIndexedNoMediaFolders()
+          ensureActive()
           var visibleFolders = mergeFolders(mediaStoreFolders, indexedFolders)
           _allVideoFolders.value = visibleFolders
           Log.d(TAG, "Published ${mediaStoreFolders.size} MediaStore and ${indexedFolders.size} indexed folders")
@@ -440,6 +462,7 @@ class FolderListViewModel(
                 context = getApplication(),
                 forceDiscovery = forceFileSystemCheck,
               ).collect { batch ->
+                ensureActive()
                 visibleFolders = mergeFolders(visibleFolders, batch)
                 _allVideoFolders.value = visibleFolders
                 _scanStatus.value = "Found ${visibleFolders.size} folders"
@@ -447,6 +470,7 @@ class FolderListViewModel(
 
             // Replace the old indexed snapshot after the scan, removing deleted/stale folders.
             visibleFolders = mergeFolders(mediaStoreFolders, MediaFileRepository.getIndexedNoMediaFolders())
+            ensureActive()
             _allVideoFolders.value = visibleFolders
           }
 
@@ -486,17 +510,21 @@ class FolderListViewModel(
               },
             )
 
+          ensureActive()
           _allVideoFolders.value = enrichedFolders
         } catch (e: kotlinx.coroutines.CancellationException) {
           Log.d(TAG, "Scan cancelled (new scan started)")
           throw e
         } catch (e: Exception) {
+          ensureActive()
           Log.e(TAG, "Error loading video folders", e)
           _hasCompletedInitialLoad.value = true
         } finally {
-          _isLoading.value = false
-          _isEnriching.value = false
-          _scanStatus.value = null
+          if (isActive) {
+            _isLoading.value = false
+            _isEnriching.value = false
+            _scanStatus.value = null
+          }
         }
       }
   }

@@ -26,12 +26,14 @@ class AudioPreferences(
   val backgroundPlayback = preferenceStore.getBoolean("automatic_background_playback", false)
   /** Audio-player-only background playback; video retains [backgroundPlayback]. */
   val audioBackgroundPlayback = preferenceStore.getBoolean("audio_player_background_playback", false)
+  val miniPlayerTrackSwitching = preferenceStore.getBoolean("audio_mini_player_track_switching", false)
   val volumeNormalization = preferenceStore.getBoolean("audio_volume_normalization", false)
   val drcEnabled = preferenceStore.getBoolean("audio_drc_enabled", false)
   val showAudioVisualizer = preferenceStore.getBoolean("show_audio_visualizer", true)
   val audioVisualizerStyle = preferenceStore.getEnum("audio_visualizer_style", AudioVisualizerStyle.Blob)
   val audioOrientation = preferenceStore.getEnum("audio_player_orientation", AudioPlayerOrientation.Auto)
   val audioAmbientMode = preferenceStore.getBoolean("audio_ambient_mode", true)
+  val audioWavySeekbar = preferenceStore.getBoolean("audio_wavy_seekbar", true)
   val enabledMusicTabs = preferenceStore.getStringSet(
     "enabled_music_tabs",
     setOf("SONGS", "ALBUMS", "ARTISTS", "PLAYLISTS", "FOLDERS"),
@@ -47,17 +49,12 @@ class AudioPreferences(
     },
   )
 
-  val enhancedLyrics = preferenceStore.getBoolean("enhanced_lyrics", true)
-  val lyricsClickToSeek = preferenceStore.getBoolean("lyrics_click_to_seek", true)
-  val lyricsAutoScroll = preferenceStore.getBoolean("lyrics_auto_scroll", true)
-  val lyricsLineBlur = preferenceStore.getBoolean("lyrics_line_blur", true)
-  val lyricsWordSync = preferenceStore.getBoolean("lyrics_word_sync", true)
   val lyricsRomanizeJapanese = preferenceStore.getBoolean("lyrics_romanize_japanese", true)
   val lyricsRomanizeKorean = preferenceStore.getBoolean("lyrics_romanize_korean", true)
   val lyricsRomanizeChinese = preferenceStore.getBoolean("lyrics_romanize_chinese", true)
   val lyricsRomanizeHindi = preferenceStore.getBoolean("lyrics_romanize_hindi", true)
   val lyricsRomanizeOtherLanguages = preferenceStore.getBoolean("lyrics_romanize_other_languages", true)
-  val lyricsAutoTranslate = preferenceStore.getBoolean("lyrics_auto_translate", true)
+  val lyricsAutoTranslate = preferenceStore.getBoolean("lyrics_auto_translate", false)
   val lyricsTargetLanguage = preferenceStore.getString("lyrics_target_language", "en")
   val lyricsTranslationDisplayMode = preferenceStore.getEnum("lyrics_translation_display_mode", LyricsTranslationDisplayMode.DualLine)
 

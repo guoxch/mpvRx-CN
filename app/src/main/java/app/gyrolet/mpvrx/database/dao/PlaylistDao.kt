@@ -47,6 +47,24 @@ interface PlaylistDao {
   @Query("SELECT * FROM PlaylistEntity WHERE id = :playlistId")
   suspend fun getPlaylistById(playlistId: Int): PlaylistEntity?
 
+  @Query("SELECT * FROM PlaylistEntity WHERE isM3uPlaylist = 1 AND m3uSourceUrl = :sourceUrl LIMIT 1")
+  suspend fun getRemotePlaylistBySourceUrl(sourceUrl: String): PlaylistEntity?
+
+  @Query(
+    """
+    SELECT * FROM PlaylistEntity
+    WHERE isXtreamPlaylist = 1 AND xtreamServerUrl = :serverUrl AND xtreamUsername = :username
+    LIMIT 1
+    """,
+  )
+  suspend fun getXtreamPlaylistByIdentity(
+    serverUrl: String,
+    username: String,
+  ): PlaylistEntity?
+
+  @Query("SELECT * FROM PlaylistEntity WHERE isXtreamPlaylist = 1 AND xtreamAccountKey = :accountKey LIMIT 1")
+  suspend fun getXtreamPlaylistByAccountKey(accountKey: String): PlaylistEntity?
+
   @Query("SELECT * FROM PlaylistEntity WHERE id = :playlistId")
   fun observePlaylistById(playlistId: Int): Flow<PlaylistEntity?>
 

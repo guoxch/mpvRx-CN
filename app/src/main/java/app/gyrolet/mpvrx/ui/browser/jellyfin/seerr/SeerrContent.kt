@@ -10,7 +10,7 @@
 package app.gyrolet.mpvrx.ui.browser.jellyfin.seerr
 
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
+import app.gyrolet.mpvrx.ui.utils.NavigationBackHandler as BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -45,8 +45,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -74,6 +72,7 @@ import app.gyrolet.mpvrx.domain.jellyfin.JellyfinServer
 import app.gyrolet.mpvrx.domain.seerr.MediaType
 import app.gyrolet.mpvrx.presentation.components.pullrefresh.PullRefreshBox
 import app.gyrolet.mpvrx.ui.browser.components.BrowserTopBar
+import app.gyrolet.mpvrx.ui.components.InlineSearchBar
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
@@ -111,12 +110,18 @@ fun SeerrContent(
   }
 
   val headerContainerColor =
-    if (MaterialTheme.colorScheme.background == Color.Black) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+    if (app.gyrolet.mpvrx.ui.theme.LocalAppWallpaperActive.current) {
+      Color.Transparent
+    } else if (MaterialTheme.colorScheme.background == Color.Black) {
+      Color.Black
+    } else {
+      MaterialTheme.colorScheme.surfaceContainer
+    }
 
   Column(
     modifier = modifier
       .fillMaxSize()
-      .background(MaterialTheme.colorScheme.background),
+      .background(app.gyrolet.mpvrx.ui.theme.wallpaperAwareBackgroundColor()),
   ) {
     // Top Bar Container
     Column(
@@ -131,46 +136,38 @@ fun SeerrContent(
             .padding(horizontal = 16.dp, vertical = 6.dp),
           verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-          SearchBar(
-            inputField = {
-              SearchBarDefaults.InputField(
-                query = uiState.searchQuery,
-                onQueryChange = viewModel::onSearchQueryChanged,
-                onSearch = viewModel::performSearch,
-                expanded = false,
-                onExpandedChange = { },
-                placeholder = { Text(stringResource(R.string.seerr_search_placeholder)) },
-                leadingIcon = {
-                  Icon(
-                    imageVector = Icons.RoundedFilled.Search,
-                    contentDescription = null,
-                  )
-                },
-                trailingIcon = {
-                  IconButton(
-                    onClick = {
-                      if (uiState.searchQuery.isNotEmpty()) {
-                        viewModel.clearSearch()
-                      } else {
-                        isSearching = false
-                      }
-                    },
-                  ) {
-                    Icon(
-                      imageVector = Icons.RoundedFilled.Close,
-                      contentDescription = stringResource(R.string.generic_cancel),
-                    )
-                  }
-                },
-                modifier = Modifier.focusRequester(searchFocusRequester),
+          InlineSearchBar(
+            query = uiState.searchQuery,
+            onQueryChange = viewModel::onSearchQueryChanged,
+            onSearch = viewModel::performSearch,
+            modifier = Modifier.fillMaxWidth(),
+            inputFieldModifier = Modifier.focusRequester(searchFocusRequester),
+            placeholder = { Text(stringResource(R.string.seerr_search_placeholder)) },
+            leadingIcon = {
+              Icon(
+                imageVector = Icons.RoundedFilled.Search,
+                contentDescription = null,
               )
             },
-            expanded = false,
-            onExpandedChange = { },
-            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+              IconButton(
+                onClick = {
+                  if (uiState.searchQuery.isNotEmpty()) {
+                    viewModel.clearSearch()
+                  } else {
+                    isSearching = false
+                  }
+                },
+              ) {
+                Icon(
+                  imageVector = Icons.RoundedFilled.Close,
+                  contentDescription = stringResource(R.string.generic_cancel),
+                )
+              }
+            },
             shape = RoundedCornerShape(28.dp),
             tonalElevation = 6.dp,
-          ) { }
+          )
         }
         LaunchedEffect(Unit) {
           searchFocusRequester.requestFocus()
@@ -459,6 +456,9 @@ fun SeerrContent(
         isLoading = uiState.isDetailLoading,
         isRequesting = uiState.isRequesting,
         isAdmin = uiState.currentUser?.isAdmin() == true,
+        radarrServers = uiState.radarrServers,
+        sonarrServers = uiState.sonarrServers,
+        isLoadingServers = uiState.isLoadingServers,
         onDismiss = viewModel::closeDetail,
         onRequest = viewModel::requestMedia,
         onApprove = viewModel::approveRequest,

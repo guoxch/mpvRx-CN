@@ -267,8 +267,6 @@ object MpvConfigControlledFeatures {
       "glsl-shaders",
       "video-scale-x",
       "video-scale-y",
-      "border-background",
-      "background-blur-radius",
     )
 
   val AUDIO_TRACK_SELECTION = setOf("alang")
@@ -281,6 +279,8 @@ object MpvConfigControlledFeatures {
 
   val VIDEO_ASPECT = setOf("video-aspect-override", "panscan")
 
+  val AUTO_CROP = setOf("video-crop")
+
   val HARDWARE_DECODER = setOf("hwdec", "gpu-api", "gpu-context")
 }
 
@@ -292,6 +292,8 @@ object MpvConfigOverridePolicy {
   fun configure(storedValues: Set<String>) {
     overriddenOptionNames = MpvConfigOverride.resolveOptionNames(storedValues)
   }
+
+  fun effectiveOptionNames(optionNames: Set<String>): Set<String> = optionNames
 
   fun isOwnedByMpvConf(optionName: String): Boolean = optionName in overriddenOptionNames
 

@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.group
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 import com.composables.icons.materialsymbols.MaterialSymbols
@@ -166,6 +167,7 @@ object Icons {
     val MoreTime by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.More_time) }
     val MoreVert by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.More_vert) }
     val Movie by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Movie) }
+    val Mystery by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Mystery) }
     val Notifications by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Notifications) }
     val NotInterested by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Block) }
     val Opacity by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Opacity) }
@@ -257,6 +259,7 @@ object Icons {
     val WbSunny by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Wb_sunny) }
     val ZoomIn by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Zoom_in) }
     val ZoomOutMap by lazy(LazyThreadSafetyMode.NONE) { AppIcon(MaterialSymbols.RoundedFilled.Zoom_out_map) }
+    val PostProcessing by lazy(LazyThreadSafetyMode.NONE) { AppIcon(PostProcessingVector) }
   }
 
   object RoundedFilled {
@@ -388,6 +391,7 @@ object Icons {
     val MoreTime get() = Shared.MoreTime
     val MoreVert get() = Shared.MoreVert
     val Movie get() = Shared.Movie
+    val Mystery get() = Shared.Mystery
     val Notifications get() = Shared.Notifications
     val NotInterested get() = Shared.NotInterested
     val Opacity get() = Shared.Opacity
@@ -471,6 +475,7 @@ object Icons {
     val WbSunny get() = Shared.WbSunny
     val ZoomIn get() = Shared.ZoomIn
     val ZoomOutMap get() = Shared.ZoomOutMap
+    val PostProcessing get() = Shared.PostProcessing
   }
 
   object Alternatives {
@@ -483,6 +488,10 @@ object Icons {
 
     @DrawableRes val FastForward = MaterialSymbolsR.drawable.materialsymbols_ic_fast_forward_rounded_filled
 
+    @DrawableRes val Replay10 = MaterialSymbolsR.drawable.materialsymbols_ic_replay_10_rounded_filled
+
+    @DrawableRes val Forward10 = MaterialSymbolsR.drawable.materialsymbols_ic_forward_10_rounded_filled
+
     @DrawableRes val Previous = MaterialSymbolsR.drawable.materialsymbols_ic_skip_previous_rounded_filled
 
     @DrawableRes val Play = MaterialSymbolsR.drawable.materialsymbols_ic_play_arrow_rounded_filled
@@ -490,6 +499,20 @@ object Icons {
     @DrawableRes val Pause = MaterialSymbolsR.drawable.materialsymbols_ic_pause_rounded_filled
 
     @DrawableRes val Next = MaterialSymbolsR.drawable.materialsymbols_ic_skip_next_rounded_filled
+
+    @DrawableRes val FavoriteBorder = app.gyrolet.mpvrx.R.drawable.materialsymbols_ic_favorite_rounded
+
+    @DrawableRes val Favorite = MaterialSymbolsR.drawable.materialsymbols_ic_favorite_rounded_filled
+
+    @DrawableRes val Repeat = app.gyrolet.mpvrx.R.drawable.materialsymbols_ic_repeat_rounded
+
+    @DrawableRes val RepeatOn = MaterialSymbolsR.drawable.materialsymbols_ic_repeat_on_rounded_filled
+
+    @DrawableRes val RepeatOne = MaterialSymbolsR.drawable.materialsymbols_ic_repeat_one_rounded_filled
+
+    @DrawableRes val Stop = MaterialSymbolsR.drawable.materialsymbols_ic_stop_rounded_filled
+
+    @DrawableRes val Close = MaterialSymbolsR.drawable.materialsymbols_ic_close_rounded_filled
   }
 }
 
@@ -498,38 +521,65 @@ private val FavoriteBorderVector: ImageVector by lazy(LazyThreadSafetyMode.NONE)
     name = "FavoriteBorder",
     defaultWidth = 24.dp,
     defaultHeight = 24.dp,
-    viewportWidth = 24f,
-    viewportHeight = 24f,
+    viewportWidth = 960f,
+    viewportHeight = 960f,
   ).apply {
-    path(
-      fill = SolidColor(Color.Black),
-      fillAlpha = 1.0f,
-      stroke = null,
-      strokeAlpha = 1.0f,
-      strokeLineWidth = 1.0f,
-      pathFillType = PathFillType.NonZero,
+    group(
+      translationY = 960f,
     ) {
-      moveTo(16.5f, 3.0f)
-      curveTo(14.76f, 3.0f, 13.09f, 3.81f, 12.0f, 5.09f)
-      curveTo(10.91f, 3.81f, 9.24f, 3.0f, 7.5f, 3.0f)
-      curveTo(4.42f, 3.0f, 2.0f, 5.42f, 2.0f, 8.5f)
-      curveTo(2.0f, 12.28f, 5.4f, 15.36f, 10.55f, 20.04f)
-      lineTo(12.0f, 21.35f)
-      lineTo(13.45f, 20.03f)
-      curveTo(18.6f, 15.36f, 22.0f, 12.28f, 22.0f, 8.5f)
-      curveTo(22.0f, 5.42f, 19.58f, 3.0f, 16.5f, 3.0f)
-      close()
-      moveTo(12.1f, 18.55f)
-      lineTo(12.0f, 18.65f)
-      lineTo(11.9f, 18.55f)
-      curveTo(7.14f, 14.24f, 4.0f, 11.39f, 4.0f, 8.5f)
-      curveTo(4.0f, 6.5f, 5.5f, 5.0f, 7.5f, 5.0f)
-      curveTo(9.04f, 5.0f, 10.54f, 5.99f, 11.07f, 7.36f)
-      horizontalLineTo(12.94f)
-      curveTo(13.46f, 5.99f, 14.96f, 5.0f, 16.5f, 5.0f)
-      curveTo(18.5f, 5.0f, 20.0f, 6.5f, 20.0f, 8.5f)
-      curveTo(20.0f, 11.39f, 16.86f, 14.24f, 12.1f, 18.55f)
-      close()
+      path(
+        fill = SolidColor(Color.Black),
+        fillAlpha = 1.0f,
+        stroke = null,
+        strokeAlpha = 1.0f,
+        strokeLineWidth = 1.0f,
+        pathFillType = PathFillType.NonZero,
+      ) {
+        moveTo(451.5f, -152f)
+        quadToRelative(-14.5f, -5f, -25.5f, -16f)
+        lineToRelative(-69f, -63f)
+        quadToRelative(-106f, -97f, -191.5f, -192.5f)
+        reflectiveQuadTo(80f, -634f)
+        quadToRelative(0f, -94f, 63f, -157f)
+        reflectiveQuadToRelative(157f, -63f)
+        quadToRelative(53f, 0f, 100f, 22.5f)
+        reflectiveQuadToRelative(80f, 61.5f)
+        quadToRelative(33f, -39f, 80f, -61.5f)
+        reflectiveQuadTo(660f, -854f)
+        quadToRelative(94f, 0f, 157f, 63f)
+        reflectiveQuadToRelative(63f, 157f)
+        quadToRelative(0f, 115f, -85f, 211f)
+        reflectiveQuadTo(602f, -230f)
+        lineToRelative(-68f, 62f)
+        quadToRelative(-11f, 11f, -25.5f, 16f)
+        reflectiveQuadToRelative(-28.5f, 5f)
+        quadToRelative(-14f, 0f, -28.5f, -5f)
+        close()
+        moveTo(442f, -690f)
+        quadToRelative(-29f, -41f, -62f, -62.5f)
+        reflectiveQuadTo(300f, -774f)
+        quadToRelative(-60f, 0f, -100f, 40f)
+        reflectiveQuadToRelative(-40f, 100f)
+        quadToRelative(0f, 52f, 37f, 110.5f)
+        reflectiveQuadTo(285.5f, -410f)
+        quadToRelative(51.5f, 55f, 106f, 103f)
+        reflectiveQuadToRelative(88.5f, 79f)
+        quadToRelative(34f, -31f, 88.5f, -79f)
+        reflectiveQuadToRelative(106f, -103f)
+        quadTo(726f, -465f, 763f, -523.5f)
+        reflectiveQuadTo(800f, -634f)
+        quadToRelative(0f, -60f, -40f, -100f)
+        reflectiveQuadToRelative(-100f, -40f)
+        quadToRelative(-47f, 0f, -80f, 21.5f)
+        reflectiveQuadTo(518f, -690f)
+        quadToRelative(-7f, 10f, -17f, 15f)
+        reflectiveQuadToRelative(-21f, 5f)
+        quadToRelative(-11f, 0f, -21f, -5f)
+        reflectiveQuadToRelative(-17f, -15f)
+        close()
+        moveToRelative(38f, 189f)
+        close()
+      }
     }
   }.build()
 }
@@ -581,6 +631,85 @@ private val LyricsVector: ImageVector by lazy(LazyThreadSafetyMode.NONE) {
       curveTo(12.9f, 12.3f, 13.5f, 11.0f, 13.2f, 9.7f)
       curveTo(12.8f, 9.7f, 12.5f, 9.2f, 12.5f, 8.5f)
       curveTo(12.5f, 7.3f, 13.3f, 6.5f, 14.5f, 6.5f)
+      close()
+    }
+  }.build()
+}
+
+/**
+ * Post-Processing icon: a camera lens aperture ring with two 4-point sparkle stars,
+ * representing visual effects / shader post-processing.
+ * Hand-crafted 24×24 Material-style vector.
+ */
+private val PostProcessingVector: ImageVector by lazy(LazyThreadSafetyMode.NONE) {
+  ImageVector.Builder(
+    name = "PostProcessing",
+    defaultWidth = 24.dp,
+    defaultHeight = 24.dp,
+    viewportWidth = 24f,
+    viewportHeight = 24f,
+  ).apply {
+    path(
+      fill = SolidColor(Color.Black),
+      fillAlpha = 1.0f,
+      stroke = null,
+      strokeAlpha = 1.0f,
+      strokeLineWidth = 1.0f,
+      pathFillType = PathFillType.EvenOdd,
+    ) {
+      // Outer aperture ring — annulus (donut) via EvenOdd fill
+      // Outer circle: centre (11, 13), radius 9
+      moveTo(11.0f, 4.0f)
+      curveTo(6.03f, 4.0f, 2.0f, 8.03f, 2.0f, 13.0f)
+      curveTo(2.0f, 17.97f, 6.03f, 22.0f, 11.0f, 22.0f)
+      curveTo(15.97f, 22.0f, 20.0f, 17.97f, 20.0f, 13.0f)
+      curveTo(20.0f, 8.03f, 15.97f, 4.0f, 11.0f, 4.0f)
+      close()
+      // Inner hole — centre (11, 13), radius 5.5
+      moveTo(11.0f, 7.5f)
+      curveTo(13.76f, 7.5f, 16.0f, 9.74f, 16.0f, 12.5f)
+      curveTo(16.0f, 15.26f, 13.76f, 17.5f, 11.0f, 17.5f)
+      curveTo(8.24f, 17.5f, 6.0f, 15.26f, 6.0f, 12.5f)
+      curveTo(6.0f, 9.74f, 8.24f, 7.5f, 11.0f, 7.5f)
+      close()
+    }
+    path(
+      fill = SolidColor(Color.Black),
+      fillAlpha = 1.0f,
+      stroke = null,
+      strokeAlpha = 1.0f,
+      strokeLineWidth = 1.0f,
+      pathFillType = PathFillType.NonZero,
+    ) {
+      // Large 4-point sparkle star — top-right corner (17.5, 4.5), arm half-length 3.5 / 1.0
+      // Top arm
+      moveTo(17.5f, 1.0f)
+      lineTo(18.2f, 3.8f)
+      lineTo(21.0f, 4.5f)
+      lineTo(18.2f, 5.2f)
+      lineTo(17.5f, 8.0f)
+      lineTo(16.8f, 5.2f)
+      lineTo(14.0f, 4.5f)
+      lineTo(16.8f, 3.8f)
+      close()
+    }
+    path(
+      fill = SolidColor(Color.Black),
+      fillAlpha = 1.0f,
+      stroke = null,
+      strokeAlpha = 1.0f,
+      strokeLineWidth = 1.0f,
+      pathFillType = PathFillType.NonZero,
+    ) {
+      // Small 4-point sparkle dot — beside large star (21.5, 1.5), arm half-length 1.5 / 0.5
+      moveTo(21.5f, 0.5f)
+      lineTo(21.9f, 1.6f)
+      lineTo(23.0f, 2.0f)
+      lineTo(21.9f, 2.4f)
+      lineTo(21.5f, 3.5f)
+      lineTo(21.1f, 2.4f)
+      lineTo(20.0f, 2.0f)
+      lineTo(21.1f, 1.6f)
       close()
     }
   }.build()

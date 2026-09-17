@@ -21,7 +21,7 @@ val activeAbis =
     else -> listOf("arm64-v8a", "armeabi-v7a") + x86Abis
   }
 val universalOnlyDistributions = setOf("noVulkan", "fongmi")
-val releaseVersionCode = 230
+val releaseVersionCode = 250
 val versionCodeBandSize = 10_000
 val stableVersionCode = releaseVersionCode * versionCodeBandSize + (versionCodeBandSize - 1)
 val previewVersionCode =
@@ -49,7 +49,7 @@ android {
     // Stable occupies the top of its version band. Preview uses the next band's commit-count
     // offset, so Stable -> Preview -> newer Preview -> next Stable is always an Android upgrade.
     versionCode = stableVersionCode
-    versionName = "2.3.0"
+    versionName = "2.5.0"
 
     vectorDrawables {
       useSupportLibrary = true
@@ -78,6 +78,7 @@ android {
     create("standard") {
       dimension = "distribution"
       buildConfigField("boolean", "ENABLE_UPDATE_FEATURE", "true")
+      buildConfigField("String", "UPDATE_APK_VARIANT", "\"standard\"")
       buildConfigField("boolean", "SCOPED_STORAGE_ONLY", "false")
       buildConfigField("boolean", "MPV_SUPPORTS_VULKAN", "true")
       buildConfigField("boolean", "MPV_SUPPORTS_MEDIACODEC_VULKAN", "false")
@@ -85,7 +86,8 @@ android {
 
     create("noVulkan") {
       dimension = "distribution"
-      buildConfigField("boolean", "ENABLE_UPDATE_FEATURE", "false")
+      buildConfigField("boolean", "ENABLE_UPDATE_FEATURE", "true")
+      buildConfigField("String", "UPDATE_APK_VARIANT", "\"no-vulkan\"")
       buildConfigField("boolean", "SCOPED_STORAGE_ONLY", "false")
       buildConfigField("boolean", "MPV_SUPPORTS_VULKAN", "false")
       buildConfigField("boolean", "MPV_SUPPORTS_MEDIACODEC_VULKAN", "false")
@@ -93,7 +95,8 @@ android {
 
     create("fongmi") {
       dimension = "distribution"
-      buildConfigField("boolean", "ENABLE_UPDATE_FEATURE", "false")
+      buildConfigField("boolean", "ENABLE_UPDATE_FEATURE", "true")
+      buildConfigField("String", "UPDATE_APK_VARIANT", "\"fongmi\"")
       buildConfigField("boolean", "SCOPED_STORAGE_ONLY", "false")
       buildConfigField("boolean", "MPV_SUPPORTS_VULKAN", "true")
       buildConfigField("boolean", "MPV_SUPPORTS_MEDIACODEC_VULKAN", "true")
@@ -235,8 +238,6 @@ androidComponents {
 kotlin {
   compilerOptions {
     freeCompilerArgs.addAll(
-      "-Xcontext-parameters",
-      "-Xannotation-default-target=param-property",
       "-opt-in=com.google.accompanist.permissions.ExperimentalPermissionsApi",
       "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
       "-opt-in=androidx.compose.material3.ExperimentalMaterial3ExpressiveApi",
@@ -267,6 +268,7 @@ dependencies {
   implementation(libs.bundles.compose.navigation3)
   implementation(libs.androidx.appcompat)
   implementation(libs.androidx.core.ktx)
+  implementation(libs.crashx)
   implementation(libs.androidx.compose.constraintlayout)
   implementation(libs.androidx.preference.ktx)
   implementation(libs.androidx.constraintlayout)
@@ -310,16 +312,18 @@ dependencies {
   implementation(libs.androidx.profileinstaller)
   implementation(libs.google.cast.framework)
 
-  "standardImplementation"(files("libs/mpvlib.aar"))
-  "noVulkanImplementation"(files("libs/mpvlib-no-vulkun.aar"))
-  "fongmiImplementation"(files("libs/mpvlib-fongmi.aar"))
+  "standardImplementation"(variantOf(libs.mpvlib.standard) { artifactType("aar") })
+  "noVulkanImplementation"(variantOf(libs.mpvlib.no.vulkan) { artifactType("aar") })
+  "fongmiImplementation"(variantOf(libs.mpvlib.fongmi) { artifactType("aar") })
 
   // Network protocol libraries
   implementation(libs.smbj)
   implementation(libs.commons.net)
+  implementation(libs.jsch)
   implementation(libs.sardine.android) {
     exclude(group = "xpp3", module = "xpp3")
   }
+  implementation(libs.libarchive.android)
   implementation(libs.nanohttpd)
   implementation(libs.lazycolumnscrollbar)
   implementation(libs.reorderable)

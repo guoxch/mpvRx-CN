@@ -13,6 +13,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import app.gyrolet.mpvrx.data.network.XtreamClient
 import app.gyrolet.mpvrx.data.network.credentials.AndroidNetworkCredentialKey
 import app.gyrolet.mpvrx.data.network.credentials.NetworkCredentialCipher
 import app.gyrolet.mpvrx.database.MpvRxDatabase
@@ -693,6 +694,138 @@ val MIGRATION_15_16 =
     }
   }
 
+val MIGRATION_16_17 =
+  object : Migration(16, 17) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+      db.execSQL(
+        """
+        CREATE TABLE IF NOT EXISTS `download_items` (
+          `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          `systemDownloadId` INTEGER NOT NULL DEFAULT -1,
+          `url` TEXT NOT NULL,
+          `dirPath` TEXT NOT NULL,
+          `fileName` TEXT NOT NULL,
+          `status` TEXT NOT NULL DEFAULT 'QUEUED',
+          `progress` INTEGER NOT NULL DEFAULT 0,
+          `totalBytes` INTEGER NOT NULL DEFAULT 0,
+          `failureReason` TEXT,
+          `timeQueued` INTEGER NOT NULL DEFAULT 0,
+          `source` TEXT NOT NULL DEFAULT 'link',
+          `title` TEXT NOT NULL DEFAULT '',
+          `posterUrl` TEXT,
+          `sourceUrl` TEXT,
+          `jellyfinServerId` TEXT,
+          `jellyfinItemId` TEXT,
+          `jellyfinSeriesName` TEXT,
+          `seasonNumber` INTEGER,
+          `episodeNumber` INTEGER,
+          `isAudio` INTEGER NOT NULL DEFAULT 0
+        )
+        """.trimIndent(),
+      )
+      db.execSQL("CREATE INDEX IF NOT EXISTS `index_download_items_systemDownloadId` ON `download_items` (`systemDownloadId`)")
+      db.execSQL("CREATE INDEX IF NOT EXISTS `index_download_items_jellyfinItemId` ON `download_items` (`jellyfinItemId`)")
+    }
+  }
+
+val MIGRATION_17_18 =
+  object : Migration(17, 18) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+      db.execSQL("ALTER TABLE `download_items` ADD COLUMN `stagingPath` TEXT")
+    }
+  }
+
+val MIGRATION_18_19 =
+  object : Migration(18, 19) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+      db.execSQL("ALTER TABLE `PlaylistEntity` ADD COLUMN `isXtreamPlaylist` INTEGER NOT NULL DEFAULT 0")
+      db.execSQL("ALTER TABLE `PlaylistEntity` ADD COLUMN `xtreamAccountKey` TEXT")
+      db.execSQL("ALTER TABLE `PlaylistEntity` ADD COLUMN `xtreamServerUrl` TEXT")
+      db.execSQL("ALTER TABLE `PlaylistEntity` ADD COLUMN `xtreamUsername` TEXT")
+      db.execSQL("ALTER TABLE `PlaylistEntity` ADD COLUMN `xtreamEncryptedPassword` TEXT")
+      db.execSQL(
+        "CREATE UNIQUE INDEX IF NOT EXISTS `index_PlaylistEntity_xtreamAccountKey` " +
+          "ON `PlaylistEntity` (`xtreamAccountKey`)",
+      )
+      db.execSQL(
+        "CREATE INDEX IF NOT EXISTS `index_PlaylistEntity_xtreamServerUrl_xtreamUsername` " +
+          "ON `PlaylistEntity` (`xtreamServerUrl`, `xtreamUsername`)",
+      )
+    }
+  }
+
+val MIGRATION_19_20 =
+  object : Migration(19, 20) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+      db.execSQL(
+        "CREATE TABLE IF NOT EXISTS `navidrome_servers` (" +
+          "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+          "`name` TEXT NOT NULL, " +
+          "`serverUrl` TEXT NOT NULL, " +
+          "`username` TEXT NOT NULL, " +
+          "`password` TEXT NOT NULL, " +
+          "`token` TEXT NOT NULL DEFAULT '', " +
+          "`authMode` TEXT NOT NULL DEFAULT 'CREDENTIALS', " +
+          "`lastConnected` INTEGER NOT NULL" +
+          ")",
+      )
+      try {
+        db.execSQL("ALTER TABLE `navidrome_servers` ADD COLUMN `token` TEXT NOT NULL DEFAULT ''")
+      } catch (_: Exception) {}
+      try {
+        db.execSQL("ALTER TABLE `navidrome_servers` ADD COLUMN `authMode` TEXT NOT NULL DEFAULT 'CREDENTIALS'")
+      } catch (_: Exception) {}
+    }
+  }
+
+val MIGRATION_20_21 =
+  object : Migration(20, 21) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+      db.execSQL(
+        "CREATE TABLE IF NOT EXISTS `navidrome_servers` (" +
+          "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+          "`name` TEXT NOT NULL, " +
+          "`serverUrl` TEXT NOT NULL, " +
+          "`username` TEXT NOT NULL, " +
+          "`password` TEXT NOT NULL, " +
+          "`token` TEXT NOT NULL DEFAULT '', " +
+          "`authMode` TEXT NOT NULL DEFAULT 'CREDENTIALS', " +
+          "`lastConnected` INTEGER NOT NULL" +
+          ")",
+      )
+      try {
+        db.execSQL("ALTER TABLE `navidrome_servers` ADD COLUMN `token` TEXT NOT NULL DEFAULT ''")
+      } catch (_: Exception) {}
+      try {
+        db.execSQL("ALTER TABLE `navidrome_servers` ADD COLUMN `authMode` TEXT NOT NULL DEFAULT 'CREDENTIALS'")
+      } catch (_: Exception) {}
+    }
+  }
+
+val MIGRATION_19_21 =
+  object : Migration(19, 21) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+      db.execSQL(
+        "CREATE TABLE IF NOT EXISTS `navidrome_servers` (" +
+          "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+          "`name` TEXT NOT NULL, " +
+          "`serverUrl` TEXT NOT NULL, " +
+          "`username` TEXT NOT NULL, " +
+          "`password` TEXT NOT NULL, " +
+          "`token` TEXT NOT NULL DEFAULT '', " +
+          "`authMode` TEXT NOT NULL DEFAULT 'CREDENTIALS', " +
+          "`lastConnected` INTEGER NOT NULL" +
+          ")",
+      )
+      try {
+        db.execSQL("ALTER TABLE `navidrome_servers` ADD COLUMN `token` TEXT NOT NULL DEFAULT ''")
+      } catch (_: Exception) {}
+      try {
+        db.execSQL("ALTER TABLE `navidrome_servers` ADD COLUMN `authMode` TEXT NOT NULL DEFAULT 'CREDENTIALS'")
+      } catch (_: Exception) {}
+    }
+  }
+
 val DatabaseModule =
   module {
     single<Json> {
@@ -723,6 +856,12 @@ val DatabaseModule =
           MIGRATION_13_14,
           MIGRATION_14_15,
           MIGRATION_15_16,
+          MIGRATION_16_17,
+          MIGRATION_17_18,
+          MIGRATION_18_19,
+          MIGRATION_19_20,
+          MIGRATION_20_21,
+          MIGRATION_19_21,
         ).build()
     }
 
@@ -760,6 +899,13 @@ val DatabaseModule =
     }
 
     single {
+      XtreamClient(
+        httpClient = get(),
+        json = get(),
+      )
+    }
+
+    single {
       app.gyrolet.mpvrx.repository.NetworkRepository(
         dao = get(),
         credentialCipher = get(),
@@ -770,6 +916,10 @@ val DatabaseModule =
       PlaylistRepository(
         playlistDao = get<MpvRxDatabase>().playlistDao(),
         httpClient = get(),
+        applicationContext = androidContext(),
+        ytdlPreferences = get(),
+        credentialCipher = get(),
+        xtreamClient = get(),
       )
     }
 
@@ -796,6 +946,24 @@ val DatabaseModule =
 
     single {
       app.gyrolet.mpvrx.repository.JellyfinRepository(
+        dao = get(),
+        client = get(),
+      )
+    }
+
+    single {
+      get<MpvRxDatabase>().navidromeServerDao()
+    }
+
+    single {
+      app.gyrolet.mpvrx.data.navidrome.NavidromeClient(
+        httpClient = get(),
+        json = get(),
+      )
+    }
+
+    single {
+      app.gyrolet.mpvrx.repository.NavidromeRepository(
         dao = get(),
         client = get(),
       )

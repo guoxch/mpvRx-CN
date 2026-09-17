@@ -12,7 +12,7 @@ package app.gyrolet.mpvrx.ui.browser.playlist
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
+import app.gyrolet.mpvrx.ui.utils.NavigationBackHandler as BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,8 +40,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,10 +52,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import app.gyrolet.mpvrx.ui.utils.dragElevation
+import app.gyrolet.mpvrx.ui.utils.rememberReorderFeedback
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -65,6 +67,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.database.entities.PlaylistEntity
 import app.gyrolet.mpvrx.database.entities.PlaylistItemEntity
+import app.gyrolet.mpvrx.database.repository.PlaylistRepository
 import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.GesturePreferences
@@ -78,10 +81,14 @@ import app.gyrolet.mpvrx.ui.browser.components.BrowserTopBar
 import app.gyrolet.mpvrx.ui.browser.components.ExpressiveScrollBar
 import app.gyrolet.mpvrx.ui.browser.components.fastScrollGlyph
 import app.gyrolet.mpvrx.ui.browser.selection.rememberSelectionManager
+import app.gyrolet.mpvrx.ui.components.InlineSearchBar
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.player.PlaybackIdentity
+import app.gyrolet.mpvrx.ui.player.PlaybackItem
 import app.gyrolet.mpvrx.ui.player.PlayerActivity
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
+import app.gyrolet.mpvrx.ui.utils.navigateTo
 import app.gyrolet.mpvrx.ui.utils.popSafely
 import app.gyrolet.mpvrx.utils.clipboard.SafeClipboard
 import app.gyrolet.mpvrx.utils.media.MediaInfoOps
@@ -136,6 +143,13 @@ data class PlaylistDetailScreen(
     val videos = videoItems.map { it.video }
     val isLoading by viewModel.isLoading.collectAsState()
     val isRefreshing = remember { mutableStateOf(false) }
+    val playlistTitle =
+      when {
+        playlist?.name?.equals(PlaylistRepository.FAVORITES_PLAYLIST_NAME, ignoreCase = true) != true ->
+          playlist?.name ?: stringResource(R.string.ui_playlist)
+        playlist?.isAudio == true -> stringResource(R.string.playlist_favorite_songs)
+        else -> stringResource(R.string.playlist_favorite_videos)
+      }
 
     // Search state
     var searchQuery by rememberSaveable { mutableStateOf("") }
@@ -238,12 +252,35 @@ data class PlaylistDetailScreen(
       item: PlaylistVideoItem,
       startIndex: Int,
     ) {
-      val playUri = item.video.uri.takeIf { it != Uri.EMPTY && it.toString().isNotBlank() }
-        ?: if (item.video.path.startsWith("content://") || item.video.path.startsWith("http")) {
-          Uri.parse(item.video.path)
-        } else {
-          Uri.fromFile(java.io.File(item.video.path))
-        }
+      val isAudio = item.video.isAudio || (playlist?.isAudio == true)
+      if (MediaUtils.shouldPlayInMiniPlayerOnly(isAudio)) {
+        val queueItems =
+          filteredVideoItems.map { playlistEntry ->
+            val fallback = Uri.parse(playlistEntry.video.path)
+            val uri =
+              playlistEntry.video.uri.takeIf { it != Uri.EMPTY && it.toString().isNotBlank() }
+                ?: fallback.takeIf { !it.scheme.isNullOrBlank() }
+                ?: Uri.fromFile(java.io.File(playlistEntry.video.path))
+            val headerExtra = buildM3UHeadersExtra(playlist, playlistEntry.playlistItem)
+            val headersMap = headerExtra?.let { mapOf(it[0] to it[1]) }.orEmpty()
+            PlaybackItem.fromUri(
+              uri = uri.toString(),
+              stableId = playlistEntry.video.path.takeIf(String::isNotBlank)?.let(PlaybackIdentity::forLocalPath),
+              title = playlistEntry.playlistItem.fileName,
+              mimeType = if (isAudio) "audio/*" else playlistEntry.video.mimeType,
+              headers = headersMap,
+              durationSeconds = (playlistEntry.video.duration / 1000L).toInt().takeIf { it > 0 },
+            )
+          }
+        MediaUtils.playInMiniPlayer(context, queueItems, startIndex)
+        return
+      }
+
+      val fallbackUri = Uri.parse(item.video.path)
+      val playUri =
+        item.video.uri.takeIf { it != Uri.EMPTY && it.toString().isNotBlank() }
+          ?: fallbackUri.takeIf { !it.scheme.isNullOrBlank() }
+          ?: Uri.fromFile(java.io.File(item.video.path))
 
       val intent =
         Intent(context, PlayerActivity::class.java).apply {
@@ -262,65 +299,56 @@ data class PlaylistDetailScreen(
     }
 
     Scaffold(
+      containerColor = app.gyrolet.mpvrx.ui.theme.wallpaperAwareBackgroundColor(),
       topBar = {
         if (isSearching) {
           // Search mode - show search bar
-          SearchBar(
-            inputField = {
-              SearchBarDefaults.InputField(
-                query = searchQuery,
-                onQueryChange = { searchQuery = it },
-                onSearch = { },
-                expanded = false,
-                onExpandedChange = { },
-                placeholder = {
-                  Text(
-                    androidx.compose.ui.res
-                      .stringResource(app.gyrolet.mpvrx.R.string.ui_search_videos),
-                  )
-                },
-                leadingIcon = {
-                  Icon(
-                    imageVector = Icons.RoundedFilled.Search,
-                    contentDescription =
-                      androidx.compose.ui.res.stringResource(
-                        app.gyrolet.mpvrx.R.string.settings_search_title,
-                      ),
-                  )
-                },
-                trailingIcon = {
-                  IconButton(
-                    onClick = {
-                      isSearching = false
-                      searchQuery = ""
-                    },
-                  ) {
-                    Icon(
-                      imageVector = Icons.RoundedFilled.Close,
-                      contentDescription =
-                        androidx.compose.ui.res.stringResource(
-                          app.gyrolet.mpvrx.R.string.generic_cancel,
-                        ),
-                    )
-                  }
-                },
-                modifier = Modifier.focusRequester(focusRequester),
-              )
-            },
-            expanded = false,
-            onExpandedChange = { },
+          InlineSearchBar(
+            query = searchQuery,
+            onQueryChange = { searchQuery = it },
+            onSearch = { },
             modifier =
               Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
+            inputFieldModifier = Modifier.focusRequester(focusRequester),
+            placeholder = {
+              Text(
+                androidx.compose.ui.res
+                  .stringResource(app.gyrolet.mpvrx.R.string.ui_search_videos),
+              )
+            },
+            leadingIcon = {
+              Icon(
+                imageVector = Icons.RoundedFilled.Search,
+                contentDescription =
+                  androidx.compose.ui.res.stringResource(
+                    app.gyrolet.mpvrx.R.string.settings_search_title,
+                  ),
+              )
+            },
+            trailingIcon = {
+              IconButton(
+                onClick = {
+                  isSearching = false
+                  searchQuery = ""
+                },
+              ) {
+                Icon(
+                  imageVector = Icons.RoundedFilled.Close,
+                  contentDescription =
+                    androidx.compose.ui.res.stringResource(
+                      app.gyrolet.mpvrx.R.string.generic_cancel,
+                    ),
+                )
+              }
+            },
             shape = RoundedCornerShape(28.dp),
             tonalElevation = 6.dp,
-          ) {
-            // Empty content for SearchBar
-          }
+          )
         } else {
           BrowserTopBar(
-            title = playlist?.name ?: stringResource(R.string.ui_playlist),
+            title = playlistTitle,
             isInSelectionMode = selectionManager.isInSelectionMode,
             selectedCount = selectionManager.selectedCount,
             totalCount = videos.size,
@@ -335,7 +363,7 @@ data class PlaylistDetailScreen(
             isSingleSelection = selectionManager.isSingleSelection,
             useRemoveIcon = true, // Show remove icon instead of delete for playlist
             onInfoClick =
-              if (selectionManager.isSingleSelection) {
+              if (selectionManager.isSingleSelection && playlist?.isXtreamPlaylist != true) {
                 {
                   val item = selectionManager.getSelectedItems().firstOrNull()
                   if (item != null) {
@@ -426,8 +454,7 @@ data class PlaylistDetailScreen(
                       Spacer(modifier = Modifier.width(4.dp))
                     }
 
-                    // Play button
-                    Button(
+                    IconButton(
                       onClick = {
                         val mostRecentlyPlayedItem =
                           videoItems
@@ -447,31 +474,15 @@ data class PlaylistDetailScreen(
                           launchPlaylistPlayback(itemToPlay, startIndex)
                         }
                       },
-                      colors =
-                        ButtonDefaults.buttonColors(
-                          containerColor = MaterialTheme.colorScheme.primaryContainer,
-                          contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        ),
-                      shape = MaterialTheme.shapes.large,
                       modifier = Modifier.padding(end = 20.dp),
                     ) {
-                      Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                      ) {
-                        Icon(
-                          imageVector = Icons.RoundedFilled.PlayArrow,
-                          contentDescription = null,
-                          modifier = Modifier.size(20.dp),
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                          text =
-                            androidx.compose.ui.res
-                              .stringResource(app.gyrolet.mpvrx.R.string.ui_play),
-                          style = MaterialTheme.typography.labelLarge,
-                          fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                        )
-                      }
+                      Icon(
+                        imageVector = Icons.RoundedFilled.PlayArrow,
+                        contentDescription =
+                          androidx.compose.ui.res
+                            .stringResource(app.gyrolet.mpvrx.R.string.ui_play),
+                        tint = MaterialTheme.colorScheme.primary,
+                      )
                     }
                   }
                 }
@@ -483,12 +494,20 @@ data class PlaylistDetailScreen(
       floatingActionButton = {
         if (!isSearching && !isReorderMode && !selectionManager.isInSelectionMode) {
           val isAudioPlaylist = playlist?.isAudio == true || videoItems.any { it.video.isAudio }
+          val navigationBarHeight = app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight.current
+          val miniPlayerClearance = app.gyrolet.mpvrx.ui.browser.NavigationBarState.miniPlayerClearance
           ExtendedFloatingActionButton(
             modifier =
-              Modifier.padding(bottom = app.gyrolet.mpvrx.ui.browser.NavigationBarState.miniPlayerClearance),
-            onClick = { backStack.add(PlaylistAddVideosScreen(playlistId, isAudio = isAudioPlaylist)) },
+              Modifier.padding(
+                bottom =
+                  maxOf(
+                    (navigationBarHeight - 16.dp).coerceAtLeast(0.dp),
+                    miniPlayerClearance,
+                  ),
+              ),
+            onClick = { backStack.navigateTo(PlaylistAddVideosScreen(playlistId, isAudio = isAudioPlaylist)) },
             icon = { Icon(Icons.RoundedFilled.Add, contentDescription = null) },
-            text = { Text(if (isAudioPlaylist) "Add Songs" else stringResource(R.string.playlist_add_videos)) },
+              text = { Text(stringResource(if (isAudioPlaylist) R.string.playlist_add_songs else R.string.playlist_add_videos)) },
           )
         }
       },
@@ -599,7 +618,7 @@ data class PlaylistDetailScreen(
                 },
               onVideoItemClick = { item ->
                 if (selectionManager.isInSelectionMode) {
-                  selectionManager.toggle(item)
+                  selectionManager.toggleFromUser(item)
                 } else {
                   coroutineScope.launch {
                     viewModel.updatePlayHistory(item.video.path)
@@ -678,6 +697,10 @@ private fun PlaylistVideoListContent(
   val showExtensionField by browserPreferences.showExtensionField.collectAsState()
   val showDurationField by browserPreferences.showDurationField.collectAsState()
   val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
+  val musicCoverArtSize by browserPreferences.musicCoverArtSize.collectAsState()
+  val thumbnailQuality by browserPreferences.thumbnailQuality.collectAsState()
+  val density = LocalDensity.current
+  val audioThumbnailSizePx = with(density) { musicCoverArtSize.dp.roundToPx() }
   val videoCardUiConfig =
     remember(
       unlimitedNameLines,
@@ -693,6 +716,7 @@ private fun PlaylistVideoListContent(
       showExtensionField,
       showDurationField,
       centerGridTitles,
+      thumbnailQuality,
     ) {
       VideoCardUiConfig(
         unlimitedNameLines = unlimitedNameLines,
@@ -708,6 +732,7 @@ private fun PlaylistVideoListContent(
         showExtensionField = showExtensionField,
         showDurationField = showDurationField,
         centerGridTitles = centerGridTitles,
+        thumbnailQuality = thumbnailQuality,
       )
     }
 
@@ -751,14 +776,14 @@ private fun PlaylistVideoListContent(
           )
           Text(
             text =
-              if (isAudio) "No songs in playlist"
+              if (isAudio) stringResource(R.string.ui_no_songs_in_playlist)
               else androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_no_videos_in_playlist),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
           Text(
             text =
-              if (isAudio) "Add songs to get started"
+              if (isAudio) stringResource(R.string.ui_add_songs_to_get_started)
               else androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_add_videos_to_get_started),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -783,10 +808,12 @@ private fun PlaylistVideoListContent(
       )
 
       // Reorderable state
+      val reorderFeedback = rememberReorderFeedback()
       val reorderableLazyListState =
         rememberReorderableLazyListState(listState) { from, to ->
           if (isReorderMode) {
             onReorder(from.index, to.index)
+            reorderFeedback.move(from.index, to.index)
           }
         }
 
@@ -800,8 +827,9 @@ private fun PlaylistVideoListContent(
             count = videoItems.size,
             key = { index -> videoItems[index].playlistItem.id },
           ) { index ->
-            ReorderableItem(reorderableLazyListState, key = videoItems[index].playlistItem.id) {
+            ReorderableItem(reorderableLazyListState, key = videoItems[index].playlistItem.id) { isDragging ->
               val item = videoItems[index]
+              val elevation = dragElevation(isDragging)
 
               val progressPercentage =
                 if (item.playlistItem.lastPosition > 0 && item.video.duration > 0) {
@@ -811,7 +839,7 @@ private fun PlaylistVideoListContent(
                 }
 
               Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().shadow(elevation, MaterialTheme.shapes.medium, clip = false),
                 verticalAlignment = Alignment.CenterVertically,
               ) {
                 if (isM3uPlaylist) {
@@ -842,11 +870,13 @@ private fun PlaylistVideoListContent(
                     onLongClick = { onVideoItemLongClick(item) },
                     onThumbClick =
                       if (tapThumbnailToSelect) {
-                        { selectionManager.toggle(item) }
+                        { selectionManager.toggleFromUser(item) }
                       } else {
                         { onVideoItemClick(item) }
                       },
                     showSubtitleIndicator = showSubtitleIndicator,
+                    thumbnailWidthPx = if (isAudio) audioThumbnailSizePx else null,
+                    thumbnailHeightPx = if (isAudio) audioThumbnailSizePx else null,
                     modifier = Modifier.weight(1f),
                     uiConfig = videoCardUiConfig,
                   )
@@ -858,7 +888,10 @@ private fun PlaylistVideoListContent(
                     modifier =
                       Modifier
                         .size(48.dp)
-                        .draggableHandle(),
+                        .draggableHandle(
+                          interactionSource = reorderFeedback.interactions,
+                          onDragStarted = { reorderFeedback.start() },
+                        ),
                   ) {
                     Icon(
                       imageVector = Icons.RoundedFilled.DragHandle,

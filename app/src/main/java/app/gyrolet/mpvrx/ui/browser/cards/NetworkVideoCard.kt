@@ -51,8 +51,11 @@ import app.gyrolet.mpvrx.preferences.BrowserPreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
+import app.gyrolet.mpvrx.ui.player.controls.components.tvContextMenu
 import app.gyrolet.mpvrx.ui.theme.AppShapeScale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
 
@@ -84,14 +87,21 @@ fun NetworkVideoCard(
   val displayThumb = showVideoThumbnails && showNetworkThumbs
   val maxLines = if (unlimitedNameLines) Int.MAX_VALUE else 2
 
-  val thumbSizeDp = 64.dp
+  val thumbSizeDp = 128.dp
   val density = LocalDensity.current
   val thumbSizePx = with(density) { thumbSizeDp.roundToPx() }
 
   val thumbnailKey =
-    remember(file.path, thumbSizePx, displayThumb) {
+    remember(file.path, file.size, file.lastModified, connection, thumbSizePx, displayThumb) {
       if (displayThumb) {
-        thumbnailRepository.thumbnailKeyForNetworkPath(file.path, thumbSizePx, thumbSizePx)
+        thumbnailRepository.thumbnailKeyForNetworkPath(
+          path = file.path,
+          widthPx = thumbSizePx,
+          heightPx = thumbSizePx,
+          connection = connection,
+          fileSize = file.size,
+          lastModified = file.lastModified,
+        )
       } else {
         null
       }
@@ -106,7 +116,15 @@ fun NetworkVideoCard(
         if (key == thumbnailKey) {
           thumbnail =
             withContext(Dispatchers.IO) {
-              thumbnailRepository.getThumbnailForNetworkPath(file.path, thumbSizePx, thumbSizePx, connection)
+              thumbnailRepository.getThumbnailForNetworkPath(
+                path = file.path,
+                widthPx = thumbSizePx,
+                heightPx = thumbSizePx,
+                connection = connection,
+                fileSize = file.size,
+                mimeType = file.mimeType,
+                lastModified = file.lastModified,
+              )
             }
         }
       }
@@ -116,10 +134,22 @@ fun NetworkVideoCard(
   LaunchedEffect(thumbnailKey, displayThumb) {
     if (thumbnailKey == null || !displayThumb) return@LaunchedEffect
     if (thumbnail != null) return@LaunchedEffect
-    thumbnail =
-      withContext(Dispatchers.IO) {
-        thumbnailRepository.getThumbnailForNetworkPath(file.path, thumbSizePx, thumbSizePx, connection)
-      }
+    repeat(2) { attempt ->
+      thumbnail =
+        withContext(Dispatchers.IO) {
+          thumbnailRepository.getThumbnailForNetworkPath(
+            path = file.path,
+            widthPx = thumbSizePx,
+            heightPx = thumbSizePx,
+            connection = connection,
+            fileSize = file.size,
+            mimeType = file.mimeType,
+            lastModified = file.lastModified,
+          )
+        }
+      if (thumbnail != null) return@LaunchedEffect
+      if (attempt == 0) delay(30_000L)
+    }
   }
 
   val displayName = if (showExtensionField) file.name else file.name.substringBeforeLast('.', file.name)
@@ -128,27 +158,41 @@ fun NetworkVideoCard(
     modifier =
       modifier
         .fillMaxWidth()
+        .tvFocusHighlight(AppShapeScale.large, focusedScale = 1.03f)
+        .clip(AppShapeScale.large)
+        .tvContextMenu(onLongClick)
         .combinedClickable(
           onClick = onClick,
           onLongClick = onLongClick,
         ),
+    shape = AppShapeScale.large,
     colors = CardDefaults.cardColors(containerColor = Color.Transparent),
   ) {
-    if (isGridMode) {
-      Column(
-        modifier =
-          Modifier
-            .fillMaxWidth()
-            .background(
-              if (isSelected) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f) else Color.Transparent,
-            ).padding(8.dp),
-        horizontalAlignment = if (centerGridTitles) Alignment.CenterHorizontally else Alignment.Start,
-      ) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+      if (isSelected) {
+        Box(
+          modifier =
+            Modifier
+              .matchParentSize()
+              .padding(2.dp)
+              .clip(AppShapeScale.large)
+              .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)),
+        )
+      }
+
+      if (isGridMode) {
+        Column(
+          modifier =
+            Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 4.dp, vertical = 6.dp),
+          horizontalAlignment = if (centerGridTitles) Alignment.CenterHorizontally else Alignment.Start,
+        ) {
         Box(
           modifier =
             Modifier
               .fillMaxWidth()
-              .aspectRatio(16f / 9f)
+              .aspectRatio(16f / 10f)
               .clip(AppShapeScale.medium)
               .background(MaterialTheme.colorScheme.surfaceContainerHigh),
           contentAlignment = Alignment.Center,
@@ -174,7 +218,7 @@ fun NetworkVideoCard(
             )
           }
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
           displayName,
           style = MaterialTheme.typography.titleSmall,
@@ -219,26 +263,21 @@ fun NetworkVideoCard(
             )
           }
         }
-      }
-    } else {
-      Row(
-        modifier =
-          Modifier
-            .fillMaxWidth()
-            .background(
-              if (isSelected) {
-                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)
-              } else {
-                Color.Transparent
-              },
-            ).padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-      ) {
-        // Square thumbnail
+        }
+      } else {
+        Row(
+          modifier =
+            Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 8.dp, vertical = 6.dp),
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+        // Match the normal video list thumbnail footprint.
         Box(
           modifier =
             Modifier
-              .size(thumbSizeDp)
+              .width(thumbSizeDp)
+              .aspectRatio(16f / 9f)
               .clip(AppShapeScale.medium)
               .background(MaterialTheme.colorScheme.surfaceContainerHigh)
               .combinedClickable(
@@ -268,7 +307,7 @@ fun NetworkVideoCard(
             )
           }
         }
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Column(
           modifier = Modifier.weight(1f),
         ) {
@@ -314,6 +353,7 @@ fun NetworkVideoCard(
                 color = MaterialTheme.colorScheme.onSurface,
               )
             }
+          }
           }
         }
       }

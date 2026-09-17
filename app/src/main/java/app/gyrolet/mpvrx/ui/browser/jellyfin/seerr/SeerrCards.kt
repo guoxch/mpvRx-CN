@@ -61,6 +61,9 @@ import app.gyrolet.mpvrx.presentation.components.RemoteImage
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 
+private val SeerrWarningContainer = Color(0xFFBF360C)
+private val SeerrOnWarningContainer = Color(0xFFFFF3E0)
+
 @Composable
 fun SeerrMediaCard(
   item: SearchResultItem,
@@ -196,8 +199,8 @@ fun SeerrStatusChip(
       R.string.seerr_status_available,
     )
     MediaStatus.PARTIALLY_AVAILABLE -> Triple(
-      Color(0xFFE65100).copy(alpha = 0.85f),
-      Color(0xFFFFF3E0),
+      SeerrWarningContainer,
+      SeerrOnWarningContainer,
       R.string.seerr_status_partially_available,
     )
     MediaStatus.PROCESSING -> Triple(
@@ -209,6 +212,16 @@ fun SeerrStatusChip(
       Color(0xFF4A148C).copy(alpha = 0.85f),
       Color(0xFFF3E5F5),
       R.string.seerr_status_pending,
+    )
+    MediaStatus.DELETED -> Triple(
+      Color(0xFFD32F2F).copy(alpha = 0.9f),
+      Color(0xFFFFEBEE),
+      R.string.seerr_status_deleted,
+    )
+    MediaStatus.BLACKLISTED -> Triple(
+      Color(0xFF37474F).copy(alpha = 0.85f),
+      Color(0xFFECEFF1),
+      R.string.seerr_status_blacklisted,
     )
     else -> Triple(
       Color.Black.copy(alpha = 0.7f),
@@ -250,8 +263,8 @@ fun SeerrRequestStatusChip(
       R.string.seerr_status_processing,
     )
     RequestStatus.PENDING -> Triple(
-      Color(0xFFE65100).copy(alpha = 0.85f),
-      Color(0xFFFFF3E0),
+      SeerrWarningContainer,
+      SeerrOnWarningContainer,
       R.string.seerr_status_pending,
     )
     RequestStatus.DECLINED -> Triple(
@@ -358,12 +371,73 @@ fun SeerrRequestCard(
       }
 
       // Top-Left status badge
-      SeerrRequestStatusChip(
-        status = request.getRequestStatus(),
-        modifier = Modifier
-          .align(Alignment.TopStart)
-          .padding(8.dp),
-      )
+      val mediaStatus = MediaStatus.fromValue(request.media.status)
+      when {
+        mediaStatus == MediaStatus.DELETED -> {
+          SeerrStatusChip(
+            status = MediaStatus.DELETED,
+            modifier = Modifier
+              .align(Alignment.TopStart)
+              .padding(8.dp),
+          )
+        }
+        mediaStatus == MediaStatus.PARTIALLY_AVAILABLE -> {
+          SeerrStatusChip(
+            status = MediaStatus.PARTIALLY_AVAILABLE,
+            modifier = Modifier
+              .align(Alignment.TopStart)
+              .padding(8.dp),
+          )
+        }
+        request.getRequestStatus() == RequestStatus.PENDING -> {
+          SeerrRequestStatusChip(
+            status = RequestStatus.PENDING,
+            modifier = Modifier
+              .align(Alignment.TopStart)
+              .padding(8.dp),
+          )
+        }
+        request.getRequestStatus() == RequestStatus.DECLINED -> {
+          SeerrRequestStatusChip(
+            status = RequestStatus.DECLINED,
+            modifier = Modifier
+              .align(Alignment.TopStart)
+              .padding(8.dp),
+          )
+        }
+        request.getRequestStatus() == RequestStatus.FAILED -> {
+          SeerrRequestStatusChip(
+            status = RequestStatus.FAILED,
+            modifier = Modifier
+              .align(Alignment.TopStart)
+              .padding(8.dp),
+          )
+        }
+        mediaStatus == MediaStatus.AVAILABLE -> {
+          SeerrStatusChip(
+            status = MediaStatus.AVAILABLE,
+            modifier = Modifier
+              .align(Alignment.TopStart)
+              .padding(8.dp),
+          )
+        }
+        mediaStatus == MediaStatus.PROCESSING || request.getRequestStatus() == RequestStatus.APPROVED -> {
+          SeerrStatusChip(
+            status = MediaStatus.PROCESSING,
+            modifier = Modifier
+              .align(Alignment.TopStart)
+              .padding(8.dp),
+          )
+        }
+        else -> {
+          SeerrRequestStatusChip(
+            status = request.getRequestStatus(),
+            modifier = Modifier
+              .align(Alignment.TopStart)
+              .padding(8.dp),
+          )
+        }
+      }
 
       // Requester Photo on Bottom Left of Thumbnail
       val rawAvatar = request.requestedBy.avatar

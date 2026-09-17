@@ -38,6 +38,7 @@ import kotlin.time.Duration.Companion.seconds
 data class SettingsSearchTarget(
   val screen: Screen,
   val key: String,
+  val anchorItemIndex: Int? = null,
 )
 
 private data class SettingsSearchListAnchor(
@@ -77,6 +78,10 @@ private val settingsSearchListAnchors: Map<Screen, List<SettingsSearchListAnchor
         SettingsSearchListAnchor(titleRes = R.string.pref_layout_bottom_left_controls, itemIndex = 1),
         SettingsSearchListAnchor(titleRes = R.string.pref_layout_portrait_bottom_controls, itemIndex = 3),
         SettingsSearchListAnchor(titleRes = R.string.pref_appearance_hide_player_buttons_background_title, itemIndex = 7),
+        SettingsSearchListAnchor(
+          titleRes = R.string.pref_appearance_force_dark_player_buttons_background_title,
+          itemIndex = 7,
+        ),
         SettingsSearchListAnchor(titleRes = R.string.pref_player_display_hide_player_control_time, itemIndex = 7),
       ),
     PlayerPreferencesScreen to
@@ -88,6 +93,8 @@ private val settingsSearchListAnchors: Map<Screen, List<SettingsSearchListAnchor
         SettingsSearchListAnchor(titleRes = R.string.pref_player_remember_brightness, itemIndex = 1),
         SettingsSearchListAnchor(titleRes = R.string.pref_autoplay_next_video_title, itemIndex = 1),
         SettingsSearchListAnchor(titleRes = R.string.pref_auto_pip_title, itemIndex = 1),
+        SettingsSearchListAnchor(titleRes = R.string.pref_auto_pip_home_only_title, itemIndex = 1),
+        SettingsSearchListAnchor(titleRes = R.string.pref_player_external_display_projection_title, itemIndex = 1),
         SettingsSearchListAnchor(titleRes = R.string.pref_player_keep_screen_on_when_paused_title, itemIndex = 1),
         SettingsSearchListAnchor(titleRes = R.string.pref_player_autoplay_after_screen_unlock_title, itemIndex = 1),
         SettingsSearchListAnchor(titleRes = R.string.pref_video_background_playback_title, itemIndex = 1),
@@ -95,7 +102,6 @@ private val settingsSearchListAnchors: Map<Screen, List<SettingsSearchListAnchor
         SettingsSearchListAnchor(titleRes = R.string.show_splash_ovals_on_double_tap_to_seek, itemIndex = 3),
         SettingsSearchListAnchor(titleRes = R.string.show_time_on_double_tap_to_seek, itemIndex = 3),
         SettingsSearchListAnchor(titleRes = R.string.pref_player_use_precise_seeking, itemIndex = 3),
-        SettingsSearchListAnchor(titleRes = R.string.pref_player_seek_preview_thumbfast_title, itemIndex = 3),
         SettingsSearchListAnchor(titleRes = R.string.pref_player_custom_skip_duration_title, itemIndex = 3),
         SettingsSearchListAnchor(titleRes = R.string.pref_online_skip_markers_title, itemIndex = 3),
         SettingsSearchListAnchor(titleRes = R.string.pref_marker_provider_title, itemIndex = 3),
@@ -112,6 +118,7 @@ private val settingsSearchListAnchors: Map<Screen, List<SettingsSearchListAnchor
     GesturePreferencesScreen to
       listOf(
         SettingsSearchListAnchor(titleRes = R.string.pref_gesture, itemIndex = 0),
+        SettingsSearchListAnchor(titleRes = R.string.pref_haptic_feedback_title, itemIndex = 1),
         SettingsSearchListAnchor(titleRes = R.string.pref_player_gestures_brightness, itemIndex = 1),
         SettingsSearchListAnchor(titleRes = R.string.pref_player_gestures_volume, itemIndex = 1),
         SettingsSearchListAnchor(titleRes = R.string.pref_player_gestures_pinch_to_zoom, itemIndex = 1),
@@ -147,6 +154,7 @@ private val settingsSearchListAnchors: Map<Screen, List<SettingsSearchListAnchor
         SettingsSearchListAnchor(titleRes = R.string.pref_audio_pitch_correction_title, itemIndex = 5),
         SettingsSearchListAnchor(titleRes = R.string.pref_audio_volume_normalization_title, itemIndex = 5),
         SettingsSearchListAnchor(titleRes = R.string.pref_audio_background_playback_title, itemIndex = 5),
+        SettingsSearchListAnchor(titleRes = R.string.pref_autoplay_next_audio_title, itemIndex = 5),
         SettingsSearchListAnchor(titleRes = R.string.pref_audio_channels, itemIndex = 5),
         SettingsSearchListAnchor(titleRes = R.string.pref_audio_volume_boost_cap, itemIndex = 5),
       ),
@@ -197,6 +205,18 @@ private val settingsSearchListAnchors: Map<Screen, List<SettingsSearchListAnchor
         SettingsSearchListAnchor(titleRes = R.string.pref_advanced_verbose_logging_title, itemIndex = 17),
         SettingsSearchListAnchor(titleRes = R.string.pref_advanced_dump_logs_title, itemIndex = 17),
       ),
+    MediaServersPreferencesScreen to
+      listOf(
+        SettingsSearchListAnchor(titleRes = R.string.pref_media_servers_title, itemIndex = 0),
+        SettingsSearchListAnchor(titleRes = R.string.pref_jellyfin_server_management, itemIndex = 1),
+        SettingsSearchListAnchor(titleRes = R.string.pref_seerr_server_management, itemIndex = 2),
+      ),
+    NetworkConfigurationPreferencesScreen to
+      listOf(
+        SettingsSearchListAnchor(titleRes = R.string.pref_section_p2p_streaming, itemIndex = 0),
+        SettingsSearchListAnchor(titleRes = R.string.pref_enable_p2p_streaming_title, itemIndex = 1),
+        SettingsSearchListAnchor(titleRes = R.string.ui_yt_dlp_manager, itemIndex = 3),
+      ),
   )
 
 object SettingsSearchNavigation {
@@ -204,7 +224,12 @@ object SettingsSearchNavigation {
   val target = _target.asStateFlow()
 
   fun open(preference: SearchablePreference) {
-    _target.value = SettingsSearchTarget(preference.screen, preference.searchTargetKey)
+    _target.value =
+      SettingsSearchTarget(
+        screen = preference.screen,
+        key = preference.searchTargetKey,
+        anchorItemIndex = preference.anchorItemIndex,
+      )
   }
 
   fun clear(target: SettingsSearchTarget) {
@@ -213,7 +238,7 @@ object SettingsSearchNavigation {
 }
 
 val SearchablePreference.searchTargetKey: String
-  get() = titleRes?.let { "res:$it" } ?: "text:${title.orEmpty()}"
+  get() = (targetRes ?: titleRes)?.let { "res:$it" } ?: "text:${title.orEmpty()}"
 
 /** Scrolls to one concrete preference row and briefly highlights only that row. */
 fun Modifier.settingsSearchTarget(
@@ -290,7 +315,7 @@ fun rememberSettingsSearchList(
   LaunchedEffect(requestedTarget, screen) {
     val target = requestedTarget?.takeIf { it.screen == screen } ?: return@LaunchedEffect
     val targetIndex =
-      settingsSearchListAnchors[screen]
+      target.anchorItemIndex ?: settingsSearchListAnchors[screen]
         ?.firstOrNull {
           target.key == "res:${it.titleRes}" || (it.title != null && target.key == "text:${it.title}")
         }?.itemIndex
@@ -314,7 +339,7 @@ fun rememberSettingsSearchHighlight(
   LaunchedEffect(requestedTarget, screen) {
     val target = requestedTarget?.takeIf { it.screen == screen } ?: return@LaunchedEffect
     val targetIndex =
-      settingsSearchListAnchors[screen]
+      target.anchorItemIndex ?: settingsSearchListAnchors[screen]
         ?.firstOrNull {
           target.key == "res:${it.titleRes}" || (it.title != null && target.key == "text:${it.title}")
         }?.itemIndex

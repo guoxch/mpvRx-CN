@@ -51,8 +51,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
@@ -66,7 +64,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -125,10 +122,12 @@ import app.gyrolet.mpvrx.ui.browser.states.EmptyState
 import app.gyrolet.mpvrx.ui.browser.states.LoadingState
 import app.gyrolet.mpvrx.ui.browser.states.PermissionDeniedState
 import app.gyrolet.mpvrx.ui.browser.videolist.VideoListScreen
+import app.gyrolet.mpvrx.ui.components.InlineSearchBar
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.securefolder.SecureFolderGateScreen
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
+import app.gyrolet.mpvrx.ui.utils.navigateTo
 import app.gyrolet.mpvrx.ui.utils.calculateResponsiveGridSpans
 import app.gyrolet.mpvrx.utils.history.RecentlyPlayedOps
 import app.gyrolet.mpvrx.utils.media.CopyPasteOps
@@ -483,28 +482,28 @@ object FolderListScreen : Screen {
       )
 
     var isPermissionSetupCompleted by androidx.compose.runtime.saveable.rememberSaveable {
-      androidx.compose.runtime.mutableStateOf(permissionState.status == PermissionStatus.Granted)
+      androidx.compose.runtime.mutableStateOf(
+        permissionState.status == PermissionStatus.Granted || browserPreferences.onboardingCompleted.get(),
+      )
     }
 
-    // Update MainScreen about permission state
+    // After onboarding the app is fully usable; missing storage only shows an in-place prompt.
     LaunchedEffect(permissionState.status, isPermissionSetupCompleted) {
       app.gyrolet.mpvrx.ui.browser.MainScreen.updatePermissionState(
-        isDenied = !isPermissionSetupCompleted || permissionState.status is PermissionStatus.Denied,
+        isDenied = !isPermissionSetupCompleted,
       )
     }
 
     // Update NavigationBarState synchronously when selection mode changes
-    SideEffect {
-      navBarState.updateSelectionState(
-        inSelectionMode = selectionManager.isInSelectionMode,
-        onlyVideos = true,
-      )
-    }
+    app.gyrolet.mpvrx.ui.browser.NavigationBarSelectionEffect(selectionManager.isInSelectionMode)
 
-    DisposableEffect(isDualPaneActive, selectedFolderBucketId) {
-      navBarState.isDualPaneFolderSelected = isDualPaneActive && selectedFolderBucketId != null
-      onDispose {
-        navBarState.isDualPaneFolderSelected = false
+    val isNavigationPageActive = app.gyrolet.mpvrx.ui.utils.LocalNavigationPageActive.current
+    androidx.lifecycle.compose.LifecycleResumeEffect(isDualPaneActive, selectedFolderBucketId, isNavigationPageActive) {
+      if (isNavigationPageActive) {
+        navBarState.isDualPaneFolderSelected = isDualPaneActive && selectedFolderBucketId != null
+      }
+      onPauseOrDispose {
+        if (isNavigationPageActive) navBarState.isDualPaneFolderSelected = false
       }
     }
 
@@ -526,7 +525,7 @@ object FolderListScreen : Screen {
         (!embedded && internalIsSearching) ||
         isFabExpanded.value ||
         (isDualPaneActive && selectedFolderBucketId != null)
-    androidx.activity.compose.BackHandler(enabled = shouldHandleBack) {
+    app.gyrolet.mpvrx.ui.utils.NavigationBackHandler(enabled = shouldHandleBack) {
       when {
         isFabExpanded.value -> isFabExpanded.value = false
         selectionManager.isInSelectionMode -> selectionManager.clear()
@@ -553,64 +552,55 @@ object FolderListScreen : Screen {
     @Composable
     fun FoldersPane() {
       Scaffold(
+        containerColor = app.gyrolet.mpvrx.ui.theme.wallpaperAwareBackgroundColor(),
         contentWindowInsets = if (embedded) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
         topBar = {
           if (embedded) {
             // Embedded inside another screen (e.g. Music tab) which already renders its own top bar.
           } else if (internalIsSearching) {
-            SearchBar(
-              inputField = {
-                SearchBarDefaults.InputField(
-                  query = internalSearchQuery,
-                  onQueryChange = { internalSearchQuery = it },
-                  onSearch = { },
-                  expanded = false,
-                  onExpandedChange = { },
-                  placeholder = {
-                    Text(
-                      androidx.compose.ui.res
-                        .stringResource(app.gyrolet.mpvrx.R.string.ui_search_folders_and_videos),
-                    )
-                  },
-                  leadingIcon = {
-                    Icon(
-                      imageVector = Icons.RoundedFilled.Search,
-                      contentDescription =
-                        androidx.compose.ui.res.stringResource(
-                          app.gyrolet.mpvrx.R.string.settings_search_title,
-                        ),
-                    )
-                  },
-                  trailingIcon = {
-                    IconButton(
-                      onClick = {
-                        internalIsSearching = false
-                        internalSearchQuery = ""
-                      },
-                    ) {
-                      Icon(
-                        imageVector = Icons.RoundedFilled.Close,
-                        contentDescription =
-                          androidx.compose.ui.res.stringResource(
-                            app.gyrolet.mpvrx.R.string.generic_cancel,
-                          ),
-                      )
-                    }
-                  },
-                  modifier = Modifier.focusRequester(focusRequester),
-                )
-              },
-              expanded = false,
-              onExpandedChange = { },
+            InlineSearchBar(
+              query = internalSearchQuery,
+              onQueryChange = { internalSearchQuery = it },
+              onSearch = { },
               modifier =
                 Modifier
                   .fillMaxWidth()
                   .padding(horizontal = 16.dp),
+              inputFieldModifier = Modifier.focusRequester(focusRequester),
+              placeholder = {
+                Text(
+                  androidx.compose.ui.res
+                    .stringResource(app.gyrolet.mpvrx.R.string.ui_search_folders_and_videos),
+                )
+              },
+              leadingIcon = {
+                Icon(
+                  imageVector = Icons.RoundedFilled.Search,
+                  contentDescription =
+                    androidx.compose.ui.res.stringResource(
+                      app.gyrolet.mpvrx.R.string.settings_search_title,
+                    ),
+                )
+              },
+              trailingIcon = {
+                IconButton(
+                  onClick = {
+                    internalIsSearching = false
+                    internalSearchQuery = ""
+                  },
+                ) {
+                  Icon(
+                    imageVector = Icons.RoundedFilled.Close,
+                    contentDescription =
+                      androidx.compose.ui.res.stringResource(
+                        app.gyrolet.mpvrx.R.string.generic_cancel,
+                      ),
+                  )
+                }
+              },
               shape = RoundedCornerShape(28.dp),
               tonalElevation = 6.dp,
-            ) {
-              // Empty content for SearchBar
-            }
+            )
           } else {
             BrowserTopBar(
               title = stringResource(app.gyrolet.mpvrx.R.string.app_name),
@@ -625,10 +615,10 @@ object FolderListScreen : Screen {
                 if (!internalIsSearching) internalSearchQuery = ""
               },
               onSettingsClick = {
-                backstack.add(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
+                backstack.navigateTo(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
               },
-              onTitleDoubleTap = { backstack.add(SecureFolderGateScreen) },
-              onTitleLongPress = { backstack.add(SecureFolderGateScreen) },
+              onTitleDoubleTap = { backstack.navigateTo(SecureFolderGateScreen) },
+              onTitleLongPress = { backstack.navigateTo(SecureFolderGateScreen) },
               showBetaBadge = BuildConfig.IS_PREVIEW_BUILD,
               onRenameClick = null,
               isSingleSelection = selectionManager.isSingleSelection,
@@ -660,23 +650,6 @@ object FolderListScreen : Screen {
                   }
                 }
               },
-              onPinClick = {
-                coroutineScope.launch {
-                  val selectedFolders = selectionManager.getSelectedItems()
-                  if (selectedFolders.isEmpty()) return@launch
-                  val updated = foldersPreferences.pinnedFolders.get().toMutableSet()
-                  val shouldUnpinAll = selectedFolders.all { it.path in updated }
-                  selectedFolders.forEach { folder ->
-                    if (shouldUnpinAll) {
-                      updated.remove(folder.path)
-                    } else {
-                      updated.add(folder.path)
-                    }
-                  }
-                  foldersPreferences.pinnedFolders.set(updated)
-                  selectionManager.clear()
-                }
-              },
               onBlacklistClick = {
                 coroutineScope.launch {
                   val selectedFolders = selectionManager.getSelectedItems()
@@ -699,7 +672,7 @@ object FolderListScreen : Screen {
               onDeselectAll = { selectionManager.clear() },
               onMoveToSecureClick = {
                 if (!secureFolderPreferences.isPinSet()) {
-                  backstack.add(SecureFolderGateScreen)
+                  backstack.navigateTo(SecureFolderGateScreen)
                 } else if (secureFolderPreferences.dontAskBeforeMove.get()) {
                   moveSelectedFoldersToSecureFolder()
                 } else {
@@ -875,7 +848,7 @@ object FolderListScreen : Screen {
                             internalSearchQuery = ""
                           }
                         } else {
-                          backstack.add(
+                          backstack.navigateTo(
                             app.gyrolet.mpvrx.ui.browser.videolist
                               .VideoListScreen(folder.bucketId, folder.name, isAudio = audioOnly),
                           )
@@ -908,13 +881,13 @@ object FolderListScreen : Screen {
                   onRefresh = { viewModel.refresh() },
                   onFolderClick = { folder ->
                     if (selectionManager.isInSelectionMode) {
-                      selectionManager.toggle(folder)
+                      selectionManager.toggleFromUser(folder)
                     } else {
                       if (isDualPaneActive) {
                         selectedFolderBucketId = folder.bucketId
                         selectedFolderName = folder.name
                       } else {
-                        backstack.add(
+                        backstack.navigateTo(
                           app.gyrolet.mpvrx.ui.browser.videolist
                             .VideoListScreen(folder.bucketId, folder.name, isAudio = audioOnly),
                         )
@@ -937,6 +910,10 @@ object FolderListScreen : Screen {
                   audioOnly = audioOnly,
                 )
               }
+          } else if (isPermissionSetupCompleted) {
+            app.gyrolet.mpvrx.ui.browser.states.StoragePermissionPrompt(
+              onRequestPermission = { permissionState.launchPermissionRequest() },
+            )
           } else {
             PermissionDeniedState(
               onRequestPermission = { permissionState.launchPermissionRequest() },
@@ -969,6 +946,19 @@ object FolderListScreen : Screen {
             onRenameClick = { renameDialogOpen = true },
             onDeleteClick = { pendingDeleteFolders = selectionManager.getSelectedItems() },
             onAddToPlaylistClick = { },
+            onPinClick = {
+              val selectedFolders = selectionManager.getSelectedItems()
+              if (selectedFolders.isNotEmpty()) {
+                val pinned = foldersPreferences.pinnedFolders.get()
+                val paths = selectedFolders.map { it.path }.toSet()
+                foldersPreferences.pinnedFolders.set(if (pinned.containsAll(paths)) pinned - paths else pinned + paths)
+                selectionManager.clear()
+              }
+            },
+            unpinSelected =
+              selectionManager.getSelectedItems().let { selected ->
+                selected.isNotEmpty() && selected.all { it.path in pinnedFolderPaths }
+              },
             showCopy = true,
             showMove = true,
             showRename = selectionManager.isSingleSelection,
@@ -1337,29 +1327,15 @@ private fun GridContent(
 
   BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
     val browserPreferences = org.koin.compose.koinInject<app.gyrolet.mpvrx.preferences.BrowserPreferences>()
-    val manualGridColumnsEnabled by browserPreferences.manualGridColumnsEnabled.collectAsState()
-    val folderGridColumnsPortrait by browserPreferences.folderGridColumnsPortrait.collectAsState()
-    val folderGridColumnsLandscape by browserPreferences.folderGridColumnsLandscape.collectAsState()
-
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    val folderGridColumnsPref = if (isLandscape) folderGridColumnsLandscape else folderGridColumnsPortrait
 
     val isTablet = configuration.smallestScreenWidthDp >= 600
     val dualPaneForTablet by browserPreferences.dualPaneForTablet.collectAsState()
     val isDualPaneActive = isTablet && dualPaneForTablet
     val isDualPane = isDualPaneActive && selectedFolderBucketId != null
 
-    val computedColumns =
-      if (manualGridColumnsEnabled) {
-        folderGridColumnsPref.coerceAtLeast(1)
-      } else {
-        val contentHorizontalPadding = 8.dp
-        val itemSpacing = 2.dp
-        val usableWidth = maxWidth - (contentHorizontalPadding * 2) - itemSpacing
-        val folderMinWidth = 100.dp
-        (usableWidth / folderMinWidth).toInt().coerceAtLeast(1)
-      }
+    val spansInfo = calculateResponsiveGridSpans(maxWidth = maxWidth)
+    val computedColumns = spansInfo.spans / spansInfo.folderSpan
 
     LazyVerticalGrid(
       columns = GridCells.Fixed(computedColumns),
@@ -1369,7 +1345,8 @@ private fun GridContent(
         PaddingValues(
           start = 8.dp,
           end = 8.dp,
-          bottom = navigationBarHeight,
+          top = 8.dp,
+          bottom = navigationBarHeight + 8.dp,
         ),
       horizontalArrangement = Arrangement.spacedBy(2.dp),
       verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -1389,7 +1366,7 @@ private fun GridContent(
           onLongClick = { onFolderLongClick(folder) },
           onThumbClick =
             if (tapThumbnailToSelect) {
-              { selectionManager.toggle(folder) }
+              { selectionManager.toggleFromUser(folder) }
             } else {
               { onFolderClick(folder) }
             },
@@ -1462,6 +1439,7 @@ private fun ListContent(
         PaddingValues(
           start = 8.dp,
           end = 8.dp,
+          top = 4.dp,
           bottom = navigationBarHeight,
         ),
     ) {
@@ -1479,7 +1457,7 @@ private fun ListContent(
           onLongClick = { onFolderLongClick(folder) },
           onThumbClick =
             if (tapThumbnailToSelect) {
-              { selectionManager.toggle(folder) }
+              { selectionManager.toggleFromUser(folder) }
             } else {
               { onFolderClick(folder) }
             },
@@ -1575,6 +1553,7 @@ private fun SearchResultsContent(
   val showExtensionField by browserPreferences.showExtensionField.collectAsState()
   val showDurationField by browserPreferences.showDurationField.collectAsState()
   val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
+  val thumbnailQuality by browserPreferences.thumbnailQuality.collectAsState()
   val videoCardUiConfig =
     remember(
       unlimitedNameLines,
@@ -1590,6 +1569,7 @@ private fun SearchResultsContent(
       showExtensionField,
       showDurationField,
       centerGridTitles,
+      thumbnailQuality,
     ) {
       VideoCardUiConfig(
         unlimitedNameLines = unlimitedNameLines,
@@ -1605,6 +1585,7 @@ private fun SearchResultsContent(
         showExtensionField = showExtensionField,
         showDurationField = showDurationField,
         centerGridTitles = centerGridTitles,
+        thumbnailQuality = thumbnailQuality,
       )
     }
 
@@ -1628,8 +1609,8 @@ private fun SearchResultsContent(
               top = 8.dp,
               bottom = navigationBarHeight + 8.dp,
             ),
-          horizontalArrangement = Arrangement.spacedBy(4.dp),
-          verticalArrangement = Arrangement.spacedBy(4.dp),
+          horizontalArrangement = Arrangement.spacedBy(2.dp),
+          verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
           items(
             count = folders.size,

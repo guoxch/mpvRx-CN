@@ -16,7 +16,11 @@ import android.content.res.Configuration.ORIENTATION_LANDSCAPE
 import android.content.res.Configuration.ORIENTATION_PORTRAIT
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.AnimationVector
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.TwoWayConverter
+import androidx.compose.animation.core.VectorizedFiniteAnimationSpec
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -64,12 +68,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusGroup
+import app.gyrolet.mpvrx.ui.theme.AppMotion
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-
-private val sheetAnimationSpec = tween<Float>(350)
 
 @SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
@@ -85,6 +89,17 @@ fun PlayerSheet(
   content: @Composable () -> Unit,
 ) {
   val scope = rememberCoroutineScope()
+  val reducedMotion = AppMotion.playerReducedMotion()
+  val currentSheetSpec by rememberUpdatedState<FiniteAnimationSpec<Float>>(
+    if (reducedMotion) snap() else AppMotion.Spatial.Expressive,
+  )
+  val sheetAnimationSpec = remember {
+    object : FiniteAnimationSpec<Float> {
+      override fun <Vector : AnimationVector> vectorize(
+        converter: TwoWayConverter<Float, Vector>,
+      ): VectorizedFiniteAnimationSpec<Vector> = currentSheetSpec.vectorize(converter)
+    }
+  }
   val density = LocalDensity.current
   val latestOnDismissRequest by rememberUpdatedState(onDismissRequest)
   val maxWidth =
@@ -121,6 +136,8 @@ fun PlayerSheet(
     }
 
   val scaledSwipeOffset = swipeOffset * 2f
+  val currentIsSwipeActive by rememberUpdatedState(isSwipeActive)
+  val currentScaledSwipeOffset by rememberUpdatedState(scaledSwipeOffset)
   val height =
     if (anchoredDraggableState.anchors.size >
       0
@@ -140,7 +157,7 @@ fun PlayerSheet(
     }
   val alpha by animateFloatAsState(
     targetAlpha,
-    animationSpec = sheetAnimationSpec,
+    animationSpec = if (reducedMotion) snap() else AppMotion.Effect.Alpha,
     label = "alpha",
   )
 
@@ -183,6 +200,7 @@ fun PlayerSheet(
               anchoredDraggableState.preUpPostDownNestedScrollConnection()
             },
           ).then(modifier)
+          .tvFocusGroup()
           .offset {
             val baseOffset =
               anchoredDraggableState.offset
@@ -210,11 +228,22 @@ fun PlayerSheet(
       },
     )
 
-    LaunchedEffect(scaledSwipeOffset, isSwipeActive) {
-      if (isSwipeActive && anchoredDraggableState.anchors.size > 0) {
-        val targetOffset = (height + scaledSwipeOffset).coerceIn(0f, screenHeightPx)
-        val delta = targetOffset - anchoredDraggableState.offset
-        anchoredDraggableState.dispatchRawDelta(delta)
+    LaunchedEffect(anchoredDraggableState, screenHeightPx) {
+      snapshotFlow {
+        Triple(
+          currentIsSwipeActive,
+          currentScaledSwipeOffset,
+          anchoredDraggableState.anchors.size,
+        )
+      }.collectLatest { (swipeActive, latestSwipeOffset, anchorCount) ->
+        if (swipeActive && anchorCount > 0) {
+          val closedOffset = anchoredDraggableState.anchors.positionOf(1)
+          val currentOffset = anchoredDraggableState.offset
+          if (closedOffset.isFinite() && currentOffset.isFinite()) {
+            val targetOffset = (closedOffset + latestSwipeOffset).coerceIn(0f, screenHeightPx)
+            anchoredDraggableState.dispatchRawDelta(targetOffset - currentOffset)
+          }
+        }
       }
     }
 

@@ -38,6 +38,7 @@ private const val PIP_PLAY = 1
 private const val PIP_PAUSE = 2
 private const val PIP_REWIND = 3
 private const val PIP_FORWARD = 4
+private const val PIP_CLOSE = 5
 
 class MPVPipHelper(
   private val activity: AppCompatActivity,
@@ -78,6 +79,11 @@ class MPVPipHelper(
             PIP_PAUSE -> PlaybackSession.setPropertyBoolean("pause", true)
             PIP_REWIND -> PlaybackSession.command("seek", "-10", seekMode)
             PIP_FORWARD -> PlaybackSession.command("seek", "10", seekMode)
+            PIP_CLOSE -> {
+              MediaPlaybackService.stopForTerminalDismissal()
+              activity.finishAndRemoveTask()
+              return
+            }
           }
           updatePictureInPictureParams()
         }
@@ -116,6 +122,10 @@ class MPVPipHelper(
           // Video surfaces can resize continuously, so let Android morph the
           // full-screen frame into and out of PiP instead of cross-fading it.
           setSeamlessResizeEnabled(!isAudioPlayer())
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          setCloseAction(createRemoteAction("close", Icons.Platform.Stop, PIP_CLOSE))
         }
 
         setActions(createPipActions())
@@ -159,13 +169,13 @@ class MPVPipHelper(
     val isPlaying = PlaybackSession.getPropertyBoolean("pause") == false
 
     return listOf(
-      createRemoteAction("rewind", Icons.Platform.FastRewind, PIP_REWIND),
+      createRemoteAction("rewind 10 seconds", Icons.Platform.Replay10, PIP_REWIND),
       if (isPlaying) {
         createRemoteAction("pause", Icons.Platform.Pause, PIP_PAUSE)
       } else {
         createRemoteAction("play", Icons.Platform.Play, PIP_PLAY)
       },
-      createRemoteAction("forward", Icons.Platform.FastForward, PIP_FORWARD),
+      createRemoteAction("forward 10 seconds", Icons.Platform.Forward10, PIP_FORWARD),
     )
   }
 

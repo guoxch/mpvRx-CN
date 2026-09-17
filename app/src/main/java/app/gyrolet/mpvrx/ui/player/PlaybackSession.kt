@@ -18,7 +18,9 @@ import android.util.Log
 import android.view.Surface
 import app.gyrolet.mpvrx.data.network.proxy.HlsStreamingProxy
 import app.gyrolet.mpvrx.data.network.proxy.NetworkStreamingProxy
+import app.gyrolet.mpvrx.data.network.proxy.XtreamStreamingProxy
 import app.gyrolet.mpvrx.domain.network.NetworkPlaybackUri
+import app.gyrolet.mpvrx.domain.network.XtreamPlaybackUri
 import app.gyrolet.mpvrx.preferences.MpvConfigOverridePolicy
 import `is`.xyz.mpv.MPVLib
 import `is`.xyz.mpv.MPVNode
@@ -121,6 +123,7 @@ object PlaybackSession : MPVLib.EventObserver {
   private data class NetworkStreamRegistration(
     val proxy: NetworkStreamingProxy? = null,
     val hlsProxy: HlsStreamingProxy? = null,
+    val xtreamProxy: XtreamStreamingProxy? = null,
     val streamId: String,
   )
 
@@ -142,6 +145,9 @@ object PlaybackSession : MPVLib.EventObserver {
   private val observers = CopyOnWriteArraySet<MPVLib.EventObserver>()
   private val _state = MutableStateFlow(PlaybackSessionState())
   private val _queue = MutableStateFlow(PlaybackQueueState())
+  private val _videoZoom = MutableStateFlow(0f)
+  private val _videoPanX = MutableStateFlow(0f)
+  private val _videoPanY = MutableStateFlow(0f)
   private val streamSequence = AtomicLong()
   private val observedProperties = mutableSetOf<Pair<String, Int>>()
   private val seekAudioGuardHandler = Handler(Looper.getMainLooper())
@@ -149,6 +155,21 @@ object PlaybackSession : MPVLib.EventObserver {
 
   val state: StateFlow<PlaybackSessionState> = _state.asStateFlow()
   val queue: StateFlow<PlaybackQueueState> = _queue.asStateFlow()
+  val videoZoom: StateFlow<Float> = _videoZoom.asStateFlow()
+  val videoPanX: StateFlow<Float> = _videoPanX.asStateFlow()
+  val videoPanY: StateFlow<Float> = _videoPanY.asStateFlow()
+
+  fun setVideoTransformZoom(zoom: Float) {
+    _videoZoom.value = zoom
+  }
+
+  fun setVideoTransformPan(
+    x: Float,
+    y: Float,
+  ) {
+    _videoPanX.value = x
+    _videoPanY.value = y
+  }
 
   @Volatile
   private var initialized = false
@@ -162,20 +183,40 @@ object PlaybackSession : MPVLib.EventObserver {
   private var suspendedVideoTrack: SuspendedVideoTrack? = null
   private var deferredVideoSelectionGeneration: Long? = null
   private var pendingStopClearQueue = false
+  private var supersededStopGeneration = 0L
   private var desiredPaused = true
   private var loadedGeneration = 0L
+  private var defaultUserAgent: String? = null
   private var pendingPositionRestoreGeneration = 0L
   private var pendingPositionRestoreOverride: Pair<Long, PlaybackPositionRestoreOverride>? = null
+  private var initialPositionGeneration = 0L
   private var seekAudioGuardToken = 0L
   private var seekAudioGuardPreviousMute: Boolean? = null
   private var playbackTransitionAudioGuardToken = 0L
   private var playbackTransitionAudioGuardPreviousMute: Boolean? = null
+  private var playbackTransitionAudioGuardCanRestore = false
   private val activeAmbientShaderPaths = linkedSetOf<String>()
   private var desiredAmbientScaleX = 1.0
   private var desiredAmbientScaleY = 1.0
 
   val isInitialized: Boolean
     get() = initialized
+
+  fun invalidateCoreConfiguration() {
+    nativeLock.withLock { activeCoreConfigurationKey = null }
+  }
+
+  fun reloadMpvConfig(configPath: String): Boolean =
+    nativeLock.withLock {
+      activeCoreConfigurationKey = null
+      if (!initialized) return@withLock false
+      runCatching {
+        MPVLib.command("load-config-file", configPath)
+        true
+      }.onFailure { error ->
+        Log.e(TAG, "Failed to reload mpv.conf", error)
+      }.getOrDefault(false)
+    }
 
   val propInt = PlaybackProperty(MPVLib.MpvFormat.MPV_FORMAT_INT64, ::getPropertyInt)
   val propLong = PlaybackProperty(MPVLib.MpvFormat.MPV_FORMAT_INT64) { property -> getPropertyInt(property)?.toLong() }
@@ -211,10 +252,13 @@ object PlaybackSession : MPVLib.EventObserver {
         suspendedVideoTrack = null
         deferredVideoSelectionGeneration = null
         pendingStopClearQueue = false
+        supersededStopGeneration = 0L
         desiredPaused = true
         loadedGeneration = 0L
+        defaultUserAgent = null
         pendingPositionRestoreGeneration = 0L
         pendingPositionRestoreOverride = null
+        initialPositionGeneration = 0L
         clearSeekAudioGuardLocked(restoreMute = false)
         clearPlaybackTransitionAudioGuardLocked(restoreMute = false)
         resetAmbientShaderTrackingLocked()
@@ -232,6 +276,9 @@ object PlaybackSession : MPVLib.EventObserver {
           // Runtime properties do not exist between MPVLib.create() and MPVLib.init(). Keep option
           // writes available in that window, but permit property reads only from this point on.
           nativeCoreReady = true
+          // Preserve the effective default after mpv.conf has been parsed. Per-media request
+          // headers may temporarily override it, but must not leak into the next item.
+          defaultUserAgent = MPVLib.getPropertyString("user-agent")
           postInitOptions()
           MPVLib.setOptionString("force-window", "no")
           MPVLib.setOptionString("idle", "yes")
@@ -251,10 +298,13 @@ object PlaybackSession : MPVLib.EventObserver {
           suspendedVideoTrack = null
           deferredVideoSelectionGeneration = null
           pendingStopClearQueue = false
+          supersededStopGeneration = 0L
           desiredPaused = true
           loadedGeneration = 0L
+          defaultUserAgent = null
           pendingPositionRestoreGeneration = 0L
           pendingPositionRestoreOverride = null
+          initialPositionGeneration = 0L
           clearSeekAudioGuardLocked(restoreMute = false)
           clearPlaybackTransitionAudioGuardLocked(restoreMute = false)
           resetAmbientShaderTrackingLocked()
@@ -319,6 +369,12 @@ object PlaybackSession : MPVLib.EventObserver {
   fun unbindSurface(owner: Any): Boolean =
     withCore(default = false) {
       if (attachedSurfaceOwner !== owner || !_state.value.surfaceAttached) return@withCore false
+      if (_state.value.phase == PlaybackPhase.LOADING) {
+        deferredVideoSelectionGeneration = _state.value.generation
+        runCatching { MPVLib.setPropertyString("vid", "no") }
+      } else {
+        suspendVideoTrackForSurfaceLossLocked()
+      }
       detachRendererSurfaceLocked()
       true
     }
@@ -367,12 +423,14 @@ object PlaybackSession : MPVLib.EventObserver {
       }
 
       val nextGeneration = _state.value.generation + 1L
+      supersededStopGeneration = 0L
       suspendedVideoTrack = null
       deferredVideoSelectionGeneration = null
       desiredPaused = true
       loadedGeneration = 0L
       pendingPositionRestoreGeneration = 0L
       pendingPositionRestoreOverride = null
+      initialPositionGeneration = 0L
 
       // Ambient shaders contain dimensions and scale baked for one video. Never leave them attached
       // to the process-wide core after playback ends, even if the Activity/ViewModel that created
@@ -382,8 +440,8 @@ object PlaybackSession : MPVLib.EventObserver {
       // Stop/quit must silence the native audio output before its decoder/output queues are torn
       // down. Restoring a seek guard's mute state before stop previously let a short buffered tail
       // escape after the Activity had already disappeared.
-      clearSeekAudioGuardLocked(restoreMute = true)
-      beginPlaybackTransitionAudioGuardLocked()
+      beginPlaybackTransitionAudioGuardLocked(canRestore = false)
+      clearSeekAudioGuardLocked(restoreMute = false)
       runCatching { MPVLib.setPropertyBoolean("pause", true) }
       pendingStopClearQueue = clearQueue
       updateState {
@@ -397,6 +455,7 @@ object PlaybackSession : MPVLib.EventObserver {
       }
       propBoolean.emit("pause", true)
       clearTimelinePropertiesLocked()
+      PlaybackPerformanceTrace.mark("MPV_STOP_SENT", "generation=$nextGeneration")
 
       if (previousPhase !in setOf(PlaybackPhase.LOADING, PlaybackPhase.READY, PlaybackPhase.BACKGROUND)) {
         finalizeStopLocked()
@@ -410,16 +469,59 @@ object PlaybackSession : MPVLib.EventObserver {
     }
   }
 
+  /**
+   * Resolves the stop/load race for an incoming media request.
+   *
+   * A genuine session stop still enters [PlaybackPhase.STOPPING] and waits for libmpv to finish.
+   * When a newer direct/local request arrives before that END_FILE, however, there is no app-owned
+   * proxy lifetime that requires the Activity to wait for the event round-trip. In that case the
+   * new generation may supersede the stop and enqueue `loadfile replace` immediately. App-owned
+   * network/HLS/sidecar registrations deliberately retain the conservative wait until their
+   * lifetime can be transferred with equivalent guarantees.
+   */
   suspend fun awaitStopCompletion(timeoutMillis: Long = 3_000L): Boolean {
     if (_state.value.phase != PlaybackPhase.STOPPING) return true
-    return withTimeoutOrNull(timeoutMillis) {
-      state.first { it.phase != PlaybackPhase.STOPPING }
-    } != null
+    if (trySupersedeStopForReplacement()) return true
+
+    val startedAt = android.os.SystemClock.elapsedRealtime()
+    PlaybackPerformanceTrace.mark("WAIT_FOR_STOP_START")
+    val completed =
+      withTimeoutOrNull(timeoutMillis) {
+        state.first { it.phase != PlaybackPhase.STOPPING }
+      } != null
+    PlaybackPerformanceTrace.mark(
+      "WAIT_FOR_STOP_END",
+      "durationMs=${android.os.SystemClock.elapsedRealtime() - startedAt},completed=$completed",
+    )
+    return completed
   }
+
+  private fun trySupersedeStopForReplacement(): Boolean =
+    nativeLock.withLock {
+      val current = _state.value
+      if (current.phase != PlaybackPhase.STOPPING) return@withLock true
+      if (!initialized || activeNetworkStream != null || auxiliaryNetworkStreams.isNotEmpty()) {
+        return@withLock false
+      }
+
+      pendingStopClearQueue = false
+      supersededStopGeneration = current.generation
+      updateState {
+        it.copy(
+          phase = PlaybackPhase.IDLE,
+          activeGeneration = 0L,
+          paused = true,
+          error = null,
+        )
+      }
+      PlaybackPerformanceTrace.mark("WAIT_FOR_STOP_SUPERSEDED", "generation=${current.generation}")
+      true
+    }
 
   private fun finalizeStopLocked() {
     if (pendingStopClearQueue) _queue.value = PlaybackQueueState()
     pendingStopClearQueue = false
+    supersededStopGeneration = 0L
     releaseActiveNetworkStreamLocked()
     releaseAuxiliaryNetworkStreamsLocked()
     updateState {
@@ -434,7 +536,6 @@ object PlaybackSession : MPVLib.EventObserver {
     propBoolean.emit("pause", true)
     clearTimelinePropertiesLocked()
   }
-
 
   /**
     * Destroys a core that must not be reused, including process shutdown and an unrecoverable
@@ -461,18 +562,22 @@ object PlaybackSession : MPVLib.EventObserver {
    * so the output remains muted through destruction.
    */
   fun muteForTeardown() {
-    withCore(Unit) { beginPlaybackTransitionAudioGuardLocked() }
+    PlaybackPerformanceTrace.mark("CLOSE_AUDIO_SILENCE")
+    withCore(Unit) { beginPlaybackTransitionAudioGuardLocked(canRestore = false) }
   }
 
   private fun destroyLocked() {
     updateState { it.copy(phase = PlaybackPhase.STOPPING) }
     desiredPaused = true
     loadedGeneration = 0L
+    defaultUserAgent = null
     pendingPositionRestoreGeneration = 0L
     pendingPositionRestoreOverride = null
+    initialPositionGeneration = 0L
     suspendedVideoTrack = null
     deferredVideoSelectionGeneration = null
     pendingStopClearQueue = false
+    supersededStopGeneration = 0L
     clearSeekAudioGuardLocked(restoreMute = false)
     clearPlaybackTransitionAudioGuardLocked(restoreMute = false)
     runCatching { MPVLib.setPropertyBoolean("mute", true) }
@@ -488,6 +593,9 @@ object PlaybackSession : MPVLib.EventObserver {
     observers.clear()
     observedProperties.clear()
     resetAmbientShaderTrackingLocked()
+    _videoZoom.value = 0f
+    _videoPanX.value = 0f
+    _videoPanY.value = 0f
     initialized = false
     nativeCoreReady = false
     activeCoreConfigurationKey = null
@@ -616,10 +724,21 @@ object PlaybackSession : MPVLib.EventObserver {
     item: PlaybackItem,
     restoreSavedPosition: Boolean = false,
     positionRestoreOverride: PlaybackPositionRestoreOverride? = null,
+    initialPositionSeconds: Double? = null,
     flattenEditions: Boolean = false,
     commit: ((() -> Long) -> Long)? = null,
   ): Long {
-    val resolved = resolvePlayableUri(item)
+    val preparationStartedAt = android.os.SystemClock.elapsedRealtime()
+    PlaybackPerformanceTrace.mark("MEDIA_PREPARATION_START")
+    val resolved =
+      try {
+        resolvePlayableUri(item)
+      } finally {
+        PlaybackPerformanceTrace.mark(
+          "MEDIA_PREPARATION_END",
+          "durationMs=${android.os.SystemClock.elapsedRealtime() - preparationStartedAt}",
+        )
+      }
     return try {
       var previous: NetworkStreamRegistration? = null
       var previousAuxiliary = emptyList<NetworkStreamRegistration>()
@@ -631,6 +750,7 @@ object PlaybackSession : MPVLib.EventObserver {
               item = item,
               restoreSavedPosition = restoreSavedPosition,
               positionRestoreOverride = positionRestoreOverride,
+              initialPositionSeconds = initialPositionSeconds,
               flattenEditions = flattenEditions,
             )
           if (generation >= 0L) {
@@ -665,6 +785,7 @@ object PlaybackSession : MPVLib.EventObserver {
     item: PlaybackItem? = null,
     restoreSavedPosition: Boolean = false,
     positionRestoreOverride: PlaybackPositionRestoreOverride? = null,
+    initialPositionSeconds: Double? = null,
     flattenEditions: Boolean = false,
   ): Long =
     withCore(default = -1L) {
@@ -690,14 +811,16 @@ object PlaybackSession : MPVLib.EventObserver {
       // Keep replacement/startup audio muted until mpv has restarted cleanly. FILE_LOADED can be
       // followed by saved-position and audio-track restoration; without this guard tiny fragments
       // from the pre-restore timeline can reach AudioTrack and sound like a glitch/warble.
-      beginPlaybackTransitionAudioGuardLocked()
+      beginPlaybackTransitionAudioGuardLocked(canRestore = true)
 
       val generation = _state.value.generation + 1L
+      val initialPosition = initialPositionSeconds?.takeIf { it.isFinite() && it > 0.0 }
       pendingPositionRestoreGeneration =
         generation.takeIf {
           positionRestoreOverride != null || (restoreSavedPosition && !resolvedItem.isDefinitelyAudioOnly())
         } ?: 0L
       pendingPositionRestoreOverride = positionRestoreOverride?.let { generation to it }
+      initialPositionGeneration = generation.takeIf { initialPosition != null } ?: 0L
       val holdForPositionRestore = pendingPositionRestoreGeneration == generation
       deferredVideoSelectionGeneration = generation.takeIf { videoSelection == PlaybackVideoSelection.DEFERRED }
       updateState {
@@ -712,7 +835,9 @@ object PlaybackSession : MPVLib.EventObserver {
       clearTimelinePropertiesLocked()
       val userAgent = PlaybackHttpHeaders.userAgent(resolvedItem.headers)
       val headerFields = PlaybackHttpHeaders.toMpvHeaderFields(resolvedItem.headers)
-      MPVLib.setPropertyString("user-agent", userAgent.orEmpty())
+      // URL-specific headers are request metadata, not a global mpv preference. Always apply the
+      // media UA, then restore the post-mpv.conf default for a headerless item.
+      MPVLib.setPropertyString("user-agent", userAgent ?: defaultUserAgent.orEmpty())
       MPVLib.setPropertyString("http-header-fields", headerFields)
       MPVLib.setPropertyString("force-media-title", "")
 
@@ -724,8 +849,12 @@ object PlaybackSession : MPVLib.EventObserver {
         buildList {
           add("pause=yes")
           add(if (selectVideoForNewFile) "vid=auto" else "vid=no")
-          if (flattenEditions) add("flatten-editions=yes")
+          initialPosition?.let { add("start=$it") }
+          if (flattenEditions && !MpvConfigOverridePolicy.isOwnedByMpvConf("flatten-editions")) {
+            add("flatten-editions=yes")
+          }
         }.joinToString(",")
+      PlaybackPerformanceTrace.mark("LOADFILE_SENT", "generation=$generation")
       MPVLib.command("loadfile", playableUri, "replace", "-1", loadOptions)
       propBoolean.emit("pause", holdForPositionRestore || desiredPaused)
       generation
@@ -762,11 +891,17 @@ object PlaybackSession : MPVLib.EventObserver {
       pendingPositionRestoreOverride?.takeIf { it.first == generation }?.second
     }
 
+  fun wasInitialPositionApplied(generation: Long): Boolean =
+    nativeLock.withLock {
+      generation > 0L && initialPositionGeneration == generation
+    }
+
   fun completePositionRestore(generation: Long) {
     nativeLock.withLock {
       if (pendingPositionRestoreGeneration != generation) return@withLock
       pendingPositionRestoreGeneration = 0L
       if (pendingPositionRestoreOverride?.first == generation) pendingPositionRestoreOverride = null
+      if (initialPositionGeneration == generation) initialPositionGeneration = 0L
       val current = _state.value
       if (current.generation != generation || loadedGeneration != generation || current.phase != PlaybackPhase.LOADING) {
         return@withLock
@@ -834,6 +969,16 @@ object PlaybackSession : MPVLib.EventObserver {
     return withCore(-1, allowInitializing = true) { MPVLib.setOptionString(name, value) }
   }
 
+  /**
+   * Applies an app-owned integration prerequisite even when a broad mpv.conf ownership group is
+   * selected. Use this only for infrastructure required to connect a bundled component to libmpv,
+   * never for a user-facing playback preference.
+   */
+  fun setIntegrationOptionString(
+    name: String,
+    value: String,
+  ): Int = withCore(-1, allowInitializing = true) { MPVLib.setOptionString(name, value) }
+
   fun getPropertyInt(property: String): Int? = withReadyCore(null) { MPVLib.getPropertyInt(property) }
 
   fun setPropertyInt(
@@ -899,10 +1044,18 @@ object PlaybackSession : MPVLib.EventObserver {
         }
         updateState { it.copy(paused = value) }
         propBoolean.emit(property, value)
-      } else if (property == "mute" && playbackTransitionAudioGuardPreviousMute != null) {
-        // A user mute/unmute action during startup/teardown should update the value that will be
-        // restored, but must not open the guard and leak transition audio immediately.
-        playbackTransitionAudioGuardPreviousMute = value
+      } else if (
+        property == "mute" &&
+        (playbackTransitionAudioGuardPreviousMute != null || seekAudioGuardPreviousMute != null)
+      ) {
+        // A user mute/unmute action while either audio guard is active should update the value that
+        // will be restored, but must not open a guard and leak seek/transition audio immediately.
+        if (playbackTransitionAudioGuardPreviousMute != null) {
+          playbackTransitionAudioGuardPreviousMute = value
+        }
+        if (seekAudioGuardPreviousMute != null) {
+          seekAudioGuardPreviousMute = value
+        }
         MPVLib.setPropertyBoolean("mute", true)
       } else {
         MPVLib.setPropertyBoolean(property, value)
@@ -1096,6 +1249,11 @@ object PlaybackSession : MPVLib.EventObserver {
             if (_state.value.phase != PlaybackPhase.STOPPING) {
               updateState { it.copy(phase = PlaybackPhase.LOADING, activeGeneration = it.generation) }
             }
+            if (supersededStopGeneration != 0L && _state.value.generation > supersededStopGeneration) {
+              // libmpv normally delivers the old STOP END_FILE before START_FILE for the replacement.
+              // Once the new file has started, do not let this marker affect a later genuine stop.
+              supersededStopGeneration = 0L
+            }
             true
           }
           MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
@@ -1104,6 +1262,7 @@ object PlaybackSession : MPVLib.EventObserver {
               runCatching { MPVLib.command("stop") }
               return@withLock true
             }
+            supersededStopGeneration = 0L
             loadedGeneration = current.generation
             val restoringPosition = pendingPositionRestoreGeneration == current.generation
             val appliedPaused = restoringPosition || desiredPaused
@@ -1145,13 +1304,28 @@ object PlaybackSession : MPVLib.EventObserver {
           }
           MPVLib.MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> {
             scheduleSeekAudioGuardRestoreLocked(SEEK_AUDIO_RESTORE_DELAY_MS)
-            schedulePlaybackTransitionAudioGuardRestoreLocked(PLAYBACK_TRANSITION_AUDIO_RESTORE_DELAY_MS)
+            if (_state.value.phase != PlaybackPhase.STOPPING) {
+              schedulePlaybackTransitionAudioGuardRestoreLocked(PLAYBACK_TRANSITION_AUDIO_RESTORE_DELAY_MS)
+            }
             true
           }
           MPVLib.MpvEvent.MPV_EVENT_END_FILE -> {
             val current = _state.value
+            val reason = parseEndFileReason(data)
+            if (
+              supersededStopGeneration != 0L &&
+              current.activeGeneration == 0L &&
+              reason in setOf(EndFileReason.STOP, EndFileReason.QUIT)
+            ) {
+              PlaybackPerformanceTrace.mark(
+                "SUPERSEDED_STOP_END_FILE",
+                "generation=$supersededStopGeneration,reason=${reason.name}",
+              )
+              supersededStopGeneration = 0L
+              return@withLock false
+            }
             if (current.phase == PlaybackPhase.STOPPING) {
-              if (parseEndFileReason(data) == EndFileReason.REDIRECT) {
+              if (reason == EndFileReason.REDIRECT) {
                 runCatching { MPVLib.command("stop") }
               } else {
                 finalizeStopLocked()
@@ -1159,7 +1333,6 @@ object PlaybackSession : MPVLib.EventObserver {
               return@withLock true
             }
             if (current.activeGeneration == current.generation) {
-              val reason = parseEndFileReason(data)
               if (reason == EndFileReason.REDIRECT && loadedGeneration != current.generation) {
                 // Redirects emit END_FILE before mpv starts the resolved target. Preserve LOADING;
                 // the following START_FILE belongs to the same app-level generation.
@@ -1204,9 +1377,12 @@ object PlaybackSession : MPVLib.EventObserver {
             deferredVideoSelectionGeneration = null
             desiredPaused = true
             loadedGeneration = 0L
+            defaultUserAgent = null
             pendingPositionRestoreGeneration = 0L
             pendingPositionRestoreOverride = null
+            initialPositionGeneration = 0L
             pendingStopClearQueue = false
+            supersededStopGeneration = 0L
             clearSeekAudioGuardLocked(restoreMute = false)
             clearPlaybackTransitionAudioGuardLocked(restoreMute = false)
             resetAmbientShaderTrackingLocked()
@@ -1273,6 +1449,9 @@ object PlaybackSession : MPVLib.EventObserver {
     }
   }
 
+  /** Only a matching END_FILE reason=eof may drive repeat, queue advance, or close-after-end. */
+  internal fun isNaturalEndFile(data: MPVNode): Boolean = parseEndFileReason(data) == EndFileReason.EOF
+
   private fun parseEndFileError(data: MPVNode): String? =
     sequenceOf(data["error"], data["file_error"])
       .mapNotNull { node -> node?.asString() ?: node?.asInt()?.toString() }
@@ -1324,16 +1503,21 @@ object PlaybackSession : MPVLib.EventObserver {
    * which guarantees that an Android AudioTrack cannot drain a stale tail after quit and that the
    * first audible samples of a new file are from its settled timeline/track state.
    */
-  private fun beginPlaybackTransitionAudioGuardLocked() {
+  private fun beginPlaybackTransitionAudioGuardLocked(canRestore: Boolean) {
     if (playbackTransitionAudioGuardPreviousMute == null) {
-      playbackTransitionAudioGuardPreviousMute = MPVLib.getPropertyBoolean("mute") ?: false
+      // Closing or replacing media can overlap the short seek guard. In that window mpv reports
+      // mute=true even when the user was unmuted. Preserve the pre-seek value so a later load does
+      // not restore the temporary guard mute and remain permanently silent.
+      playbackTransitionAudioGuardPreviousMute =
+        seekAudioGuardPreviousMute ?: (MPVLib.getPropertyBoolean("mute") ?: false)
     }
     runCatching { MPVLib.setPropertyBoolean("mute", true) }
+    playbackTransitionAudioGuardCanRestore = canRestore
     playbackTransitionAudioGuardToken++
   }
 
   private fun schedulePlaybackTransitionAudioGuardRestoreLocked(delayMs: Long) {
-    if (playbackTransitionAudioGuardPreviousMute == null) return
+    if (playbackTransitionAudioGuardPreviousMute == null || !playbackTransitionAudioGuardCanRestore) return
     val token = ++playbackTransitionAudioGuardToken
     playbackTransitionAudioGuardHandler.postDelayed(
       {
@@ -1349,6 +1533,7 @@ object PlaybackSession : MPVLib.EventObserver {
   private fun clearPlaybackTransitionAudioGuardLocked(restoreMute: Boolean) {
     val previousMute = playbackTransitionAudioGuardPreviousMute
     playbackTransitionAudioGuardPreviousMute = null
+    playbackTransitionAudioGuardCanRestore = false
     playbackTransitionAudioGuardToken++
     if (restoreMute && initialized && previousMute != null) {
       runCatching { MPVLib.setPropertyBoolean("mute", previousMute) }
@@ -1466,6 +1651,8 @@ object PlaybackSession : MPVLib.EventObserver {
   private fun suspendVideoTrackForSurfaceLossLocked() {
     val current = _state.value
     if (current.phase !in setOf(PlaybackPhase.READY, PlaybackPhase.BACKGROUND)) return
+    val activeHardwareDecoder = MPVLib.getPropertyString("hwdec-current").orEmpty()
+    if (!activeHardwareDecoder.contains("mediacodec", ignoreCase = true)) return
     val activeVid = MPVLib.getPropertyInt("vid") ?: -1
     if (activeVid > 0) {
       suspendedVideoTrack = SuspendedVideoTrack(activeVid, current.generation)
@@ -1493,6 +1680,20 @@ object PlaybackSession : MPVLib.EventObserver {
   }
 
   private fun resolvePlayableUri(item: PlaybackItem): ResolvedPlayable {
+    val xtreamReference = XtreamPlaybackUri.parse(item.playableUri)
+    if (xtreamReference != null) {
+      val proxy = XtreamStreamingProxy.getInstance()
+      val streamId = "xtream-${streamSequence.incrementAndGet()}"
+      val uri =
+        proxy.registerStream(
+          streamId = streamId,
+          reference = xtreamReference,
+          headers = item.headers,
+          mimeType = item.mimeType ?: "application/octet-stream",
+        )
+      return ResolvedPlayable(uri, NetworkStreamRegistration(xtreamProxy = proxy, streamId = streamId))
+    }
+
     val reference =
       NetworkPlaybackUri.parse(item.playableUri)
         ?: item.networkSource?.let { source ->
@@ -1570,6 +1771,7 @@ object PlaybackSession : MPVLib.EventObserver {
     runCatching {
       registration.proxy?.unregisterStream(registration.streamId)
       registration.hlsProxy?.unregisterStream(registration.streamId)
+      registration.xtreamProxy?.unregisterStream(registration.streamId)
     }.onFailure { error -> Log.w(TAG, "Failed to release network stream", error) }
   }
 

@@ -23,6 +23,7 @@ import app.gyrolet.mpvrx.network.AndroidCookieJar
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.AudioPreferences
 import app.gyrolet.mpvrx.preferences.DecoderPreferences
+import app.gyrolet.mpvrx.preferences.DEFAULT_SUBTITLE_FONT_FAMILY
 import app.gyrolet.mpvrx.preferences.MpvConfigControlledFeatures
 import app.gyrolet.mpvrx.preferences.MpvConfigOverridePolicy
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
@@ -52,6 +53,7 @@ class MPVView(
   private val playerPreferences: PlayerPreferences by inject()
   private val decoderPreferences: DecoderPreferences by inject()
   private val advancedPreferences: AdvancedPreferences by inject()
+  private val mpvConfigCache: MpvConfigCache by inject()
   private val subtitlesPreferences: SubtitlesPreferences by inject()
   private val ytdlPreferences: YtdlPreferences by inject()
   private val anime4kManager: Anime4KManager by inject()
@@ -62,6 +64,11 @@ class MPVView(
   var isSurfaceReady = false
     private set
   var onSurfaceReady: (() -> Unit)? = null
+  var surfaceBindingEnabled = true
+    set(value) {
+      field = value
+      if (!value) isSurfaceReady = false
+    }
 
   /**
    * Configures the process-wide player and binds this view as its current rendering surface.
@@ -77,7 +84,8 @@ class MPVView(
     MpvConfigOverridePolicy.configure(advancedPreferences.mpvConfOverrides.get())
     val requestedBackend = selectRenderBackend(ignoreForcedOpenGlFallback = true)
     val coreConfigurationKey =
-      "${requestedBackend.configurationKey}|conf=${MpvConfigOverridePolicy.configurationKey()}"
+      "${requestedBackend.configurationKey}|conf=${MpvConfigOverridePolicy.configurationKey()}" +
+        "|mpv=${mpvConfigCache.configurationKey()}"
     val result =
       PlaybackSession.initialize(
         context = context.applicationContext,
@@ -102,6 +110,12 @@ class MPVView(
       isSurfaceReady = false
       PlaybackSession.unbindSurface(this)
     }
+  }
+
+  fun rebindCurrentSurface() {
+    if (!surfaceBindingEnabled || !holder.surface.isValid) return
+    isSurfaceReady = false
+    surfaceCreated(holder)
   }
 
   private data class RenderBackendSelection(
@@ -270,6 +284,14 @@ class MPVView(
       "http_persistent=0,reconnect=1,reconnect_on_network_error=1,reconnect_streamed=1," +
         "reconnect_delay_max=5,reconnect_max_retries=5,reconnect_delay_total_max=20",
     )
+    // demuxer-lavf-o only reaches demuxer-internal opens (HLS/DASH segments). The primary http(s)
+    // URL is opened by stream_lavf, which reads stream-lavf-o; without it a dropped connection or
+    // one failed seek-reopen permanently stalls network playback (endless buffering).
+    PlaybackSession.setOptionString(
+      "stream-lavf-o",
+      "reconnect=1,reconnect_on_network_error=1,reconnect_on_http_error=5xx,reconnect_streamed=1," +
+        "reconnect_delay_max=5,reconnect_max_retries=5,reconnect_delay_total_max=20",
+    )
     // Drop only video-output-bound late frames when rendering cannot keep up.
     // This prevents long-term jitter buildup without aggressively sacrificing smoothness.
     PlaybackSession.setOptionString("framedrop", "vo")
@@ -377,7 +399,9 @@ class MPVView(
   }
 
   override fun surfaceCreated(holder: android.view.SurfaceHolder) {
-    isSurfaceReady = PlaybackSession.bindSurface(holder.surface, width, height, this)
+    if (!surfaceBindingEnabled) return
+    isSurfaceReady =
+      PlaybackSession.bindSurface(holder.surface, width, height, this, ownerIsActive = { surfaceBindingEnabled })
     applyFrameRate()
     post {
       if (isSurfaceReady && holder.surface.isValid) {
@@ -479,11 +503,9 @@ class MPVView(
     PlaybackSession.setOptionString("secondary-sub-delay", subDelay)
     PlaybackSession.setOptionString("secondary-sub-speed", subSpeed)
 
-    val preferredFont = subtitlesPreferences.font.get()
-    if (preferredFont.isNotBlank()) {
-      PlaybackSession.setOptionString("sub-font", preferredFont)
-    }
-    // If blank, MPV uses its default font
+    val preferredFont = subtitlesPreferences.font.get().ifBlank { DEFAULT_SUBTITLE_FONT_FAMILY }
+    PlaybackSession.setOptionString("sub-font", preferredFont)
+    PlaybackSession.setOptionString("secondary-sub-font", preferredFont)
 
     if (subtitlesPreferences.overrideAssSubs.get()) {
       PlaybackSession.setOptionString("sub-ass-override", "force")

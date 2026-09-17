@@ -9,7 +9,7 @@
 
 package app.gyrolet.mpvrx.ui.browser.jellyfin
 
-import androidx.activity.compose.BackHandler
+import app.gyrolet.mpvrx.ui.utils.NavigationBackHandler as BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -19,6 +19,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -50,6 +51,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -60,8 +63,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryScrollableTabRow
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -69,9 +70,7 @@ import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.material3.animateFloatingActionButton
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -97,25 +96,31 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.jellyfin.JellyfinItem
+import app.gyrolet.mpvrx.domain.jellyfin.JellyfinPerson
 import app.gyrolet.mpvrx.domain.jellyfin.JellyfinSearchCategory
 import app.gyrolet.mpvrx.domain.jellyfin.JellyfinServer
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
-import kotlinx.coroutines.launch
+import app.gyrolet.mpvrx.preferences.MediaServerPreferences
+import app.gyrolet.mpvrx.preferences.MusicSourceProvider
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
 import app.gyrolet.mpvrx.preferences.MediaLayoutMode
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.presentation.components.pullrefresh.PullRefreshBox
 import app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight
-import app.gyrolet.mpvrx.ui.browser.NavigationBarState
 import app.gyrolet.mpvrx.ui.browser.components.BrowserTopBar
 import app.gyrolet.mpvrx.ui.browser.components.ExpressiveScrollBar
 import app.gyrolet.mpvrx.ui.browser.components.fastScrollGlyph
 import app.gyrolet.mpvrx.ui.browser.dialogs.JellyfinSortDialog
+import app.gyrolet.mpvrx.ui.browser.dialogs.MusicSortDialog
+import app.gyrolet.mpvrx.ui.browser.music.MusicSortField
 import app.gyrolet.mpvrx.ui.browser.fab.FabScrollHelper
 import app.gyrolet.mpvrx.ui.browser.selection.rememberSelectionManager
+import app.gyrolet.mpvrx.ui.components.InlineSearchBar
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
+import app.gyrolet.mpvrx.ui.utils.navigateTo
+import app.gyrolet.mpvrx.ui.utils.rememberTabNavigation
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -123,15 +128,30 @@ import org.koin.compose.koinInject
 fun JellyfinContent(
   viewModel: JellyfinViewModel,
   modifier: Modifier = Modifier,
+  isMusicOnlyMode: Boolean = false,
 ) {
   val uiState by viewModel.uiState.collectAsState()
   val context = LocalContext.current
   val backstack = LocalBackStack.current
   val browserPreferences = koinInject<BrowserPreferences>()
+  val mediaServerPreferences = koinInject<MediaServerPreferences>()
   val appearancePreferences = koinInject<AppearancePreferences>()
+  val currentMusicSource by mediaServerPreferences.musicSourceProvider.collectAsState()
+  val navidromeRepository = koinInject<app.gyrolet.mpvrx.repository.NavidromeRepository>()
+  val navidromeServers by navidromeRepository.allServers.collectAsState(initial = emptyList())
   val layoutMode by browserPreferences.jellyfinLayoutMode.collectAsState()
   val showQuickPlayFab by appearancePreferences.showQuickPlayFab.collectAsState()
   val quickPlayFabDirect by appearancePreferences.quickPlayFabDirect.collectAsState()
+
+  val allDownloads by viewModel.downloads.collectAsState()
+  val downloadedItemIds =
+    remember(allDownloads) {
+      allDownloads.filter { it.isPlayable }.mapNotNull { it.entity.jellyfinItemId }.toSet()
+    }
+  val activeDownloadItemIds =
+    remember(allDownloads) {
+      allDownloads.filter { it.isActive }.mapNotNull { it.entity.jellyfinItemId }.toSet()
+    }
 
   var isAddDialogOpen by remember { mutableStateOf(false) }
   var serverToReauth by remember { mutableStateOf<JellyfinServer?>(null) }
@@ -142,7 +162,6 @@ fun JellyfinContent(
   var isFabExpanded by remember { mutableStateOf(false) }
   val isFabVisible = remember { mutableStateOf(true) }
   val searchFocusRequester = remember { FocusRequester() }
-  val scope = rememberCoroutineScope()
 
   val seerrViewModel: app.gyrolet.mpvrx.ui.browser.jellyfin.seerr.SeerrViewModel =
     androidx.lifecycle.viewmodel.compose.viewModel(
@@ -165,19 +184,22 @@ fun JellyfinContent(
     initialPage = musicTabs.indexOf(uiState.musicActiveTab).coerceAtLeast(0),
     pageCount = { musicTabs.size },
   )
+  val navigateMusicTab = rememberTabNavigation(musicPagerState)
 
-  LaunchedEffect(musicPagerState.settledPage, musicTabs) {
-    musicTabs.getOrNull(musicPagerState.settledPage)?.let { tab ->
-      if (uiState.musicActiveTab != tab) {
-        viewModel.setMusicTab(tab)
+  LaunchedEffect(musicPagerState.settledPage, musicPagerState.isScrollInProgress, musicTabs) {
+    if (!musicPagerState.isScrollInProgress) {
+      musicTabs.getOrNull(musicPagerState.settledPage)?.let { tab ->
+        if (uiState.musicActiveTab != tab) {
+          viewModel.setMusicTab(tab)
+        }
       }
     }
   }
 
   LaunchedEffect(uiState.musicActiveTab, musicTabs) {
     val targetIndex = musicTabs.indexOf(uiState.musicActiveTab)
-    if (targetIndex >= 0 && musicPagerState.currentPage != targetIndex) {
-      musicPagerState.animateScrollToPage(targetIndex)
+    if (targetIndex >= 0) {
+      navigateMusicTab(targetIndex)
     }
   }
 
@@ -214,25 +236,42 @@ fun JellyfinContent(
       },
     )
 
-  DisposableEffect(selectionManager.isInSelectionMode) {
-    NavigationBarState.updateSelectionState(
-      inSelectionMode = selectionManager.isInSelectionMode,
-      onlyVideos = true,
-    )
-    onDispose {
-      NavigationBarState.updateSelectionState(inSelectionMode = false)
+  // Clear selection when navigating into or out of a folder
+  LaunchedEffect(uiState.openLibrary) {
+    selectionManager.clear()
+  }
+
+  // Clear selection and close detail when active server changes
+  LaunchedEffect(uiState.activeServer) {
+    selectionManager.clear()
+    if (uiState.detailItem != null) {
+      viewModel.closeDetail()
     }
   }
 
+  app.gyrolet.mpvrx.ui.browser.NavigationBarSelectionEffect(selectionManager.isInSelectionMode)
+
   // Intercept back button if searching, selecting, requests open, details open, or browsing inside a folder
-  BackHandler(
-    enabled =
+  val isBackEnabled =
+    if (isMusicOnlyMode) {
+      isSearching || selectionManager.isInSelectionMode || uiState.detailItem != null ||
+        uiState.personDetail != null ||
+        uiState.musicActiveTab != JellyfinMusicTab.HOME ||
+        (isFabExpanded && !quickPlayFabDirect)
+    } else {
       isSeerrRequestsOpen || isSearching || selectionManager.isInSelectionMode ||
-        uiState.detailItem != null || uiState.openLibrary != null || (isFabExpanded && !quickPlayFabDirect),
+        uiState.detailItem != null || uiState.personDetail != null || uiState.openLibrary != null || (isFabExpanded && !quickPlayFabDirect)
+    }
+
+  BackHandler(
+    enabled = isBackEnabled,
   ) {
     when {
       isFabExpanded && !quickPlayFabDirect -> {
         isFabExpanded = false
+      }
+      uiState.personDetail != null -> {
+        viewModel.closePerson()
       }
       uiState.detailItem != null -> {
         viewModel.closeDetail()
@@ -247,6 +286,11 @@ fun JellyfinContent(
       }
       selectionManager.isInSelectionMode -> {
         selectionManager.clear()
+      }
+      isMusicOnlyMode -> {
+        if (uiState.musicActiveTab != JellyfinMusicTab.HOME) {
+          viewModel.setMusicTab(JellyfinMusicTab.HOME)
+        }
       }
       else -> {
         viewModel.navigateBack()
@@ -274,21 +318,30 @@ fun JellyfinContent(
     }
   }
 
+  val isMusicMode = isMusicOnlyMode || uiState.openLibrary?.isMusic == true
+
   val pageTitle =
     when {
+      isMusicOnlyMode -> stringResource(R.string.ui_music)
       uiState.openLibrary != null -> uiState.openLibrary!!.title
       uiState.activeServer != null -> uiState.activeServer!!.name
       else -> stringResource(R.string.ui_jellyfin)
     }
 
   val headerContainerColor =
-    if (MaterialTheme.colorScheme.background == Color.Black) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+    if (app.gyrolet.mpvrx.ui.theme.LocalAppWallpaperActive.current) {
+      Color.Transparent
+    } else if (MaterialTheme.colorScheme.background == Color.Black) {
+      Color.Black
+    } else {
+      MaterialTheme.colorScheme.surfaceContainer
+    }
 
   Column(
     modifier =
       modifier
         .fillMaxSize()
-        .background(MaterialTheme.colorScheme.background),
+        .background(app.gyrolet.mpvrx.ui.theme.wallpaperAwareBackgroundColor()),
   ) {
     // Top Bar Container (Material 3 Expressive BrowserTopBar / SearchBar / TabRow)
     Column(
@@ -304,49 +357,39 @@ fun JellyfinContent(
               .padding(horizontal = 16.dp, vertical = 6.dp),
           verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-          SearchBar(
-            inputField = {
-              SearchBarDefaults.InputField(
-                query = uiState.searchQuery,
-                onQueryChange = {
-                  viewModel.onSearchQueryChanged(it)
-                },
-                onSearch = { viewModel.performSearch(uiState.searchQuery, debounceMs = 0L) },
-                expanded = false,
-                onExpandedChange = { },
-                placeholder = { Text("Search movies, shows, episodes...") },
-                leadingIcon = {
-                  Icon(
-                    imageVector = Icons.RoundedFilled.Search,
-                    contentDescription = stringResource(R.string.settings_search_title),
-                  )
-                },
-                trailingIcon = {
-                  IconButton(
-                    onClick = {
-                      if (uiState.searchQuery.isNotEmpty()) {
-                        viewModel.onSearchQueryChanged("")
-                        viewModel.refresh()
-                      } else {
-                        isSearching = false
-                      }
-                    },
-                  ) {
-                    Icon(
-                      imageVector = Icons.RoundedFilled.Close,
-                      contentDescription = stringResource(R.string.generic_cancel),
-                    )
-                  }
-                },
-                modifier = Modifier.focusRequester(searchFocusRequester),
+          InlineSearchBar(
+            query = uiState.searchQuery,
+            onQueryChange = viewModel::onSearchQueryChanged,
+            onSearch = { query -> viewModel.performSearch(query, debounceMs = 0L) },
+            modifier = Modifier.fillMaxWidth(),
+            inputFieldModifier = Modifier.focusRequester(searchFocusRequester),
+            placeholder = { Text("Search movies, shows, episodes...") },
+            leadingIcon = {
+              Icon(
+                imageVector = Icons.RoundedFilled.Search,
+                contentDescription = stringResource(R.string.settings_search_title),
               )
             },
-            expanded = false,
-            onExpandedChange = { },
-            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+              IconButton(
+                onClick = {
+                  if (uiState.searchQuery.isNotEmpty()) {
+                    viewModel.onSearchQueryChanged("")
+                    viewModel.refresh()
+                  } else {
+                    isSearching = false
+                  }
+                },
+              ) {
+                Icon(
+                  imageVector = Icons.RoundedFilled.Close,
+                  contentDescription = stringResource(R.string.generic_cancel),
+                )
+              }
+            },
             shape = RoundedCornerShape(28.dp),
             tonalElevation = 6.dp,
-          ) { }
+          )
 
           // Category Filter Chips
           Row(
@@ -385,24 +428,209 @@ fun JellyfinContent(
           onDeselectAll = { selectionManager.clear() },
           onPlayClick = { viewModel.playSelected(context, selectionManager.getSelectedItems()) },
           isSingleSelection = selectionManager.isSingleSelection,
-          onBackClick = if (uiState.openLibrary != null) { { viewModel.navigateBack() } } else null,
-          onSortClick = if (uiState.openLibrary != null && !(uiState.openLibrary?.isMusic == true && uiState.musicActiveTab == JellyfinMusicTab.HOME)) {
+          onBackClick = if (!isMusicOnlyMode && uiState.openLibrary != null) { { viewModel.navigateBack() } } else null,
+          onSortClick = if (if (isMusicMode) uiState.musicActiveTab != JellyfinMusicTab.HOME else uiState.openLibrary != null) {
             { isSortDialogOpen = true }
           } else null,
           onSearchClick = { isSearching = true },
-          onRequestClick = { isSeerrRequestsOpen = true },
-          onSettingsClick = {
-            backstack.add(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
+          // Seerr requests only surface on the untouched Jellyfin home page.
+          onRequestClick = if (!isMusicOnlyMode && uiState.openLibrary == null && uiState.selectedLibraryId == null) {
+            { isSeerrRequestsOpen = true }
+          } else {
+            null
           },
-          additionalActions = {
+          onSettingsClick = {
+            backstack.navigateTo(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
+          },
+          preSearchActions = {
+            if (!selectionManager.isInSelectionMode) {
+              if (isMusicOnlyMode) {
+                var isSourceDropdownOpen by remember { mutableStateOf(false) }
+                Box {
+                  Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f),
+                    modifier = Modifier
+                      .padding(horizontal = 4.dp, vertical = 6.dp)
+                      .clickable { isSourceDropdownOpen = true },
+                  ) {
+                    Row(
+                      verticalAlignment = Alignment.CenterVertically,
+                      modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    ) {
+                      when (currentMusicSource) {
+                        MusicSourceProvider.JELLYFIN -> {
+                          androidx.compose.material3.Icon(
+                            painter = painterResource(R.drawable.ic_jellyfin),
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                          )
+                        }
+                        MusicSourceProvider.NAVIDROME -> {
+                          androidx.compose.material3.Icon(
+                            painter = painterResource(R.drawable.ic_navidrome),
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                          )
+                        }
+                        else -> {
+                          Icon(
+                            Icons.RoundedFilled.Folder,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                          )
+                        }
+                      }
+                      Spacer(Modifier.width(6.dp))
+                      Text(
+                        text = when (currentMusicSource) {
+                          MusicSourceProvider.JELLYFIN -> stringResource(R.string.pref_jellyfin_title)
+                          MusicSourceProvider.NAVIDROME -> stringResource(R.string.music_source_navidrome)
+                          else -> stringResource(R.string.music_source_local)
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                      )
+                      Spacer(Modifier.width(2.dp))
+                      Icon(
+                        Icons.RoundedFilled.ArrowDropDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                      )
+                    }
+                  }
+
+                  DropdownMenu(
+                    expanded = isSourceDropdownOpen,
+                    onDismissRequest = { isSourceDropdownOpen = false },
+                  ) {
+                    DropdownMenuItem(
+                      text = {
+                        Row(
+                          verticalAlignment = Alignment.CenterVertically,
+                          horizontalArrangement = Arrangement.SpaceBetween,
+                          modifier = Modifier.fillMaxWidth(),
+                        ) {
+                          Text(stringResource(R.string.music_source_local))
+                          if (currentMusicSource == MusicSourceProvider.LOCAL) {
+                            Spacer(Modifier.width(12.dp))
+                            Icon(
+                              Icons.RoundedFilled.Check,
+                              contentDescription = null,
+                              modifier = Modifier.size(18.dp),
+                              tint = MaterialTheme.colorScheme.primary,
+                            )
+                          }
+                        }
+                      },
+                      leadingIcon = {
+                        Icon(Icons.RoundedFilled.Folder, contentDescription = null)
+                      },
+                      onClick = {
+                        mediaServerPreferences.musicSourceProvider.set(MusicSourceProvider.LOCAL)
+                        isSourceDropdownOpen = false
+                      },
+                    )
+
+                    DropdownMenuItem(
+                      text = {
+                        Row(
+                          verticalAlignment = Alignment.CenterVertically,
+                          horizontalArrangement = Arrangement.SpaceBetween,
+                          modifier = Modifier.fillMaxWidth(),
+                        ) {
+                          Text(stringResource(R.string.music_source_jellyfin))
+                          if (currentMusicSource == MusicSourceProvider.JELLYFIN) {
+                            Spacer(Modifier.width(12.dp))
+                            Icon(
+                              Icons.RoundedFilled.Check,
+                              contentDescription = null,
+                              modifier = Modifier.size(18.dp),
+                              tint = MaterialTheme.colorScheme.primary,
+                            )
+                          }
+                        }
+                      },
+                      leadingIcon = {
+                        androidx.compose.material3.Icon(
+                          painter = painterResource(R.drawable.ic_jellyfin),
+                          contentDescription = null,
+                          modifier = Modifier.size(20.dp),
+                          tint = MaterialTheme.colorScheme.primary,
+                        )
+                      },
+                      onClick = {
+                        mediaServerPreferences.musicSourceProvider.set(MusicSourceProvider.JELLYFIN)
+                        isSourceDropdownOpen = false
+                      },
+                    )
+
+                    if (navidromeServers.isNotEmpty()) {
+                      DropdownMenuItem(
+                        text = {
+                          Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth(),
+                          ) {
+                            Text(stringResource(R.string.music_source_navidrome))
+                            if (currentMusicSource == MusicSourceProvider.NAVIDROME) {
+                              Spacer(Modifier.width(12.dp))
+                              Icon(
+                                Icons.RoundedFilled.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                              )
+                            }
+                          }
+                        },
+                        leadingIcon = {
+                          androidx.compose.material3.Icon(
+                            painter = painterResource(R.drawable.ic_navidrome),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                          )
+                        },
+                        onClick = {
+                          mediaServerPreferences.musicSourceProvider.set(MusicSourceProvider.NAVIDROME)
+                          isSourceDropdownOpen = false
+                        },
+                      )
+                    }
+
+                    HorizontalDivider()
+
+                    DropdownMenuItem(
+                      text = { Text(stringResource(R.string.pref_media_servers_title)) },
+                      leadingIcon = {
+                        Icon(Icons.RoundedFilled.Settings, contentDescription = null)
+                      },
+                      onClick = {
+                        isSourceDropdownOpen = false
+                        backstack.navigateTo(app.gyrolet.mpvrx.ui.preferences.MediaServersPreferencesScreen)
+                      },
+                    )
+                  }
+                }
+              }
+            }
+          },
+          postSearchActions = {
             if (!selectionManager.isInSelectionMode) {
               IconButton(
-                onClick = { isManageServersOpen = true },
+                onClick = { backstack.navigateTo(app.gyrolet.mpvrx.ui.downloads.DownloadsScreen) },
                 modifier = Modifier.padding(horizontal = 2.dp),
               ) {
                 Icon(
-                  imageVector = Icons.RoundedFilled.BringYourOwnIp,
-                  contentDescription = "Manage Servers",
+                  imageVector = Icons.RoundedFilled.Download,
+                  contentDescription = stringResource(R.string.downloads_open_downloads),
                   modifier = Modifier.size(24.dp),
                   tint = MaterialTheme.colorScheme.secondary,
                 )
@@ -412,7 +640,7 @@ fun JellyfinContent(
         )
       }
 
-      if (uiState.openLibrary != null && uiState.openLibrary?.isMusic != true && !isSearching) {
+      if (uiState.openLibrary != null && !isMusicMode && !isSearching) {
         JellyfinGenreChipRow(
           genres = uiState.availableGenres,
           selectedGenre = uiState.selectedGenreFilter,
@@ -420,13 +648,13 @@ fun JellyfinContent(
         )
       }
 
-      if (uiState.openLibrary?.isMusic == true && !isSearching) {
+      if (isMusicMode && !isSearching) {
         val selectedTabIndex = musicPagerState.currentPage.coerceIn(0, (musicTabs.size - 1).coerceAtLeast(0))
 
         PrimaryScrollableTabRow(
           selectedTabIndex = selectedTabIndex,
           containerColor = Color.Transparent,
-          contentColor = MaterialTheme.colorScheme.primary,
+          contentColor = MaterialTheme.colorScheme.onSurface,
           edgePadding = 8.dp,
           divider = {},
         ) {
@@ -434,10 +662,8 @@ fun JellyfinContent(
             Tab(
               selected = selectedTabIndex == index,
               onClick = {
-                scope.launch {
-                  viewModel.setMusicTab(tab)
-                  musicPagerState.animateScrollToPage(index)
-                }
+                viewModel.setMusicTab(tab)
+                navigateMusicTab(index)
               },
               text = {
                 Text(
@@ -449,6 +675,8 @@ fun JellyfinContent(
                   overflow = TextOverflow.Ellipsis,
                 )
               },
+              selectedContentColor = MaterialTheme.colorScheme.onSurface,
+              unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             )
           }
         }
@@ -499,7 +727,7 @@ fun JellyfinContent(
             }
 
             // Root / Discovery Home View (Expressive UI)
-            uiState.openLibrary == null && uiState.searchQuery.isBlank() -> {
+            !isMusicOnlyMode && uiState.openLibrary == null && uiState.searchQuery.isBlank() -> {
               val server = uiState.activeServer
 
               if (server != null) {
@@ -575,39 +803,56 @@ fun JellyfinContent(
                       }
                     }
 
-                    // 4. Latest Movies Section
-                    if (uiState.latestMovies.isNotEmpty()) {
-                      item {
+                    // 4. Per-Library Latest Sections (e.g. Latest Movies, Latest Shows, etc.)
+                    if (uiState.librarySections.isNotEmpty()) {
+                      items(uiState.librarySections, key = { "lib_section_${it.library.id}" }) { section ->
                         JellyfinHorizontalSection(
-                          title = "Latest Movies",
-                          subtitle = "Newly added to server",
-                          items = uiState.latestMovies,
+                          title = section.title,
+                          subtitle = section.subtitle,
+                          items = section.items,
                           server = server,
                           onItemClick = { item -> viewModel.openDetail(item) },
                           onItemLongClick = { item -> viewModel.playItem(context, item) },
                           onSeeAll = {
-                            val movieLib = uiState.libraries.find { it.collectionType?.equals("movies", ignoreCase = true) == true }
-                            if (movieLib != null) viewModel.navigateToItem(movieLib)
+                            viewModel.navigateToItem(section.library)
                           },
                         )
                       }
-                    }
+                    } else {
+                      // Fallback: Legacy Latest Movies Section
+                      if (uiState.latestMovies.isNotEmpty()) {
+                        item {
+                          JellyfinHorizontalSection(
+                            title = "Latest Movies",
+                            subtitle = "Newly added to server",
+                            items = uiState.latestMovies,
+                            server = server,
+                            onItemClick = { item -> viewModel.openDetail(item) },
+                            onItemLongClick = { item -> viewModel.playItem(context, item) },
+                            onSeeAll = {
+                              val movieLib = uiState.libraries.find { it.collectionType?.equals("movies", ignoreCase = true) == true }
+                              if (movieLib != null) viewModel.navigateToItem(movieLib)
+                            },
+                          )
+                        }
+                      }
 
-                    // 5. Latest TV Shows Section
-                    if (uiState.latestShows.isNotEmpty()) {
-                      item {
-                        JellyfinHorizontalSection(
-                          title = "Latest TV Shows",
-                          subtitle = "Newly updated series",
-                          items = uiState.latestShows,
-                          server = server,
-                          onItemClick = { item -> viewModel.openDetail(item) },
-                          onItemLongClick = { item -> viewModel.playItem(context, item) },
-                          onSeeAll = {
-                            val tvLib = uiState.libraries.find { it.collectionType?.equals("tvshows", ignoreCase = true) == true }
-                            if (tvLib != null) viewModel.navigateToItem(tvLib)
-                          },
-                        )
+                      // Fallback: Legacy Latest TV Shows Section
+                      if (uiState.latestShows.isNotEmpty()) {
+                        item {
+                          JellyfinHorizontalSection(
+                            title = "Latest TV Shows",
+                            subtitle = "Newly updated series",
+                            items = uiState.latestShows,
+                            server = server,
+                            onItemClick = { item -> viewModel.openDetail(item) },
+                            onItemLongClick = { item -> viewModel.playItem(context, item) },
+                            onSeeAll = {
+                              val tvLib = uiState.libraries.find { it.collectionType?.equals("tvshows", ignoreCase = true) == true }
+                              if (tvLib != null) viewModel.navigateToItem(tvLib)
+                            },
+                          )
+                        }
                       }
                     }
 
@@ -676,22 +921,14 @@ fun JellyfinContent(
 
             // Level / Search View: Inside a Library / Folder / Season / Search results
             else -> {
-              val openLib = uiState.openLibrary
-              if (openLib?.isMusic == true && uiState.searchQuery.isBlank() && uiState.activeServer != null) {
+              val openLib = uiState.openLibrary ?: if (isMusicOnlyMode) viewModel.getMusicLibraryView() else null
+              if ((isMusicOnlyMode || openLib?.isMusic == true) && uiState.searchQuery.isBlank() && uiState.activeServer != null) {
                 JellyfinMusicView(
                   uiState = uiState,
                   server = uiState.activeServer!!,
                   pagerState = musicPagerState,
                   visibleTabs = musicTabs,
-                  onTabSelected = { tab ->
-                    scope.launch {
-                      viewModel.setMusicTab(tab)
-                      val targetIndex = musicTabs.indexOf(tab)
-                      if (targetIndex >= 0) {
-                        musicPagerState.animateScrollToPage(targetIndex)
-                      }
-                    }
-                  },
+                  onTabSelected = viewModel::setMusicTab,
                   onItemClick = { item ->
                     if (selectionManager.isInSelectionMode) {
                       selectionManager.toggle(item)
@@ -775,6 +1012,13 @@ fun JellyfinContent(
                             },
                             onLongClick = { selectionManager.handleLongClick(item) },
                             isSelected = selectionManager.isSelected(item),
+                            downloadState =
+                              when {
+                                item.id in downloadedItemIds -> EpisodeDownloadState.DOWNLOADED
+                                item.id in activeDownloadItemIds -> EpisodeDownloadState.ACTIVE
+                                else -> EpisodeDownloadState.NOT_DOWNLOADED
+                              },
+                            onDownload = { viewModel.downloadItem(item) },
                           )
                         } else {
                           JellyfinListItemCard(
@@ -793,6 +1037,7 @@ fun JellyfinContent(
                             },
                             onLongClick = { selectionManager.handleLongClick(item) },
                             isSelected = selectionManager.isSelected(item),
+                            isDownloaded = item.id in downloadedItemIds,
                           )
                         }
                       }
@@ -875,6 +1120,7 @@ fun JellyfinContent(
                           },
                           onLongClick = { selectionManager.handleLongClick(item) },
                           isSelected = selectionManager.isSelected(item),
+                          isDownloaded = item.id in downloadedItemIds,
                         )
                       }
                     }
@@ -1058,8 +1304,9 @@ fun JellyfinContent(
                 }
               },
             ) {
-              val checkedProgress = if (isFabExpanded && !quickPlayFabDirect) 1f else 0f
-              val imageVector by remember {
+              // The scope's animated checkedProgress drives the icon; a local val here
+              // shadowed it before, freezing the FAB on the play icon while expanded.
+              val imageVector by remember(quickPlayFabDirect) {
                 derivedStateOf {
                   if (checkedProgress > 0.5f && !quickPlayFabDirect) Icons.RoundedFilled.Close else Icons.RoundedFilled.PlayArrow
                 }
@@ -1130,35 +1377,96 @@ fun JellyfinContent(
       onToggleFavorite = { item -> viewModel.toggleItemFavorite(item) },
       onTogglePlayed = { item -> viewModel.togglePlayed(item) },
       onItemClick = { item -> viewModel.openDetail(item) },
+      onPersonClick = { person -> viewModel.openPerson(person) },
       onDeleteItem = { itemToDelete ->
         viewModel.deleteItem(itemToDelete.id) {
           viewModel.closeDetail()
         }
       },
+      onDownload = { itemToDownload -> viewModel.downloadItem(itemToDownload) },
+      onDownloadSeason = { viewModel.downloadSelectedSeason() },
+      onDownloadSeries = { viewModel.downloadWholeSeries() },
+      downloadedItemIds = downloadedItemIds,
+      activeDownloadItemIds = activeDownloadItemIds,
+    )
+
+    JellyfinPersonSheet(
+      person = uiState.personDetail,
+      server = server,
+      overview = uiState.personOverview,
+      media = uiState.personMedia,
+      isLoading = uiState.isPersonLoading,
+      onDismiss = { viewModel.closePerson() },
+      onItemClick = { item ->
+        viewModel.openDetail(item)
+      },
     )
   }
 
-  // Standard Material 3 Sort Dialog (matches Home and Network Browser)
-  JellyfinSortDialog(
-    isOpen = isSortDialogOpen,
-    onDismiss = { isSortDialogOpen = false },
-    sortBy = uiState.sortBy,
-    onSortByChange = { newSort ->
-      viewModel.setSort(newSort, uiState.sortOrder)
-    },
-    sortOrder = uiState.sortOrder,
-    onSortOrderChange = { newOrder ->
-      viewModel.setSort(uiState.sortBy, newOrder)
-    },
-    isUnplayedOnly = uiState.isUnplayedOnly,
-    onUnplayedOnlyChange = {
-      viewModel.toggleUnplayedOnly()
-    },
-    layoutMode = layoutMode,
-    onLayoutModeChange = { newMode ->
-      browserPreferences.jellyfinLayoutMode.set(newMode)
-    },
-  )
+  if (isMusicMode) {
+    val availableFields = remember(uiState.musicActiveTab) {
+      when (uiState.musicActiveTab) {
+        JellyfinMusicTab.TRACKS -> listOf(
+          MusicSortField.TITLE,
+          MusicSortField.ARTIST,
+          MusicSortField.ALBUM,
+          MusicSortField.DURATION,
+          MusicSortField.YEAR,
+        )
+        JellyfinMusicTab.ALBUMS -> listOf(
+          MusicSortField.TITLE,
+          MusicSortField.ARTIST,
+          MusicSortField.YEAR,
+          MusicSortField.TRACK_COUNT,
+          MusicSortField.DURATION,
+        )
+        JellyfinMusicTab.ARTISTS -> listOf(
+          MusicSortField.ARTIST,
+          MusicSortField.TRACK_COUNT,
+        )
+        JellyfinMusicTab.PLAYLISTS -> listOf(
+          MusicSortField.TITLE,
+          MusicSortField.TRACK_COUNT,
+          MusicSortField.DURATION,
+        )
+        else -> emptyList()
+      }
+    }
+
+    MusicSortDialog(
+      isOpen = isSortDialogOpen,
+      onDismiss = { isSortDialogOpen = false },
+      sortField = uiState.musicSortField,
+      sortOrder = uiState.musicSortOrder,
+      viewMode = uiState.musicViewMode,
+      onSortFieldChange = { viewModel.setMusicSortField(it) },
+      onSortOrderChange = { viewModel.setMusicSortOrder(it) },
+      onViewModeChange = { viewModel.setMusicViewMode(it) },
+      availableFields = availableFields,
+    )
+  } else {
+    // Standard Material 3 Sort Dialog (matches Home and Network Browser)
+    JellyfinSortDialog(
+      isOpen = isSortDialogOpen,
+      onDismiss = { isSortDialogOpen = false },
+      sortBy = uiState.sortBy,
+      onSortByChange = { newSort ->
+        viewModel.setSort(newSort, uiState.sortOrder)
+      },
+      sortOrder = uiState.sortOrder,
+      onSortOrderChange = { newOrder ->
+        viewModel.setSort(uiState.sortBy, newOrder)
+      },
+      isUnplayedOnly = uiState.isUnplayedOnly,
+      onUnplayedOnlyChange = {
+        viewModel.toggleUnplayedOnly()
+      },
+      layoutMode = layoutMode,
+      onLayoutModeChange = { newMode ->
+        browserPreferences.jellyfinLayoutMode.set(newMode)
+      },
+    )
+  }
 
   // Manage Servers Dialog
   ManageJellyfinServersDialog(

@@ -21,6 +21,8 @@ import android.util.Log
 import app.gyrolet.mpvrx.database.repository.VideoMetadataCacheRepository
 import app.gyrolet.mpvrx.domain.media.model.Video
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -73,6 +75,7 @@ object VideoScanUtils : KoinComponent {
           v.duration <= 0L && v.path.substringAfterLast('.').lowercase() in MEDIASTORE_DURATION_UNRELIABLE
         }
       for (key in zeroTsKeys) {
+        currentCoroutineContext().ensureActive()
         val v = videosMap[key] ?: continue
         try {
           val file = File(v.path)
@@ -85,6 +88,8 @@ object VideoScanUtils : KoinComponent {
                 durationFormatted = formatDuration(meta.durationMs),
               )
           }
+        } catch (error: kotlinx.coroutines.CancellationException) {
+          throw error
         } catch (_: Exception) {
         }
       }
@@ -105,7 +110,7 @@ object VideoScanUtils : KoinComponent {
   /**
    * Scan videos from MediaStore
    */
-  private fun scanVideosFromMediaStore(
+  private suspend fun scanVideosFromMediaStore(
     context: Context,
     folderPath: String,
     videosMap: MutableMap<String, Video>,
@@ -151,7 +156,8 @@ object VideoScanUtils : KoinComponent {
           val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
 
           while (cursor.moveToNext()) {
-            val path = cursor.getString(dataColumn)
+            currentCoroutineContext().ensureActive()
+            val path = cursor.getString(dataColumn)?.takeIf { it.isNotBlank() } ?: continue
             val file = File(path)
             val normalizedPath = normalizeStoragePath(path) ?: continue
 
@@ -162,7 +168,7 @@ object VideoScanUtils : KoinComponent {
             if (noMediaPathFilter.shouldExcludeDirectory(file.parentFile)) continue
 
             val id = cursor.getLong(idColumn)
-            val displayName = cursor.getString(nameColumn)
+            val displayName = cursor.getString(nameColumn)?.takeIf { it.isNotBlank() } ?: file.name
             val title = file.nameWithoutExtension
             val size = cursor.getLong(sizeColumn)
             val duration = cursor.getLong(durationColumn)
@@ -204,12 +210,14 @@ object VideoScanUtils : KoinComponent {
               )
           }
         }
+    } catch (error: kotlinx.coroutines.CancellationException) {
+      throw error
     } catch (e: Exception) {
       Log.e(TAG, "MediaStore video scan error", e)
     }
   }
 
-  private fun scanAudioFromMediaStore(
+  private suspend fun scanAudioFromMediaStore(
     context: Context,
     folderPath: String,
     videosMap: MutableMap<String, Video>,
@@ -252,10 +260,12 @@ object VideoScanUtils : KoinComponent {
           val mimeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
 
           while (cursor.moveToNext()) {
-            val path = cursor.getString(dataColumn)
+            currentCoroutineContext().ensureActive()
+            val path = cursor.getString(dataColumn)?.takeIf { it.isNotBlank() } ?: continue
             val file = File(path)
+            if (!file.isFile) continue
             if (!areEquivalentStoragePaths(file.parent, normalizedFolderPath)) continue
-            if (!file.exists() || noMediaPathFilter.shouldExcludeDirectory(file.parentFile)) continue
+            if (noMediaPathFilter.shouldExcludeDirectory(file.parentFile)) continue
             if (!FileTypeUtils.isAudioFile(file)) continue
             val duration = cursor.getLong(durationColumn)
             if (!options.includesAudioDuration(duration)) continue
@@ -290,6 +300,8 @@ object VideoScanUtils : KoinComponent {
               )
           }
         }
+    } catch (error: kotlinx.coroutines.CancellationException) {
+      throw error
     } catch (e: Exception) {
       Log.e(TAG, "MediaStore audio scan error", e)
     }
@@ -310,6 +322,7 @@ object VideoScanUtils : KoinComponent {
       val filesToProcess = mutableListOf<File>()
 
       for (file in files) {
+        currentCoroutineContext().ensureActive()
         if (!file.isFile) continue
         if (FileFilterUtils.shouldSkipFile(file, options, noMediaPathFilter)) continue
 
@@ -332,6 +345,7 @@ object VideoScanUtils : KoinComponent {
         )
 
       for (file in filesToProcess) {
+        currentCoroutineContext().ensureActive()
         try {
           val path = normalizeStoragePath(file.absolutePath) ?: continue
           val videoKey = mediaPathKey(path) ?: path
@@ -371,10 +385,14 @@ object VideoScanUtils : KoinComponent {
               subtitleCodec = cachedMetadata?.subtitleCodec ?: "",
               isAudio = isAudio,
             )
+        } catch (error: kotlinx.coroutines.CancellationException) {
+          throw error
         } catch (e: Exception) {
           Log.w(TAG, "Error processing file: ${file.absolutePath}", e)
         }
       }
+    } catch (error: kotlinx.coroutines.CancellationException) {
+      throw error
     } catch (e: Exception) {
       Log.e(TAG, "Filesystem video scan error", e)
     }
@@ -593,8 +611,6 @@ object FileTypeUtils {
  * Handles file and folder filtering logic
  */
 object FileFilterUtils {
-  private const val TAG = "FileFilterUtils"
-
   // Folders to skip during scanning (system/cache folders)
   private val SKIP_FOLDERS =
     setOf(
@@ -635,23 +651,6 @@ object FileFilterUtils {
     )
 
   /**
-   * Checks if a folder contains a .nomedia file
-   */
-  fun hasNoMediaFile(folder: File): Boolean {
-    if (!folder.isDirectory || !folder.canRead()) {
-      return false
-    }
-
-    return try {
-      val noMediaFile = File(folder, ".nomedia")
-      noMediaFile.exists()
-    } catch (e: Exception) {
-      Log.w(TAG, "Error checking for .nomedia file in: ${folder.absolutePath}", e)
-      false
-    }
-  }
-
-  /**
    * Checks if a folder should be skipped during scanning
    */
   fun shouldSkipFolder(
@@ -662,7 +661,7 @@ object FileFilterUtils {
     if (isAndroidDataAccessiblePath(folder)) {
       // Allow navigation/scanning into Android/data so app-specific video folders
       // can appear in both the folder list and filesystem browser.
-      return folder.name.startsWith(".")
+      return folder.name.startsWith(".") && !options.includeNoMediaFolders
     }
 
     if (noMediaPathFilter.shouldExcludeDirectory(folder)) {
@@ -671,7 +670,7 @@ object FileFilterUtils {
 
     val name = folder.name.lowercase()
     val isHidden = name.startsWith(".")
-    return isHidden || SKIP_FOLDERS.contains(name)
+    return (isHidden && !options.includeNoMediaFolders) || SKIP_FOLDERS.contains(name)
   }
 
   /**

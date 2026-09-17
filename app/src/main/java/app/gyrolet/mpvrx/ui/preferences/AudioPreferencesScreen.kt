@@ -26,7 +26,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RangeSlider
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -47,6 +47,8 @@ import app.gyrolet.mpvrx.preferences.AudioChannels
 import app.gyrolet.mpvrx.preferences.AudioPlayerOrientation
 import app.gyrolet.mpvrx.preferences.AudioPreferences
 import app.gyrolet.mpvrx.preferences.LyricsTranslationDisplayMode
+import app.gyrolet.mpvrx.preferences.MediaServerPreferences
+import app.gyrolet.mpvrx.preferences.MusicSourceProvider
 import app.gyrolet.mpvrx.data.lyrics.LyricsLanguageOptions
 import app.gyrolet.mpvrx.preferences.AudioVisualizerStyle
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
@@ -145,6 +147,7 @@ object AudioPreferencesScreen : Screen {
             PreferenceCard {
               val includeAudioBrowser by browserPreferences.includeAudioBrowser.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.ui_include_audio_files),
                 value = includeAudioBrowser,
                 onValueChange = { enabled ->
                   browserPreferences.includeAudioBrowser.set(enabled)
@@ -189,6 +192,7 @@ object AudioPreferencesScreen : Screen {
               Column(
                 modifier =
                   Modifier
+                    .settingsSearchTarget(R.string.ui_minimum_audio_duration)
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
               ) {
@@ -202,17 +206,14 @@ object AudioPreferencesScreen : Screen {
                   color = MaterialTheme.colorScheme.outline,
                   style = MaterialTheme.typography.bodyMedium,
                 )
-                RangeSlider(
+                Slider(
                   value =
                     minimumAudioDurationSeconds
                       .toFloat()
-                      .coerceIn(0f, maxMinimumDurationSeconds)..maxMinimumDurationSeconds,
-                  onValueChange = { selectedRange ->
-                    // The left thumb is the lower bound; there is intentionally no upper limit.
-                    // Music reacts live via the preference flow. Files/Folders are refreshed once
-                    // the drag finishes so storage is not rescanned for every intermediate step.
+                      .coerceIn(0f, maxMinimumDurationSeconds),
+                  onValueChange = { minimumSeconds ->
                     browserPreferences.minimumAudioDurationSeconds.set(
-                      selectedRange.start.toInt().coerceIn(0, maxMinimumDurationSeconds.toInt()),
+                      minimumSeconds.toInt().coerceIn(0, maxMinimumDurationSeconds.toInt()),
                     )
                   },
                   onValueChangeFinished = { MediaLibraryEvents.notifyChanged() },
@@ -236,22 +237,23 @@ object AudioPreferencesScreen : Screen {
               PreferenceDivider()
               val enabledMusicTabs by preferences.enabledMusicTabs.collectAsState()
               val musicTabOrder by preferences.musicTabOrder.collectAsState()
-              val musicTabsSummary = remember(enabledMusicTabs, musicTabOrder) {
+              val musicTabsSummary = remember(enabledMusicTabs, musicTabOrder, resources) {
                 val tabMap = MusicTab.entries.associateBy { it.name }
                 val orderedTabs = (musicTabOrder.mapNotNull { tabMap[it] } + (MusicTab.entries - musicTabOrder.mapNotNull { tabMap[it] }.toSet())).distinct()
-                val names = orderedTabs.filter { it.name in enabledMusicTabs }.map { it.title }
-                if (names.isEmpty()) "Songs" else names.joinToString(", ")
+                val names = orderedTabs.filter { it.name in enabledMusicTabs }.map { resources.getString(it.titleRes) }
+                if (names.isEmpty()) resources.getString(R.string.ui_songs) else names.joinToString(", ")
               }
 
               Column(
                 modifier =
                   Modifier
+                    .settingsSearchTarget(R.string.pref_music_tabs_title)
                     .fillMaxWidth()
                     .clickable { showMusicTabsDialog = true }
                     .padding(horizontal = 16.dp, vertical = 12.dp),
               ) {
                 Text(
-                  text = "Music Library Tabs",
+                  text = stringResource(R.string.pref_music_tabs_title),
                   style = MaterialTheme.typography.bodyLarge,
                 )
                 Text(
@@ -260,6 +262,37 @@ object AudioPreferencesScreen : Screen {
                   style = MaterialTheme.typography.bodyMedium,
                 )
               }
+
+              PreferenceDivider()
+              val mediaServerPreferences = koinInject<MediaServerPreferences>()
+              val musicSourceProvider by mediaServerPreferences.musicSourceProvider.collectAsState()
+              ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_music_player_switch_title),
+                value = musicSourceProvider,
+                onValueChange = { mediaServerPreferences.musicSourceProvider.set(it) },
+                values = listOf(MusicSourceProvider.LOCAL, MusicSourceProvider.JELLYFIN, MusicSourceProvider.NAVIDROME),
+                valueToText = { source ->
+                  AnnotatedString(
+                    when (source) {
+                      MusicSourceProvider.LOCAL -> context.getString(R.string.music_source_local)
+                      MusicSourceProvider.JELLYFIN -> context.getString(R.string.music_source_jellyfin)
+                      MusicSourceProvider.NAVIDROME -> context.getString(R.string.music_source_navidrome)
+                    },
+                  )
+                },
+                title = { Text(stringResource(R.string.pref_music_player_switch_title)) },
+                summary = {
+                  Text(
+                    text =
+                      when (musicSourceProvider) {
+                        MusicSourceProvider.LOCAL -> stringResource(R.string.music_source_local)
+                        MusicSourceProvider.JELLYFIN -> stringResource(R.string.music_source_jellyfin)
+                        MusicSourceProvider.NAVIDROME -> stringResource(R.string.music_source_navidrome)
+                      },
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
             }
           }
 
@@ -337,12 +370,28 @@ object AudioPreferencesScreen : Screen {
               PreferenceDivider()
               val audioAmbientMode by preferences.audioAmbientMode.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_audio_ambient_mode_title),
                 value = audioAmbientMode,
                 onValueChange = { preferences.audioAmbientMode.set(it) },
                 title = { Text(stringResource(R.string.pref_audio_ambient_mode_title)) },
                 summary = {
                   Text(
                     stringResource(R.string.pref_audio_ambient_mode_summary),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+
+              PreferenceDivider()
+              val audioWavySeekbar by preferences.audioWavySeekbar.collectAsState()
+              SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_audio_wavy_seekbar_title),
+                value = audioWavySeekbar,
+                onValueChange = { preferences.audioWavySeekbar.set(it) },
+                title = { Text(stringResource(R.string.pref_audio_wavy_seekbar_title)) },
+                summary = {
+                  Text(
+                    stringResource(R.string.pref_audio_wavy_seekbar_summary),
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },
@@ -430,6 +479,7 @@ object AudioPreferencesScreen : Screen {
               PreferenceDivider()
               val drcEnabled by preferences.drcEnabled.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_audio_drc_title),
                 value = drcEnabled,
                 enabled = "af" !in configOwnedOptions,
                 onValueChange = { preferences.drcEnabled.set(it) },
@@ -461,6 +511,21 @@ object AudioPreferencesScreen : Screen {
                 summary = {
                   Text(
                     stringResource(R.string.pref_audio_background_playback_summary),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+
+              PreferenceDivider()
+              val miniPlayerTrackSwitching by preferences.miniPlayerTrackSwitching.collectAsState()
+              SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_audio_mini_player_track_switching_title),
+                value = miniPlayerTrackSwitching,
+                onValueChange = preferences.miniPlayerTrackSwitching::set,
+                title = { Text(stringResource(R.string.pref_audio_mini_player_track_switching_title)) },
+                summary = {
+                  Text(
+                    stringResource(R.string.pref_audio_mini_player_track_switching_summary),
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },
@@ -535,101 +600,11 @@ object AudioPreferencesScreen : Screen {
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
               )
 
-              val enhancedLyrics by preferences.enhancedLyrics.collectAsState()
-              SwitchPreference(
-                value = enhancedLyrics,
-                onValueChange = preferences.enhancedLyrics::set,
-                title = { Text(stringResource(R.string.pref_enhanced_lyrics)) },
-                summary = { Text(stringResource(R.string.pref_enhanced_lyrics_summary)) },
-              )
-
-              PreferenceDivider()
-              val lyricsClickToSeek by preferences.lyricsClickToSeek.collectAsState()
-              SwitchPreference(
-                value = lyricsClickToSeek,
-                onValueChange = preferences.lyricsClickToSeek::set,
-                enabled = enhancedLyrics,
-                title = { Text(stringResource(R.string.pref_lyrics_click_to_seek)) },
-              )
-
-              PreferenceDivider()
-              val lyricsAutoScroll by preferences.lyricsAutoScroll.collectAsState()
-              SwitchPreference(
-                value = lyricsAutoScroll,
-                onValueChange = preferences.lyricsAutoScroll::set,
-                enabled = enhancedLyrics,
-                title = { Text(stringResource(R.string.pref_lyrics_auto_scroll)) },
-              )
-
-              PreferenceDivider()
-              val lyricsLineBlur by preferences.lyricsLineBlur.collectAsState()
-              SwitchPreference(
-                value = lyricsLineBlur,
-                onValueChange = preferences.lyricsLineBlur::set,
-                enabled = enhancedLyrics,
-                title = { Text(stringResource(R.string.pref_lyrics_line_blur)) },
-              )
-
-              PreferenceDivider()
-              val lyricsWordSync by preferences.lyricsWordSync.collectAsState()
-              SwitchPreference(
-                value = lyricsWordSync,
-                onValueChange = preferences.lyricsWordSync::set,
-                enabled = enhancedLyrics,
-                title = { Text(stringResource(R.string.pref_lyrics_word_sync)) },
-              )
-
-              PreferenceDivider()
-              val romanizeJapanese by preferences.lyricsRomanizeJapanese.collectAsState()
-              SwitchPreference(
-                value = romanizeJapanese,
-                onValueChange = preferences.lyricsRomanizeJapanese::set,
-                enabled = enhancedLyrics,
-                title = { Text(stringResource(R.string.pref_lyrics_romanize_japanese)) },
-              )
-
-              PreferenceDivider()
-              val romanizeKorean by preferences.lyricsRomanizeKorean.collectAsState()
-              SwitchPreference(
-                value = romanizeKorean,
-                onValueChange = preferences.lyricsRomanizeKorean::set,
-                enabled = enhancedLyrics,
-                title = { Text(stringResource(R.string.pref_lyrics_romanize_korean)) },
-              )
-
-              PreferenceDivider()
-              val romanizeChinese by preferences.lyricsRomanizeChinese.collectAsState()
-              SwitchPreference(
-                value = romanizeChinese,
-                onValueChange = preferences.lyricsRomanizeChinese::set,
-                enabled = enhancedLyrics,
-                title = { Text(stringResource(R.string.pref_lyrics_romanize_chinese)) },
-              )
-
-              PreferenceDivider()
-              val romanizeHindi by preferences.lyricsRomanizeHindi.collectAsState()
-              SwitchPreference(
-                value = romanizeHindi,
-                onValueChange = preferences.lyricsRomanizeHindi::set,
-                enabled = enhancedLyrics,
-                title = { Text(stringResource(R.string.pref_lyrics_romanize_hindi)) },
-              )
-
-              PreferenceDivider()
-              val romanizeOther by preferences.lyricsRomanizeOtherLanguages.collectAsState()
-              SwitchPreference(
-                value = romanizeOther,
-                onValueChange = preferences.lyricsRomanizeOtherLanguages::set,
-                enabled = enhancedLyrics,
-                title = { Text(stringResource(R.string.pref_lyrics_romanize_other)) },
-              )
-
-              PreferenceDivider()
               val lyricsAutoTranslate by preferences.lyricsAutoTranslate.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_lyrics_auto_translate),
                 value = lyricsAutoTranslate,
                 onValueChange = { preferences.lyricsAutoTranslate.set(it) },
-                enabled = enhancedLyrics,
                 title = { Text(stringResource(R.string.pref_lyrics_auto_translate)) },
                 summary = {
                   Text(
@@ -642,6 +617,7 @@ object AudioPreferencesScreen : Screen {
               PreferenceDivider()
               val lyricsTargetLanguage by preferences.lyricsTargetLanguage.collectAsState()
               ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_lyrics_target_language),
                 value = lyricsTargetLanguage,
                 onValueChange = { preferences.lyricsTargetLanguage.set(it) },
                 values = LyricsLanguageOptions.ALL_LANGUAGES.map { it.code },
@@ -658,6 +634,7 @@ object AudioPreferencesScreen : Screen {
               PreferenceDivider()
               val lyricsDisplayMode by preferences.lyricsTranslationDisplayMode.collectAsState()
               ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_lyrics_display_mode),
                 value = lyricsDisplayMode,
                 onValueChange = { preferences.lyricsTranslationDisplayMode.set(it) },
                 values = LyricsTranslationDisplayMode.entries,
@@ -686,7 +663,7 @@ object AudioPreferencesScreen : Screen {
 
       AlertDialog(
         onDismissRequest = { showMusicTabsDialog = false },
-        title = { Text("Music Library Tabs") },
+        title = { Text(stringResource(R.string.pref_music_tabs_title)) },
         text = {
           Column {
             Text(
@@ -719,7 +696,7 @@ object AudioPreferencesScreen : Screen {
                   },
                 )
                 Text(
-                  text = tab.title,
+                  text = stringResource(tab.titleRes),
                   style = MaterialTheme.typography.bodyLarge,
                   modifier = Modifier
                     .weight(1f)
@@ -782,6 +759,5 @@ object AudioPreferencesScreen : Screen {
         },
       )
     }
-
   }
 }

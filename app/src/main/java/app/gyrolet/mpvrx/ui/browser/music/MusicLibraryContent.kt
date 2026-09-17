@@ -4,10 +4,12 @@
 
 package app.gyrolet.mpvrx.ui.browser.music
 
+import android.app.Application
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.text.format.DateUtils
-import androidx.activity.compose.BackHandler
+import app.gyrolet.mpvrx.ui.browser.jellyfin.JellyfinViewModel
+import app.gyrolet.mpvrx.ui.utils.NavigationBackHandler as BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -41,7 +43,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.HorizontalPager
+import app.gyrolet.mpvrx.ui.utils.NavigationPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -66,8 +68,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -78,12 +79,11 @@ import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.animateFloatingActionButton
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -96,6 +96,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -103,6 +105,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -123,11 +126,12 @@ import app.gyrolet.mpvrx.presentation.components.RemoteImage
 import app.gyrolet.mpvrx.presentation.components.pullrefresh.PullRefreshBox
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
+import app.gyrolet.mpvrx.preferences.MediaServerPreferences
+import app.gyrolet.mpvrx.preferences.MusicSourceProvider
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.preferences.PreferencesScreen
 import app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight
 import app.gyrolet.mpvrx.ui.browser.MainScreen
-import app.gyrolet.mpvrx.ui.browser.NavigationBarState
 import app.gyrolet.mpvrx.ui.browser.cards.PlaylistCard
 import app.gyrolet.mpvrx.ui.browser.components.BrowserBottomBar
 import app.gyrolet.mpvrx.ui.browser.components.BrowserTopBar
@@ -143,10 +147,15 @@ import app.gyrolet.mpvrx.ui.browser.folderlist.FolderListScreen
 import app.gyrolet.mpvrx.ui.browser.playlist.PlaylistDetailScreen
 import app.gyrolet.mpvrx.ui.browser.selection.rememberSelectionManager
 import app.gyrolet.mpvrx.ui.player.PlaybackSession
+import app.gyrolet.mpvrx.ui.components.InlineSearchBar
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.theme.AppShapeScale
+import app.gyrolet.mpvrx.ui.player.controls.components.tvContextMenu
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
+import app.gyrolet.mpvrx.ui.utils.navigateTo
+import app.gyrolet.mpvrx.ui.utils.rememberTabNavigation
 import app.gyrolet.mpvrx.utils.media.MediaUtils
 import app.gyrolet.mpvrx.utils.permission.PermissionUtils
 import androidx.lifecycle.Lifecycle
@@ -185,11 +194,23 @@ private fun MusicSong.toVideo(): Video {
 @Composable
 fun MusicLibraryContent(
   modifier: Modifier = Modifier,
-  musicViewModel: MusicLibraryViewModel = viewModel()
+  musicViewModel: MusicLibraryViewModel = viewModel(),
+  jellyfinViewModel: JellyfinViewModel? = null,
+  navidromeViewModel: app.gyrolet.mpvrx.ui.browser.navidrome.NavidromeViewModel? = null,
 ) {
   val context = LocalContext.current
   val backStack = LocalBackStack.current
   val scope = rememberCoroutineScope()
+
+  val jfViewModel: JellyfinViewModel =
+    jellyfinViewModel
+      ?: viewModel(factory = JellyfinViewModel.factory(context.applicationContext as Application))
+  val jellyfinUiState by jfViewModel.uiState.collectAsStateWithLifecycle()
+  val hasJellyfinMusicLibrary = jellyfinUiState.hasMusicLibrary
+
+  val navidromeRepository = koinInject<app.gyrolet.mpvrx.repository.NavidromeRepository>()
+  val navidromeServers by navidromeRepository.allServers.collectAsState(initial = emptyList())
+  val hasNavidromeServer = navidromeServers.isNotEmpty()
 
   val selectedTab by musicViewModel.selectedTab.collectAsState()
   val searchQuery by musicViewModel.searchQuery.collectAsState()
@@ -209,16 +230,22 @@ fun MusicLibraryContent(
   val isPlaybackActive by musicViewModel.isPlaybackActive.collectAsState()
 
   val browserPreferences = koinInject<BrowserPreferences>()
+  val mediaServerPreferences = koinInject<MediaServerPreferences>()
+  val currentMusicSource by mediaServerPreferences.musicSourceProvider.collectAsState()
   val foldersPreferences = koinInject<app.gyrolet.mpvrx.preferences.FoldersPreferences>()
   val folderSortType by browserPreferences.folderSortType.collectAsState()
   val folderSortOrder by browserPreferences.folderSortOrder.collectAsState()
   val coverArtSizeDp by browserPreferences.musicCoverArtSize.collectAsState()
+  val gridCoverArtSizeDp by browserPreferences.musicGridCoverArtSize.collectAsState()
 
   val isRefreshing = remember { mutableStateOf(false) }
   var isSearchActive by remember { mutableStateOf(false) }
+  val searchFocusRequester = remember { FocusRequester() }
+  LaunchedEffect(isSearchActive) {
+    if (isSearchActive) searchFocusRequester.requestFocus()
+  }
   var isSortMenuExpanded by remember { mutableStateOf(false) }
   var showCreatePlaylistDialog by remember { mutableStateOf(false) }
-  var selectedPlaylistForDetail by remember { mutableStateOf<PlaylistEntity?>(null) }
 
   var selectedSongForOptions by remember { mutableStateOf<MusicSong?>(null) }
   var selectedAlbumForOptions by remember { mutableStateOf<MusicAlbum?>(null) }
@@ -307,6 +334,7 @@ fun MusicLibraryContent(
     visibleTabs.indexOf(selectedTab).coerceAtLeast(0)
   }
   val pagerState = rememberPagerState(initialPage = initialPageIndex) { visibleTabs.size }
+  val navigateTab = rememberTabNavigation(pagerState)
 
   val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
@@ -339,22 +367,20 @@ fun MusicLibraryContent(
     }
   }
 
-  LaunchedEffect(visibleTabs) {
-    if (selectedTab !in visibleTabs) {
-      visibleTabs.firstOrNull()?.let { musicViewModel.setTab(it) }
-    }
+  LaunchedEffect(pagerState, visibleTabs) {
+    if (visibleTabs.isEmpty()) return@LaunchedEffect
+    // Restore by tab identity before publishing page indices after tabs are hidden/reordered.
+    pagerState.scrollToPage(visibleTabs.indexOf(selectedTab).coerceAtLeast(0))
+    snapshotFlow { pagerState.settledPage to pagerState.isScrollInProgress }
+      .collect { (page, scrolling) ->
+        if (!scrolling) visibleTabs.getOrNull(page)?.let(musicViewModel::setTab)
+      }
   }
 
-  LaunchedEffect(pagerState.settledPage, visibleTabs) {
-    visibleTabs.getOrNull(pagerState.settledPage)?.let { tab ->
-      musicViewModel.setTab(tab)
-    }
-  }
-
-  LaunchedEffect(selectedTab, visibleTabs) {
+  LaunchedEffect(selectedTab) {
     val targetIndex = visibleTabs.indexOf(selectedTab)
-    if (targetIndex >= 0 && pagerState.currentPage != targetIndex) {
-      pagerState.animateScrollToPage(targetIndex)
+    if (targetIndex >= 0) {
+      navigateTab(targetIndex)
     }
     songSelectionManager.clear()
     albumSelectionManager.clear()
@@ -406,19 +432,10 @@ fun MusicLibraryContent(
       }
   }
 
-  val navBarState = NavigationBarState
-  SideEffect {
-    navBarState.updateSelectionState(
-      inSelectionMode = activeSelectionManager.isInSelectionMode,
-      onlyVideos = false,
-    )
-  }
-
-  DisposableEffect(Unit) {
-    onDispose {
-      navBarState.updateSelectionState(inSelectionMode = false)
-    }
-  }
+  app.gyrolet.mpvrx.ui.browser.NavigationBarSelectionEffect(
+    inSelectionMode = activeSelectionManager.isInSelectionMode,
+    onlyVideos = false,
+  )
 
   BackHandler(enabled = isSearchActive || activeSelectionManager.isInSelectionMode || (isFabExpanded.value && !quickPlayFabDirect)) {
     when {
@@ -431,13 +448,6 @@ fun MusicLibraryContent(
     }
   }
 
-  // Playlist detail overlay when a playlist is opened
-  selectedPlaylistForDetail?.let { playlist ->
-    BackHandler { selectedPlaylistForDetail = null }
-    PlaylistDetailScreen(playlistId = playlist.id).Content()
-    return
-  }
-
   val totalCount = when (selectedTab) {
     MusicTab.SONGS -> songs.size
     MusicTab.ALBUMS -> albums.size
@@ -447,50 +457,50 @@ fun MusicLibraryContent(
   }
 
   Scaffold(
+    containerColor = app.gyrolet.mpvrx.ui.theme.wallpaperAwareBackgroundColor(),
     modifier = modifier.fillMaxSize(),
     topBar = {
       Column(
         modifier = Modifier
           .fillMaxWidth()
           .background(
-            if (MaterialTheme.colorScheme.background == Color.Black) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+            if (app.gyrolet.mpvrx.ui.theme.LocalAppWallpaperActive.current) {
+              Color.Transparent
+            } else if (MaterialTheme.colorScheme.background == Color.Black) {
+              Color.Black
+            } else {
+              MaterialTheme.colorScheme.surfaceContainer
+            }
           )
       ) {
         if (isSearchActive) {
-          SearchBar(
-            inputField = {
-              SearchBarDefaults.InputField(
-                query = searchQuery,
-                onQueryChange = { musicViewModel.setSearchQuery(it) },
-                onSearch = { },
-                expanded = false,
-                onExpandedChange = { },
-                placeholder = { Text(if (selectedTab == MusicTab.FOLDERS) "Search folders & songs..." else "Search songs, albums, artists...") },
-                leadingIcon = {
-                  IconButton(onClick = {
-                    isSearchActive = false
-                    musicViewModel.setSearchQuery("")
-                  }) {
-                    Icon(imageVector = Icons.RoundedFilled.ArrowBack, contentDescription = "Back")
-                  }
-                },
-                trailingIcon = {
-                  if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { musicViewModel.setSearchQuery("") }) {
-                      Icon(imageVector = Icons.RoundedFilled.Close, contentDescription = "Clear search")
-                    }
-                  }
-                }
-              )
-            },
-            expanded = false,
-            onExpandedChange = { },
+          InlineSearchBar(
+            query = searchQuery,
+            onQueryChange = musicViewModel::setSearchQuery,
+            onSearch = { },
             modifier = Modifier
               .fillMaxWidth()
               .padding(horizontal = 16.dp, vertical = 8.dp),
+            inputFieldModifier = Modifier.focusRequester(searchFocusRequester),
+            placeholder = { Text(if (selectedTab == MusicTab.FOLDERS) "Search folders & songs..." else "Search songs, albums, artists...") },
+            leadingIcon = {
+              IconButton(onClick = {
+                isSearchActive = false
+                musicViewModel.setSearchQuery("")
+              }) {
+                Icon(imageVector = Icons.RoundedFilled.ArrowBack, contentDescription = "Back")
+              }
+            },
+            trailingIcon = {
+              if (searchQuery.isNotEmpty()) {
+                IconButton(onClick = { musicViewModel.setSearchQuery("") }) {
+                  Icon(imageVector = Icons.RoundedFilled.Close, contentDescription = "Clear search")
+                }
+              }
+            },
             shape = RoundedCornerShape(28.dp),
-            tonalElevation = 6.dp
-          ) { }
+            tonalElevation = 6.dp,
+          )
         } else {
           Box {
             BrowserTopBar(
@@ -503,7 +513,7 @@ fun MusicLibraryContent(
               onSortClick = { isSortMenuExpanded = true },
               onSearchClick = { isSearchActive = true },
               onSettingsClick = {
-                backStack.add(PreferencesScreen)
+                backStack.navigateTo(PreferencesScreen)
               },
               onSelectAll = { activeSelectionManager.selectAll() },
               onInvertSelection = { activeSelectionManager.invertSelection() },
@@ -541,7 +551,6 @@ fun MusicLibraryContent(
                   MusicTab.FOLDERS -> { }
                 }
               },
-              onPinClick = null,
               onBlacklistClick = {
                 val selectedItems = activeSelectionManager.getSelectedItems()
                 val selectedPaths = selectedItems.mapNotNull { item ->
@@ -558,7 +567,186 @@ fun MusicLibraryContent(
               onRenameClick = null,
               isSingleSelection = activeSelectionManager.isSingleSelection,
               onInfoClick = null,
-              onAddToPlaylistClick = null
+              preSearchActions = {
+                if (!activeSelectionManager.isInSelectionMode && (hasJellyfinMusicLibrary || hasNavidromeServer)) {
+                  var isSourceDropdownOpen by remember { mutableStateOf(false) }
+                  Box {
+                    Surface(
+                      shape = RoundedCornerShape(16.dp),
+                      color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f),
+                      modifier = Modifier
+                        .padding(horizontal = 4.dp, vertical = 6.dp)
+                        .clickable { isSourceDropdownOpen = true },
+                    ) {
+                      Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                      ) {
+                        when (currentMusicSource) {
+                          MusicSourceProvider.JELLYFIN -> {
+                            androidx.compose.material3.Icon(
+                              painter = painterResource(R.drawable.ic_jellyfin),
+                              contentDescription = null,
+                              modifier = Modifier.size(16.dp),
+                              tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                          }
+                          MusicSourceProvider.NAVIDROME -> {
+                            androidx.compose.material3.Icon(
+                              painter = painterResource(R.drawable.ic_navidrome),
+                              contentDescription = null,
+                              modifier = Modifier.size(16.dp),
+                              tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                          }
+                          else -> {
+                            Icon(
+                              Icons.RoundedFilled.Folder,
+                              contentDescription = null,
+                              modifier = Modifier.size(16.dp),
+                              tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                          }
+                        }
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                          text = when (currentMusicSource) {
+                            MusicSourceProvider.JELLYFIN -> stringResource(R.string.pref_jellyfin_title)
+                            MusicSourceProvider.NAVIDROME -> stringResource(R.string.music_source_navidrome)
+                            else -> stringResource(R.string.music_source_local)
+                          },
+                          style = MaterialTheme.typography.labelMedium,
+                          fontWeight = FontWeight.Bold,
+                          color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Icon(
+                          Icons.RoundedFilled.ArrowDropDown,
+                          contentDescription = null,
+                          modifier = Modifier.size(16.dp),
+                          tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                      }
+                    }
+
+                    DropdownMenu(
+                      expanded = isSourceDropdownOpen,
+                      onDismissRequest = { isSourceDropdownOpen = false },
+                    ) {
+                      DropdownMenuItem(
+                        text = {
+                          Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth(),
+                          ) {
+                            Text(stringResource(R.string.music_source_local))
+                            if (currentMusicSource == MusicSourceProvider.LOCAL) {
+                              Spacer(Modifier.width(12.dp))
+                              Icon(
+                                Icons.RoundedFilled.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                              )
+                            }
+                          }
+                        },
+                        leadingIcon = {
+                          Icon(Icons.RoundedFilled.Folder, contentDescription = null)
+                        },
+                        onClick = {
+                          mediaServerPreferences.musicSourceProvider.set(MusicSourceProvider.LOCAL)
+                          isSourceDropdownOpen = false
+                        },
+                      )
+
+                      if (hasJellyfinMusicLibrary) {
+                        DropdownMenuItem(
+                          text = {
+                            Row(
+                              verticalAlignment = Alignment.CenterVertically,
+                              horizontalArrangement = Arrangement.SpaceBetween,
+                              modifier = Modifier.fillMaxWidth(),
+                            ) {
+                              Text(stringResource(R.string.music_source_jellyfin))
+                              if (currentMusicSource == MusicSourceProvider.JELLYFIN) {
+                                Spacer(Modifier.width(12.dp))
+                                Icon(
+                                  Icons.RoundedFilled.Check,
+                                  contentDescription = null,
+                                  modifier = Modifier.size(18.dp),
+                                  tint = MaterialTheme.colorScheme.primary,
+                                )
+                              }
+                            }
+                          },
+                          leadingIcon = {
+                            androidx.compose.material3.Icon(
+                              painter = painterResource(R.drawable.ic_jellyfin),
+                              contentDescription = null,
+                              modifier = Modifier.size(20.dp),
+                              tint = MaterialTheme.colorScheme.primary,
+                            )
+                          },
+                          onClick = {
+                            mediaServerPreferences.musicSourceProvider.set(MusicSourceProvider.JELLYFIN)
+                            isSourceDropdownOpen = false
+                          },
+                        )
+                      }
+
+                      if (hasNavidromeServer) {
+                        DropdownMenuItem(
+                          text = {
+                            Row(
+                              verticalAlignment = Alignment.CenterVertically,
+                              horizontalArrangement = Arrangement.SpaceBetween,
+                              modifier = Modifier.fillMaxWidth(),
+                            ) {
+                              Text(stringResource(R.string.music_source_navidrome))
+                              if (currentMusicSource == MusicSourceProvider.NAVIDROME) {
+                                Spacer(Modifier.width(12.dp))
+                                Icon(
+                                  Icons.RoundedFilled.Check,
+                                  contentDescription = null,
+                                  modifier = Modifier.size(18.dp),
+                                  tint = MaterialTheme.colorScheme.primary,
+                                )
+                              }
+                            }
+                          },
+                          leadingIcon = {
+                            androidx.compose.material3.Icon(
+                              painter = painterResource(R.drawable.ic_navidrome),
+                              contentDescription = null,
+                              modifier = Modifier.size(20.dp),
+                              tint = MaterialTheme.colorScheme.primary,
+                            )
+                          },
+                          onClick = {
+                            mediaServerPreferences.musicSourceProvider.set(MusicSourceProvider.NAVIDROME)
+                            isSourceDropdownOpen = false
+                          },
+                        )
+                      }
+
+                      HorizontalDivider()
+
+                      DropdownMenuItem(
+                        text = { Text(stringResource(R.string.pref_media_servers_title)) },
+                        leadingIcon = {
+                          Icon(Icons.RoundedFilled.Settings, contentDescription = null)
+                        },
+                        onClick = {
+                          isSourceDropdownOpen = false
+                          backStack.navigateTo(app.gyrolet.mpvrx.ui.preferences.MediaServersPreferencesScreen)
+                        },
+                      )
+                    }
+                  }
+                }
+              },
             )
           }
         }
@@ -596,15 +784,10 @@ fun MusicLibraryContent(
           visibleTabs.forEachIndexed { index, tab ->
             Tab(
               selected = pagerState.currentPage == index,
-              onClick = {
-                scope.launch {
-                  musicViewModel.setTab(tab)
-                  pagerState.animateScrollToPage(index)
-                }
-              },
+              onClick = { musicViewModel.setTab(tab) },
               text = {
                 Text(
-                  text = tab.title,
+                  text = stringResource(tab.titleRes),
                   style = MaterialTheme.typography.titleMedium,
                   fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Medium,
                   maxLines = 1,
@@ -729,8 +912,9 @@ fun MusicLibraryContent(
             CircularProgressIndicator()
           }
         } else {
-          HorizontalPager(
+          NavigationPager(
             state = pagerState,
+            key = { page -> visibleTabs[page].name },
             modifier = Modifier.fillMaxSize(),
             beyondViewportPageCount = 1,
           ) { page ->
@@ -742,9 +926,10 @@ fun MusicLibraryContent(
                 recentlyPlayedFilePath = recentlyPlayedFilePath,
                 isPlaybackActive = isPlaybackActive,
                 coverArtSizeDp = coverArtSizeDp,
+                gridCoverArtSizeDp = gridCoverArtSizeDp,
                 onSongClick = { song ->
                   if (songSelectionManager.isInSelectionMode) {
-                    songSelectionManager.toggle(song)
+                    songSelectionManager.toggleFromUser(song)
                   } else {
                     musicViewModel.playSong(context, song, songs)
                   }
@@ -761,9 +946,10 @@ fun MusicLibraryContent(
                 albums = albums,
                 viewMode = viewMode,
                 coverArtSizeDp = coverArtSizeDp,
+                gridCoverArtSizeDp = gridCoverArtSizeDp,
                 onAlbumClick = { album ->
                   if (albumSelectionManager.isInSelectionMode) {
-                    albumSelectionManager.toggle(album)
+                    albumSelectionManager.toggleFromUser(album)
                   } else {
                     musicViewModel.selectAlbum(album)
                   }
@@ -780,9 +966,10 @@ fun MusicLibraryContent(
                 artists = artists,
                 viewMode = viewMode,
                 coverArtSizeDp = coverArtSizeDp,
+                gridCoverArtSizeDp = gridCoverArtSizeDp,
                 onArtistClick = { artist ->
                   if (artistSelectionManager.isInSelectionMode) {
-                    artistSelectionManager.toggle(artist)
+                    artistSelectionManager.toggleFromUser(artist)
                   } else {
                     musicViewModel.selectArtist(artist)
                   }
@@ -800,11 +987,12 @@ fun MusicLibraryContent(
                 songs = songs,
                 viewMode = viewMode,
                 coverArtSizeDp = coverArtSizeDp.dp,
+                gridCoverArtSizeDp = gridCoverArtSizeDp,
                 onPlaylistClick = { playlist ->
                   if (playlistSelectionManager.isInSelectionMode) {
-                    playlistSelectionManager.toggle(playlist)
+                    playlistSelectionManager.toggleFromUser(playlist)
                   } else {
-                    selectedPlaylistForDetail = playlist
+                    backStack.navigateTo(PlaylistDetailScreen(playlistId = playlist.id))
                   }
                 },
                 onPlaylistLongClick = { playlist ->
@@ -876,7 +1064,11 @@ fun MusicLibraryContent(
         selectedSongForOptions?.let { song ->
           ModalBottomSheet(
             onDismissRequest = { selectedSongForOptions = null },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            sheetState =
+              rememberBottomSheetState(
+                initialValue = SheetValue.Hidden,
+                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+              )
           ) {
             Column(
               modifier = Modifier
@@ -903,7 +1095,7 @@ fun MusicLibraryContent(
               HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
               ListItem(
-                headlineContent = { Text("Play") },
+                content = { Text("Play") },
                 leadingContent = { Icon(Icons.RoundedFilled.PlayArrow, contentDescription = null) },
                 modifier = Modifier.clickable {
                   val target = song
@@ -912,7 +1104,7 @@ fun MusicLibraryContent(
                 }
               )
               ListItem(
-                headlineContent = { Text("Add to Playlist") },
+                content = { Text("Add to Playlist") },
                 leadingContent = { Icon(Icons.RoundedFilled.PlaylistAdd, contentDescription = null) },
                 modifier = Modifier.clickable {
                   val target = song
@@ -921,7 +1113,7 @@ fun MusicLibraryContent(
                 }
               )
               ListItem(
-                headlineContent = { Text("Share") },
+                content = { Text("Share") },
                 leadingContent = { Icon(Icons.RoundedFilled.Share, contentDescription = null) },
                 modifier = Modifier.clickable {
                   val target = song
@@ -930,7 +1122,7 @@ fun MusicLibraryContent(
                 }
               )
               ListItem(
-                headlineContent = { Text("Delete Song", color = MaterialTheme.colorScheme.error) },
+                content = { Text("Delete Song", color = MaterialTheme.colorScheme.error) },
                 leadingContent = { Icon(Icons.RoundedFilled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                 modifier = Modifier.clickable {
                   val target = song
@@ -996,7 +1188,11 @@ fun MusicLibraryContent(
           }
           ModalBottomSheet(
             onDismissRequest = { selectedAlbumForOptions = null },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            sheetState =
+              rememberBottomSheetState(
+                initialValue = SheetValue.Hidden,
+                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+              )
           ) {
             Column(
               modifier = Modifier
@@ -1023,7 +1219,7 @@ fun MusicLibraryContent(
               HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
               ListItem(
-                headlineContent = { Text("View Album Tracks") },
+                content = { Text("View Album Tracks") },
                 leadingContent = { Icon(Icons.RoundedFilled.Audiotrack, contentDescription = null) },
                 modifier = Modifier.clickable {
                   val target = album
@@ -1032,7 +1228,7 @@ fun MusicLibraryContent(
                 }
               )
               ListItem(
-                headlineContent = { Text("Play Album") },
+                content = { Text("Play Album") },
                 leadingContent = { Icon(Icons.RoundedFilled.PlayArrow, contentDescription = null) },
                 modifier = Modifier.clickable {
                   val list = albumSongs
@@ -1041,7 +1237,7 @@ fun MusicLibraryContent(
                 }
               )
               ListItem(
-                headlineContent = { Text("Shuffle Album") },
+                content = { Text("Shuffle Album") },
                 leadingContent = { Icon(Icons.RoundedFilled.Shuffle, contentDescription = null) },
                 modifier = Modifier.clickable {
                   val list = albumSongs
@@ -1050,7 +1246,7 @@ fun MusicLibraryContent(
                 }
               )
               ListItem(
-                headlineContent = { Text("Add Album to Playlist") },
+                content = { Text("Add Album to Playlist") },
                 leadingContent = { Icon(Icons.RoundedFilled.PlaylistAdd, contentDescription = null) },
                 modifier = Modifier.clickable {
                   val list = albumSongs
@@ -1069,7 +1265,11 @@ fun MusicLibraryContent(
           }
           ModalBottomSheet(
             onDismissRequest = { selectedArtistForOptions = null },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            sheetState =
+              rememberBottomSheetState(
+                initialValue = SheetValue.Hidden,
+                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+              )
           ) {
             Column(
               modifier = Modifier
@@ -1088,7 +1288,7 @@ fun MusicLibraryContent(
               HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
               ListItem(
-                headlineContent = { Text("View Artist Songs") },
+                content = { Text("View Artist Songs") },
                 leadingContent = { Icon(Icons.RoundedFilled.Person, contentDescription = null) },
                 modifier = Modifier.clickable {
                   val target = artist
@@ -1097,7 +1297,7 @@ fun MusicLibraryContent(
                 }
               )
               ListItem(
-                headlineContent = { Text("Play Artist Songs") },
+                content = { Text("Play Artist Songs") },
                 leadingContent = { Icon(Icons.RoundedFilled.PlayArrow, contentDescription = null) },
                 modifier = Modifier.clickable {
                   val list = artistSongs
@@ -1106,7 +1306,7 @@ fun MusicLibraryContent(
                 }
               )
               ListItem(
-                headlineContent = { Text("Shuffle Artist Songs") },
+                content = { Text("Shuffle Artist Songs") },
                 leadingContent = { Icon(Icons.RoundedFilled.Shuffle, contentDescription = null) },
                 modifier = Modifier.clickable {
                   val list = artistSongs
@@ -1115,7 +1315,7 @@ fun MusicLibraryContent(
                 }
               )
               ListItem(
-                headlineContent = { Text("Add Artist Songs to Playlist") },
+                content = { Text("Add Artist Songs to Playlist") },
                 leadingContent = { Icon(Icons.RoundedFilled.PlaylistAdd, contentDescription = null) },
                 modifier = Modifier.clickable {
                   val list = artistSongs
@@ -1131,7 +1331,11 @@ fun MusicLibraryContent(
         selectedPlaylistForOptions?.let { playlist ->
           ModalBottomSheet(
             onDismissRequest = { selectedPlaylistForOptions = null },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            sheetState =
+              rememberBottomSheetState(
+                initialValue = SheetValue.Hidden,
+                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+              )
           ) {
             Column(
               modifier = Modifier
@@ -1147,17 +1351,17 @@ fun MusicLibraryContent(
               HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
               ListItem(
-                headlineContent = { Text("Open Playlist") },
+                content = { Text("Open Playlist") },
                 leadingContent = { Icon(Icons.RoundedFilled.PlaylistPlay, contentDescription = null) },
                 modifier = Modifier.clickable {
                   val target = playlist
                   selectedPlaylistForOptions = null
-                  selectedPlaylistForDetail = target
+                  backStack.navigateTo(PlaylistDetailScreen(playlistId = target.id))
                 }
               )
               if (!playlist.name.equals(PlaylistRepository.FAVORITES_PLAYLIST_NAME, ignoreCase = true)) {
                 ListItem(
-                  headlineContent = { Text("Delete Playlist", color = MaterialTheme.colorScheme.error) },
+                  content = { Text("Delete Playlist", color = MaterialTheme.colorScheme.error) },
                   leadingContent = { Icon(Icons.RoundedFilled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                   modifier = Modifier.clickable {
                     val target = playlist
@@ -1337,6 +1541,7 @@ private fun SongsTabContent(
   recentlyPlayedFilePath: String?,
   isPlaybackActive: Boolean = false,
   coverArtSizeDp: Int = 48,
+  gridCoverArtSizeDp: Int = 145,
   onSongClick: (MusicSong) -> Unit,
   onSongLongClick: (MusicSong) -> Unit,
   selectionManager: app.gyrolet.mpvrx.ui.browser.selection.SelectionManager<MusicSong, Long>,
@@ -1365,7 +1570,7 @@ private fun SongsTabContent(
     if (viewMode == MusicViewMode.GRID) {
       LazyVerticalGrid(
         state = gridState,
-        columns = GridCells.Adaptive(minSize = 145.dp),
+        columns = GridCells.Adaptive(minSize = gridCoverArtSizeDp.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = navBarHeight + 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -1414,6 +1619,9 @@ private fun SongGridCard(
   Card(
     modifier = Modifier
       .fillMaxWidth()
+      .clip(AppShapeScale.large)
+      .tvFocusHighlight(AppShapeScale.large, focusedScale = 1.03f)
+      .tvContextMenu(onLongClick)
       .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     shape = AppShapeScale.large,
     colors = CardDefaults.cardColors(
@@ -1541,6 +1749,7 @@ private fun AlbumsTabContent(
   albums: List<MusicAlbum>,
   viewMode: MusicViewMode,
   coverArtSizeDp: Int = 48,
+  gridCoverArtSizeDp: Int = 145,
   onAlbumClick: (MusicAlbum) -> Unit,
   onAlbumLongClick: (MusicAlbum) -> Unit,
   selectionManager: app.gyrolet.mpvrx.ui.browser.selection.SelectionManager<MusicAlbum, Long>,
@@ -1556,7 +1765,7 @@ private fun AlbumsTabContent(
   if (viewMode == MusicViewMode.GRID) {
     LazyVerticalGrid(
       state = gridState,
-      columns = GridCells.Adaptive(minSize = 145.dp),
+      columns = GridCells.Adaptive(minSize = gridCoverArtSizeDp.dp),
       modifier = Modifier.fillMaxSize(),
       contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = navBarHeight + 16.dp),
       verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -1601,6 +1810,9 @@ private fun AlbumGridCard(
   Card(
     modifier = Modifier
       .fillMaxWidth()
+      .clip(AppShapeScale.large)
+      .tvFocusHighlight(AppShapeScale.large, focusedScale = 1.03f)
+      .tvContextMenu(onLongClick)
       .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     shape = AppShapeScale.large,
     colors = CardDefaults.cardColors(
@@ -1692,6 +1904,8 @@ private fun AlbumListCard(
       .fillMaxWidth()
       .padding(horizontal = 8.dp, vertical = 3.dp)
       .clip(AppShapeScale.large)
+      .tvFocusHighlight(AppShapeScale.large, focusedScale = 1.03f)
+      .tvContextMenu(onLongClick)
       .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     shape = AppShapeScale.large,
     color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) else Color.Transparent
@@ -1764,6 +1978,7 @@ private fun ArtistsTabContent(
   artists: List<MusicArtist>,
   viewMode: MusicViewMode,
   coverArtSizeDp: Int = 48,
+  gridCoverArtSizeDp: Int = 145,
   onArtistClick: (MusicArtist) -> Unit,
   onArtistLongClick: (MusicArtist) -> Unit,
   selectionManager: app.gyrolet.mpvrx.ui.browser.selection.SelectionManager<MusicArtist, Long>,
@@ -1779,7 +1994,7 @@ private fun ArtistsTabContent(
   if (viewMode == MusicViewMode.GRID) {
     LazyVerticalGrid(
       state = gridState,
-      columns = GridCells.Adaptive(minSize = 160.dp),
+      columns = GridCells.Adaptive(minSize = (gridCoverArtSizeDp * 1.1f).toInt().dp),
       modifier = Modifier.fillMaxSize(),
       contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = navBarHeight + 16.dp),
       verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -1824,6 +2039,9 @@ private fun ArtistGridCard(
   Card(
     modifier = Modifier
       .fillMaxWidth()
+      .clip(AppShapeScale.large)
+      .tvFocusHighlight(AppShapeScale.large, focusedScale = 1.03f)
+      .tvContextMenu(onLongClick)
       .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     shape = AppShapeScale.large,
     colors = CardDefaults.cardColors(
@@ -1899,6 +2117,8 @@ private fun ArtistListCard(
       .fillMaxWidth()
       .padding(horizontal = 8.dp, vertical = 3.dp)
       .clip(AppShapeScale.large)
+      .tvFocusHighlight(AppShapeScale.large, focusedScale = 1.03f)
+      .tvContextMenu(onLongClick)
       .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     shape = AppShapeScale.large,
     color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) else Color.Transparent
@@ -1975,13 +2195,9 @@ private fun PlaylistArtCollage(
         Icon(
           imageVector = if (isFavorites) Icons.RoundedFilled.Favorite else Icons.RoundedFilled.QueueMusic,
           contentDescription = "Playlist",
-          modifier = if (isFavorites) {
-            Modifier.size(24.dp)
-          } else {
-            Modifier
-              .fillMaxSize()
-              .padding(12.dp)
-          },
+          modifier = Modifier
+            .fillMaxSize()
+            .padding(12.dp),
           tint = if (isFavorites) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         )
       }
@@ -2150,6 +2366,9 @@ private fun MusicPlaylistCard(
     Card(
       modifier = Modifier
         .fillMaxWidth()
+        .clip(AppShapeScale.large)
+        .tvFocusHighlight(AppShapeScale.large, focusedScale = 1.03f)
+        .tvContextMenu(onLongClick)
         .combinedClickable(onClick = onClick, onLongClick = onLongClick),
       shape = AppShapeScale.large,
       colors = CardDefaults.cardColors(
@@ -2206,6 +2425,9 @@ private fun MusicPlaylistCard(
     Surface(
       modifier = Modifier
         .fillMaxWidth()
+        .clip(AppShapeScale.large)
+        .tvFocusHighlight(AppShapeScale.large, focusedScale = 1.03f)
+        .tvContextMenu(onLongClick)
         .combinedClickable(onClick = onClick, onLongClick = onLongClick),
       color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent
     ) {
@@ -2268,6 +2490,7 @@ private fun PlaylistsTabContent(
   songs: List<MusicSong>,
   viewMode: MusicViewMode,
   coverArtSizeDp: Dp = 52.dp,
+  gridCoverArtSizeDp: Int = 145,
   onPlaylistClick: (PlaylistEntity) -> Unit,
   onPlaylistLongClick: (PlaylistEntity) -> Unit,
   selectionManager: app.gyrolet.mpvrx.ui.browser.selection.SelectionManager<PlaylistEntity, Long>,
@@ -2310,7 +2533,7 @@ private fun PlaylistsTabContent(
       if (viewMode == MusicViewMode.GRID) {
         LazyVerticalGrid(
           state = gridState,
-          columns = GridCells.Adaptive(minSize = 145.dp),
+          columns = GridCells.Adaptive(minSize = gridCoverArtSizeDp.dp),
           modifier = Modifier.fillMaxSize(),
           contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = navBarHeight + 16.dp),
           verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -2372,7 +2595,11 @@ private fun AlbumDetailSheet(
 ) {
   ModalBottomSheet(
     onDismissRequest = onDismiss,
-    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    sheetState =
+      rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+      )
   ) {
     Column(
       modifier = Modifier
@@ -2465,7 +2692,11 @@ private fun ArtistDetailSheet(
 ) {
   ModalBottomSheet(
     onDismissRequest = onDismiss,
-    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    sheetState =
+      rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+      )
   ) {
     Column(
       modifier = Modifier

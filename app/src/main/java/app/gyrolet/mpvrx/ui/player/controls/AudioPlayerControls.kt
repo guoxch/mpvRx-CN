@@ -23,8 +23,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -66,6 +68,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -100,6 +104,7 @@ import kotlinx.coroutines.launch
 import androidx.palette.graphics.Palette
 import app.gyrolet.mpvrx.database.repository.PlaylistRepository
 import app.gyrolet.mpvrx.repository.JellyfinRepository
+import app.gyrolet.mpvrx.repository.NavidromeRepository
 import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.ui.browser.dialogs.AddToPlaylistDialog
 import app.gyrolet.mpvrx.ui.player.resolveUri
@@ -108,14 +113,19 @@ import app.gyrolet.mpvrx.ui.player.controls.components.sheets.PlaylistItem
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import app.gyrolet.mpvrx.ui.utils.ReorderFeedback
+import app.gyrolet.mpvrx.ui.utils.dragElevation
+import app.gyrolet.mpvrx.ui.utils.rememberReorderFeedback
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -137,6 +147,8 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.thumbnail.EmbeddedArtworkResolver
@@ -155,6 +167,7 @@ import app.gyrolet.mpvrx.ui.player.RepeatMode
 import app.gyrolet.mpvrx.ui.player.Sheets
 import app.gyrolet.mpvrx.ui.player.controls.components.AbLoopIcon
 import app.gyrolet.mpvrx.ui.player.controls.components.SeekbarWithTimers
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
 import app.gyrolet.mpvrx.ui.player.visualizer.AudioFeatures
 import app.gyrolet.mpvrx.ui.player.visualizer.AudioSpectrumAnalyzer
 import app.gyrolet.mpvrx.ui.player.visualizer.BlobOverlay
@@ -163,6 +176,7 @@ import app.gyrolet.mpvrx.ui.player.visualizer.GalaxyOverlay
 import app.gyrolet.mpvrx.ui.player.visualizer.ParticleOverlay
 import app.gyrolet.mpvrx.ui.player.visualizer.VisualizerPalette
 import app.gyrolet.mpvrx.ui.player.visualizer.rememberAudioVisualizerFeatures
+import app.gyrolet.mpvrx.ui.theme.fontFamilyForText
 import app.gyrolet.mpvrx.ui.utils.isMpvOptionOwnedByConfig
 
 import app.gyrolet.mpvrx.utils.media.fileExtension
@@ -313,13 +327,161 @@ private fun rememberAudioAlbumArt(
   artworkUri: String? = null,
 ): Bitmap? = rememberAudioPresentationMetadata(pathOrUri, artworkUri)?.artwork
 
-/**
- * Cuboid is a Compose Canvas and does not pass through the GLSurfaceView VisualizerOverlay, so it
- * needs the same scoped Android spectrum capture explicitly. The capture exists only while Cuboid
- * is actually visible; album-art mode, lyrics and modal sheets release it immediately.
- */
+private fun contrastingVisualizerTone(
+  colorArgb: Int,
+  backgrounds: List<Int>,
+): Int {
+  val hsl = FloatArray(3)
+  ColorUtils.colorToHSL(colorArgb, hsl)
+  if (hsl[1] >= 0.12f) hsl[1] = hsl[1].coerceIn(0.45f, 0.85f)
+  val originalLightness = hsl[2].coerceIn(0.18f, 0.82f)
+  val candidates =
+    (0..32).map { step ->
+      val lightness = 0.18f + step * 0.02f
+      hsl[2] = lightness
+      val color = ColorUtils.HSLToColor(hsl)
+      val contrast =
+        backgrounds.minOf { background ->
+          ColorUtils.calculateContrast(
+            ColorUtils.compositeColors(ColorUtils.setAlphaComponent(color, 220), background),
+            background,
+          )
+        }
+      Triple(color, contrast, abs(lightness - originalLightness))
+    }
+  return candidates.filter { it.second >= 3.0 }.minByOrNull { it.third }?.first
+    ?: candidates.maxBy { it.second }.first
+}
+
+private fun VisualizerPalette.withThemeContrast(backgrounds: List<Int>): VisualizerPalette =
+  copy(
+    primary = contrastingVisualizerTone(primary, backgrounds),
+    secondary = contrastingVisualizerTone(secondary, backgrounds),
+    tertiary = contrastingVisualizerTone(tertiary, backgrounds),
+  )
+
+private fun artworkVisualizerPalette(
+  bitmap: Bitmap,
+  materialPalette: VisualizerPalette,
+): VisualizerPalette {
+  val extracted = Palette.from(bitmap).maximumColorCount(20).clearFilters().generate()
+  val maximumPopulation = extracted.swatches.maxOfOrNull { it.population }?.coerceAtLeast(1) ?: 1
+  val rankedSwatches =
+    extracted.swatches
+      .filter { it.hsl[1] >= 0.18f && it.hsl[2] in 0.12f..0.88f }
+      .ifEmpty { extracted.swatches.filter { it.hsl[2] in 0.08f..0.92f }.ifEmpty { extracted.swatches } }
+      .sortedByDescending { swatch ->
+        val population = swatch.population.toFloat() / maximumPopulation
+        val centeredLightness = 1f - abs(swatch.hsl[2] - 0.52f)
+        swatch.hsl[1] * 0.58f + population * 0.27f + centeredLightness * 0.15f
+      }
+  val accents = mutableListOf<Palette.Swatch>()
+  for (swatch in rankedSwatches) {
+    val similar =
+      accents.any { existing ->
+        val hueDistance = abs(existing.hsl[0] - swatch.hsl[0])
+        minOf(hueDistance, 360f - hueDistance) < 30f &&
+          abs(existing.hsl[1] - swatch.hsl[1]) < 0.25f &&
+          abs(existing.hsl[2] - swatch.hsl[2]) < 0.18f
+      }
+    if (!similar) accents += swatch
+    if (accents.size == 3) break
+  }
+  val primary = accents.firstOrNull()?.rgb ?: materialPalette.primary
+  val secondary = accents.getOrNull(1)?.rgb ?: primary
+  return materialPalette.copy(
+    primary = primary,
+    secondary = secondary,
+    tertiary = accents.getOrNull(2)?.rgb ?: secondary,
+  )
+}
+
 @Composable
-private fun CuboidSpectrumCaptureEffect(
+private fun AudioVisualizerViewport(
+  style: AudioVisualizerStyle,
+  palette: VisualizerPalette,
+  isPlaying: Boolean,
+  isSheetOpen: Boolean,
+  features: AudioFeatures,
+  onClick: () -> Unit,
+  onLongClick: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  Box(
+    modifier =
+      modifier
+        .combinedClickable(
+          interactionSource = remember { MutableInteractionSource() },
+          indication = null,
+          onClick = onClick,
+          onLongClick = onLongClick,
+        ),
+    contentAlignment = Alignment.Center,
+  ) {
+    val rendererModifier =
+      Modifier
+        .fillMaxSize()
+        .then(
+          if (style == AudioVisualizerStyle.Cuboid) {
+            Modifier
+              .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+              .drawWithCache {
+                val bottomFade =
+                  Brush.verticalGradient(
+                    0f to Color.White,
+                    0.78f to Color.White,
+                    1f to Color.Transparent,
+                    startY = 0f,
+                    endY = size.height,
+                  )
+                onDrawWithContent {
+                  drawContent()
+                  drawRect(brush = bottomFade, blendMode = BlendMode.DstIn)
+                }
+              }
+          } else {
+            Modifier
+          },
+        )
+
+    when (style) {
+      AudioVisualizerStyle.Galaxy ->
+        GalaxyOverlay(
+          palette = palette,
+          isSheetOpen = isSheetOpen,
+          features = features,
+          modifier = rendererModifier,
+        )
+      AudioVisualizerStyle.Blob ->
+        BlobOverlay(
+          palette = palette,
+          isSheetOpen = isSheetOpen,
+          features = features,
+          modifier = rendererModifier,
+        )
+      AudioVisualizerStyle.Cuboid ->
+        CuboidOverlay(
+          isPlaying = isPlaying,
+          palette = palette,
+          isSheetOpen = isSheetOpen,
+          features = features,
+          modifier = rendererModifier,
+        )
+      AudioVisualizerStyle.Particle ->
+        ParticleOverlay(
+          palette = palette,
+          isSheetOpen = isSheetOpen,
+          features = features,
+          modifier = rendererModifier,
+        )
+    }
+
+  }
+}
+
+/** One capture owner feeds the main visualizer and seekbar ribbon. */
+@Composable
+private fun AudioSpectrumCaptureEffect(
   enabled: Boolean,
   features: AudioFeatures,
 ) {
@@ -422,9 +584,10 @@ fun AudioPlayerControls(
   val queueState by PlaybackSession.queue.collectAsStateWithLifecycle()
   val currentItem = playbackState.currentItem ?: queueState.currentItem
   val playlistItems by viewModel.playlistItems.collectAsState()
+  val isAudioOnly by viewModel.isAudioOnly.collectAsState()
   val filteredPlaylist =
-    remember(playlistItems) {
-      playlistItems.filter { it.isAudio }
+    remember(playlistItems, isAudioOnly) {
+      if (isAudioOnly) playlistItems else playlistItems.filter { it.isAudio }
     }
 
   var showInPlaceLyrics by rememberSaveable { mutableStateOf(false) }
@@ -456,12 +619,40 @@ fun AudioPlayerControls(
   val audioFormat by PlaybackSession.propString["audio-params/format"].collectAsState()
   val bitsPerSample by PlaybackSession.propString["metadata/by-key/BITS_PER_SAMPLE"].collectAsState()
   val bitsPerSampleAlt by PlaybackSession.propString["metadata/by-key/bits_per_sample"].collectAsState()
+  val audioBitrateProp by PlaybackSession.propInt["audio-bitrate"].collectAsState()
+  val generalBitrateProp by PlaybackSession.propInt["bitrate"].collectAsState()
   val playbackSpeed by PlaybackSession.propFloat["speed"].collectAsState()
+
+  val cleanCodecName =
+    remember(audioCodec, mediaPath) {
+      val codec = audioCodec?.lowercase().orEmpty()
+      val rawExt = mediaPath?.fileExtension().orEmpty().lowercase()
+      val ext = if (rawExt in app.gyrolet.mpvrx.utils.storage.FileTypeUtils.AUDIO_EXTENSIONS) rawExt.uppercase() else ""
+      when {
+        codec.contains("flac") -> "FLAC"
+        codec.contains("alac") -> "ALAC"
+        codec.contains("mp3") -> "MP3"
+        codec.contains("aac") -> "AAC"
+        codec.contains("opus") -> "OPUS"
+        codec.contains("vorbis") -> "VORBIS"
+        codec.contains("wavpack") -> "WAVPACK"
+        codec.contains("ape") -> "APE"
+        codec.contains("dsd") -> "DSD"
+        codec.contains("pcm") -> if (ext in setOf("WAV", "AIFF", "AIF")) ext else "PCM"
+        codec.contains("wma") -> "WMA"
+        codec.isNotBlank() && codec.length <= 10 && !codec.contains("/") && !codec.contains(":") -> {
+          codec.replace("float", "").replace("_latm", "").uppercase().trim()
+        }
+        ext.isNotBlank() -> ext
+        else -> ""
+      }
+    }
 
   val isLosslessCodecOrExt =
     remember(audioCodec, mediaPath) {
       val codec = audioCodec?.lowercase().orEmpty()
-      val ext = mediaPath?.fileExtension().orEmpty()
+      val rawExt = mediaPath?.fileExtension().orEmpty().lowercase()
+      val ext = if (rawExt in app.gyrolet.mpvrx.utils.storage.FileTypeUtils.AUDIO_EXTENSIONS) rawExt else ""
       codec.contains("flac") ||
         codec.contains("alac") ||
         codec.contains("pcm") ||
@@ -483,9 +674,28 @@ fun AudioPlayerControls(
     showLosslessDetails = false
   }
 
+  val collapsedAudioBadgeLabel =
+    remember(isHiRes, isLosslessCodecOrExt, cleanCodecName) {
+      when {
+        isHiRes -> "HI-RES LOSSLESS"
+        isLosslessCodecOrExt -> "LOSSLESS"
+        cleanCodecName.isNotBlank() -> cleanCodecName
+        else -> ""
+      }
+    }
+
   val fullLosslessDetailString =
-    remember(isHiRes, sampleRate, audioFormat, bitsPerSample, bitsPerSampleAlt, audioCodec, isLosslessCodecOrExt) {
-      val baseLabel = if (isHiRes) "HI-RES LOSSLESS" else "LOSSLESS"
+    remember(
+      isHiRes,
+      isLosslessCodecOrExt,
+      sampleRate,
+      audioFormat,
+      bitsPerSample,
+      bitsPerSampleAlt,
+      audioBitrateProp,
+      generalBitrateProp,
+      cleanCodecName,
+    ) {
       val sr = sampleRate ?: 0
       val khzStr =
         if (sr > 0) {
@@ -494,6 +704,9 @@ fun AudioPlayerControls(
         } else {
           ""
         }
+
+      val bitrateInt = (audioBitrateProp?.takeIf { it > 0 } ?: generalBitrateProp?.takeIf { it > 0 } ?: 0)
+      val kbpsStr = if (bitrateInt > 0) "${bitrateInt / 1000} kbps" else ""
 
       val bps = bitsPerSample?.takeIf { it.isNotBlank() } ?: bitsPerSampleAlt?.takeIf { it.isNotBlank() }
       val bitStr =
@@ -508,22 +721,37 @@ fun AudioPlayerControls(
           else -> ""
         }
 
-      val specsStr =
-        when {
-          bitStr.isNotBlank() && khzStr.isNotBlank() -> "$bitStr/$khzStr"
-          khzStr.isNotBlank() -> khzStr
-          bitStr.isNotBlank() -> bitStr
-          else -> ""
+      if (isLosslessCodecOrExt) {
+        val baseLabel = if (isHiRes) "HI-RES LOSSLESS" else "LOSSLESS"
+        val specsCore =
+          when {
+            bitStr.isNotBlank() && khzStr.isNotBlank() -> "$bitStr/$khzStr"
+            khzStr.isNotBlank() -> khzStr
+            bitStr.isNotBlank() -> bitStr
+            else -> ""
+          }
+        buildString {
+          append(baseLabel)
+          if (specsCore.isNotBlank()) {
+            append(" - ").append(specsCore)
+          }
+          if (cleanCodecName.isNotBlank()) {
+            append(" ").append(cleanCodecName)
+          }
         }
-
-      val codecName = audioCodec?.uppercase().orEmpty()
-      buildString {
-        append(baseLabel)
-        if (specsStr.isNotBlank()) {
-          append(" - ").append(specsStr)
-        }
-        if (codecName.isNotBlank()) {
-          append(" ").append(codecName)
+      } else {
+        val baseLabel = cleanCodecName.ifBlank { "AUDIO" }
+        val specs =
+          when {
+            kbpsStr.isNotBlank() && khzStr.isNotBlank() -> "$kbpsStr/$khzStr"
+            kbpsStr.isNotBlank() -> kbpsStr
+            khzStr.isNotBlank() -> khzStr
+            else -> ""
+          }
+        if (specs.isNotBlank()) {
+          "$baseLabel - $specs"
+        } else {
+          baseLabel
         }
       }
     }
@@ -592,6 +820,7 @@ fun AudioPlayerControls(
   val audioPreferences = koinInject<AudioPreferences>()
   val appearancePreferences = koinInject<AppearancePreferences>()
   val audioVisualizerStyle by audioPreferences.audioVisualizerStyle.collectAsState()
+  val audioWavySeekbar by audioPreferences.audioWavySeekbar.collectAsState()
   val backgroundPlaybackEnabled by audioPreferences.audioBackgroundPlayback.collectAsState()
   val colorScheme = MaterialTheme.colorScheme
   val palette =
@@ -603,12 +832,45 @@ fun AudioPlayerControls(
         tertiary = colorScheme.tertiary.toArgb(),
       )
     }
+  val artworkPalette by produceState(
+    initialValue = palette,
+    key1 = albumArtBitmap,
+    key2 = palette,
+  ) {
+    val artwork = albumArtBitmap
+    value = palette
+    value =
+      if (artwork == null) {
+        palette
+      } else {
+        withContext(Dispatchers.Default) {
+          runCatching { artworkVisualizerPalette(artwork, palette) }.getOrDefault(palette)
+        }
+      }
+  }
 
    val isPlaying = paused == false
-   val currentDurSec = if (preciseDuration > 0f) preciseDuration else duration?.toFloat() ?: 0f
+   val currentDurSec =
+     if (preciseDuration > 0f) {
+       preciseDuration
+     } else if ((duration ?: 0) > 0) {
+       duration!!.toFloat()
+     } else {
+       currentItem?.durationSeconds?.takeIf { it > 0 }?.toFloat() ?: 0f
+     }
    val currentVolumePercent by viewModel.currentVolumePercent.collectAsState()
    val volumeScale = currentVolumePercent / 100f
    val visualizerFeatures = rememberAudioVisualizerFeatures(isPlaying, volumeScale)
+
+  // Hardware buttons, Bluetooth devices and system panels can change STREAM_MUSIC without
+  // going through the player's volume callbacks. Keep the visualizer's gain synchronized.
+  LaunchedEffect(viewModel, isPlaying) {
+    viewModel.syncCurrentVolumeState()
+    while (isPlaying && isActive) {
+      kotlinx.coroutines.delay(200L)
+      viewModel.syncCurrentVolumeState()
+    }
+  }
 
   val repeatMode by viewModel.repeatMode.collectAsState()
   val shuffleEnabled by viewModel.shuffleEnabled.collectAsState()
@@ -617,12 +879,12 @@ fun AudioPlayerControls(
   val sheetShown by viewModel.sheetShown.collectAsState()
   val isSheetOpen = sheetShown != Sheets.None
 
-  CuboidSpectrumCaptureEffect(
+  AudioSpectrumCaptureEffect(
     enabled =
-      showVisualizer &&
-        !showInPlaceLyrics &&
+      isPlaying &&
         !isSheetOpen &&
-        audioVisualizerStyle == AudioVisualizerStyle.Cuboid,
+        ((showVisualizer && !showInPlaceLyrics) ||
+          (audioWavySeekbar && !isLyricsFullscreen)),
     features = visualizerFeatures,
   )
 
@@ -633,9 +895,12 @@ fun AudioPlayerControls(
   var addToPlaylistDialogOpen by rememberSaveable { mutableStateOf(false) }
 
   val playerPreferences = koinInject<PlayerPreferences>()
+  val actionHaptics = app.gyrolet.mpvrx.ui.utils.rememberAppHaptics()
   val playlistRepository = koinInject<PlaylistRepository>()
   val jellyfinRepository = koinInject<JellyfinRepository>()
   val jellyfinServers by jellyfinRepository.allServers.collectAsState(initial = emptyList())
+  val navidromeRepository = koinInject<NavidromeRepository>()
+  val navidromeServers by navidromeRepository.allServers.collectAsState(initial = emptyList())
   val coroutineScope = rememberCoroutineScope()
   val activeTrackPath = mediaPath?.takeIf { it.isNotBlank() } ?: currentMediaSource
 
@@ -695,11 +960,59 @@ fun AudioPlayerControls(
     }
   }
 
+  val navidromeInfo = remember(activeTrackPath, mediaPath, currentMediaSource) {
+    val path = mediaPath?.takeIf { it.isNotBlank() } ?: activeTrackPath ?: currentMediaSource
+    if (path.isNullOrBlank()) null
+    else {
+      val uri = runCatching { Uri.parse(path) }.getOrNull()
+      if (uri == null) null
+      else {
+        if (uri.path?.contains("/rest/stream", ignoreCase = true) == true ||
+            uri.path?.contains("stream.view", ignoreCase = true) == true ||
+            uri.query?.contains("stream.view", ignoreCase = true) == true) {
+          val songId = uri.getQueryParameter("id")
+          val username = uri.getQueryParameter("u")
+          val scheme = uri.scheme ?: "http"
+          val authority = uri.encodedAuthority
+          val baseUrl = if (authority != null) "$scheme://$authority" else null
+          if (!songId.isNullOrBlank()) {
+            Triple(baseUrl, songId, username)
+          } else null
+        } else null
+      }
+    }
+  }
+
+  val activeNavidromeServer = remember(navidromeServers, navidromeInfo) {
+    if (navidromeInfo == null) null
+    else {
+      navidromeServers.firstOrNull { s ->
+        s.serverUrl.contains(runCatching { Uri.parse(navidromeInfo.first.orEmpty()).host.orEmpty() }.getOrDefault("")) ||
+          (!navidromeInfo.third.isNullOrBlank() && s.username == navidromeInfo.third)
+      } ?: navidromeServers.firstOrNull()
+    }
+  }
+
+  var navidromeFavoriteOverride by remember(activeTrackPath, mediaPath) { mutableStateOf<Boolean?>(null) }
+
+  LaunchedEffect(activeNavidromeServer, navidromeInfo?.second) {
+    val server = activeNavidromeServer
+    val songId = navidromeInfo?.second
+    if (server != null && !songId.isNullOrBlank()) {
+      val song = withContext(Dispatchers.IO) {
+        navidromeRepository.getSong(server, songId).getOrNull()
+      }
+      if (song != null) {
+        navidromeFavoriteOverride = song.isFavorite
+      }
+    }
+  }
+
   val isCurrentTrackFavoriteLocal by remember(activeTrackPath, mediaPath) {
     playlistRepository.observeIsFavorite((mediaPath?.takeIf { it.isNotBlank() } ?: activeTrackPath).orEmpty(), isAudio = true)
   }.collectAsState(initial = false)
 
-  val isCurrentTrackFavorite = jellyfinFavoriteOverride ?: isCurrentTrackFavoriteLocal
+  val isCurrentTrackFavorite = jellyfinFavoriteOverride ?: navidromeFavoriteOverride ?: isCurrentTrackFavoriteLocal
 
   val seekbarStyle by appearancePreferences.seekbarStyle.collectAsState()
   val invertDuration by playerPreferences.invertDuration.collectAsState()
@@ -713,8 +1026,6 @@ fun AudioPlayerControls(
   LaunchedEffect(Unit) {
     viewModel.refreshPlaylistItems()
   }
-
-  val isAudioOnly by viewModel.isAudioOnly.collectAsState()
 
   val configuration = LocalConfiguration.current
   val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
@@ -780,8 +1091,8 @@ fun AudioPlayerControls(
     }
   }
 
-  val targetTopColor = if (ambientModeEnabled && (!showVisualizer || showInPlaceLyrics)) (ambientColors?.first ?: Color.Transparent) else Color.Transparent
-  val targetBottomColor = if (ambientModeEnabled && (!showVisualizer || showInPlaceLyrics)) (ambientColors?.second ?: Color.Transparent) else Color.Transparent
+  val targetTopColor = if (ambientModeEnabled) (ambientColors?.first ?: Color.Transparent) else Color.Transparent
+  val targetBottomColor = if (ambientModeEnabled) (ambientColors?.second ?: Color.Transparent) else Color.Transparent
 
   val animatedAmbientTop: Color by animateColorAsState(
     targetValue = targetTopColor,
@@ -794,14 +1105,32 @@ fun AudioPlayerControls(
     animationSpec = tween(durationMillis = 800),
     label = "ambient_bottom_color",
   )
-
+  val visualizerPalette =
+    remember(artworkPalette, targetTopColor, targetBottomColor) {
+      val surface = artworkPalette.background
+      val topBackdrop =
+        ColorUtils.compositeColors(
+          targetTopColor.copy(alpha = targetTopColor.alpha * 0.65f).toArgb(),
+          ColorUtils.compositeColors(targetTopColor.toArgb(), surface),
+        )
+      val bottomBackdrop =
+        ColorUtils.compositeColors(
+          targetBottomColor.copy(alpha = targetBottomColor.alpha * 0.35f).toArgb(),
+          ColorUtils.compositeColors(targetBottomColor.toArgb(), surface),
+        )
+      artworkPalette.withThemeContrast(
+        listOf(surface, topBackdrop, bottomBackdrop, ColorUtils.blendARGB(topBackdrop, bottomBackdrop, 0.5f)),
+      )
+    }
+  val edgeToEdgeVisualizer = showVisualizer && (!showInPlaceLyrics || isTabletLandscape)
+  val controlsSidePadding = if (edgeToEdgeVisualizer) 16.dp else 0.dp
   Box(
     modifier =
       modifier
         .fillMaxSize()
         .background(MaterialTheme.colorScheme.surface)
         .drawWithCache {
-          if (ambientModeEnabled && (!showVisualizer || showInPlaceLyrics) && (animatedAmbientTop != Color.Transparent || animatedAmbientBottom != Color.Transparent)) {
+          if (ambientModeEnabled && (animatedAmbientTop != Color.Transparent || animatedAmbientBottom != Color.Transparent)) {
             val topColor = animatedAmbientTop
             val bottomColor = animatedAmbientBottom
             val radialGradient = Brush.radialGradient(
@@ -830,8 +1159,15 @@ fun AudioPlayerControls(
             onDrawBehind {}
           }
         }
-        .windowInsetsPadding(WindowInsets.safeDrawing)
-        .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp),
+        .windowInsetsPadding(
+          if (edgeToEdgeVisualizer) {
+            WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+          } else {
+            WindowInsets.safeDrawing
+          },
+        )
+        .padding(horizontal = if (edgeToEdgeVisualizer) 0.dp else 16.dp)
+        .padding(top = if (edgeToEdgeVisualizer) 0.dp else 6.dp, bottom = 12.dp),
   ) {
     val headerBar = @Composable {
       Box(modifier = Modifier.fillMaxWidth()) {
@@ -872,7 +1208,7 @@ fun AudioPlayerControls(
     }
 
     val losslessBadge = @Composable {
-      if (isLosslessCodecOrExt) {
+      if (collapsedAudioBadgeLabel.isNotBlank()) {
         Surface(
           shape = RoundedCornerShape(4.dp),
           color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
@@ -890,7 +1226,7 @@ fun AudioPlayerControls(
               if (showLosslessDetails && fullLosslessDetailString.isNotBlank()) {
                 fullLosslessDetailString
               } else {
-                if (isHiRes) "HI-RES LOSSLESS" else "LOSSLESS"
+                collapsedAudioBadgeLabel
               },
             style =
               MaterialTheme.typography.labelSmall.copy(
@@ -940,12 +1276,18 @@ fun AudioPlayerControls(
       BoxWithConstraints(
         modifier =
           visualizerModifier
-            .clipToBounds()
-            .combinedClickable(
-              interactionSource = remember { MutableInteractionSource() },
-              indication = null,
-              onClick = { viewModel.toggleAudioVisualizer() },
-              onLongClick = { onOpenSheet(Sheets.VisualizerStyle) },
+            .then(if (showVisualizer) Modifier else Modifier.clipToBounds())
+            .then(
+              if (showVisualizer || showInPlaceLyrics) {
+                Modifier
+              } else {
+                Modifier.combinedClickable(
+                  interactionSource = remember { MutableInteractionSource() },
+                  indication = null,
+                  onClick = { viewModel.toggleAudioVisualizer() },
+                  onLongClick = { onOpenSheet(Sheets.VisualizerStyle) },
+                )
+              },
             ),
         contentAlignment = Alignment.Center,
       ) {
@@ -962,69 +1304,40 @@ fun AudioPlayerControls(
         } else {
           AnimatedContent(
             targetState = showVisualizer,
+            contentAlignment = Alignment.Center,
             transitionSpec = {
-              if (targetState) {
-                (fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing)) +
-                  scaleIn(animationSpec = tween(350, easing = FastOutSlowInEasing), initialScale = 0.90f))
-                  .togetherWith(
-                    fadeOut(animationSpec = tween(280)) +
-                      scaleOut(animationSpec = tween(280), targetScale = 1.06f),
-                  )
-              } else {
-                (fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing)) +
-                  scaleIn(animationSpec = spring(dampingRatio = 0.72f, stiffness = 400f), initialScale = 0.88f))
-                  .togetherWith(
-                    fadeOut(animationSpec = tween(280)) +
-                      scaleOut(animationSpec = tween(280), targetScale = 1.06f),
-                  )
-              }
+              val contentTransform =
+                if (targetState) {
+                  (fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing)) +
+                    scaleIn(animationSpec = tween(350, easing = FastOutSlowInEasing), initialScale = 0.90f))
+                    .togetherWith(
+                      fadeOut(animationSpec = tween(280)) +
+                        scaleOut(animationSpec = tween(280), targetScale = 1.06f),
+                    )
+                } else {
+                  (fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing)) +
+                    scaleIn(animationSpec = spring(dampingRatio = 0.72f, stiffness = 400f), initialScale = 0.88f))
+                    .togetherWith(
+                      fadeOut(animationSpec = tween(280)) +
+                        scaleOut(animationSpec = tween(280), targetScale = 1.06f),
+                    )
+                }
+              contentTransform.using(SizeTransform(clip = false))
             },
             label = "visualizer_toggle",
-            modifier = Modifier.fillMaxHeight().fillMaxWidth(if (isTabletPortrait) 0.65f else 1.0f),
+            modifier = Modifier.fillMaxSize(),
           ) { isVisualizerActive ->
           if (isVisualizerActive) {
-            Box(
+            AudioVisualizerViewport(
+              style = audioVisualizerStyle,
+              palette = visualizerPalette,
+              isPlaying = isPlaying,
+              isSheetOpen = isSheetOpen,
+              features = visualizerFeatures,
+              onClick = viewModel::toggleAudioVisualizer,
+              onLongClick = { onOpenSheet(Sheets.VisualizerStyle) },
               modifier = Modifier.fillMaxSize(),
-              contentAlignment = Alignment.Center,
-            ) {
-               when (audioVisualizerStyle) {
-                 AudioVisualizerStyle.Galaxy ->
-                   GalaxyOverlay(
-                     palette = palette,
-                     isSheetOpen = isSheetOpen,
-                     volumeScale = volumeScale,
-                     features = visualizerFeatures,
-                     modifier = Modifier.fillMaxSize(),
-                   )
-                 AudioVisualizerStyle.Blob ->
-                   BlobOverlay(
-                     palette = palette,
-                     isSheetOpen = isSheetOpen,
-                     volumeScale = volumeScale,
-                     features = visualizerFeatures,
-                     modifier = Modifier.fillMaxSize(),
-                   )
-                 AudioVisualizerStyle.Cuboid ->
-                   if (!isSheetOpen) {
-                     CuboidOverlay(
-                       isPlaying = isPlaying,
-                       palette = palette,
-                       isSheetOpen = false,
-                       volumeScale = volumeScale,
-                       features = visualizerFeatures,
-                       modifier = Modifier.fillMaxSize(),
-                     )
-                   }
-                 AudioVisualizerStyle.Particle ->
-                   ParticleOverlay(
-                     palette = palette,
-                     isSheetOpen = isSheetOpen,
-                     volumeScale = volumeScale,
-                     features = visualizerFeatures,
-                     modifier = Modifier.fillMaxSize(),
-                   )
-               }
-            }
+            )
           } else {
             val coverShape = RoundedCornerShape(32.dp)
             val density = LocalDensity.current
@@ -1033,7 +1346,8 @@ fun AudioPlayerControls(
 
             Box(
               modifier = Modifier
-                .fillMaxSize()
+                .fillMaxHeight()
+                .fillMaxWidth(if (isTabletPortrait) 0.65f else if (isPortrait) 0.88f else 1f)
                 .pointerInput(showVisualizer, containerWidthPx) {
                   if (showVisualizer || containerWidthPx <= 0f) return@pointerInput
                   detectHorizontalDragGestures(
@@ -1153,6 +1467,7 @@ fun AudioPlayerControls(
         Text(
           text = displayTitle,
           style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold),
+          fontFamily = fontFamilyForText(displayTitle),
           color = MaterialTheme.colorScheme.onSurface,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis,
@@ -1164,6 +1479,7 @@ fun AudioPlayerControls(
         Text(
           text = displayArtist,
           style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
+          fontFamily = fontFamilyForText(displayArtist),
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis,
@@ -1346,16 +1662,26 @@ fun AudioPlayerControls(
                 val path = mediaPath?.takeIf { it.isNotBlank() } ?: activeTrackPath ?: return@ReactiveIconButton
                 val server = activeJellyfinServer
                 val itemId = jellyfinInfo?.second
+                val navServer = activeNavidromeServer
+                val navSongId = navidromeInfo?.second
                 val newFavState = !isCurrentTrackFavorite
 
                 coroutineScope.launch {
                   // Toggle local Room favorite state
                   playlistRepository.toggleFavorite(filePath = path, fileName = displayTitle, isAudio = true)
+                  actionHaptics.selection(newFavState)
                   // Toggle Jellyfin server favorite status via API if playing from Jellyfin
                   if (server != null && !itemId.isNullOrBlank()) {
                     jellyfinFavoriteOverride = newFavState
                     withContext(Dispatchers.IO) {
                       jellyfinRepository.toggleFavorite(server = server, itemId = itemId, isFavorite = newFavState)
+                    }
+                  }
+                  // Toggle Navidrome server favorite status via API if playing from Navidrome
+                  if (navServer != null && !navSongId.isNullOrBlank()) {
+                    navidromeFavoriteOverride = newFavState
+                    withContext(Dispatchers.IO) {
+                      navidromeRepository.toggleFavorite(server = navServer, songId = navSongId, isFavorite = newFavState)
                     }
                   }
                 }
@@ -1366,7 +1692,7 @@ fun AudioPlayerControls(
                 imageVector = if (isCurrentTrackFavorite) Icons.RoundedFilled.Favorite else Icons.RoundedFilled.FavoriteBorder,
                 contentDescription = if (isCurrentTrackFavorite) "Remove from Favorites" else "Add to Favorites",
                 tint = if (isCurrentTrackFavorite) Color.White else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(30.dp),
+                modifier = Modifier.size(28.dp),
               )
             }
 
@@ -1391,21 +1717,29 @@ fun AudioPlayerControls(
       val remaining  by PlaybackSession.propFloat["playtime-remaining"].collectAsState()
       val precisePosition by viewModel.precisePosition.collectAsStateWithLifecycle()
       val currentPosSec = if (precisePosition > 0f) precisePosition else position?.toFloat() ?: 0f
+      val isPaused = paused ?: false
+      val effectiveRemaining =
+        (remaining ?: 0f).takeIf { it > 0f }
+          ?: (currentDurSec - currentPosSec).coerceAtLeast(0f)
 
       SeekbarWithTimers(
         position = currentPosSec,
         committedPosition = currentPosSec,
         duration = currentDurSec.coerceAtLeast(1f),
-        remaining = remaining ?: 0f,
-        onValueChange = { value -> viewModel.previewSeekTo(value) },
+        remaining = effectiveRemaining,
+        onValueChange = { value -> viewModel.seekPreviewTo(value) },
         onValueChangeFinished = { targetPosition -> viewModel.seekTo(targetPosition.toInt(), fast = false) },
         timersInverted = Pair(false, invertDuration),
         durationTimerOnCLick = { playerPreferences.invertDuration.set(!invertDuration) },
         positionTimerOnClick = {},
         chapters = seekbarChapters,
         skipSegments = persistentListOf(),
-        paused = paused ?: false,
+        paused = isPaused,
         seekbarStyle = seekbarStyle,
+        showWavyVisualizer = audioWavySeekbar,
+        waveFeatures = if (audioWavySeekbar) visualizerFeatures else null,
+        wavePalette = visualizerPalette,
+        waveSheetOpen = isSheetOpen,
         loopStart = abLoopA?.toFloat(),
         loopEnd = abLoopB?.toFloat(),
         isPortrait = isPortrait,
@@ -1436,14 +1770,6 @@ fun AudioPlayerControls(
             modifier = Modifier.size(28.dp),
           )
         }
-        ReactiveIconButton(onClick = { viewModel.seekBy(-30) }) {
-          Icon(
-            imageVector = Icons.RoundedFilled.FastRewind,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(34.dp),
-          )
-        }
         ReactiveSurfaceButton(
           onClick = { viewModel.pauseUnpause() },
           shape = CircleShape,
@@ -1459,14 +1785,6 @@ fun AudioPlayerControls(
               modifier = Modifier.size(if (isPortrait) 44.dp else 36.dp),
             )
           }
-        }
-        ReactiveIconButton(onClick = { viewModel.seekBy(30) }) {
-          Icon(
-            imageVector = Icons.RoundedFilled.FastForward,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(34.dp),
-          )
         }
         ReactiveIconButton(onClick = { viewModel.playNext() }, enabled = playlistModeEnabled) {
           Icon(
@@ -1529,7 +1847,10 @@ fun AudioPlayerControls(
               horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
               ReactiveIconButton(
-                onClick = viewModel::toggleShuffle,
+                onClick = {
+                  viewModel.toggleShuffle()
+                  actionHaptics.selection(!shuffleEnabled)
+                },
                 enabled = playlistModeEnabled,
                 modifier = Modifier.size(40.dp),
               ) {
@@ -1540,7 +1861,10 @@ fun AudioPlayerControls(
                 )
               }
               ReactiveIconButton(
-                onClick = viewModel::cycleRepeatMode,
+                onClick = {
+                  viewModel.cycleRepeatMode()
+                  actionHaptics.confirm()
+                },
                 modifier = Modifier.size(40.dp),
               ) {
                 Icon(
@@ -1610,7 +1934,10 @@ fun AudioPlayerControls(
               horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
               ReactiveIconButton(
-                onClick = viewModel::toggleShuffle,
+                onClick = {
+                  viewModel.toggleShuffle()
+                  actionHaptics.selection(!shuffleEnabled)
+                },
                 enabled = playlistModeEnabled,
                 modifier = Modifier.size(40.dp),
               ) {
@@ -1621,7 +1948,10 @@ fun AudioPlayerControls(
                 )
               }
               ReactiveIconButton(
-                onClick = viewModel::cycleRepeatMode,
+                onClick = {
+                  viewModel.cycleRepeatMode()
+                  actionHaptics.confirm()
+                },
                 modifier = Modifier.size(40.dp),
               ) {
                 Icon(
@@ -1712,39 +2042,62 @@ fun AudioPlayerControls(
         modifier = Modifier
           .fillMaxSize()
           .clickable(
+            enabled = showInPlaceLyrics,
             interactionSource = remember { MutableInteractionSource() },
             indication = null,
           ) { resetInactivityTimer() },
         horizontalAlignment = Alignment.CenterHorizontally,
       ) {
-        androidx.compose.animation.AnimatedVisibility(
-          visible = !isLyricsFullscreen,
-          enter = fadeIn(animationSpec = tween(300)) + androidx.compose.animation.expandVertically(animationSpec = tween(300)),
-          exit = fadeOut(animationSpec = tween(300)) + androidx.compose.animation.shrinkVertically(animationSpec = tween(300)),
-        ) {
-          Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            headerBar()
-            losslessBadge()
-            Spacer(modifier = Modifier.height(16.dp))
+        if (edgeToEdgeVisualizer) {
+          Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            centerVisualizerView(Modifier.fillMaxSize())
+            Column(
+              modifier =
+                Modifier
+                  .fillMaxWidth()
+                  .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+                  .padding(horizontal = controlsSidePadding)
+                  .padding(top = 6.dp),
+              horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+              headerBar()
+              losslessBadge()
+            }
           }
+        } else {
+          androidx.compose.animation.AnimatedVisibility(
+            visible = !isLyricsFullscreen,
+            enter = fadeIn(animationSpec = tween(300)) +
+              androidx.compose.animation.expandVertically(animationSpec = tween(300)),
+            exit = fadeOut(animationSpec = tween(300)) +
+              androidx.compose.animation.shrinkVertically(animationSpec = tween(300)),
+          ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+              headerBar()
+              losslessBadge()
+              Spacer(modifier = Modifier.height(16.dp))
+            }
+          }
+
+          centerVisualizerView(Modifier.weight(1f).fillMaxWidth())
         }
 
-        val visualizerModifier = Modifier.weight(1f).fillMaxWidth()
-        centerVisualizerView(visualizerModifier)
-
         androidx.compose.animation.AnimatedVisibility(
           visible = !isLyricsFullscreen,
           enter = fadeIn(animationSpec = tween(300)) + androidx.compose.animation.expandVertically(animationSpec = tween(300)),
           exit = fadeOut(animationSpec = tween(300)) + androidx.compose.animation.shrinkVertically(animationSpec = tween(300)),
         ) {
-          Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(modifier = Modifier.height(16.dp))
+          Column(
+            modifier = Modifier.padding(horizontal = controlsSidePadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+          ) {
+            Spacer(modifier = Modifier.height(4.dp))
             trackMetadataView()
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             seekbarView()
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             playbackControlsRow()
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(48.dp))
             bottomActionRow()
           }
         }
@@ -1762,30 +2115,61 @@ fun AudioPlayerControls(
           verticalArrangement = Arrangement.SpaceBetween,
           horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-          headerBar()
-          Spacer(modifier = Modifier.height(4.dp))
-          losslessBadge()
-          Spacer(modifier = Modifier.height(6.dp))
-          centerVisualizerView(
-            Modifier
-              .weight(1f)
-              .fillMaxWidth()
-              .padding(vertical = 12.dp, horizontal = 24.dp),
-          )
-          Spacer(modifier = Modifier.height(6.dp))
-          trackMetadataView()
-          Spacer(modifier = Modifier.height(8.dp))
-          seekbarView()
-          Spacer(modifier = Modifier.height(8.dp))
-          playbackControlsRow()
-          Spacer(modifier = Modifier.height(12.dp))
-          bottomActionRow()
+          if (edgeToEdgeVisualizer) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+              centerVisualizerView(Modifier.fillMaxSize())
+              Column(
+                modifier =
+                  Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+                    .padding(horizontal = controlsSidePadding)
+                    .padding(top = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+              ) {
+                headerBar()
+                Spacer(modifier = Modifier.height(4.dp))
+                losslessBadge()
+              }
+            }
+          } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+              headerBar()
+              Spacer(modifier = Modifier.height(4.dp))
+              losslessBadge()
+              Spacer(modifier = Modifier.height(6.dp))
+            }
+            centerVisualizerView(
+              Modifier.weight(1f).fillMaxWidth().padding(vertical = 12.dp, horizontal = 24.dp),
+            )
+          }
+          Column(
+            modifier = Modifier.padding(horizontal = controlsSidePadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+          ) {
+            Spacer(modifier = Modifier.height(6.dp))
+            trackMetadataView()
+            Spacer(modifier = Modifier.height(8.dp))
+            seekbarView()
+            Spacer(modifier = Modifier.height(8.dp))
+            playbackControlsRow()
+            Spacer(modifier = Modifier.height(12.dp))
+            bottomActionRow()
+          }
         }
 
         Surface(
           modifier = Modifier
             .weight(1.1f)
             .fillMaxHeight()
+            .then(
+              if (edgeToEdgeVisualizer) {
+                Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)).padding(top = 6.dp)
+              } else {
+                Modifier
+              },
+            )
+            .padding(end = controlsSidePadding)
             .clip(RoundedCornerShape(24.dp)),
           color = MaterialTheme.colorScheme.surfaceContainerLow,
           shape = RoundedCornerShape(24.dp),
@@ -1805,7 +2189,14 @@ fun AudioPlayerControls(
       ) {
         centerVisualizerView(Modifier.weight(1f).fillMaxHeight())
         Column(
-          modifier = Modifier.weight(1.2f).fillMaxHeight(),
+          modifier =
+            Modifier.weight(1.2f).fillMaxHeight().padding(end = controlsSidePadding).then(
+              if (edgeToEdgeVisualizer) {
+                Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)).padding(top = 6.dp)
+              } else {
+                Modifier
+              },
+            ),
           verticalArrangement = Arrangement.SpaceBetween,
           horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -1831,7 +2222,7 @@ fun AudioPlayerControls(
             displayName = displayTitle,
             path = mediaPath,
             uri = Uri.parse(mediaPath),
-            duration = duration?.toLong() ?: 0L,
+            duration = duration?.toLong() ?: currentItem?.durationSeconds?.toLong() ?: 0L,
             durationFormatted = "",
             size = 0L,
             sizeFormatted = "",
@@ -1853,7 +2244,8 @@ fun AudioPlayerControls(
           (mediaPath.contains("api_key=", ignoreCase = true) ||
             mediaPath.contains("/Items/", ignoreCase = true) ||
             mediaPath.contains("/Audio/", ignoreCase = true) ||
-            mediaPath.contains("jellyfin", ignoreCase = true))
+            mediaPath.contains("jellyfin", ignoreCase = true) ||
+            mediaPath.contains("/rest/stream", ignoreCase = true))
       }
 
       AddToPlaylistDialog(
@@ -1950,6 +2342,7 @@ private fun UpNextPlaylistContent(
 
   var dragStartIndex by remember { mutableIntStateOf(-1) }
   var dragEndIndex by remember { mutableIntStateOf(-1) }
+  val reorderFeedback = rememberReorderFeedback()
 
   val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
     if (showDragHandle) {
@@ -1960,6 +2353,7 @@ private fun UpNextPlaylistContent(
       displayPlaylist = displayPlaylist.toMutableList().apply {
         add(to.index, removeAt(from.index))
       }
+      reorderFeedback.move(from.index, to.index)
     }
   }
 
@@ -2030,6 +2424,8 @@ private fun UpNextPlaylistContent(
                 isPlaying = item.isPlaying,
                 onClick = { viewModel.playPlaylistItem(item.index) },
                 scope = this,
+                isDragging = isDragging,
+                reorderFeedback = reorderFeedback,
               )
             }
           } else {
@@ -2052,6 +2448,8 @@ private fun UpNextPlaylistItemRow(
   isPlaying: Boolean,
   onClick: () -> Unit,
   scope: ReorderableCollectionItemScope?,
+  isDragging: Boolean = false,
+  reorderFeedback: ReorderFeedback? = null,
 ) {
   val bgColor = if (isPlaying) {
     MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
@@ -2066,12 +2464,11 @@ private fun UpNextPlaylistItemRow(
     )
 
   Surface(
-    modifier = Modifier
-      .fillMaxWidth()
-      .clip(RoundedCornerShape(16.dp))
-      .clickable(onClick = onClick),
+    onClick = onClick,
+    modifier = Modifier.fillMaxWidth(),
     shape = RoundedCornerShape(16.dp),
     color = bgColor,
+    shadowElevation = dragElevation(isDragging, app.gyrolet.mpvrx.ui.theme.AppMotion.playerReducedMotion()),
   ) {
     Row(
       modifier = Modifier
@@ -2087,7 +2484,10 @@ private fun UpNextPlaylistItemRow(
           modifier = with(scope) {
             Modifier
               .size(24.dp)
-              .draggableHandle()
+              .draggableHandle(
+                interactionSource = reorderFeedback?.interactions,
+                onDragStarted = { reorderFeedback?.start() },
+              )
           },
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -2205,11 +2605,13 @@ private fun ReactiveIconButton(
 ) {
   val interactionSource = remember { MutableInteractionSource() }
   val isPressed by interactionSource.collectIsPressedAsState()
-  val haptic = LocalHapticFeedback.current
+  val reducedMotion = app.gyrolet.mpvrx.ui.theme.AppMotion.playerReducedMotion()
 
   val scale by animateFloatAsState(
-    targetValue = if (isPressed) 0.82f else 1f,
-    animationSpec = spring(dampingRatio = 0.55f, stiffness = 900f),
+    targetValue = if (isPressed && enabled && !reducedMotion) 0.96f else 1f,
+    animationSpec =
+      if (reducedMotion) androidx.compose.animation.core.snap() else
+        app.gyrolet.mpvrx.ui.theme.AppMotion.Spatial.ExpressiveFast,
     label = "reactive_icon_button_scale",
   )
 
@@ -2217,6 +2619,7 @@ private fun ReactiveIconButton(
     Box(
       modifier =
         modifier
+          .tvFocusHighlight(CircleShape, enabled = enabled, focusedScale = 1.08f)
           .graphicsLayer {
             scaleX = scale
             scaleY = scale
@@ -2226,14 +2629,8 @@ private fun ReactiveIconButton(
             interactionSource = interactionSource,
             indication = ripple(bounded = false, radius = 24.dp),
             enabled = enabled,
-            onClick = {
-              haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-              onClick()
-            },
-            onLongClick = {
-              haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-              onLongClick()
-            },
+            onClick = onClick,
+            onLongClick = onLongClick,
           )
           .padding(8.dp),
       contentAlignment = Alignment.Center,
@@ -2242,17 +2639,16 @@ private fun ReactiveIconButton(
     }
   } else {
     IconButton(
-      onClick = {
-        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        onClick()
-      },
+      onClick = onClick,
       enabled = enabled,
       interactionSource = interactionSource,
       modifier =
-        modifier.graphicsLayer {
-          scaleX = scale
-          scaleY = scale
-        },
+        modifier
+          .tvFocusHighlight(CircleShape, enabled = enabled, focusedScale = 1.08f)
+          .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+          },
     ) {
       content()
     }
@@ -2271,29 +2667,30 @@ private fun ReactiveSurfaceButton(
 ) {
   val interactionSource = remember { MutableInteractionSource() }
   val isPressed by interactionSource.collectIsPressedAsState()
-  val haptic = LocalHapticFeedback.current
+  val reducedMotion = app.gyrolet.mpvrx.ui.theme.AppMotion.playerReducedMotion()
 
   val scale by animateFloatAsState(
-    targetValue = if (isPressed) 0.88f else 1f,
-    animationSpec = spring(dampingRatio = 0.55f, stiffness = 900f),
+    targetValue = if (isPressed && enabled && !reducedMotion) 0.95f else 1f,
+    animationSpec =
+      if (reducedMotion) androidx.compose.animation.core.snap() else
+        app.gyrolet.mpvrx.ui.theme.AppMotion.Spatial.ExpressiveFast,
     label = "reactive_surface_button_scale",
   )
 
   Surface(
-    onClick = {
-      haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-      onClick()
-    },
+    onClick = onClick,
     shape = shape,
     color = color,
     shadowElevation = shadowElevation,
     enabled = enabled,
     interactionSource = interactionSource,
     modifier =
-      modifier.graphicsLayer {
-        scaleX = scale
-        scaleY = scale
-      },
+      modifier
+        .tvFocusHighlight(shape, enabled = enabled, focusedScale = 1.06f)
+        .graphicsLayer {
+          scaleX = scale
+          scaleY = scale
+        },
   ) {
     content()
   }

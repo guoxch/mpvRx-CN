@@ -11,7 +11,7 @@ package app.gyrolet.mpvrx.ui.browser.recentlyplayed
 
 import android.content.Intent
 import android.widget.Toast
-import androidx.activity.compose.BackHandler
+import app.gyrolet.mpvrx.ui.utils.NavigationBackHandler as BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -20,6 +20,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import app.gyrolet.mpvrx.ui.browser.fab.FabScrollHelper
+import app.gyrolet.mpvrx.ui.components.themedSegmentedButtonColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -35,7 +36,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.pager.HorizontalPager
+import app.gyrolet.mpvrx.ui.utils.NavigationPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -58,7 +59,6 @@ import androidx.compose.material3.animateFloatingActionButton
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -104,6 +104,8 @@ import app.gyrolet.mpvrx.ui.browser.states.EmptyState
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
+import app.gyrolet.mpvrx.ui.utils.navigateTo
+import app.gyrolet.mpvrx.ui.utils.rememberTabNavigation
 import app.gyrolet.mpvrx.ui.utils.calculateResponsiveGridSpans
 import app.gyrolet.mpvrx.utils.media.MediaUtils
 import kotlinx.coroutines.launch
@@ -188,12 +190,7 @@ object RecentlyPlayedScreen : Screen {
 
     // Handle back button during selection mode or FAB menu expanded
     // Synchronize NavigationBarState when selection mode changes
-    SideEffect {
-      app.gyrolet.mpvrx.ui.browser.NavigationBarState.updateSelectionState(
-        inSelectionMode = selectionManager.isInSelectionMode,
-        onlyVideos = true,
-      )
-    }
+    app.gyrolet.mpvrx.ui.browser.NavigationBarSelectionEffect(selectionManager.isInSelectionMode)
 
     BackHandler(enabled = selectionManager.isInSelectionMode || isFabExpanded.value) {
       when {
@@ -238,22 +235,23 @@ object RecentlyPlayedScreen : Screen {
 
     // Swipe between the Video/Audio tabs, kept in sync with the segmented buttons.
     val pagerState = rememberPagerState(initialPage = recentlyPlayedFilter.ordinal) { MediaLibraryType.entries.size }
-    LaunchedEffect(pagerState.currentPage) {
-      MediaLibraryType.entries.getOrNull(pagerState.currentPage)?.let { type ->
-        if (recentlyPlayedFilter != type) {
-          selectionManager.clear()
-          recentlyPlayedFilter = type
+    val navigateTab = rememberTabNavigation(pagerState)
+    LaunchedEffect(pagerState.settledPage, pagerState.isScrollInProgress) {
+      if (!pagerState.isScrollInProgress) {
+        MediaLibraryType.entries.getOrNull(pagerState.settledPage)?.let { type ->
+          if (recentlyPlayedFilter != type) {
+            selectionManager.clear()
+            recentlyPlayedFilter = type
+          }
         }
       }
     }
     LaunchedEffect(recentlyPlayedFilter) {
-      val targetPage = recentlyPlayedFilter.ordinal
-      if (pagerState.currentPage != targetPage) {
-        pagerState.animateScrollToPage(targetPage)
-      }
+      navigateTab(recentlyPlayedFilter.ordinal)
     }
 
     Scaffold(
+      containerColor = app.gyrolet.mpvrx.ui.theme.wallpaperAwareBackgroundColor(),
       topBar = {
         BrowserTopBar(
           title = stringResource(R.string.pref_advanced_enable_recently_played_title),
@@ -264,7 +262,7 @@ object RecentlyPlayedScreen : Screen {
           onCancelSelection = { selectionManager.clear() },
           onSortClick = null, // No sorting in recently played
           onSettingsClick = {
-            backStack.add(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
+            backStack.navigateTo(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
           },
           isSingleSelection = selectionManager.isSingleSelection,
           onInfoClick = null, // No info in recently played
@@ -439,11 +437,7 @@ object RecentlyPlayedScreen : Screen {
                   }
                 },
                 shape = SegmentedButtonDefaults.itemShape(index, MediaLibraryType.entries.size),
-                colors =
-                  SegmentedButtonDefaults.colors(
-                    activeContentColor = MaterialTheme.colorScheme.primary,
-                    activeBorderColor = MaterialTheme.colorScheme.primary,
-                  ),
+                colors = themedSegmentedButtonColors(),
               ) {
                 Text(
                   text =
@@ -473,7 +467,7 @@ object RecentlyPlayedScreen : Screen {
             EmptyState(
               icon = Icons.RoundedFilled.History,
               title = stringResource(R.string.ui_recently_played_disabled),
-              message = "Enable it in Advanced Settings to track your playback history",
+              message = stringResource(R.string.ui_recently_played_disabled_message),
             )
           }
         }
@@ -491,7 +485,7 @@ object RecentlyPlayedScreen : Screen {
         }
 
         else -> {
-          HorizontalPager(
+          NavigationPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
           ) { page ->
@@ -539,7 +533,7 @@ object RecentlyPlayedScreen : Screen {
                 },
                 onPlaylistClick = { playlistItem ->
                   // Navigate to playlist detail screen
-                  backStack.add(PlaylistDetailScreen(playlistItem.playlist.id))
+                  backStack.navigateTo(PlaylistDetailScreen(playlistItem.playlist.id))
                 },
                 modifier = Modifier,
                 isInSelectionMode = selectionManager.isInSelectionMode,
@@ -664,6 +658,7 @@ private fun RecentItemsContent(
   val showExtensionField by browserPreferences.showExtensionField.collectAsState()
   val showDurationField by browserPreferences.showDurationField.collectAsState()
   val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
+  val thumbnailQuality by browserPreferences.thumbnailQuality.collectAsState()
   val manualGridColumnsEnabled by browserPreferences.manualGridColumnsEnabled.collectAsState()
   val videoGridColumnsPortrait by browserPreferences.videoGridColumnsPortrait.collectAsState()
   val videoGridColumnsLandscape by browserPreferences.videoGridColumnsLandscape.collectAsState()
@@ -690,7 +685,9 @@ private fun RecentItemsContent(
 
   val thumbWidthDp =
     if (isGridMode) {
-      (screenWidthDp / computedVideoColumns)
+      val cellWidth =
+        (screenWidthDp - contentHorizontalPadding * 2 - itemSpacing * (computedVideoColumns - 1)) / computedVideoColumns
+      (cellWidth - 8.dp).coerceAtLeast(1.dp)
     } else if (isAudioTab) {
       // List mode for the Audio tab uses the configurable cover-art size instead of the
       // fixed video thumbnail width, so the Music sort dialog's slider has an effect here too.
@@ -698,7 +695,7 @@ private fun RecentItemsContent(
     } else {
       160.dp
     }
-  val aspect = 16f / 9f
+  val aspect = if (isAudioTab) 1f else if (isGridMode) 16f / 10f else 16f / 9f
   val thumbWidthPx = with(density) { thumbWidthDp.roundToPx() }
   val thumbHeightPx = (thumbWidthPx / aspect).toInt()
   val videoCardUiConfig =
@@ -716,6 +713,7 @@ private fun RecentItemsContent(
       showExtensionField,
       showDurationField,
       centerGridTitles,
+      thumbnailQuality,
     ) {
       VideoCardUiConfig(
         unlimitedNameLines = unlimitedNameLines,
@@ -731,6 +729,7 @@ private fun RecentItemsContent(
         showExtensionField = showExtensionField,
         showDurationField = showDurationField,
         centerGridTitles = centerGridTitles,
+        thumbnailQuality = thumbnailQuality,
       )
     }
 
@@ -798,8 +797,8 @@ private fun RecentItemsContent(
               end = 8.dp,
               bottom = if (isInSelectionMode) 88.dp else navigationBarHeight,
             ),
-          horizontalArrangement = Arrangement.spacedBy(4.dp),
-          verticalArrangement = Arrangement.spacedBy(4.dp),
+          horizontalArrangement = Arrangement.spacedBy(2.dp),
+          verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
           items(
             count = recentItems.size,
@@ -828,7 +827,7 @@ private fun RecentItemsContent(
                   isSelected = selectionManager.isSelected(item),
                   onClick = {
                     if (selectionManager.isInSelectionMode) {
-                      selectionManager.toggle(item)
+                      selectionManager.toggleFromUser(item)
                     } else {
                       onVideoClick(item.video)
                     }
@@ -836,11 +835,11 @@ private fun RecentItemsContent(
                   onLongClick = { selectionManager.handleLongClick(item) },
                   onThumbClick =
                     if (tapThumbnailToSelect) {
-                      { selectionManager.toggle(item) }
+                      { selectionManager.toggleFromUser(item) }
                     } else {
                       {
                         if (selectionManager.isInSelectionMode) {
-                          selectionManager.toggle(item)
+                          selectionManager.toggleFromUser(item)
                         } else {
                           onVideoClick(item.video)
                         }
@@ -870,7 +869,7 @@ private fun RecentItemsContent(
                   isRecentlyPlayed = false,
                   onClick = {
                     if (selectionManager.isInSelectionMode) {
-                      selectionManager.toggle(item)
+                      selectionManager.toggleFromUser(item)
                     } else {
                       coroutineScope.launch {
                         onPlaylistClick(item)
@@ -880,10 +879,10 @@ private fun RecentItemsContent(
                   onLongClick = { selectionManager.handleLongClick(item) },
                   onThumbClick = {
                     if (tapThumbnailToSelect) {
-                      selectionManager.toggle(item)
+                      selectionManager.toggleFromUser(item)
                     } else {
                       if (selectionManager.isInSelectionMode) {
-                        selectionManager.toggle(item)
+                        selectionManager.toggleFromUser(item)
                       } else {
                         coroutineScope.launch {
                           onPlaylistClick(item)
@@ -954,7 +953,7 @@ private fun RecentItemsContent(
                   isSelected = selectionManager.isSelected(item),
                   onClick = {
                     if (selectionManager.isInSelectionMode) {
-                      selectionManager.toggle(item)
+                      selectionManager.toggleFromUser(item)
                     } else {
                       onVideoClick(item.video)
                     }
@@ -962,11 +961,11 @@ private fun RecentItemsContent(
                   onLongClick = { selectionManager.handleLongClick(item) },
                   onThumbClick =
                     if (tapThumbnailToSelect) {
-                      { selectionManager.toggle(item) }
+                      { selectionManager.toggleFromUser(item) }
                     } else {
                       {
                         if (selectionManager.isInSelectionMode) {
-                          selectionManager.toggle(item)
+                          selectionManager.toggleFromUser(item)
                         } else {
                           onVideoClick(item.video)
                         }
@@ -997,7 +996,7 @@ private fun RecentItemsContent(
                   isRecentlyPlayed = false,
                   onClick = {
                     if (selectionManager.isInSelectionMode) {
-                      selectionManager.toggle(item)
+                      selectionManager.toggleFromUser(item)
                     } else {
                       coroutineScope.launch {
                         onPlaylistClick(item)
@@ -1007,10 +1006,10 @@ private fun RecentItemsContent(
                   onLongClick = { selectionManager.handleLongClick(item) },
                   onThumbClick = {
                     if (tapThumbnailToSelect) {
-                      selectionManager.toggle(item)
+                      selectionManager.toggleFromUser(item)
                     } else {
                       if (selectionManager.isInSelectionMode) {
-                        selectionManager.toggle(item)
+                        selectionManager.toggleFromUser(item)
                       } else {
                         coroutineScope.launch {
                           onPlaylistClick(item)

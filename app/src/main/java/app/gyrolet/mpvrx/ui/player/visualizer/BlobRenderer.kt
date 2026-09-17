@@ -13,6 +13,8 @@ import android.content.Context
 import android.opengl.GLES30
 import android.opengl.GLSurfaceView
 import android.opengl.Matrix
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import javax.microedition.khronos.egl.EGLConfig
@@ -98,9 +100,6 @@ internal class BlobRenderer(
   private var uCompositeExposure = -1
 
   @Suppress("LocalVariableName")
-  private var uCompositeBackground = -1
-
-  @Suppress("LocalVariableName")
   private var uSpectrum = -1
 
   private var meshVao = 0
@@ -116,6 +115,11 @@ internal class BlobRenderer(
   private var bloomB = RenderTarget.EMPTY
 
   private var spectrumTexture = 0
+  private val spectrumUploadBuffer =
+    ByteBuffer
+      .allocateDirect(512 * Float.SIZE_BYTES)
+      .order(ByteOrder.nativeOrder())
+      .asFloatBuffer()
 
   private var surfaceWidth = 1
   private var surfaceHeight = 1
@@ -132,7 +136,6 @@ internal class BlobRenderer(
 
   @Volatile private var reducedMotionEnabled = reducedMotion
   private var appliedPalette: VisualizerPalette? = null
-  private var backgroundRgb = initialPalette.backgroundRgb()
   private var primaryRgb = initialPalette.primaryRgb()
   private var secondaryRgb = initialPalette.secondaryRgb()
   private var tertiaryRgb = initialPalette.tertiaryRgb()
@@ -396,15 +399,21 @@ internal class BlobRenderer(
     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, 0)
   }
 
-   private fun updateSpectrumTexture(
-     spectrum: FloatArray,
-     volumeScale: Float,
-   ) {
-     val data = java.nio.FloatBuffer.wrap(spectrum.copyOf(512).also { scaled ->
-       for (i in scaled.indices) {
-         scaled[i] *= volumeScale
-       }
-     })
+  private fun updateSpectrumTexture(
+    spectrum: FloatArray,
+    volumeScale: Float,
+  ) {
+    spectrumUploadBuffer.clear()
+    val active = sourceAudio.active
+    val scale = if (active) volumeScale else 0f
+    val populatedBins = min(spectrum.size, 512)
+    for (index in 0 until populatedBins) {
+      spectrumUploadBuffer.put(spectrum[index] * scale)
+    }
+    for (index in populatedBins until 512) {
+      spectrumUploadBuffer.put(0f)
+    }
+    spectrumUploadBuffer.flip()
     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, spectrumTexture)
     GLES30.glTexSubImage2D(
       GLES30.GL_TEXTURE_2D,
@@ -415,7 +424,7 @@ internal class BlobRenderer(
       1,
       GLES30.GL_RED,
       GLES30.GL_FLOAT,
-      data,
+      spectrumUploadBuffer,
     )
     GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, 0)
   }
@@ -461,7 +470,12 @@ internal class BlobRenderer(
     GLES30.glViewport(0, 0, sceneTarget.width, sceneTarget.height)
     GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
     GLES30.glEnable(GLES30.GL_BLEND)
-    GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE)
+    GLES30.glBlendFuncSeparate(
+      GLES30.GL_SRC_ALPHA,
+      GLES30.GL_ONE,
+      GLES30.GL_ONE,
+      GLES30.GL_ONE_MINUS_SRC_ALPHA,
+    )
 
     GLES30.glUseProgram(blobProgram)
     GLES30.glUniformMatrix4fv(uBlobMvp, 1, false, mvp, 0)
@@ -534,12 +548,6 @@ internal class BlobRenderer(
       0.34f + audio.energy * 0.24f + audio.beat * 0.12f,
     )
     GLES30.glUniform1f(uCompositeExposure, 0.82f)
-    GLES30.glUniform3f(
-      uCompositeBackground,
-      backgroundRgb[0],
-      backgroundRgb[1],
-      backgroundRgb[2],
-    )
     drawQuad()
   }
 
@@ -659,13 +667,11 @@ internal class BlobRenderer(
     uCompositeBloom = GLES30.glGetUniformLocation(compositeProgram, "uBloom")
     uCompositeBloomStrength = GLES30.glGetUniformLocation(compositeProgram, "uBloomStrength")
     uCompositeExposure = GLES30.glGetUniformLocation(compositeProgram, "uExposure")
-    uCompositeBackground = GLES30.glGetUniformLocation(compositeProgram, "uBackground")
   }
 
   private fun updatePaletteIfNeeded() {
     val next = palette
     if (next == appliedPalette) return
-    backgroundRgb = next.backgroundRgb()
     primaryRgb = next.primaryRgb()
     secondaryRgb = next.secondaryRgb()
     tertiaryRgb = next.tertiaryRgb()

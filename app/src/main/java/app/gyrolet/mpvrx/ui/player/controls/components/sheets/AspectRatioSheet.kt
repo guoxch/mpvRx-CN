@@ -24,8 +24,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,12 +37,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.presentation.components.PlayerSheet
+import app.gyrolet.mpvrx.ui.player.AutoCropState
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.theme.spacing
@@ -54,6 +59,10 @@ data class AspectRatio(
 fun AspectRatioSheet(
   currentRatio: Double?,
   customRatios: List<AspectRatio>,
+  autoCropEnabled: Boolean,
+  autoCropState: AutoCropState,
+  autoCropControlEnabled: Boolean,
+  onAutoCropChanged: (Boolean) -> Unit,
   onSelectRatio: (Double) -> Unit,
   onAddCustomRatio: (String, Double) -> Unit,
   onDeleteCustomRatio: (AspectRatio) -> Unit,
@@ -89,6 +98,36 @@ fun AspectRatioSheet(
           Modifier
             .padding(horizontal = MaterialTheme.spacing.medium)
             .padding(bottom = MaterialTheme.spacing.small),
+      )
+
+      val autoCropSummary =
+        when {
+          !autoCropControlEnabled -> app.gyrolet.mpvrx.R.string.ui_auto_crop_black_bars_managed
+          !autoCropEnabled -> app.gyrolet.mpvrx.R.string.ui_auto_crop_black_bars_summary
+          autoCropState == AutoCropState.ANALYZING -> app.gyrolet.mpvrx.R.string.ui_auto_crop_black_bars_analyzing
+          autoCropState == AutoCropState.APPLIED -> app.gyrolet.mpvrx.R.string.ui_auto_crop_black_bars_applied
+          autoCropState == AutoCropState.NO_BARS -> app.gyrolet.mpvrx.R.string.ui_auto_crop_black_bars_none
+          autoCropState == AutoCropState.UNSUPPORTED -> app.gyrolet.mpvrx.R.string.ui_auto_crop_black_bars_unsupported
+          autoCropState == AutoCropState.ERROR -> app.gyrolet.mpvrx.R.string.ui_auto_crop_black_bars_failed
+          else -> app.gyrolet.mpvrx.R.string.ui_auto_crop_black_bars_summary
+        }
+      ListItem(
+        content = {
+          Text(androidx.compose.ui.res.stringResource(app.gyrolet.mpvrx.R.string.ui_auto_crop_black_bars))
+        },
+        supportingContent = { Text(androidx.compose.ui.res.stringResource(autoCropSummary)) },
+        trailingContent = {
+          Switch(
+            checked = autoCropEnabled,
+            onCheckedChange = onAutoCropChanged,
+            enabled = autoCropControlEnabled,
+          )
+        },
+        modifier =
+          Modifier.clickable(enabled = autoCropControlEnabled) {
+            onAutoCropChanged(!autoCropEnabled)
+          },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
       )
 
       // Preset ratios

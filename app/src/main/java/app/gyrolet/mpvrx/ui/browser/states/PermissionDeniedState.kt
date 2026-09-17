@@ -20,8 +20,10 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
+import app.gyrolet.mpvrx.ui.utils.NavigationBackHandler as BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,13 +60,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalUriHandler
@@ -82,10 +87,16 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import app.gyrolet.mpvrx.BuildConfig
 import app.gyrolet.mpvrx.R
+import app.gyrolet.mpvrx.preferences.BrowserPreferences
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.player.controls.components.rememberTvInitialFocusRequester
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
+import app.gyrolet.mpvrx.ui.player.controls.components.tvInitialFocus
 import app.gyrolet.mpvrx.ui.theme.AppShapeScale
+import app.gyrolet.mpvrx.utils.device.DeviceFormFactor
 import app.gyrolet.mpvrx.utils.permission.PermissionUtils
+import org.koin.compose.koinInject
 
 private fun checkFilePermission(context: Context): Boolean {
   val isPlayStoreBuild = BuildConfig.SCOPED_STORAGE_ONLY
@@ -119,6 +130,19 @@ private fun checkAudioPermission(context: Context): Boolean {
   ) == PackageManager.PERMISSION_GRANTED
 }
 
+private fun openStoragePermissionSettings(context: Context): Boolean {
+  val packageUri = Uri.parse("package:${context.packageName}")
+  val intents =
+    listOf(
+      Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply { data = packageUri },
+      Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION),
+      Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply { data = packageUri },
+    )
+  return intents.any { intent -> runCatching { context.startActivity(intent) }.isSuccess }
+}
+
+private enum class OnboardingStep { STORAGE, NOTIFICATIONS, AUDIO, FINISH }
+
 @SuppressLint("UseKtx")
 @Composable
 fun PermissionDeniedState(
@@ -128,6 +152,7 @@ fun PermissionDeniedState(
 ) {
   val context = LocalContext.current
   val lifecycleOwner = LocalLifecycleOwner.current
+  val isTelevision = DeviceFormFactor.isTelevision(context)
   var showExplanationDialog by remember { mutableStateOf(false) }
 
   val isPlayStoreBuild = remember { BuildConfig.SCOPED_STORAGE_ONLY }
@@ -190,10 +215,49 @@ fun PermissionDeniedState(
     }
   }
 
+  val browserPreferences = koinInject<BrowserPreferences>()
+  val steps =
+    remember {
+      buildList {
+        add(OnboardingStep.STORAGE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(OnboardingStep.NOTIFICATIONS)
+        add(OnboardingStep.AUDIO)
+        add(OnboardingStep.FINISH)
+      }
+    }
+  var stepIndex by rememberSaveable { mutableIntStateOf(0) }
+  val currentStep = steps[stepIndex.coerceIn(0, steps.lastIndex)]
+  val currentStepGranted =
+    when (currentStep) {
+      OnboardingStep.STORAGE -> isFileGranted
+      OnboardingStep.NOTIFICATIONS -> isNotificationGranted
+      OnboardingStep.AUDIO -> isAudioGranted
+      OnboardingStep.FINISH -> true
+    }
+  val stepFocusRequester =
+    rememberTvInitialFocusRequester(requestKey = currentStep to currentStepGranted)
+  val explanationFocusRequester =
+    rememberTvInitialFocusRequester(
+      enabled = showExplanationDialog,
+      requestKey = showExplanationDialog,
+    )
+  val goNext: () -> Unit = { if (stepIndex < steps.lastIndex) stepIndex++ }
+  val finishSetup: () -> Unit = {
+    browserPreferences.onboardingCompleted.set(true)
+    if (onNext != null) onNext() else onRequestPermission()
+  }
+
+  BackHandler(enabled = isTelevision && stepIndex > 0 && !showExplanationDialog) {
+    stepIndex--
+  }
+
   Box(
     modifier = modifier
       .fillMaxSize()
-      .padding(top = 16.dp, bottom = 48.dp),
+      .padding(
+        top = if (isTelevision) 32.dp else 16.dp,
+        bottom = if (isTelevision) 32.dp else 48.dp,
+      ),
   ) {
     Surface(
       modifier = Modifier.fillMaxSize(),
@@ -205,199 +269,337 @@ fun PermissionDeniedState(
       ) {
         Column(
           modifier = Modifier
-            .widthIn(max = 560.dp)
+            .widthIn(max = if (isTelevision) 760.dp else 560.dp)
             .fillMaxWidth()
             .fillMaxHeight()
-            .padding(horizontal = 24.dp, vertical = 16.dp)
-            .verticalScroll(rememberScrollState()),
+            .padding(
+              horizontal = if (isTelevision) 48.dp else 24.dp,
+              vertical = 16.dp,
+            ),
           horizontalAlignment = Alignment.CenterHorizontally,
-          verticalArrangement = Arrangement.SpaceBetween,
         ) {
-          Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth(),
+          // Step progress dots
+          Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = 8.dp),
           ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Header Icon
-            Surface(
-              modifier = Modifier.size(72.dp),
-              shape = AppShapeScale.extraLarge,
-              color = MaterialTheme.colorScheme.primaryContainer,
-              tonalElevation = 2.dp,
-            ) {
-              Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.fillMaxSize(),
-              ) {
-                Icon(
-                  imageVector = Icons.RoundedFilled.Security,
-                  contentDescription = null,
-                  modifier = Modifier.size(36.dp),
-                  tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-              }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Title
-            Text(
-              text = stringResource(R.string.ui_app_permissions),
-              style = MaterialTheme.typography.headlineMedium,
-              fontWeight = FontWeight.Bold,
-              textAlign = TextAlign.Center,
-              color = MaterialTheme.colorScheme.onSurface,
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Subtitle
-            Text(
-              text = stringResource(R.string.ui_permissions_setup_subtitle),
-              style = MaterialTheme.typography.bodyMedium,
-              textAlign = TextAlign.Center,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            // Section 1: File & Storage Access
-            PermissionSectionCard(
-              title = stringResource(R.string.ui_file_permission_title),
-              description = if (isPlayStoreBuild) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                  stringResource(R.string.ui_file_permission_desc_playstore_tiramisu)
+            steps.forEachIndexed { index, _ ->
+              val isCurrent = index == stepIndex
+              Surface(
+                shape = RoundedCornerShape(4.dp),
+                color = if (isCurrent) {
+                  MaterialTheme.colorScheme.primary
                 } else {
-                  stringResource(R.string.ui_file_permission_desc_playstore)
+                  MaterialTheme.colorScheme.surfaceContainerHighest
+                },
+                modifier = Modifier
+                  .height(8.dp)
+                  .width(if (isCurrent) 22.dp else 8.dp),
+              ) {}
+            }
+          }
+
+          // One step per page so nothing ever overflows the display
+          Column(
+            modifier = Modifier
+              .weight(1f)
+              .fillMaxWidth()
+              .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+          ) {
+            AnimatedContent(targetState = currentStep, label = "onboarding_step") { step ->
+              Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth(),
+              ) {
+                val stepIcon = when (step) {
+                  OnboardingStep.STORAGE -> Icons.RoundedFilled.Folder
+                  OnboardingStep.NOTIFICATIONS -> Icons.RoundedFilled.Notifications
+                  OnboardingStep.AUDIO -> Icons.RoundedFilled.Mic
+                  OnboardingStep.FINISH -> Icons.RoundedFilled.CheckCircle
                 }
-              } else {
-                stringResource(R.string.ui_file_permission_desc_all_files)
-              },
-              isGranted = isFileGranted,
-              icon = Icons.RoundedFilled.Folder,
-              onClick = {
-                if (!isFileGranted) {
-                  if (isPlayStoreBuild) {
-                    onRequestPermission()
+
+                Surface(
+                  modifier = Modifier.size(72.dp),
+                  shape = AppShapeScale.extraLarge,
+                  color = MaterialTheme.colorScheme.primaryContainer,
+                  tonalElevation = 2.dp,
+                ) {
+                  Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize(),
+                  ) {
+                    Icon(
+                      imageVector = stepIcon,
+                      contentDescription = null,
+                      modifier = Modifier.size(36.dp),
+                      tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                  }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                  text = if (step == OnboardingStep.FINISH) {
+                    stringResource(R.string.onboarding_all_set_title)
                   } else {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                      try {
-                        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                        intent.data = Uri.parse("package:${context.packageName}")
-                        context.startActivity(intent)
-                      } catch (_: Exception) {
-                        val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
-                        context.startActivity(intent)
+                    stringResource(R.string.ui_app_permissions)
+                  },
+                  style = MaterialTheme.typography.headlineMedium,
+                  fontWeight = FontWeight.Bold,
+                  textAlign = TextAlign.Center,
+                  color = MaterialTheme.colorScheme.onSurface,
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                  text = if (step == OnboardingStep.FINISH) {
+                    stringResource(R.string.onboarding_all_set_desc)
+                  } else {
+                    stringResource(R.string.ui_permissions_setup_subtitle)
+                  },
+                  style = MaterialTheme.typography.bodyMedium,
+                  textAlign = TextAlign.Center,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                when (step) {
+                  OnboardingStep.STORAGE ->
+                    PermissionSectionCard(
+                      title = stringResource(R.string.ui_file_permission_title),
+                      description = if (isPlayStoreBuild) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                          stringResource(R.string.ui_file_permission_desc_playstore_tiramisu)
+                        } else {
+                          stringResource(R.string.ui_file_permission_desc_playstore)
+                        }
+                      } else {
+                        stringResource(R.string.ui_file_permission_desc_all_files)
+                      },
+                      isGranted = isFileGranted,
+                      icon = Icons.RoundedFilled.Folder,
+                      modifier =
+                        if (!isFileGranted) {
+                          Modifier.tvInitialFocus(stepFocusRequester)
+                        } else {
+                          Modifier
+                        },
+                      onClick = {
+                        if (!isFileGranted) {
+                          if (isPlayStoreBuild) {
+                            onRequestPermission()
+                          } else {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                              if (!openStoragePermissionSettings(context)) onRequestPermission()
+                            } else {
+                              onRequestPermission()
+                            }
+                          }
+                        }
+                      },
+                    )
+
+                  OnboardingStep.NOTIFICATIONS ->
+                    PermissionSectionCard(
+                      title = stringResource(R.string.ui_notification_permission_title),
+                      description = stringResource(R.string.ui_notification_permission_desc),
+                      isGranted = isNotificationGranted,
+                      icon = Icons.RoundedFilled.Notifications,
+                      modifier =
+                        if (!isNotificationGranted) {
+                          Modifier.tvInitialFocus(stepFocusRequester)
+                        } else {
+                          Modifier
+                        },
+                      onClick = {
+                        if (!isNotificationGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                          notificationLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                      },
+                    )
+
+                  OnboardingStep.AUDIO ->
+                    PermissionSectionCard(
+                      title = stringResource(R.string.ui_audio_record_permission_title),
+                      description = stringResource(R.string.ui_audio_record_permission_desc),
+                      isGranted = isAudioGranted,
+                      icon = Icons.RoundedFilled.Mic,
+                      modifier =
+                        if (!isAudioGranted) {
+                          Modifier.tvInitialFocus(stepFocusRequester)
+                        } else {
+                          Modifier
+                        },
+                      onClick = {
+                        if (!isAudioGranted) {
+                          audioLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                        }
+                      },
+                    )
+
+                  OnboardingStep.FINISH -> {
+                    val missingPermissions = buildList {
+                      if (!isFileGranted) add(stringResource(R.string.ui_file_permission_title))
+                      if (!isNotificationGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        add(stringResource(R.string.ui_notification_permission_title))
                       }
-                    } else {
-                      onRequestPermission()
+                      if (!isAudioGranted) add(stringResource(R.string.ui_audio_record_permission_title))
+                    }
+                    if (missingPermissions.isNotEmpty()) {
+                      val warningColor = Color(0xFFFFB300)
+                      Surface(
+                        shape = AppShapeScale.largeIncreased,
+                        color = warningColor.copy(alpha = 0.12f),
+                        modifier = Modifier.fillMaxWidth(),
+                      ) {
+                        Row(
+                          verticalAlignment = Alignment.Top,
+                          modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        ) {
+                          Icon(
+                            imageVector = Icons.RoundedFilled.Warning,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = warningColor,
+                          )
+                          Spacer(modifier = Modifier.width(12.dp))
+                          Column {
+                            Text(
+                              text = stringResource(R.string.onboarding_missing_permissions_title),
+                              style = MaterialTheme.typography.titleSmall,
+                              fontWeight = FontWeight.SemiBold,
+                              color = warningColor,
+                            )
+                            missingPermissions.forEach { permission ->
+                              Text(
+                                text = "\u2022 $permission",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                              )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                              text = stringResource(R.string.onboarding_missing_permissions_desc),
+                              style = MaterialTheme.typography.bodySmall,
+                              color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                          }
+                        }
+                      }
                     }
                   }
                 }
-              },
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Section 2: Notifications
-            PermissionSectionCard(
-              title = stringResource(R.string.ui_notification_permission_title),
-              description = stringResource(R.string.ui_notification_permission_desc),
-              isGranted = isNotificationGranted,
-              icon = Icons.RoundedFilled.Notifications,
-              onClick = {
-                if (!isNotificationGranted) {
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    notificationLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                  }
-                }
-              },
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Section 3: Record Audio for Visualizers
-            PermissionSectionCard(
-              title = stringResource(R.string.ui_audio_record_permission_title),
-              description = stringResource(R.string.ui_audio_record_permission_desc),
-              isGranted = isAudioGranted,
-              icon = Icons.RoundedFilled.Mic,
-              onClick = {
-                if (!isAudioGranted) {
-                  audioLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
-                }
-              },
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
+              }
+            }
           }
 
+          // Bottom controls: Skip everywhere; Next only unlocks once the step's permission is granted
           Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
               .fillMaxWidth()
-              .padding(top = 24.dp),
+              .padding(top = 16.dp),
           ) {
-            // Next Button - Disabled until file permission is granted
-            Button(
-              onClick = {
-                if (isFileGranted) {
-                  if (onNext != null) {
-                    onNext()
-                  } else {
-                    onRequestPermission()
-                  }
-                }
-              },
-              enabled = isFileGranted,
-              modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp)
-                .alpha(if (isFileGranted) 1f else 0.45f),
-              shape = AppShapeScale.large,
-              colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-              ),
+            val nextEnabled = currentStepGranted
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.spacedBy(12.dp),
+              verticalAlignment = Alignment.CenterVertically,
             ) {
-              Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
+              if (currentStep != OnboardingStep.FINISH) {
+                TextButton(
+                  onClick = {
+                    // Skipping storage skips every permission step
+                    if (currentStep == OnboardingStep.STORAGE) stepIndex = steps.lastIndex else goNext()
+                  },
+                  modifier = Modifier
+                    .weight(0.35f)
+                    .tvFocusHighlight(AppShapeScale.large, focusedScale = 1.04f)
+                    .height(54.dp),
+                  shape = AppShapeScale.large,
+                ) {
+                  Text(
+                    text = stringResource(R.string.onboarding_skip),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                  )
+                }
+              }
+
+              Button(
+                onClick = {
+                  if (!nextEnabled) return@Button
+                  if (currentStep == OnboardingStep.FINISH) finishSetup() else goNext()
+                },
+                enabled = nextEnabled,
+                modifier = Modifier
+                  .weight(1f)
+                  .then(
+                    if (nextEnabled) {
+                      Modifier.tvInitialFocus(stepFocusRequester)
+                    } else {
+                      Modifier
+                    },
+                  ).tvFocusHighlight(AppShapeScale.large, enabled = nextEnabled, focusedScale = 1.04f)
+                  .height(54.dp)
+                  .alpha(if (nextEnabled) 1f else 0.45f),
+                shape = AppShapeScale.large,
+                colors = ButtonDefaults.buttonColors(
+                  containerColor = MaterialTheme.colorScheme.primary,
+                  contentColor = MaterialTheme.colorScheme.onPrimary,
+                  disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                  disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                ),
               ) {
-                Text(
-                  text = stringResource(R.string.ui_next),
-                  style = MaterialTheme.typography.titleMedium,
-                  fontWeight = FontWeight.Bold,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(
-                  imageVector = Icons.RoundedFilled.ArrowForward,
-                  contentDescription = null,
-                  modifier = Modifier.size(20.dp),
-                )
+                Row(
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.Center,
+                ) {
+                  Text(
+                    text = if (currentStep == OnboardingStep.FINISH) {
+                      stringResource(R.string.onboarding_get_started)
+                    } else {
+                      stringResource(R.string.ui_next)
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                  )
+                  Spacer(modifier = Modifier.width(8.dp))
+                  Icon(
+                    imageVector = Icons.RoundedFilled.ArrowForward,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                  )
+                }
               }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            if (currentStep == OnboardingStep.STORAGE) {
+              Spacer(modifier = Modifier.height(12.dp))
 
-            // "Why do I see this?" link
-            TextButton(
-              onClick = { showExplanationDialog = true },
-            ) {
-              Icon(
-                imageVector = Icons.RoundedFilled.Info,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-              )
-              Spacer(modifier = Modifier.width(6.dp))
-              Text(
-                text = stringResource(R.string.ui_why_do_i_see_this),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-              )
+              // "Why do I see this?" link
+              TextButton(
+                onClick = { showExplanationDialog = true },
+                modifier = Modifier.tvFocusHighlight(AppShapeScale.medium, focusedScale = 1.04f),
+              ) {
+                Icon(
+                  imageVector = Icons.RoundedFilled.Info,
+                  contentDescription = null,
+                  modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                  text = stringResource(R.string.ui_why_do_i_see_this),
+                  style = MaterialTheme.typography.bodyMedium,
+                  fontWeight = FontWeight.Medium,
+                )
+              }
             }
           }
         }
@@ -523,6 +725,10 @@ fun PermissionDeniedState(
         FilledTonalButton(
           onClick = { showExplanationDialog = false },
           shape = AppShapeScale.medium,
+          modifier =
+            Modifier
+              .tvInitialFocus(explanationFocusRequester)
+              .tvFocusHighlight(AppShapeScale.medium, focusedScale = 1.04f),
         ) {
           Text(stringResource(R.string.got_it))
         }
@@ -539,7 +745,9 @@ private fun PermissionSectionCard(
   isGranted: Boolean,
   icon: app.gyrolet.mpvrx.ui.icons.AppIcon,
   onClick: () -> Unit,
+  modifier: Modifier = Modifier,
 ) {
+  val isTelevision = DeviceFormFactor.isTelevision(LocalContext.current)
   val cardBgColor by animateColorAsState(
     targetValue = if (isGranted) {
       MaterialTheme.colorScheme.surfaceContainerLowest
@@ -560,10 +768,15 @@ private fun PermissionSectionCard(
   }
 
   Card(
-    modifier = Modifier
+    modifier = modifier
       .fillMaxWidth()
       .alpha(if (isGranted) 0.65f else 1f)
       .then(borderModifier)
+      .tvFocusHighlight(
+        AppShapeScale.largeIncreased,
+        enabled = !isGranted,
+        focusedScale = 1.025f,
+      )
       .clip(AppShapeScale.largeIncreased)
       .clickable(enabled = !isGranted, onClick = onClick),
     colors = CardDefaults.cardColors(containerColor = cardBgColor),
@@ -613,7 +826,7 @@ private fun PermissionSectionCard(
         ) {
           Text(
             text = title,
-            style = MaterialTheme.typography.titleMedium,
+            style = if (isTelevision) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = if (isGranted) {
               MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
@@ -632,7 +845,7 @@ private fun PermissionSectionCard(
 
         Text(
           text = description,
-          style = MaterialTheme.typography.bodySmall,
+          style = if (isTelevision) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
@@ -685,5 +898,96 @@ private fun PillBadge(text: String) {
       fontWeight = FontWeight.Bold,
       color = MaterialTheme.colorScheme.onPrimaryContainer,
     )
+  }
+}
+
+/** Compact in-place prompt for screens that need storage access after onboarding was skipped. */
+@Composable
+fun StoragePermissionPrompt(
+  onRequestPermission: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  val context = LocalContext.current
+  val isPlayStoreBuild = remember { BuildConfig.SCOPED_STORAGE_ONLY }
+  var isFileGranted by remember { mutableStateOf(checkFilePermission(context)) }
+  val lifecycleOwner = LocalLifecycleOwner.current
+  val isTelevision = DeviceFormFactor.isTelevision(context)
+  val grantFocusRequester =
+    rememberTvInitialFocusRequester(
+      enabled = !isFileGranted,
+      requestKey = isFileGranted,
+    )
+
+  DisposableEffect(lifecycleOwner) {
+    val observer = LifecycleEventObserver { _, event ->
+      if (event == Lifecycle.Event.ON_RESUME) isFileGranted = checkFilePermission(context)
+    }
+    lifecycleOwner.lifecycle.addObserver(observer)
+    onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+  }
+
+  Box(
+    modifier = modifier.fillMaxSize(),
+    contentAlignment = Alignment.Center,
+  ) {
+    Column(
+      horizontalAlignment = Alignment.CenterHorizontally,
+      modifier = Modifier
+        .widthIn(max = if (isTelevision) 560.dp else 420.dp)
+        .padding(horizontal = if (isTelevision) 48.dp else 24.dp),
+    ) {
+      Surface(
+        modifier = Modifier.size(64.dp),
+        shape = AppShapeScale.extraLarge,
+        color = MaterialTheme.colorScheme.primaryContainer,
+      ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+          Icon(
+            imageVector = Icons.RoundedFilled.FolderOff,
+            contentDescription = null,
+            modifier = Modifier.size(30.dp),
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+          )
+        }
+      }
+      Spacer(modifier = Modifier.height(14.dp))
+      Text(
+        text = stringResource(R.string.storage_permission_needed_title),
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold,
+        textAlign = TextAlign.Center,
+        color = MaterialTheme.colorScheme.onSurface,
+      )
+      Spacer(modifier = Modifier.height(6.dp))
+      Text(
+        text = stringResource(R.string.storage_permission_needed_desc),
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = TextAlign.Center,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+      Spacer(modifier = Modifier.height(18.dp))
+      Button(
+        onClick = {
+          if (isFileGranted) return@Button
+          if (!isPlayStoreBuild && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!openStoragePermissionSettings(context)) onRequestPermission()
+          } else {
+            onRequestPermission()
+          }
+        },
+        shape = AppShapeScale.large,
+        modifier =
+          Modifier
+            .tvInitialFocus(grantFocusRequester)
+            .tvFocusHighlight(AppShapeScale.large, enabled = !isFileGranted, focusedScale = 1.04f)
+            .height(48.dp),
+      ) {
+        Text(
+          text = stringResource(R.string.storage_permission_grant),
+          style = MaterialTheme.typography.titleSmall,
+          fontWeight = FontWeight.Bold,
+        )
+      }
+    }
   }
 }

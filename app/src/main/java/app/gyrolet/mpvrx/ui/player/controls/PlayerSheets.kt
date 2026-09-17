@@ -9,7 +9,9 @@
 
 package app.gyrolet.mpvrx.ui.player.controls
 
+import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -19,16 +21,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import app.gyrolet.mpvrx.R
+import app.gyrolet.mpvrx.domain.download.AppDownloadManager
+import app.gyrolet.mpvrx.domain.download.DownloadLocations
+import app.gyrolet.mpvrx.domain.download.DownloadMetadata
+import app.gyrolet.mpvrx.domain.download.DownloadSources
+import app.gyrolet.mpvrx.domain.download.YtdlpDownloadEngine
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.MpvConfigControlledFeatures
 import app.gyrolet.mpvrx.preferences.MpvConfigOverride
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.player.Decoder
 import app.gyrolet.mpvrx.ui.player.Panels
+import app.gyrolet.mpvrx.ui.player.PlayerViewModel
 import app.gyrolet.mpvrx.ui.player.Sheets
 import app.gyrolet.mpvrx.ui.player.TrackNode
 import app.gyrolet.mpvrx.ui.player.controls.components.MpvConfigOwnedSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.AmbientSheet
+import app.gyrolet.mpvrx.ui.player.controls.components.sheets.PostProcessingSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.AspectRatioSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.AudioTracksSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.ChaptersSheet
@@ -38,11 +49,13 @@ import app.gyrolet.mpvrx.ui.player.controls.components.sheets.MoreSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.OnlineSubtitleSearchSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.PlaybackSpeedSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.PlaylistSheet
+import app.gyrolet.mpvrx.ui.player.controls.components.sheets.ScopesSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.SubtitlesSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.VideoZoomSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.VideoQualitySheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.VisualizerStyleSheet
 import app.gyrolet.mpvrx.ui.player.setTrackSelectionId
+import app.gyrolet.mpvrx.utils.device.DeviceFormFactor
 import dev.vivvvek.seeker.Segment
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -87,6 +100,8 @@ fun PlayerSheets(
   onShowSheet: (Sheets) -> Unit,
   onDismissRequest: () -> Unit,
 ) {
+  val isTelevision = DeviceFormFactor.isTelevision(LocalContext.current)
+  val qualityDownloadAction = rememberQualityDownloadAction(viewModel)
   val advancedPreferences = koinInject<AdvancedPreferences>()
   val storedConfigOverrides by advancedPreferences.mpvConfOverrides.collectAsState()
   val configOwnedOptions =
@@ -169,6 +184,9 @@ fun PlayerSheets(
       val isGeneratingSubtitles by viewModel.isGeneratingSubtitles.composeCollectAsState()
       val subtitleGenerationProgress by viewModel.subtitleGenerationProgress.composeCollectAsState()
       val subtitleGenerationStatus by viewModel.subtitleGenerationStatus.composeCollectAsState()
+      val isRealtimeSubsActive by viewModel.isRealtimeSubsActive.composeCollectAsState()
+      val realtimeSubsProgress by viewModel.realtimeSubsProgress.composeCollectAsState()
+      val realtimeSubsStatus by viewModel.realtimeSubsStatus.composeCollectAsState()
       val aiPreferences = koinInject<app.gyrolet.mpvrx.preferences.AiPreferences>()
       val aiEnabled by aiPreferences.enabled.collectAsState()
       val realtimeSubsEnabled by aiPreferences.realtimeSubsEnabled.collectAsState()
@@ -179,7 +197,14 @@ fun PlayerSheets(
 
       SubtitlesSheet(
         tracks = subtitles.toImmutableList(),
-        onToggleSubtitle = onToggleSubtitle,
+        onToggleSubtitle = { id ->
+          if (isTelevision) {
+            viewModel.selectPrimarySubtitle(id)
+            onDismissRequest()
+          } else {
+            onToggleSubtitle(id)
+          }
+        },
         isSubtitleSelected = isSubtitleSelected,
         subtitleSelectionIndicator = subtitleSelectionIndicator,
         onAddSubtitle = { showFilePicker = true },
@@ -191,12 +216,17 @@ fun PlayerSheets(
         onDismissRequest = onDismissRequest,
         onTranslateSubtitle = { track, lang -> viewModel.translateSubtitle(track, lang) },
         onGenerateSubtitle = { viewModel.generateSubtitles("", "") },
+        onStartRealtimeSubtitle = viewModel::startRealtimeSubtitles,
+        onStopRealtimeSubtitle = { viewModel.stopRealtimeSubtitles() },
         onCancelTranslation = { viewModel.cancelTranslation() },
         isTranslating = isTranslating,
         translationProgress = translationProgress,
         translationStatus = translationStatus,
+        realtimeSubsStatus = realtimeSubsStatus,
         translationEnabled = aiEnabled && translationEnabled,
         isGeneratingSubtitles = isGeneratingSubtitles,
+        isRealtimeSubsActive = isRealtimeSubsActive,
+        realtimeSubsProgress = realtimeSubsProgress,
         subtitleGenerationProgress = subtitleGenerationProgress,
         subtitleGenerationStatus = subtitleGenerationStatus,
         translatingTrackId = translatingTrackId,
@@ -209,6 +239,7 @@ fun PlayerSheets(
           setTrackSelectionId("sid", null)
           setTrackSelectionId("secondary-sid", null)
           subtitlesPreferences.autoEnableSubtitles.set(false)
+          if (isTelevision) onDismissRequest()
         },
       )
     }
@@ -336,7 +367,10 @@ fun PlayerSheets(
 
       AudioTracksSheet(
         tracks = audioTracks,
-        onSelect = onSelectAudio,
+        onSelect = { track ->
+          onSelectAudio(track)
+          if (isTelevision) onDismissRequest()
+        },
         onAddAudioTrack = { showAudioFilePicker = true },
         onOpenDelayPanel = { onOpenPanel(Panels.AudioDelay) },
         onOpenEqualizerSheet = { onShowSheet(Sheets.Equalizer) },
@@ -354,6 +388,7 @@ fun PlayerSheets(
       VideoQualitySheet(
         tracks = videoQualityTracks,
         onSelect = viewModel::selectVideoQuality,
+        onDownload = qualityDownloadAction,
         onDismissRequest = onDismissRequest,
       )
     }
@@ -387,7 +422,7 @@ fun PlayerSheets(
         onEnterEqualizerSheet = { onShowSheet(Sheets.Equalizer) },
         anime4KUiState = anime4KUiState,
         onAnime4KModeSelected = viewModel::selectAnime4KMode,
-        filtersEnabled = !MpvConfigOverride.VIDEO_FILTERS.optionNames.all(configOwnedOptions::contains),
+        filtersEnabled = MpvConfigOverride.VIDEO_FILTERS.optionNames.any { it !in configOwnedOptions },
         equalizerEnabled = "af" !in configOwnedOptions,
         anime4KEnabled = MpvConfigControlledFeatures.ANIME4K.none(configOwnedOptions::contains),
         onAutoDeleteToggle = { viewModel.toggleAutoDeleteAfterPlay() },
@@ -426,7 +461,9 @@ fun PlayerSheets(
     Sheets.AspectRatios -> {
       val playerPreferences = koinInject<app.gyrolet.mpvrx.preferences.PlayerPreferences>()
       val customRatiosSet by playerPreferences.customAspectRatios.collectAsState()
+      val autoCropEnabled by playerPreferences.autoCropBlackBars.collectAsState()
       val currentRatio by viewModel.currentAspectRatio.composeCollectAsState()
+      val autoCropState by viewModel.autoCropState.composeCollectAsState()
       val customRatios =
         customRatiosSet.mapNotNull { str ->
           val parts = str.split("|")
@@ -444,6 +481,10 @@ fun PlayerSheets(
       AspectRatioSheet(
         currentRatio = currentRatio,
         customRatios = customRatios,
+        autoCropEnabled = autoCropEnabled,
+        autoCropState = autoCropState,
+        autoCropControlEnabled = MpvConfigControlledFeatures.AUTO_CROP.none(configOwnedOptions::contains),
+        onAutoCropChanged = viewModel::setAutoCropBlackBars,
         onSelectRatio = { ratio ->
           if (ratio < 0) {
             // Default selected - apply Fit mode
@@ -470,6 +511,10 @@ fun PlayerSheets(
     }
 
     Sheets.FrameNavigation -> {
+      LaunchedEffect(Unit) {
+        viewModel.hideControls()
+        viewModel.panelShown.value = Panels.None
+      }
       val currentFrame by viewModel.currentFrame.composeCollectAsState()
       val totalFrames by viewModel.totalFrames.composeCollectAsState()
       FrameNavigationSheet(
@@ -479,17 +524,15 @@ fun PlayerSheets(
         onPause = viewModel::pause,
         onUnpause = viewModel::unpause,
         onPauseUnpause = viewModel::pauseUnpause,
-        onSeekTo = { position, _ -> viewModel.seekTo(position) },
+        onSeekToFrame = { targetFrame, finished ->
+          viewModel.seekToFrame(targetFrame, totalFrames, finished)
+        },
+        onCancelFrameSeek = viewModel::cancelFrameSeek,
         onDismissRequest = onDismissRequest,
       )
     }
 
     Sheets.Playlist -> {
-      // Refresh playlist items when sheet is shown
-      LaunchedEffect(Unit) {
-        viewModel.refreshPlaylistItems()
-      }
-
       // Observe playlist updates
       val playlist by viewModel.playlistItems.collectAsState()
       val isAudioOnly by viewModel.isAudioOnly.collectAsState()
@@ -497,18 +540,10 @@ fun PlayerSheets(
       val isPlaylistSwipeActive by viewModel.isPlaylistSwipeActive.collectAsState()
       val playlistSwipeOffset by viewModel.playlistSwipeOffset.collectAsState()
 
-      val filteredPlaylist =
-        remember(playlist, isAudioOnly) {
-          if (isAudioOnly) {
-            playlist.filter { it.isAudio }
-          } else {
-            playlist.filter { !it.isAudio }
-          }
-        }
+      val playlistImmutable = remember(playlist) { playlist.toImmutableList() }
 
-      if (filteredPlaylist.isNotEmpty()) {
-        val playlistImmutable = filteredPlaylist.toImmutableList()
-        val totalCount = filteredPlaylist.size
+      if (playlistImmutable.isNotEmpty()) {
+        val totalCount = playlistImmutable.size
         val isM3U = viewModel.isPlaylistM3U()
         PlaylistSheet(
           playlist = playlistImmutable,
@@ -531,6 +566,13 @@ fun PlayerSheets(
 
     Sheets.AmbientConfig -> {
       AmbientSheet(
+        viewModel = viewModel,
+        onDismissRequest = onDismissRequest,
+      )
+    }
+
+    Sheets.PostProcessingConfig -> {
+      PostProcessingSheet(
         viewModel = viewModel,
         onDismissRequest = onDismissRequest,
       )
@@ -572,6 +614,79 @@ fun PlayerSheets(
         onDismiss = onDismissRequest,
       )
     }
+
+    Sheets.Scopes -> {
+      ScopesSheet(
+        viewModel = viewModel,
+        audioTracks = audioTracks,
+        onSelectAudio = onSelectAudio,
+        onDismissRequest = onDismissRequest,
+      )
+    }
   }
 }
 
+@Composable
+private fun rememberQualityDownloadAction(viewModel: PlayerViewModel): ((TrackNode) -> Unit)? {
+  val context = LocalContext.current
+  val downloadManager = koinInject<AppDownloadManager>()
+  val ytdlpEngine = koinInject<YtdlpDownloadEngine>()
+  var pendingRequest by remember { mutableStateOf<PlayerViewModel.QualityDownloadRequest?>(null) }
+
+  val enqueueRequest: (PlayerViewModel.QualityDownloadRequest) -> Unit = enqueue@{ request ->
+    if (request.jellyfinItemId != null) {
+      downloadManager.enqueueVideo(
+        url = request.sourceUrl,
+        directory = downloadManager.locations.linksDir(),
+        fileName = "${DownloadLocations.sanitizeName(request.title)}.${request.fileExtension}",
+        meta =
+          DownloadMetadata(
+            source = DownloadSources.JELLYFIN,
+            title = request.title,
+            sourceUrl = request.sourceUrl,
+            jellyfinItemId = request.jellyfinItemId,
+          ),
+        headers = request.headers,
+      )
+    } else {
+      val formatSelector = request.formatSelector ?: return@enqueue
+      ytdlpEngine.enqueue(
+        url = request.sourceUrl,
+        title = request.title,
+        directory = downloadManager.locations.linksDir(),
+        formatSelector = formatSelector,
+        mergeSeparateStreams = request.mergeSeparateStreams,
+      )
+    }
+    Toast.makeText(context, R.string.downloads_queued, Toast.LENGTH_SHORT).show()
+  }
+  val locationPicker =
+    rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+      val request = pendingRequest
+      pendingRequest = null
+      if (uri == null || request == null) return@rememberLauncherForActivityResult
+
+      runCatching {
+        context.contentResolver.takePersistableUriPermission(
+          uri,
+          Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+        )
+      }
+      if (downloadManager.locations.setLocationFromTree(uri) == null) {
+        Toast.makeText(context, R.string.downloads_location_invalid, Toast.LENGTH_LONG).show()
+      } else {
+        enqueueRequest(request)
+      }
+    }
+
+  if (!viewModel.canDownloadCurrentVideoQuality()) return null
+  return download@{ track ->
+    val request = viewModel.qualityDownloadRequest(track) ?: return@download
+    if (downloadManager.locations.isUsingCustomLocation()) {
+      enqueueRequest(request)
+    } else {
+      pendingRequest = request
+      locationPicker.launch(null)
+    }
+  }
+}

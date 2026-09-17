@@ -9,6 +9,7 @@
 
 package app.gyrolet.mpvrx.ui.browser.cards
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -39,6 +40,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -55,12 +58,16 @@ import app.gyrolet.mpvrx.domain.media.model.Video
 import app.gyrolet.mpvrx.domain.thumbnail.ThumbnailRepository
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
+import app.gyrolet.mpvrx.preferences.ThumbnailQuality
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
+import app.gyrolet.mpvrx.ui.player.controls.components.tvContextMenu
 import app.gyrolet.mpvrx.ui.theme.AppShapeScale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
@@ -80,6 +87,7 @@ data class VideoCardUiConfig(
   val showExtensionField: Boolean = true,
   val showDurationField: Boolean = true,
   val centerGridTitles: Boolean = false,
+  val thumbnailQuality: ThumbnailQuality = ThumbnailQuality.High,
 )
 
 /** Hoist this once per screen and pass the result to every card rather than collecting per item. */
@@ -101,6 +109,7 @@ fun rememberVideoCardUiConfig(): VideoCardUiConfig {
   val showExtensionField by browserPreferences.showExtensionField.collectAsState()
   val showDurationFieldConfig by browserPreferences.showDurationField.collectAsState()
   val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
+  val thumbnailQuality by browserPreferences.thumbnailQuality.collectAsState()
 
   return remember(
     unlimitedNameLines,
@@ -116,6 +125,7 @@ fun rememberVideoCardUiConfig(): VideoCardUiConfig {
     showExtensionField,
     showDurationFieldConfig,
     centerGridTitles,
+    thumbnailQuality,
   ) {
     VideoCardUiConfig(
       unlimitedNameLines = unlimitedNameLines,
@@ -131,6 +141,7 @@ fun rememberVideoCardUiConfig(): VideoCardUiConfig {
       showExtensionField = showExtensionField,
       showDurationField = showDurationFieldConfig,
       centerGridTitles = centerGridTitles,
+      thumbnailQuality = thumbnailQuality,
     )
   }
 }
@@ -159,15 +170,13 @@ fun VideoCard(
   allowThumbnailLoading: Boolean = true,
   uiConfig: VideoCardUiConfig? = null,
 ) {
-  val browserPreferences = koinInject<BrowserPreferences>()
-
   // Screens hoist this once and pass it down; collecting per card would register a dozen
   // preference observers for every visible item in a grid.
   val resolvedUiConfig = uiConfig ?: rememberVideoCardUiConfig()
   val maxLines = if (resolvedUiConfig.unlimitedNameLines) Int.MAX_VALUE else 2
 
   val showThumbnails = resolvedUiConfig.showThumbnails
-  val thumbnailQuality by browserPreferences.thumbnailQuality.collectAsState()
+  val thumbnailQuality = resolvedUiConfig.thumbnailQuality
   val showFramerateInResolution = resolvedUiConfig.showFramerateInResolution
   val showCodecSupportIndicator = resolvedUiConfig.showCodecSupportIndicator
   val showProgressBar = resolvedUiConfig.showProgressBar
@@ -185,12 +194,8 @@ fun VideoCard(
     }
 
   val selectionInset = 2.dp
-  val selectionContainerColor =
-    if (isSelected) {
-      MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)
-    } else {
-      Color.Transparent
-    }
+  val selectionContainerColor = animatedSelectionColor(isSelected)
+  val showSelectionBadge = isSelected || selectionContainerColor.alpha > 0.001f
 
   // Use override parameters if provided, otherwise use preferences
   val showSizeChip = overrideShowSizeChip ?: resolvedUiConfig.showSizeChip
@@ -203,7 +208,11 @@ fun VideoCard(
       modifier
         .then(
           if (isGridMode) Modifier.fillMaxWidth() else Modifier.fillMaxWidth(),
-        ).combinedClickable(
+        ).tvFocusHighlight(cardShape, focusedScale = 1.03f)
+        .clip(cardShape)
+        .semantics { selected = isSelected }
+        .tvContextMenu(onLongClick)
+        .combinedClickable(
           onClick = onClick,
           onLongClick = onLongClick,
         ),
@@ -211,35 +220,28 @@ fun VideoCard(
     colors = CardDefaults.cardColors(containerColor = Color.Transparent),
   ) {
     Box(modifier = Modifier.fillMaxWidth()) {
-      if (isSelected) {
-        Box(
-          modifier =
-            Modifier
-              .matchParentSize()
-              .padding(selectionInset)
-              .clip(cardShape)
-              .background(selectionContainerColor),
-        )
-      }
+      Box(
+        modifier =
+          Modifier
+            .matchParentSize()
+            .padding(selectionInset)
+            .clip(cardShape)
+            .background(selectionContainerColor),
+      )
 
       if (isGridMode) {
         val centerGridTitles = resolvedUiConfig.centerGridTitles
-        val horizontalAlignment =
-          if (gridColumns == 1) {
-            Alignment.Start
-          } else {
-            if (centerGridTitles) Alignment.CenterHorizontally else Alignment.Start
-          }
+        val horizontalAlignment = if (centerGridTitles) Alignment.CenterHorizontally else Alignment.Start
         // GRID LAYOUT - Vertical arrangement
         Column(
           modifier =
             Modifier
               .fillMaxWidth()
-              .padding(12.dp),
+              .padding(horizontal = 4.dp, vertical = 6.dp),
           horizontalAlignment = horizontalAlignment,
         ) {
           val thumbnailRepository = koinInject<ThumbnailRepository>()
-          val aspect = if (video.isAudio) 1f else 16f / 9f
+          val aspect = if (video.isAudio) 1f else 16f / 10f
           // Screens that know their grid-cell dimensions pass them here. This is
           // essential for a one-column grid, whose full-width artwork used to be
           // rendered from a fixed 160 dp thumbnail.
@@ -249,29 +251,39 @@ fun VideoCard(
             thumbnailHeightPx?.takeIf { it > 0 }
               ?: (resolvedThumbWidthPx / aspect).roundToInt()
 
-          val thumbnailKey =
+          val thumbnailRequestKey =
             remember(
               video.id,
+              video.path,
               video.dateModified,
               video.size,
+              video.duration,
               resolvedThumbWidthPx,
               resolvedThumbHeightPx,
               thumbnailQuality,
             ) {
-              thumbnailRepository.thumbnailKey(video, resolvedThumbWidthPx, resolvedThumbHeightPx)
+              Any()
             }
 
-          var thumbnail by remember(thumbnailKey) {
-            mutableStateOf(
-              thumbnailRepository.getThumbnailFromMemory(video, resolvedThumbWidthPx, resolvedThumbHeightPx),
-            )
+          var thumbnail by remember(thumbnailRequestKey) {
+            mutableStateOf<Bitmap?>(null)
+          }
+
+          LaunchedEffect(thumbnailRequestKey, allowThumbnailGeneration, allowThumbnailLoading, showThumbnails) {
+            if (!allowThumbnailGeneration && allowThumbnailLoading && thumbnail == null && showThumbnails) {
+              thumbnail =
+                withContext(Dispatchers.IO) {
+                  thumbnailRepository.getThumbnailFromMemory(video, resolvedThumbWidthPx, resolvedThumbHeightPx)
+                }
+            }
           }
 
           // Update thumbnail when the repository emits that this key became ready (folder prefetch or any other source).
-          LaunchedEffect(thumbnailKey, allowThumbnailLoading) {
+          LaunchedEffect(thumbnailRequestKey, allowThumbnailLoading) {
             if (!allowThumbnailLoading) return@LaunchedEffect
             thumbnailRepository.thumbnailReadyKeys
               .filter { key -> thumbnailRepository.isThumbnailKeyForVideo(key, video) }
+              .flowOn(Dispatchers.IO)
               .collect {
                 thumbnail =
                   withContext(Dispatchers.IO) {
@@ -281,15 +293,11 @@ fun VideoCard(
           }
 
           // Optional immediate generation (used on screens that don't run folder-wide sequential generation).
-          LaunchedEffect(thumbnailKey, allowThumbnailGeneration, allowThumbnailLoading, showThumbnails) {
-            if (allowThumbnailLoading && thumbnail == null && showThumbnails) {
+          LaunchedEffect(thumbnailRequestKey, allowThumbnailGeneration, allowThumbnailLoading, showThumbnails) {
+            if (allowThumbnailGeneration && allowThumbnailLoading && thumbnail == null && showThumbnails) {
               thumbnail =
                 withContext(Dispatchers.IO) {
-                  if (allowThumbnailGeneration) {
-                    thumbnailRepository.getThumbnail(video, resolvedThumbWidthPx, resolvedThumbHeightPx)
-                  } else {
-                    thumbnailRepository.getCachedThumbnail(video, resolvedThumbWidthPx, resolvedThumbHeightPx)
-                  }
+                  thumbnailRepository.getThumbnail(video, resolvedThumbWidthPx, resolvedThumbHeightPx)
                 }
             }
           }
@@ -343,7 +351,7 @@ fun VideoCard(
 
             // Show "NEW" label for recently added unplayed videos if enabled (top-left corner)
             // Like MX Player: show NEW for videos added within threshold days that haven't been played
-            if (showUnplayedOldVideoLabel && isOldAndUnplayed) {
+            if (showUnplayedOldVideoLabel && isOldAndUnplayed && !showSelectionBadge) {
               // Check if video is recently modified (within threshold days)
               val currentTime = System.currentTimeMillis()
               val videoAge = currentTime - (video.dateModified * 1000) // dateModified is in seconds
@@ -355,8 +363,7 @@ fun VideoCard(
                     Modifier
                       .align(Alignment.TopStart)
                       .padding(6.dp)
-                      .clip(AppShapeScale.extraSmall)
-                      .background(Color(0xFFD32F2F)) // Warning red color
+                      .cardOverlay(containerColor = Color(0xFFD32F2F))
                       .padding(horizontal = 8.dp, vertical = 3.dp),
                 ) {
                   Text(
@@ -371,12 +378,29 @@ fun VideoCard(
               }
             }
 
-            if (showCodecSupportIndicator && !video.isAudio && video.videoCodec.isNotBlank()) {
-              CodecSupportIndicator(
-                video = video,
-                compact = true,
+            SelectionIndicator(isSelected, Modifier.align(Alignment.TopEnd).padding(6.dp))
+
+            if (
+              !showSelectionBadge &&
+              (isWatched || (showCodecSupportIndicator && !video.isAudio && video.videoCodec.isNotBlank()))
+            ) {
+              Row(
                 modifier = Modifier.align(Alignment.TopEnd).padding(6.dp),
-              )
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                if (isWatched) {
+                  Icon(
+                    imageVector = Icons.RoundedFilled.Check,
+                    contentDescription = stringResource(R.string.video_label_watched),
+                    modifier = Modifier.size(24.dp),
+                    tint = Color.White,
+                  )
+                }
+                if (showCodecSupportIndicator && !video.isAudio && video.videoCodec.isNotBlank()) {
+                  CodecSupportIndicator(video = video, compact = true)
+                }
+              }
             }
 
             // Duration overlay
@@ -386,8 +410,7 @@ fun VideoCard(
                   Modifier
                     .align(Alignment.BottomEnd)
                     .padding(6.dp)
-                    .clip(AppShapeScale.extraSmall)
-                    .background(Color.Black.copy(alpha = 0.65f))
+                      .cardOverlay()
                     .padding(horizontal = 6.dp, vertical = 2.dp),
               ) {
                 Text(
@@ -419,17 +442,13 @@ fun VideoCard(
             }
           }
 
-          Spacer(modifier = Modifier.height(8.dp))
+          Spacer(modifier = Modifier.height(4.dp))
 
           // Title below thumbnail
           Text(
             text = displayName,
             style =
-              if (useFolderNameStyle) {
-                MaterialTheme.typography.titleSmall
-              } else {
-                if (gridColumns == 1) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall
-              }.let { baseStyle ->
+              MaterialTheme.typography.titleMedium.let { baseStyle ->
                 if (isRecentlyPlayed) baseStyle.copy(fontStyle = FontStyle.Italic) else baseStyle
               },
             color =
@@ -442,30 +461,22 @@ fun VideoCard(
               },
             maxLines = maxLines,
             overflow = TextOverflow.Ellipsis,
-            textAlign =
-              if (useFolderNameStyle) {
-                if (centerGridTitles) TextAlign.Center else TextAlign.Start
-              } else {
-                if (gridColumns == 1) {
-                  TextAlign.Start
-                } else {
-                  if (centerGridTitles) TextAlign.Center else TextAlign.Start
-                }
-              },
+            textAlign = if (centerGridTitles) TextAlign.Center else TextAlign.Start,
           )
-          if (gridColumns == 1) {
+          if (
+            showSizeChip || showDateChip ||
+            (!video.isAudio && (showResolutionChip || showFramerateInResolution || showSubtitleIndicator))
+          ) {
             Spacer(modifier = Modifier.height(4.dp))
             FlowRow(
+              modifier = Modifier.fillMaxWidth(),
               horizontalArrangement =
                 androidx.compose.foundation.layout.Arrangement
-                  .spacedBy(4.dp),
+                  .spacedBy(4.dp, if (centerGridTitles) Alignment.CenterHorizontally else Alignment.Start),
               verticalArrangement =
                 androidx.compose.foundation.layout.Arrangement
                   .spacedBy(4.dp),
             ) {
-              if (showCodecSupportIndicator && !video.isAudio && video.videoCodec.isNotBlank()) {
-                CodecSupportIndicator(video = video)
-              }
               if (showSubtitleIndicator && !video.isAudio) {
                 if (video.hasEmbeddedSubtitles && video.subtitleCodec.isNotBlank()) {
                   video.subtitleCodec.split(" ").forEach { codec ->
@@ -521,7 +532,7 @@ fun VideoCard(
                     color = MaterialTheme.colorScheme.onSurface,
                   )
                 }
-              } else if (showFramerateInResolution && hasFps) {
+              } else if (!video.isAudio && showFramerateInResolution && hasFps) {
                 Text(
                   "$fpsOnly FPS",
                   style = MaterialTheme.typography.labelSmall,
@@ -556,7 +567,7 @@ fun VideoCard(
           modifier =
             Modifier
               .fillMaxWidth()
-              .padding(12.dp),
+              .padding(horizontal = 8.dp, vertical = 6.dp),
           verticalAlignment = Alignment.CenterVertically,
         ) {
           val thumbnailRepository = koinInject<ThumbnailRepository>()
@@ -571,21 +582,40 @@ fun VideoCard(
 
           // Load thumbnail with optimized state management
           // Key includes video identity to prevent reloading same thumbnail
-          val thumbnailKey =
-            remember(video.id, video.dateModified, video.size, thumbWidthPx, thumbHeightPx, thumbnailQuality) {
-              thumbnailRepository.thumbnailKey(video, thumbWidthPx, thumbHeightPx)
+          val thumbnailRequestKey =
+            remember(
+              video.id,
+              video.path,
+              video.dateModified,
+              video.size,
+              video.duration,
+              thumbWidthPx,
+              thumbHeightPx,
+              thumbnailQuality,
+            ) {
+              Any()
             }
 
           // Try to get from memory cache immediately (synchronous, no flicker)
-          var thumbnail by remember(thumbnailKey) {
-            mutableStateOf(thumbnailRepository.getThumbnailFromMemory(video, thumbWidthPx, thumbHeightPx))
+          var thumbnail by remember(thumbnailRequestKey) {
+            mutableStateOf<Bitmap?>(null)
+          }
+
+          LaunchedEffect(thumbnailRequestKey, allowThumbnailGeneration, allowThumbnailLoading, showThumbnails) {
+            if (!allowThumbnailGeneration && allowThumbnailLoading && thumbnail == null && showThumbnails) {
+              thumbnail =
+                withContext(Dispatchers.IO) {
+                  thumbnailRepository.getThumbnailFromMemory(video, thumbWidthPx, thumbHeightPx)
+                }
+            }
           }
 
           // Update thumbnail when the repository emits that this key became ready (folder prefetch or any other source).
-          LaunchedEffect(thumbnailKey, allowThumbnailLoading) {
+          LaunchedEffect(thumbnailRequestKey, allowThumbnailLoading) {
             if (!allowThumbnailLoading) return@LaunchedEffect
             thumbnailRepository.thumbnailReadyKeys
               .filter { key -> thumbnailRepository.isThumbnailKeyForVideo(key, video) }
+              .flowOn(Dispatchers.IO)
               .collect {
                 thumbnail =
                   withContext(Dispatchers.IO) {
@@ -595,15 +625,11 @@ fun VideoCard(
           }
 
           // Optional immediate generation (used on screens that don't run folder-wide sequential generation).
-          LaunchedEffect(thumbnailKey, allowThumbnailGeneration, allowThumbnailLoading, showThumbnails) {
-            if (allowThumbnailLoading && thumbnail == null && showThumbnails) {
+          LaunchedEffect(thumbnailRequestKey, allowThumbnailGeneration, allowThumbnailLoading, showThumbnails) {
+            if (allowThumbnailGeneration && allowThumbnailLoading && thumbnail == null && showThumbnails) {
               thumbnail =
                 withContext(Dispatchers.IO) {
-                  if (allowThumbnailGeneration) {
-                    thumbnailRepository.getThumbnail(video, thumbWidthPx, thumbHeightPx)
-                  } else {
-                    thumbnailRepository.getCachedThumbnail(video, thumbWidthPx, thumbHeightPx)
-                  }
+                  thumbnailRepository.getThumbnail(video, thumbWidthPx, thumbHeightPx)
                 }
             }
           }
@@ -656,7 +682,7 @@ fun VideoCard(
 
             // Show "NEW" label for recently added unplayed videos if enabled (top-left corner)
             // Like MX Player: show NEW for videos added within threshold days that haven't been played
-            if (showUnplayedOldVideoLabel && isOldAndUnplayed) {
+            if (showUnplayedOldVideoLabel && isOldAndUnplayed && !showSelectionBadge) {
               // Check if video is recently modified (within threshold days)
               val currentTime = System.currentTimeMillis()
               val videoAge = currentTime - (video.dateModified * 1000) // dateModified is in seconds
@@ -668,8 +694,7 @@ fun VideoCard(
                     Modifier
                       .align(Alignment.TopStart)
                       .padding(6.dp)
-                      .clip(AppShapeScale.extraSmall)
-                      .background(Color(0xFFD32F2F)) // Warning red color
+                      .cardOverlay(containerColor = Color(0xFFD32F2F))
                       .padding(horizontal = 8.dp, vertical = 3.dp),
                 ) {
                   Text(
@@ -684,6 +709,17 @@ fun VideoCard(
               }
             }
 
+            SelectionIndicator(isSelected, Modifier.align(Alignment.TopEnd).padding(6.dp))
+
+            if (isWatched && !showSelectionBadge) {
+              Icon(
+                imageVector = Icons.RoundedFilled.Check,
+                contentDescription = stringResource(R.string.video_label_watched),
+                modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).size(24.dp),
+                tint = Color.White,
+              )
+            }
+
             // Duration timestamp overlay at bottom-right of the thumbnail
             if (showDurationField) {
               Box(
@@ -691,8 +727,7 @@ fun VideoCard(
                   Modifier
                     .align(Alignment.BottomEnd)
                     .padding(6.dp)
-                    .clip(AppShapeScale.extraSmall)
-                    .background(Color.Black.copy(alpha = 0.65f))
+                      .cardOverlay()
                     .padding(horizontal = 6.dp, vertical = 2.dp),
               ) {
                 Text(
@@ -730,7 +765,7 @@ fun VideoCard(
               }
             }
           }
-          Spacer(modifier = Modifier.width(16.dp))
+          Spacer(modifier = Modifier.width(12.dp))
           Column(
             modifier = Modifier.weight(1f),
           ) {
@@ -884,8 +919,10 @@ private fun CodecSupportIndicator(
   Row(
     modifier =
       modifier
-        .clip(AppShapeScale.small)
-        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+        .cardOverlay(
+          shape = AppShapeScale.small,
+          containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        )
         .padding(horizontal = if (compact) 6.dp else 8.dp, vertical = if (compact) 3.dp else 4.dp),
     verticalAlignment = Alignment.CenterVertically,
   ) {

@@ -29,6 +29,10 @@ class BrowserPreferences(
   preferenceStore: PreferenceStore,
   context: android.content.Context,
 ) {
+  companion object {
+    internal const val ONBOARDING_COMPLETED_KEY = "onboarding_completed"
+  }
+
   // Folder sorting preferences
   val folderSortType = preferenceStore.getEnum("folder_sort_type", FolderSortType.Title)
   val folderSortOrder = preferenceStore.getEnum("folder_sort_order", SortOrder.Ascending)
@@ -47,6 +51,12 @@ class BrowserPreferences(
   val networkSortOrder = preferenceStore.getEnum("network_sort_order", SortOrder.Ascending)
   val networkLayoutMode = preferenceStore.getEnum("network_layout_mode", MediaLayoutMode.LIST)
   val jellyfinLayoutMode = preferenceStore.getEnum("jellyfin_layout_mode", MediaLayoutMode.GRID)
+  val jellyfinMusicViewMode = preferenceStore.getEnum("jellyfin_music_view_mode", MusicViewMode.GRID)
+  val jellyfinMusicSortField = preferenceStore.getEnum("jellyfin_music_sort_field", MusicSortField.TITLE)
+  val jellyfinMusicSortOrder = preferenceStore.getEnum("jellyfin_music_sort_order", MusicSortOrder.ASCENDING)
+  val navidromeViewMode = preferenceStore.getEnum("navidrome_view_mode", MusicViewMode.GRID)
+  val navidromeSortField = preferenceStore.getEnum("navidrome_sort_field", MusicSortField.TITLE)
+  val navidromeSortOrder = preferenceStore.getEnum("navidrome_sort_order", MusicSortOrder.ASCENDING)
 
   val folderViewMode = preferenceStore.getEnum("folder_view_mode", FolderViewMode.AlbumView)
   val dualPaneForTablet = preferenceStore.getBoolean("dual_pane_for_tablet", true)
@@ -93,6 +103,7 @@ class BrowserPreferences(
   val separateFolderVideoLayout = preferenceStore.getBoolean("separate_folder_video_layout", false)
   val manualGridColumnsEnabled = preferenceStore.getBoolean("manual_grid_columns_enabled", false)
   val musicCoverArtSize = preferenceStore.getInt("music_cover_art_size", 48)
+  val musicGridCoverArtSize = preferenceStore.getInt("music_grid_cover_art_size", 145)
 
   // Visibility preferences for folder card chips
   val showTotalVideosChip = preferenceStore.getBoolean("show_total_videos_chip", true)
@@ -112,6 +123,12 @@ class BrowserPreferences(
   val includeAudioBrowser = preferenceStore.getBoolean("include_audio_browser", false)
   val minimumAudioDurationSeconds = preferenceStore.getInt("minimum_audio_duration_seconds", 0)
   val mediaLibraryType = preferenceStore.getEnum("media_library_type", MediaLibraryType.Video)
+
+  // Set by onboarding when the user opts into the quick tour; cleared once the tour ran.
+  val demoTutorialPending = preferenceStore.getBoolean("demo_tutorial_pending", false)
+
+  // True once the user finished (or skipped through) the first-run permission flow.
+  val onboardingCompleted = preferenceStore.getBoolean(ONBOARDING_COMPLETED_KEY, false)
 
   // Watched threshold preference (percentage 1-100)
   val watchedThreshold = preferenceStore.getInt("watched_threshold", 95)

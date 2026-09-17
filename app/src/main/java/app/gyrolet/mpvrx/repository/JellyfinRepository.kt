@@ -65,8 +65,9 @@ class JellyfinRepository(
     server: JellyfinServer,
     parentId: String? = null,
     limit: Int = 16,
+    groupItems: Boolean = true,
   ): Result<List<JellyfinItem>> =
-    client.getLatestMedia(server.serverUrl, server.userId, parentId, limit, server.accessToken)
+    client.getLatestMedia(server.serverUrl, server.userId, parentId, limit, server.accessToken, groupItems)
 
   suspend fun getSuggestions(
     server: JellyfinServer,
@@ -92,6 +93,20 @@ class JellyfinRepository(
     itemId: String,
   ): Result<Unit> =
     client.deleteItem(server.serverUrl, itemId, server.accessToken)
+
+  suspend fun getPerson(
+    server: JellyfinServer,
+    personName: String,
+  ): Result<JellyfinItem> =
+    client.getPerson(server.serverUrl, server.userId, personName, server.accessToken)
+
+  suspend fun getPersonMedia(
+    server: JellyfinServer,
+    personId: String? = null,
+    personName: String? = null,
+    limit: Int = 100,
+  ): Result<List<JellyfinItem>> =
+    client.getPersonMedia(server.serverUrl, server.userId, personId, personName, server.accessToken, limit)
 
   suspend fun getItems(
     server: JellyfinServer,

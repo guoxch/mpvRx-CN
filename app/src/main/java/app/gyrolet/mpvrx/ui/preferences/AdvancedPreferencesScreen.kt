@@ -47,12 +47,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.util.fastJoinToString
 import androidx.core.net.toUri
 import androidx.core.os.LocaleListCompat
 import androidx.documentfile.provider.DocumentFile
 import app.gyrolet.mpvrx.R
-import app.gyrolet.mpvrx.database.MpvRxDatabase
+import app.gyrolet.mpvrx.domain.playbackstate.repository.PlaybackStateRepository
 import app.gyrolet.mpvrx.domain.thumbnail.ThumbnailRepository
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.FoldersPreferences
@@ -64,12 +63,15 @@ import app.gyrolet.mpvrx.presentation.components.ConfirmDialog
 import app.gyrolet.mpvrx.presentation.crash.CrashActivity
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.player.MpvConfigCache
 import app.gyrolet.mpvrx.ui.preferences.components.SwitchPreference
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
+import app.gyrolet.mpvrx.ui.utils.navigateTo
 import app.gyrolet.mpvrx.ui.utils.LocalShowSettingsBackArrow
 import app.gyrolet.mpvrx.ui.utils.popSafely
 import app.gyrolet.mpvrx.utils.clipboard.SafeClipboard
 import app.gyrolet.mpvrx.utils.history.RecentlyPlayedOps
+import app.gyrolet.mpvrx.utils.media.PlaybackStateEvents
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -80,9 +82,6 @@ import me.zhanghai.compose.preference.ProvidePreferenceLocals
 import org.koin.compose.koinInject
 import java.io.File
 import java.util.Locale
-import kotlin.io.path.deleteIfExists
-import kotlin.io.path.outputStream
-import kotlin.io.path.readLines
 
 private enum class AppLanguage(
   val languageTag: String,
@@ -127,6 +126,7 @@ object AdvancedPreferencesScreen : Screen {
     val context = LocalContext.current
     val backStack = LocalBackStack.current
     val preferences = koinInject<AdvancedPreferences>()
+    val mpvConfigCache = koinInject<MpvConfigCache>()
     val settingsManager = koinInject<SettingsManager>()
     val foldersPreferences = koinInject<FoldersPreferences>()
     val subtitlesPreferences = koinInject<SubtitlesPreferences>()
@@ -359,6 +359,7 @@ object AdvancedPreferencesScreen : Screen {
           item {
             PreferenceCard {
               ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_app_language_title),
                 value = currentAppLanguage,
                 onValueChange = { language ->
                   if (language != currentAppLanguage) pendingAppLanguage = language
@@ -500,38 +501,28 @@ object AdvancedPreferencesScreen : Screen {
               LaunchedEffect(mpvConfStorageLocation) {
                 if (mpvConfStorageLocation.isBlank()) return@LaunchedEffect
                 withContext(Dispatchers.IO) {
-                  val tempFile = kotlin.io.path.createTempFile()
-                  runCatching {
-                    val tree = DocumentFile.fromTreeUri(context, mpvConfStorageLocation.toUri())
-                    val mpvConfFile = tree?.findFile("mpv.conf")
-                    if (mpvConfFile != null && mpvConfFile.exists()) {
-                      context.contentResolver.openInputStream(mpvConfFile.uri)?.copyTo(tempFile.outputStream())
-                      val content = tempFile.readLines().fastJoinToString("\n")
-                      preferences.mpvConf.set(content)
-                      File(context.filesDir, "mpv.conf").writeText(content)
-                      withContext(Dispatchers.Main) { mpvConf = content }
-                    }
-                  }
-                  tempFile.deleteIfExists()
-                }
-              }
+                  val tree = runCatching { DocumentFile.fromTreeUri(context, mpvConfStorageLocation.toUri()) }.getOrNull()
+                    ?: return@withContext
+                  fun readConfig(fileName: String): String? =
+                    runCatching {
+                      tree.findFile(fileName)?.takeIf { it.exists() }?.let { configFile ->
+                        context.contentResolver.openInputStream(configFile.uri)?.bufferedReader()?.use { reader ->
+                          reader.readText()
+                        }
+                      }
+                    }.getOrNull()
 
-              LaunchedEffect(mpvConfStorageLocation) {
-                if (mpvConfStorageLocation.isBlank()) return@LaunchedEffect
-                withContext(Dispatchers.IO) {
-                  val tempFile = kotlin.io.path.createTempFile()
-                  runCatching {
-                    val tree = DocumentFile.fromTreeUri(context, mpvConfStorageLocation.toUri())
-                    val inputConfFile = tree?.findFile("input.conf")
-                    if (inputConfFile != null && inputConfFile.exists()) {
-                      context.contentResolver.openInputStream(inputConfFile.uri)?.copyTo(tempFile.outputStream())
-                      val content = tempFile.readLines().fastJoinToString("\n")
-                      preferences.inputConf.set(content)
-                      File(context.filesDir, "input.conf").writeText(content)
-                      withContext(Dispatchers.Main) { inputConf = content }
-                    }
+                  val loadedMpvConf = readConfig("mpv.conf")
+                  val loadedInputConf = readConfig("input.conf")
+                  loadedMpvConf?.let(mpvConfigCache::update)
+                  loadedInputConf?.let { content ->
+                    preferences.inputConf.set(content)
+                    File(context.filesDir, "input.conf").writeText(content)
                   }
-                  tempFile.deleteIfExists()
+                  withContext(Dispatchers.Main) {
+                    if (loadedMpvConf != null) mpvConf = loadedMpvConf
+                    if (loadedInputConf != null) inputConf = loadedInputConf
+                  }
                 }
               }
 
@@ -547,7 +538,7 @@ object AdvancedPreferencesScreen : Screen {
                   }
                 },
                 onClick = {
-                  backStack.add(ConfigEditorScreen(ConfigEditorScreen.ConfigType.MPV_CONF))
+                  backStack.navigateTo(ConfigEditorScreen(ConfigEditorScreen.ConfigType.MPV_CONF))
                 },
               )
 
@@ -572,44 +563,7 @@ object AdvancedPreferencesScreen : Screen {
                   }
                 },
                 onClick = {
-                  backStack.add(ConfigEditorScreen(ConfigEditorScreen.ConfigType.INPUT_CONF))
-                },
-              )
-            }
-          }
-
-          item {
-            PreferenceSectionHeader(title = stringResource(R.string.pref_section_p2p_streaming))
-          }
-
-          item {
-            PreferenceCard {
-              val enableP2pStreaming by preferences.enableP2pStreaming.collectAsState()
-              val enableHlsProxy by preferences.enableHlsProxy.collectAsState()
-
-              SwitchPreference(
-                value = enableP2pStreaming,
-                onValueChange = preferences.enableP2pStreaming::set,
-                title = { Text(stringResource(R.string.pref_enable_p2p_streaming_title)) },
-                summary = {
-                  Text(
-                    stringResource(R.string.pref_enable_p2p_streaming_summary),
-                    color = MaterialTheme.colorScheme.outline,
-                  )
-                },
-              )
-
-              PreferenceDivider()
-
-              SwitchPreference(
-                value = enableHlsProxy,
-                onValueChange = preferences.enableHlsProxy::set,
-                title = { Text(stringResource(R.string.pref_enable_hls_proxy_title)) },
-                summary = {
-                  Text(
-                    stringResource(R.string.pref_enable_hls_proxy_summary),
-                    color = MaterialTheme.colorScheme.outline,
-                  )
+                  backStack.navigateTo(ConfigEditorScreen(ConfigEditorScreen.ConfigType.INPUT_CONF))
                 },
               )
             }
@@ -668,7 +622,7 @@ object AdvancedPreferencesScreen : Screen {
                   }
                 },
                 onClick = {
-                  backStack.add(LuaScriptsScreen)
+                  backStack.navigateTo(LuaScriptsScreen)
                 },
                 enabled = mpvConfStorageLocation.isNotBlank() && enableLuaScripts,
               )
@@ -684,42 +638,7 @@ object AdvancedPreferencesScreen : Screen {
                   )
                 },
                 onClick = {
-                  backStack.add(app.gyrolet.mpvrx.ui.preferences.CustomButtonScreen)
-                },
-              )
-            }
-          }
-
-          item {
-            PreferenceSectionHeader(title = stringResource(R.string.ui_network))
-          }
-
-          item {
-            PreferenceCard {
-              Preference(
-                title = {
-                  Text(
-                    androidx.compose.ui.res
-                      .stringResource(app.gyrolet.mpvrx.R.string.ui_yt_dlp_manager),
-                  )
-                },
-                summary = {
-                  Text(
-                    androidx.compose.ui.res.stringResource(
-                      app.gyrolet.mpvrx.R.string.ui_install_and_update_yt_dlp_for_streaming_support,
-                    ),
-                    color = MaterialTheme.colorScheme.outline,
-                  )
-                },
-                icon = {
-                  Icon(
-                    Icons.RoundedFilled.CloudDownload,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                  )
-                },
-                onClick = {
-                  backStack.add(YtdlpSettingsScreen)
+                  backStack.navigateTo(app.gyrolet.mpvrx.ui.preferences.CustomButtonScreen)
                 },
               )
             }
@@ -733,7 +652,7 @@ object AdvancedPreferencesScreen : Screen {
           item {
             PreferenceCard {
               var isConfirmDialogShown by remember { mutableStateOf(false) }
-              val mpvrxDatabase = koinInject<MpvRxDatabase>()
+              val playbackStateRepository = koinInject<PlaybackStateRepository>()
               val enableRecentlyPlayed by preferences.enableRecentlyPlayed.collectAsState()
               var recentlyPlayedCount by remember { mutableStateOf(0) }
 
@@ -796,8 +715,9 @@ object AdvancedPreferencesScreen : Screen {
                   onConfirm = {
                     scope.launch(Dispatchers.IO) {
                       runCatching {
-                        mpvrxDatabase.videoDataDao().clearAllPlaybackStates()
+                        playbackStateRepository.clearAllPlaybackStates()
                         RecentlyPlayedOps.clearAll()
+                        PlaybackStateEvents.notifyChanged("")
                       }.onSuccess {
                         withContext(Dispatchers.Main) {
                           isConfirmDialogShown = false

@@ -10,11 +10,14 @@
 package app.gyrolet.mpvrx.ui.preferences
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +25,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -40,6 +46,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.thumbnail.ThumbnailRepository
@@ -62,9 +69,11 @@ import app.gyrolet.mpvrx.ui.player.VideoOpenAnimation
 import app.gyrolet.mpvrx.ui.preferences.components.SwitchPreference
 import app.gyrolet.mpvrx.ui.preferences.components.ThemePicker
 import app.gyrolet.mpvrx.ui.theme.DarkMode
+import app.gyrolet.mpvrx.ui.theme.CustomThemeDefinition
 import app.gyrolet.mpvrx.ui.theme.LocalThemeTransitionState
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
 import app.gyrolet.mpvrx.ui.utils.LocalShowSettingsBackArrow
+import app.gyrolet.mpvrx.ui.utils.navigateTo
 import app.gyrolet.mpvrx.ui.utils.popSafely
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -97,6 +106,9 @@ object AppearancePreferencesScreen : Screen {
 
     val darkMode by preferences.darkMode.collectAsState()
     val appTheme by preferences.appTheme.collectAsState()
+    val customTheme by preferences.customTheme.collectAsState()
+    val selectedCustomThemeName by preferences.selectedCustomThemeName.collectAsState()
+    val customWallpaperUri by preferences.customWallpaperUri.collectAsState()
     var pendingThumbnailMode by remember { mutableStateOf<ThumbnailMode?>(null) }
     var isThemeSectionExpanded by rememberSaveable { mutableStateOf(true) }
     val storedThumbnailMode by browserPreferences.thumbnailMode.collectAsState()
@@ -107,6 +119,21 @@ object AppearancePreferencesScreen : Screen {
     val thumbnailCacheClearedMessage = stringResource(R.string.pref_thumbnail_cache_cleared)
 
     val thumbnailMode = storedThumbnailMode
+    val customThemes = remember(customTheme) { CustomThemeDefinition.parseCollection(customTheme) }
+    val selectedCustomTheme = customThemes.firstOrNull { it.name == selectedCustomThemeName }
+
+    val wallpaperPicker =
+      rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+          runCatching {
+            context.contentResolver.takePersistableUriPermission(
+              uri,
+              android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+          }
+          backstack.navigateTo(WallpaperEditorScreen(uri.toString()))
+        }
+      }
 
     // Determine if we're in dark mode for theme preview
     val isDarkMode =
@@ -220,9 +247,7 @@ object AppearancePreferencesScreen : Screen {
                     fontWeight = FontWeight.SemiBold,
                   )
                   Text(
-                    text = "${stringResource(
-                      darkMode.titleRes,
-                    )} · ${stringResource(appTheme.titleRes)}",
+                    text = "${stringResource(darkMode.titleRes)} · ${selectedCustomTheme?.name ?: stringResource(appTheme.titleRes)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.outline,
                   )
@@ -266,18 +291,95 @@ object AppearancePreferencesScreen : Screen {
                   val amoledMode by preferences.amoledMode.collectAsState()
                   ThemePicker(
                     currentTheme = appTheme,
+                    customThemes = customThemes,
+                    selectedCustomThemeName = selectedCustomThemeName,
                     isDarkMode = isDarkMode,
                     onThemeSelected = { theme, position ->
-                      if (theme != appTheme && themeTransition?.isAnimating != true) {
+                      if ((theme != appTheme || selectedCustomThemeName.isNotBlank()) && themeTransition?.isAnimating != true) {
                         themeTransition?.startTransition(position)
                         scope.launch {
                           delay(50)
                           preferences.appTheme.set(theme)
+                          preferences.selectedCustomThemeName.set("")
                         }
                       }
                     },
+                    onAddCustomTheme = { backstack.navigateTo(CustomThemeEditorScreen()) },
+                    onCustomThemeSelected = { theme, position ->
+                      if (theme.name != selectedCustomThemeName && themeTransition?.isAnimating != true) {
+                        themeTransition?.startTransition(position)
+                        scope.launch {
+                          delay(50)
+                          preferences.selectedCustomThemeName.set(theme.name)
+                        }
+                      }
+                    },
+                    onEditCustomTheme = { name -> backstack.navigateTo(CustomThemeEditorScreen(name)) },
+                    onDeleteCustomTheme = { name ->
+                      val remainingThemes = customThemes.filterNot { it.name == name }
+                      preferences.customTheme.set(CustomThemeDefinition.serializeCollection(remainingThemes))
+                      if (selectedCustomThemeName == name) preferences.selectedCustomThemeName.set("")
+                    },
                     modifier = Modifier.padding(vertical = 8.dp),
                   )
+
+                  PreferenceDivider()
+
+                  PreferenceCard {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                      Text(stringResource(R.string.pref_appearance_custom_wallpaper_title), style = MaterialTheme.typography.titleMedium)
+                      Text(stringResource(R.string.pref_appearance_custom_wallpaper_summary), color = MaterialTheme.colorScheme.outline, style = MaterialTheme.typography.bodySmall)
+                      if (customWallpaperUri.isNotBlank()) {
+                        Text(customWallpaperUri.substringAfterLast('/'), style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                      }
+                      Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                      ) {
+                        Button(
+                          onClick = { wallpaperPicker.launch(arrayOf("image/*")) },
+                          modifier = Modifier.weight(1f),
+                          contentPadding = PaddingValues(horizontal = 8.dp),
+                        ) {
+                          Text(
+                            stringResource(if (customWallpaperUri.isBlank()) R.string.pref_appearance_custom_wallpaper_choose else R.string.pref_appearance_custom_wallpaper_replace_action),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                          )
+                        }
+                        if (customWallpaperUri.isNotBlank()) {
+                          OutlinedButton(
+                            onClick = { backstack.navigateTo(WallpaperEditorScreen(customWallpaperUri)) },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                          ) {
+                            Text(
+                              stringResource(R.string.pref_appearance_custom_wallpaper_adjust),
+                              maxLines = 1,
+                              overflow = TextOverflow.Ellipsis,
+                            )
+                          }
+                          TextButton(
+                            onClick = {
+                              preferences.customWallpaperUri.set("")
+                              preferences.customWallpaperZoom.set(1f)
+                              preferences.customWallpaperOffsetX.set(0f)
+                              preferences.customWallpaperOffsetY.set(0f)
+                              preferences.customWallpaperScaleMode.set(app.gyrolet.mpvrx.ui.theme.WallpaperScaleMode.Fit)
+                            },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                          ) {
+                            Text(
+                              stringResource(R.string.pref_appearance_custom_wallpaper_clear_action),
+                              maxLines = 1,
+                              overflow = TextOverflow.Ellipsis,
+                            )
+                          }
+                        }
+                      }
+                    }
+                  }
 
                   PreferenceDivider()
 
@@ -448,6 +550,7 @@ object AppearancePreferencesScreen : Screen {
               PreferenceDivider()
 
               ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_tree_flatten_depth_title),
                 value = treeFlattenDepth,
                 onValueChange = browserPreferences.treeFlattenDepth::set,
                 values = TreeFlattenDepth.entries,
@@ -467,6 +570,7 @@ object AppearancePreferencesScreen : Screen {
               PreferenceDivider()
 
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.ui_dual_pane_view),
                 value = dualPaneForTablet,
                 onValueChange = { browserPreferences.dualPaneForTablet.set(it) },
                 title = {
@@ -494,6 +598,7 @@ object AppearancePreferencesScreen : Screen {
               val effectiveThreshold = watchedThreshold.coerceAtLeast(0)
               val thresholdDisplayValue = if (effectiveThreshold == 0) 0f else effectiveThreshold.toFloat()
               SliderPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_appearance_watched_threshold_title),
                 value = thresholdDisplayValue,
                 onValueChange = { browserPreferences.watchedThreshold.set(it.roundToInt()) },
                 sliderValue = thresholdDisplayValue,
@@ -525,6 +630,7 @@ object AppearancePreferencesScreen : Screen {
 
               val deleteFolderAllContents by browserPreferences.deleteFolderAllContents.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.ui_delete_folder_all_contents),
                 value = deleteFolderAllContents,
                 onValueChange = { browserPreferences.deleteFolderAllContents.set(it) },
                 title = {
@@ -734,7 +840,6 @@ object AppearancePreferencesScreen : Screen {
 
           item {
             PreferenceCard {
-              val showHomeTab by preferences.showHomeTab.collectAsState()
               val showMusicTab by preferences.showMusicTab.collectAsState()
               val showRecentsTab by preferences.showRecentsTab.collectAsState()
               val showPlaylistsTab by preferences.showPlaylistsTab.collectAsState()
@@ -742,20 +847,7 @@ object AppearancePreferencesScreen : Screen {
               val showJellyfinTab by preferences.showJellyfinTab.collectAsState()
 
               SwitchPreference(
-                value = showHomeTab,
-                onValueChange = preferences.showHomeTab::set,
-                title = { Text(text = stringResource(id = R.string.pref_nav_home_title)) },
-                summary = {
-                  Text(
-                    text = stringResource(id = R.string.pref_nav_home_summary),
-                    color = MaterialTheme.colorScheme.outline,
-                  )
-                },
-              )
-
-              PreferenceDivider()
-
-              SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_nav_music_title),
                 value = showMusicTab,
                 onValueChange = preferences.showMusicTab::set,
                 title = { Text(text = stringResource(id = R.string.pref_nav_music_title)) },
@@ -770,6 +862,7 @@ object AppearancePreferencesScreen : Screen {
               PreferenceDivider()
 
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_nav_recents_title),
                 value = showRecentsTab,
                 onValueChange = preferences.showRecentsTab::set,
                 title = { Text(text = stringResource(id = R.string.pref_nav_recents_title)) },
@@ -784,6 +877,7 @@ object AppearancePreferencesScreen : Screen {
               PreferenceDivider()
 
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_nav_playlists_title),
                 value = showPlaylistsTab,
                 onValueChange = preferences.showPlaylistsTab::set,
                 title = { Text(text = stringResource(id = R.string.pref_nav_playlists_title)) },
@@ -798,6 +892,7 @@ object AppearancePreferencesScreen : Screen {
               PreferenceDivider()
 
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_nav_network_title),
                 value = showNetworkTab,
                 onValueChange = preferences.showNetworkTab::set,
                 title = { Text(text = stringResource(id = R.string.pref_nav_network_title)) },
@@ -812,6 +907,7 @@ object AppearancePreferencesScreen : Screen {
               PreferenceDivider()
 
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_nav_jellyfin_title),
                 value = showJellyfinTab,
                 onValueChange = preferences.showJellyfinTab::set,
                 title = { Text(text = stringResource(id = R.string.pref_nav_jellyfin_title)) },
@@ -827,6 +923,7 @@ object AppearancePreferencesScreen : Screen {
 
               val showQuickPlayFab by preferences.showQuickPlayFab.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_quick_play_fab_title),
                 value = showQuickPlayFab,
                 onValueChange = preferences.showQuickPlayFab::set,
                 title = { Text(text = stringResource(id = R.string.pref_quick_play_fab_title)) },
@@ -842,6 +939,7 @@ object AppearancePreferencesScreen : Screen {
 
               val quickPlayFabDirect by preferences.quickPlayFabDirect.collectAsState()
               SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_quick_play_fab_direct_title),
                 value = quickPlayFabDirect,
                 onValueChange = preferences.quickPlayFabDirect::set,
                 enabled = showQuickPlayFab,
@@ -865,6 +963,7 @@ object AppearancePreferencesScreen : Screen {
             PreferenceCard {
               val controlsAnimStyle by playerPreferences.controlsAnimStyle.collectAsState()
               ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_anim_controls_style_title),
                 value = controlsAnimStyle,
                 onValueChange = playerPreferences.controlsAnimStyle::set,
                 values = ControlsAnimationStyle.entries,
@@ -882,6 +981,7 @@ object AppearancePreferencesScreen : Screen {
 
               val videoOpenAnim by playerPreferences.videoOpenAnimation.collectAsState()
               ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_anim_video_open_title),
                 value = videoOpenAnim,
                 onValueChange = playerPreferences.videoOpenAnimation::set,
                 values = VideoOpenAnimation.entries,
@@ -897,32 +997,27 @@ object AppearancePreferencesScreen : Screen {
 
               PreferenceDivider()
 
-              val navAnimStyle by playerPreferences.navAnimStyle.collectAsState()
-              ListPreference(
-                value = navAnimStyle,
-                onValueChange = playerPreferences.navAnimStyle::set,
-                values = NavigationAnimStyle.entries,
-                valueToText = { AnnotatedString(it.displayName) },
-                title = { Text(stringResource(R.string.pref_anim_tab_nav_style_title)) },
-                summary = { Text(navAnimStyle.displayName, color = MaterialTheme.colorScheme.outline) },
-              )
-
-              PreferenceDivider()
-
               val appNavStyle by playerPreferences.appNavStyle.collectAsState()
               ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_anim_screen_nav_style_title),
                 value = appNavStyle,
                 onValueChange = playerPreferences.appNavStyle::set,
                 values = NavigationAnimStyle.entries,
                 valueToText = { AnnotatedString(it.displayName) },
                 title = { Text(stringResource(R.string.pref_anim_screen_nav_style_title)) },
-                summary = { Text(appNavStyle.displayName, color = MaterialTheme.colorScheme.outline) },
+                summary = {
+                  Text(
+                    appNavStyle.displayName,
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
               )
 
               PreferenceDivider()
 
               val animSpeed by playerPreferences.animationSpeed.collectAsState()
               SliderPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_anim_speed_title),
                 value = animSpeed,
                 onValueChange = { playerPreferences.animationSpeed.set(it) },
                 title = { Text(stringResource(R.string.pref_anim_speed_title)) },

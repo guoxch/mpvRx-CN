@@ -39,12 +39,11 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
@@ -60,10 +59,16 @@ import app.gyrolet.mpvrx.presentation.Screen
 import app.gyrolet.mpvrx.ui.icons.AppIcon
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.player.controls.components.rememberTvInitialFocusRequester
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusGroup
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
+import app.gyrolet.mpvrx.ui.player.controls.components.tvInitialFocus
 import app.gyrolet.mpvrx.ui.securefolder.SecureFolderGateScreen
 import app.gyrolet.mpvrx.ui.theme.LocalEmphasizedTypography
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
+import app.gyrolet.mpvrx.ui.utils.navigateTo
 import app.gyrolet.mpvrx.ui.utils.LocalShowSettingsBackArrow
+import app.gyrolet.mpvrx.ui.utils.ScreenNavDisplay
 import app.gyrolet.mpvrx.ui.utils.popSafely
 import kotlinx.serialization.Serializable
 import org.koin.compose.koinInject
@@ -93,15 +98,24 @@ object PreferencesScreen : Screen {
     val configuration = LocalConfiguration.current
     val isTablet = configuration.smallestScreenWidthDp >= 600
 
-    var selectedScreen by remember { mutableStateOf<Screen>(AppearancePreferencesScreen) }
-
     if (isTablet) {
+      @Suppress("UNCHECKED_CAST")
+      val detailBackstack = rememberNavBackStack(AppearancePreferencesScreen) as NavBackStack<Screen>
+      val selectedScreen = detailBackstack.first()
       Row(modifier = Modifier.fillMaxSize()) {
-        Box(modifier = Modifier.weight(0.4f)) {
+        Box(modifier = Modifier.weight(0.4f).tvFocusGroup()) {
           SettingsPane(
             sections = sections,
             selectedScreen = selectedScreen,
-            onScreenSelected = { selectedScreen = it },
+            onScreenSelected = { screen ->
+              if (screen != selectedScreen) {
+                // Replace the category atomically without ever exposing an empty stack.
+                Snapshot.withMutableSnapshot {
+                  detailBackstack[0] = screen
+                  while (detailBackstack.size > 1) detailBackstack.removeAt(detailBackstack.lastIndex)
+                }
+              }
+            },
           )
         }
         VerticalDivider(
@@ -109,17 +123,15 @@ object PreferencesScreen : Screen {
           color = colorScheme.outlineVariant.copy(alpha = 0.5f),
           thickness = 1.dp,
         )
-        Box(modifier = Modifier.weight(0.6f)) {
-          key(selectedScreen) {
-            @Suppress("UNCHECKED_CAST")
-            val detailBackstack = rememberNavBackStack(selectedScreen) as NavBackStack<Screen>
-            CompositionLocalProvider(
-              LocalBackStack provides detailBackstack,
-              LocalShowSettingsBackArrow provides (detailBackstack.size > 1),
-            ) {
-              val activeScreen = detailBackstack.lastOrNull() ?: selectedScreen
-              key(activeScreen) {
-                activeScreen.Content()
+        Box(modifier = Modifier.weight(0.6f).tvFocusGroup()) {
+          CompositionLocalProvider(LocalBackStack provides detailBackstack) {
+            ScreenNavDisplay(
+              backStack = detailBackstack,
+              modifier = Modifier.fillMaxSize(),
+              opaqueBackground = true,
+            ) { screen ->
+              CompositionLocalProvider(LocalShowSettingsBackArrow provides (screen != selectedScreen)) {
+                screen.Content()
               }
             }
           }
@@ -129,7 +141,7 @@ object PreferencesScreen : Screen {
       SettingsPane(
         sections = sections,
         selectedScreen = null,
-        onScreenSelected = { backstack.add(it) },
+        onScreenSelected = { backstack.navigateTo(it) },
       )
     }
   }
@@ -144,6 +156,7 @@ object PreferencesScreen : Screen {
     val backstack = LocalBackStack.current
     val colorScheme = MaterialTheme.colorScheme
     val emphasizedTypography = LocalEmphasizedTypography.current
+    val initialFocusRequester = rememberTvInitialFocusRequester()
 
     Scaffold(
       topBar = {
@@ -170,14 +183,18 @@ object PreferencesScreen : Screen {
         modifier =
           Modifier
             .fillMaxSize()
+            .tvFocusGroup()
             .padding(padding),
         contentPadding = PaddingValues(bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
       ) {
         item {
           SettingsSearchEntry(
-            onClick = { backstack.add(SettingsSearchScreen) },
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 18.dp),
+            onClick = { backstack.navigateTo(SettingsSearchScreen) },
+            modifier =
+              Modifier
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 18.dp)
+                .tvInitialFocus(initialFocusRequester),
           )
         }
 
@@ -291,6 +308,25 @@ object PreferencesScreen : Screen {
           ),
       ),
       SettingsSection(
+        title = stringResource(R.string.ui_network),
+        tint = colorScheme.onSurfaceVariant,
+        items =
+          listOf(
+            SettingsDestination(
+              title = stringResource(R.string.ui_network),
+              summary = stringResource(R.string.pref_section_p2p_streaming),
+              icon = Icons.RoundedFilled.Language,
+              screen = NetworkConfigurationPreferencesScreen,
+            ),
+            SettingsDestination(
+              title = stringResource(R.string.pref_media_servers_title),
+              summary = stringResource(R.string.pref_media_servers_summary),
+              icon = Icons.RoundedFilled.BringYourOwnIp,
+              screen = MediaServersPreferencesScreen,
+            ),
+          ),
+      ),
+      SettingsSection(
         title = stringResource(R.string.pref_section_ai),
         tint = colorScheme.onSurfaceVariant,
         items =
@@ -354,6 +390,8 @@ private fun SettingsSearchEntry(
     modifier =
       modifier
         .fillMaxWidth()
+        .tvFocusHighlight(MaterialTheme.shapes.extraExtraLarge, focusedScale = 1.02f)
+        .clip(MaterialTheme.shapes.extraExtraLarge)
         .clickable(onClick = onClick),
     shape = MaterialTheme.shapes.extraExtraLarge,
     color = MaterialTheme.colorScheme.secondaryContainer,
@@ -476,6 +514,7 @@ private fun SettingsDestinationRow(
     modifier =
       Modifier
         .fillMaxWidth()
+        .tvFocusHighlight(MaterialTheme.shapes.medium, focusedScale = 1.01f)
         .background(rowBgColor)
         .clickable(onClick = onClick)
         .padding(horizontal = 14.dp, vertical = 13.dp),

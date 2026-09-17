@@ -10,11 +10,14 @@
 package app.gyrolet.mpvrx
 
 import android.app.Activity
+import android.app.ActivityManager
 import android.app.Application
 import android.content.ComponentName
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Process
+import android.os.StrictMode
 import android.util.Log
 import android.view.View
 import androidx.core.view.ViewCompat
@@ -27,17 +30,20 @@ import app.gyrolet.mpvrx.preferences.AudioPreferences
 import app.gyrolet.mpvrx.preferences.DecoderPreferences
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import app.gyrolet.mpvrx.presentation.crash.CrashActivity
-import app.gyrolet.mpvrx.presentation.crash.GlobalExceptionHandler
+import app.gyrolet.mpvrx.presentation.crash.CrashReportStore
 import app.gyrolet.mpvrx.repository.NetworkRepository
+import app.gyrolet.mpvrx.ui.player.PlaybackPerformanceTrace
 import app.gyrolet.mpvrx.ui.player.PlaybackPhase
 import app.gyrolet.mpvrx.ui.player.PlaybackSession
 import app.gyrolet.mpvrx.ui.player.PlayerActivity
+import com.developer.crashx.config.CrashConfig
 import `is`.xyz.mpv.FastThumbnails
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
@@ -66,6 +72,43 @@ class App :
   override fun onCreate() {
     super.onCreate()
 
+    val processName =
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        Application.getProcessName()
+      } else {
+        getSystemService(ActivityManager::class.java).runningAppProcesses
+          ?.firstOrNull { it.pid == Process.myPid() }?.processName
+      }
+    if (processName == "$packageName:crash" || processName == "$packageName:crashx_error") {
+      startKoin {
+        androidContext(this@App)
+        modules(PreferencesModule)
+      }
+      return
+    }
+
+    CrashConfig.Builder.create()
+      .enabled(true)
+      .errorActivity(CrashActivity::class.java)
+      .restartActivity(MainActivity::class.java)
+      .backgroundMode(CrashConfig.BACKGROUND_MODE_SHOW_CUSTOM)
+      .minTimeBetweenCrashesMs(5_000)
+      .maxStackTraceSize(96 * 1024)
+      .trackActivities(true)
+      .maxActivityLogEntries(32)
+      .showErrorDetails(true)
+      .showReportButton(true)
+      .showCloseButton(true)
+      .logErrorOnRestart(false)
+      .includeStackTrace(true)
+      .includeBuildDate(false)
+      .crashIdPrefix("MPVRX")
+      .additionalReportInfo("mpvRx ${BuildConfig.VERSION_NAME} (${BuildConfig.GIT_SHA})")
+      .apply()
+    CrashReportStore.install(this)
+
+    configureDebugStrictMode()
+
     // Initialize Koin
     startKoin {
       androidContext(this@App)
@@ -74,13 +117,15 @@ class App :
         DatabaseModule,
         FileManagerModule,
         app.gyrolet.mpvrx.di.domainModule,
+        app.gyrolet.mpvrx.di.DownloadModule,
       )
     }
     if (!BuildConfig.MPV_SUPPORTS_VULKAN) {
       getKoin().get<DecoderPreferences>().useVulkan.set(false)
     }
     registerActivityLifecycleCallbacks(this)
-    Thread.setDefaultUncaughtExceptionHandler(GlobalExceptionHandler(applicationContext, CrashActivity::class.java))
+    PlaybackSession.addObserver(PlaybackPerformanceTrace)
+    startPlaybackPerformanceTracing()
     startIdleMpvCoreReaper()
 
     applicationScope.launch {
@@ -102,6 +147,24 @@ class App :
       }.onFailure { error ->
         Log.e(TAG, "Failed to initialize MediaInfoActivityAlias setting on launch", error)
       }
+      runCatching {
+        val preferences: PlayerPreferences = getKoin().get()
+        val enableWebLinks = preferences.enableWebStreamLinkIntents.get()
+        val componentName = ComponentName(this@App, "app.gyrolet.mpvrx.ui.player.WebStreamLinksActivityAlias")
+        val newState =
+          if (enableWebLinks) {
+            PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+          } else {
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+          }
+        packageManager.setComponentEnabledSetting(
+          componentName,
+          newState,
+          PackageManager.DONT_KILL_APP,
+        )
+      }.onFailure { error ->
+        Log.e(TAG, "Failed to initialize WebStreamLinksActivityAlias setting on launch", error)
+      }
     }
 
     // TextMate grammar/theme assets for the script editor are initialized lazily on first use.
@@ -115,6 +178,7 @@ class App :
   }
 
   override fun onActivityStarted(activity: Activity) {
+    if (activity is PlayerActivity) PlaybackPerformanceTrace.mark("PLAYER_ACTIVITY_STARTED")
     if (startedActivityCount++ == 0) {
       getKoin().get<app.gyrolet.mpvrx.domain.syncplay.SyncplayManager>().onAppForegrounded()
       scheduleFastThumbnailWarmupOnce()
@@ -123,6 +187,7 @@ class App :
   }
 
   override fun onActivityStopped(activity: Activity) {
+    if (activity is PlayerActivity) PlaybackPerformanceTrace.mark("PLAYER_ACTIVITY_STOPPED")
     startedActivityCount = (startedActivityCount - 1).coerceAtLeast(0)
     if (startedActivityCount == 0 && !activity.isChangingConfigurations) {
       pauseVideoWhenBackgroundPlaybackDisabled(activity)
@@ -149,10 +214,18 @@ class App :
     Log.d(TAG, "Paused video because video background playback is disabled")
   }
 
+  override fun onActivityPreCreated(
+    activity: Activity,
+    savedInstanceState: Bundle?,
+  ) {
+    if (activity is PlayerActivity) PlaybackPerformanceTrace.mark("PLAYER_ACTIVITY_CREATE_START")
+  }
+
   override fun onActivityCreated(
     activity: Activity,
     savedInstanceState: Bundle?,
   ) {
+    if (activity is PlayerActivity) PlaybackPerformanceTrace.mark("PLAYER_ACTIVITY_CREATE_END")
     if (activity.javaClass.name.contains("leakcanary", ignoreCase = true)) {
       val rootView = activity.findViewById<View>(android.R.id.content)
       rootView?.let { view ->
@@ -171,16 +244,55 @@ class App :
     }
   }
 
-  override fun onActivityResumed(activity: Activity) = Unit
+  override fun onActivityResumed(activity: Activity) {
+    when (activity) {
+      is PlayerActivity -> {
+        PlaybackPerformanceTrace.mark("PLAYER_ACTIVITY_RESUMED")
+        activity.window.decorView.postOnAnimation {
+          PlaybackPerformanceTrace.mark("PLAYER_FIRST_FRAME")
+        }
+      }
+      is MainActivity -> {
+        PlaybackPerformanceTrace.mark("MAIN_ACTIVITY_RESUMED")
+        activity.window.decorView.postOnAnimation {
+          PlaybackPerformanceTrace.mark("BROWSER_FIRST_FRAME")
+        }
+      }
+    }
+  }
+
+  override fun onActivityPrePaused(activity: Activity) {
+    if (activity is PlayerActivity) PlaybackPerformanceTrace.begin("ON_PAUSE")
+  }
 
   override fun onActivityPaused(activity: Activity) = Unit
+
+  override fun onActivityPostPaused(activity: Activity) {
+    if (activity is PlayerActivity) PlaybackPerformanceTrace.end("ON_PAUSE")
+  }
+
+  override fun onActivityPreStopped(activity: Activity) {
+    if (activity is PlayerActivity) PlaybackPerformanceTrace.begin("ON_STOP")
+  }
+
+  override fun onActivityPostStopped(activity: Activity) {
+    if (activity is PlayerActivity) PlaybackPerformanceTrace.end("ON_STOP")
+  }
 
   override fun onActivitySaveInstanceState(
     activity: Activity,
     outState: Bundle,
   ) = Unit
 
+  override fun onActivityPreDestroyed(activity: Activity) {
+    if (activity is PlayerActivity) PlaybackPerformanceTrace.begin("ON_DESTROY")
+  }
+
   override fun onActivityDestroyed(activity: Activity) = Unit
+
+  override fun onActivityPostDestroyed(activity: Activity) {
+    if (activity is PlayerActivity) PlaybackPerformanceTrace.end("ON_DESTROY")
+  }
 
   /**
    * Keep libmpv warm for quick navigation/re-entry, but do not pin its native decoder/renderer
@@ -212,6 +324,48 @@ class App :
         }
       }
     }
+  }
+
+  private fun startPlaybackPerformanceTracing() {
+    applicationScope.launch {
+      var previousPhase: PlaybackPhase? = null
+      var previousSurfaceAttached: Boolean? = null
+      var previousGeneration = -1L
+      PlaybackSession.state.collect { state ->
+        if (state.phase != previousPhase) {
+          PlaybackPerformanceTrace.mark("SESSION_PHASE", state.phase.name)
+          previousPhase = state.phase
+        }
+        if (state.surfaceAttached != previousSurfaceAttached) {
+          PlaybackPerformanceTrace.mark(
+            if (state.surfaceAttached) "SURFACE_BOUND" else "SURFACE_UNBOUND",
+            "generation=${state.generation}",
+          )
+          previousSurfaceAttached = state.surfaceAttached
+        }
+        if (state.generation != previousGeneration) {
+          PlaybackPerformanceTrace.mark("SESSION_GENERATION", state.generation.toString())
+          previousGeneration = state.generation
+        }
+      }
+    }
+  }
+
+  private fun configureDebugStrictMode() {
+    if (!BuildConfig.DEBUG) return
+
+    StrictMode.setThreadPolicy(
+      StrictMode.ThreadPolicy.Builder()
+        .detectAll()
+        .penaltyLog()
+        .build(),
+    )
+    StrictMode.setVmPolicy(
+      StrictMode.VmPolicy.Builder()
+        .detectAll()
+        .penaltyLog()
+        .build(),
+    )
   }
 
   private fun scheduleFastThumbnailWarmupOnce() {

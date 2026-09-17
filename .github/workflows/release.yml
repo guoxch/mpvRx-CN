@@ -22,12 +22,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
@@ -170,16 +170,28 @@ jobs:
           latest = '\n'.join(section).strip()
           if not latest:
               raise SystemExit('Could not find latest changelog section')
-          Path('release-notes.md').write_text(latest + '\n\n---\n### SHA-256 checksums\n\n```text\n', encoding='utf-8')
+          variant_guide = """
+          ### APK variants
+
+          All variants contain the same mpvRx app version and features, with their native backends built from [mpvlib Android](https://github.com/Riteshp2001/mpvlibAndroid). Choose the package that best matches your device:
+
+          - **Standard** (`mpvRx-<architecture>-<version>.apk`): Recommended for most devices. Available as Universal and architecture-specific APKs with the standard Vulkan-capable playback backend.
+          - **FongMi** (`mpvRx-fongmi-<version>.apk`): Universal package using the FongMi native profile for Vulkan, direct MediaCodec, and Dolby Vision playback.
+          - **Non-Vulkan** (`mpvRx-no-vulkan-<version>.apk`): Universal OpenGL-only package for devices without compatible Vulkan support or with unstable legacy GPU drivers.
+          """.strip()
+          Path('release-notes.md').write_text(
+              latest + '\n\n---\n' + variant_guide + '\n\n### SHA-256 checksums\n\n```text\n',
+              encoding='utf-8',
+          )
           PY
           cat checksums.txt >> release-notes.md
           printf '%s\n' '```' >> release-notes.md
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ env.VERSION_TAG }}
-          name: mpvRx ${{ env.VERSION_TAG }}
+          tag_name: ${{ github.ref_name }}
+          name: mpvRx ${{ github.ref_name }}
           body_path: release-notes.md
           generate_release_notes: true
           draft: false

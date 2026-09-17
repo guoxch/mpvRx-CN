@@ -32,10 +32,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Slider
 import app.gyrolet.mpvrx.ui.components.IconSwitch
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -55,6 +56,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
+import app.gyrolet.mpvrx.ui.player.controls.components.rememberTvInitialFocusRequester
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusGroup
+import app.gyrolet.mpvrx.ui.player.controls.components.tvInitialFocus
 import kotlin.math.roundToInt
 
 enum class EqualizerPreset(
@@ -113,14 +118,20 @@ fun EqualizerSheet(
   onDismissRequest: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
-  val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+  val initialFocusRequester =
+    rememberTvInitialFocusRequester(requestKey = state.isEnabled)
+  val sheetState =
+    rememberBottomSheetState(
+      initialValue = SheetValue.Hidden,
+      enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
 
   ModalBottomSheet(
     onDismissRequest = onDismissRequest,
     sheetState = sheetState,
     containerColor = MaterialTheme.colorScheme.surfaceContainer,
     dragHandle = null,
-    modifier = modifier,
+    modifier = modifier.tvFocusGroup(),
   ) {
     Column(
       modifier =
@@ -144,7 +155,11 @@ fun EqualizerSheet(
         IconSwitch(
           checked = state.isEnabled,
           onCheckedChange = onEnabledChanged,
-          modifier = Modifier.scale(0.8f),
+          modifier =
+            Modifier
+              .tvInitialFocus(initialFocusRequester)
+              .tvFocusHighlight(RoundedCornerShape(12.dp), focusedScale = 1.04f)
+              .scale(0.8f),
         )
       }
 
@@ -238,15 +253,20 @@ fun EqualizerSheet(
       Spacer(modifier = Modifier.height(8.dp))
 
       var volumeBoostValue by remember(state.volumeBoostDb) { mutableFloatStateOf(state.volumeBoostDb.toFloat()) }
+      val boostHaptics = app.gyrolet.mpvrx.ui.utils.rememberAdjustmentHaptics(0f, 10f)
       Slider(
         value = volumeBoostValue,
         onValueChange = { newValue ->
+          boostHaptics.move(volumeBoostValue, newValue)
           volumeBoostValue = newValue
           onVolumeBoostChanged(newValue.roundToInt())
         },
         valueRange = 0f..10f,
         enabled = state.isEnabled,
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+          Modifier
+            .fillMaxWidth()
+            .tvFocusHighlight(MaterialTheme.shapes.small, enabled = state.isEnabled),
       )
 
       Row(
@@ -290,6 +310,7 @@ private fun PresetChip(
     modifier =
       Modifier
         .alpha(if (isEnabled) 1f else 0.38f)
+        .tvFocusHighlight(RoundedCornerShape(50), enabled = isEnabled, focusedScale = 1.03f)
         .clip(RoundedCornerShape(50))
         .background(
           if (isSelected) {
@@ -332,6 +353,7 @@ private fun BandColumn(
   modifier: Modifier = Modifier,
 ) {
   var sliderValue by remember(gainDb) { mutableFloatStateOf(gainDb.toFloat()) }
+  val gainHaptics = app.gyrolet.mpvrx.ui.utils.rememberAdjustmentHaptics(EQ_MIN_DB.toFloat(), EQ_MAX_DB.toFloat())
 
   Column(
     modifier = modifier.fillMaxHeight(),
@@ -354,6 +376,7 @@ private fun BandColumn(
     Slider(
       value = sliderValue,
       onValueChange = { newValue ->
+        gainHaptics.move(sliderValue, newValue)
         sliderValue = newValue
         onGainChanged(newValue.roundToInt())
       },
@@ -362,6 +385,7 @@ private fun BandColumn(
       modifier =
         Modifier
           .weight(1f)
+          .tvFocusHighlight(MaterialTheme.shapes.small, enabled = isEnabled)
           .padding(vertical = 12.dp)
           .layout { measurable, constraints ->
             val placeable =

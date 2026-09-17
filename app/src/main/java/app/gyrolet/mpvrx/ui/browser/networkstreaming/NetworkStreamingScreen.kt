@@ -11,7 +11,7 @@ package app.gyrolet.mpvrx.ui.browser.networkstreaming
 
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.activity.compose.BackHandler
+import app.gyrolet.mpvrx.ui.utils.NavigationBackHandler as BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
@@ -36,7 +36,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
+import app.gyrolet.mpvrx.ui.utils.NavigationPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -45,6 +45,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -55,8 +56,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -97,6 +96,9 @@ import app.gyrolet.mpvrx.domain.torrent.TorrentStreamingEngine
 import app.gyrolet.mpvrx.domain.torrent.formatTorrentBytes
 import app.gyrolet.mpvrx.domain.torrent.isTorrentSource
 import app.gyrolet.mpvrx.domain.torrent.normalizeTorrentSource
+import app.gyrolet.mpvrx.preferences.YtdlPreferences
+import app.gyrolet.mpvrx.preferences.NetworkBookmarkPreferences
+import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.presentation.Screen
 import app.gyrolet.mpvrx.presentation.components.RemoteImage
 import app.gyrolet.mpvrx.repository.wyzie.WyzieSearchRepository
@@ -105,15 +107,24 @@ import app.gyrolet.mpvrx.ui.browser.cards.NetworkConnectionCard
 import app.gyrolet.mpvrx.ui.browser.components.BrowserTopBar
 import app.gyrolet.mpvrx.ui.browser.dialogs.AddConnectionSheet
 import app.gyrolet.mpvrx.ui.browser.dialogs.EditConnectionSheet
+import app.gyrolet.mpvrx.ui.components.InlineSearchBar
 import app.gyrolet.mpvrx.ui.icons.AppIcon
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlpInstallPromptDialog
+import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlpInstallProgressDialog
+import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlpManager
+import app.gyrolet.mpvrx.ui.preferences.YtdlpSettingsScreen
 import app.gyrolet.mpvrx.ui.torrent.TorrentSelectionInput
 import app.gyrolet.mpvrx.ui.torrent.TorrentSelectionScreen
 import app.gyrolet.mpvrx.ui.torrent.TorrentSelectionViewModel
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
+import app.gyrolet.mpvrx.ui.utils.navigateTo
+import app.gyrolet.mpvrx.ui.utils.rememberTabNavigation
 import app.gyrolet.mpvrx.utils.media.SharedUrlExtractor
 import app.gyrolet.mpvrx.utils.media.MediaUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.koin.compose.koinInject
@@ -137,7 +148,10 @@ object NetworkStreamingScreen : Screen {
       viewModel(factory = NetworkStreamingViewModel.factory(context.applicationContext as android.app.Application))
     val torrentStreamingEngine = koinInject<TorrentStreamingEngine>()
     val streamEntryRepository = koinInject<NetworkStreamEntryRepository>()
+    val ytdlPreferences = koinInject<YtdlPreferences>()
+    val bookmarkPreferences = koinInject<NetworkBookmarkPreferences>()
     val wyzieSearchRepository = koinInject<WyzieSearchRepository>()
+    val linkDownloadCoordinator = koinInject<app.gyrolet.mpvrx.domain.download.LinkDownloadCoordinator>()
     val torrentPickerViewModel: TorrentSelectionViewModel =
       viewModel(
         key = "network_torrent_picker",
@@ -150,6 +164,7 @@ object NetworkStreamingScreen : Screen {
       )
     val torrentPickerState by torrentPickerViewModel.uiState.collectAsState()
     val connections by viewModel.connections.collectAsState()
+    val folderBookmarks by bookmarkPreferences.bookmarks.collectAsState()
     val connectionStatuses by viewModel.connectionStatuses.collectAsState()
     val recentLinks by viewModel.recentLinks.collectAsState()
     val allMediaGroups by viewModel.allMediaGroups.collectAsState()
@@ -159,6 +174,48 @@ object NetworkStreamingScreen : Screen {
     var showTorrentPicker by remember { mutableStateOf(false) }
     val navigationBarHeight = app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight.current
     val coroutineScope = rememberCoroutineScope()
+
+    // yt-dlp install gate for the "paste link -> Play" flow: instead of silently installing
+    // yt-dlp in the background while the player buffers on first use, we ask up front.
+    var pendingYtdlpUrl by remember { mutableStateOf<String?>(null) }
+    var showYtdlpInstallPrompt by remember { mutableStateOf(false) }
+    var showYtdlpInstallProgress by remember { mutableStateOf(false) }
+    var ytdlpInstallLastLog by remember { mutableStateOf("") }
+    var ytdlpInstallError by remember { mutableStateOf<String?>(null) }
+    var ytdlpInstallJob by remember { mutableStateOf<Job?>(null) }
+    var linkPlaybackJob by remember { mutableStateOf<Job?>(null) }
+
+    fun proceedToPlay(url: String) {
+      if (linkPlaybackJob?.isActive == true) return
+      linkPlaybackJob =
+        coroutineScope.launch {
+          try {
+            val extractedPlaylist =
+              if (YtdlpManager.isPotentialPlaylistUrl(url)) {
+                YtdlpManager.extractPlaylist(context, url, ytdlPreferences).getOrNull()
+              } else {
+                null
+              }
+            viewModel.recordSubmittedLink(url)
+            if (extractedPlaylist != null) {
+              YtdlpManager.playPlaylist(context, extractedPlaylist, "network_stream")
+            } else {
+              MediaUtils.playFile(url, context, "network_stream")
+            }
+          } finally {
+            linkPlaybackJob = null
+          }
+        }
+    }
+
+    fun playLinkGatingYtdlp(url: String) {
+      if (YtdlpManager.requiresYtdlp(url) && !YtdlpManager.isInstalled(context)) {
+        pendingYtdlpUrl = url
+        showYtdlpInstallPrompt = true
+      } else {
+        proceedToPlay(url)
+      }
+    }
 
     LaunchedEffect(torrentPickerViewModel) {
       torrentPickerViewModel.launches.collect { request ->
@@ -177,6 +234,9 @@ object NetworkStreamingScreen : Screen {
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var isSearching by rememberSaveable { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(isSearching) {
+      if (isSearching) focusRequester.requestFocus()
+    }
 
     val filteredConnections =
       remember(connections, searchQuery) {
@@ -197,6 +257,24 @@ object NetworkStreamingScreen : Screen {
           searchQuery.isBlank() ||
             entry.fileName.contains(searchQuery, ignoreCase = true) ||
             entry.canonicalSourceUri.contains(searchQuery, ignoreCase = true)
+        }
+      }
+
+    val resolvedFolderBookmarks =
+      remember(folderBookmarks, connections) {
+        resolveNetworkFolderBookmarks(folderBookmarks, connections)
+      }
+
+    val filteredFolderBookmarks =
+      remember(resolvedFolderBookmarks, searchQuery) {
+        if (searchQuery.isBlank()) {
+          resolvedFolderBookmarks
+        } else {
+          resolvedFolderBookmarks.filter { item ->
+            item.bookmark.folderName.contains(searchQuery, ignoreCase = true) ||
+              item.connection.name.contains(searchQuery, ignoreCase = true) ||
+              item.bookmark.path.contains(searchQuery, ignoreCase = true)
+          }
         }
       }
 
@@ -229,9 +307,16 @@ object NetworkStreamingScreen : Screen {
     val pagerState = rememberPagerState { NetworkTab.entries.size }
 
     val headerContainerColor =
-      if (MaterialTheme.colorScheme.background == Color.Black) Color.Black else MaterialTheme.colorScheme.surfaceContainer
+      if (app.gyrolet.mpvrx.ui.theme.LocalAppWallpaperActive.current) {
+        Color.Transparent
+      } else if (MaterialTheme.colorScheme.background == Color.Black) {
+        Color.Black
+      } else {
+        MaterialTheme.colorScheme.surfaceContainer
+      }
 
     Scaffold(
+      containerColor = app.gyrolet.mpvrx.ui.theme.wallpaperAwareBackgroundColor(),
       modifier = Modifier.fillMaxSize(),
       topBar = {
         Column(
@@ -241,63 +326,53 @@ object NetworkStreamingScreen : Screen {
               .background(headerContainerColor),
         ) {
           if (isSearching) {
-            SearchBar(
-              inputField = {
-                SearchBarDefaults.InputField(
-                  query = searchQuery,
-                  onQueryChange = { searchQuery = it },
-                  onSearch = { },
-                  expanded = false,
-                  onExpandedChange = { },
-                  placeholder = {
-                    Text(stringResource(R.string.settings_search_title))
-                  },
-                  leadingIcon = {
-                    Icon(
-                      imageVector = Icons.RoundedFilled.Search,
-                      contentDescription = stringResource(R.string.settings_search_title),
-                    )
-                  },
-                  trailingIcon = {
-                    IconButton(
-                      onClick = {
-                        isSearching = false
-                        searchQuery = ""
-                      },
-                    ) {
-                      Icon(
-                        imageVector = Icons.RoundedFilled.Close,
-                        contentDescription = stringResource(R.string.generic_cancel),
-                      )
-                    }
-                  },
-                  modifier = Modifier.focusRequester(focusRequester),
-                )
-              },
-              expanded = false,
-              onExpandedChange = { },
+            InlineSearchBar(
+              query = searchQuery,
+              onQueryChange = { searchQuery = it },
+              onSearch = { },
               modifier =
                 Modifier
                   .fillMaxWidth()
                   .padding(horizontal = 16.dp, vertical = 8.dp),
+              inputFieldModifier = Modifier.focusRequester(focusRequester),
+              placeholder = {
+                Text(stringResource(R.string.settings_search_title))
+              },
+              leadingIcon = {
+                Icon(
+                  imageVector = Icons.RoundedFilled.Search,
+                  contentDescription = stringResource(R.string.settings_search_title),
+                )
+              },
+              trailingIcon = {
+                IconButton(
+                  onClick = {
+                    isSearching = false
+                    searchQuery = ""
+                  },
+                ) {
+                  Icon(
+                    imageVector = Icons.RoundedFilled.Close,
+                    contentDescription = stringResource(R.string.generic_cancel),
+                  )
+                }
+              },
               shape = RoundedCornerShape(28.dp),
               tonalElevation = 6.dp,
-            ) {
-              // Empty search bar content
-            }
+            )
           } else {
             Box {
               BrowserTopBar(
                 title = stringResource(R.string.ui_network),
                 isInSelectionMode = false,
                 selectedCount = 0,
-                totalCount = connections.size + recentLinks.size + allMediaGroups.size,
+                totalCount = connections.size + recentLinks.size + allMediaGroups.size + resolvedFolderBookmarks.size,
                 onBackClick = null,
                 onCancelSelection = { },
                 onSortClick = null,
                 onSearchClick = null,
                 onSettingsClick = {
-                  backstack.add(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
+                  backstack.navigateTo(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
                 },
                 onDeleteClick = null,
                 onRenameClick = null,
@@ -308,6 +383,19 @@ object NetworkStreamingScreen : Screen {
                 onSelectAll = null,
                 onInvertSelection = null,
                 onDeselectAll = null,
+                additionalActions = {
+                  IconButton(
+                    onClick = { backstack.navigateTo(app.gyrolet.mpvrx.ui.downloads.DownloadsScreen) },
+                    modifier = Modifier.padding(horizontal = 2.dp),
+                  ) {
+                    Icon(
+                      imageVector = Icons.RoundedFilled.Download,
+                      contentDescription = stringResource(R.string.downloads_open_downloads),
+                      modifier = Modifier.size(24.dp),
+                      tint = MaterialTheme.colorScheme.secondary,
+                    )
+                  }
+                },
               )
             }
           }
@@ -319,11 +407,12 @@ object NetworkStreamingScreen : Screen {
             contentColor = MaterialTheme.colorScheme.primary,
             divider = {},
           ) {
+            val navigateTab = rememberTabNavigation(pagerState)
             NetworkTab.entries.forEachIndexed { index, tab ->
               Tab(
                 selected = pagerState.currentPage == index,
                 onClick = {
-                  coroutineScope.launch { pagerState.animateScrollToPage(index) }
+                  navigateTab(index)
                 },
                 text = {
                   Text(
@@ -372,7 +461,7 @@ object NetworkStreamingScreen : Screen {
             .fillMaxSize()
             .padding(padding),
       ) {
-        HorizontalPager(
+        NavigationPager(
           state = pagerState,
           modifier =
             Modifier
@@ -384,20 +473,24 @@ object NetworkStreamingScreen : Screen {
             NetworkTab.LOCAL_NETWORK -> {
               LocalNetworkContent(
                 connections = filteredConnections,
+                bookmarks = filteredFolderBookmarks,
                 connectionStatuses = connectionStatuses,
                 recentLinks = filteredRecentLinks,
+                isPreparingLink =
+                  showYtdlpInstallPrompt ||
+                    showYtdlpInstallProgress ||
+                    linkPlaybackJob?.isActive == true,
                 onPlayLink = { url ->
                   val playableSource = normalizeTorrentSource(url) ?: url.trim()
                   if (isTorrentSource(playableSource)) {
                     showTorrentPicker = true
                     torrentPickerViewModel.open(TorrentSelectionInput(source = playableSource))
                   } else {
-                    viewModel.recordSubmittedLink(playableSource)
-                    MediaUtils.playFile(playableSource, context, "network_stream")
+                    playLinkGatingYtdlp(playableSource)
                   }
                 },
                 onPlayRecent = { entry ->
-                  viewModel.recordSubmittedLink(entry.canonicalSourceUri)
+                  viewModel.recordExistingLinkPlayed(entry.stableKey)
                   MediaUtils.playFile(
                     source = entry.canonicalSourceUri,
                     context = context,
@@ -411,7 +504,16 @@ object NetworkStreamingScreen : Screen {
                     showTorrentPicker = true
                     torrentPickerViewModel.open(TorrentSelectionInput(source = playableSource, title = entry.fileName))
                   } else {
-                    viewModel.saveLinkToMedia(entry.canonicalSourceUri, entry.fileName)
+                    when (linkDownloadCoordinator.enqueue(playableSource, entry.fileName)) {
+                      app.gyrolet.mpvrx.domain.download.LinkDownloadCoordinator.Route.UNSUPPORTED ->
+                        android.widget.Toast
+                          .makeText(context, R.string.downloads_location_invalid, android.widget.Toast.LENGTH_SHORT)
+                          .show()
+                      else ->
+                        android.widget.Toast
+                          .makeText(context, R.string.downloads_started, android.widget.Toast.LENGTH_SHORT)
+                          .show()
+                    }
                   }
                 },
                 onDeleteRecent = viewModel::deleteStreamEntry,
@@ -421,7 +523,7 @@ object NetworkStreamingScreen : Screen {
                 onDelete = { viewModel.deleteConnection(it) },
                 onBrowse = { conn, status ->
                   if (status?.isConnected == true) {
-                    backstack.add(
+                    backstack.navigateTo(
                       NetworkBrowserScreen(
                         connectionId = conn.id,
                         connectionName = conn.name,
@@ -433,6 +535,16 @@ object NetworkStreamingScreen : Screen {
                 onAutoConnectChange = { conn, autoConnect ->
                   viewModel.updateConnection(conn.copy(autoConnect = autoConnect))
                 },
+                onOpenBookmark = { item ->
+                  backstack.navigateTo(
+                    NetworkBrowserScreen(
+                      connectionId = item.connection.id,
+                      connectionName = item.connection.name,
+                      currentPath = item.bookmark.path,
+                    ),
+                  )
+                },
+                onManageBookmarks = { backstack.navigateTo(NetworkBookmarksScreen) },
               )
             }
             NetworkTab.MEDIA -> {
@@ -450,7 +562,7 @@ object NetworkStreamingScreen : Screen {
                       torrentFileIndex = entry.fileIndex,
                     )
                   } else {
-                    viewModel.recordSubmittedLink(entry.canonicalSourceUri)
+                    viewModel.recordExistingLinkPlayed(entry.stableKey)
                     MediaUtils.playFile(
                       source = entry.canonicalSourceUri,
                       context = context,
@@ -476,6 +588,55 @@ object NetworkStreamingScreen : Screen {
         onSave = { connection ->
           viewModel.addConnection(connection)
           showAddSheet = false
+        },
+      )
+
+      YtdlpInstallPromptDialog(
+        isOpen = showYtdlpInstallPrompt,
+        onInstall = {
+          showYtdlpInstallPrompt = false
+          ytdlpInstallError = null
+          ytdlpInstallLastLog = ""
+          showYtdlpInstallProgress = true
+          ytdlpInstallJob =
+            coroutineScope.launch {
+              val success =
+                YtdlpManager.runInstall(context) { log ->
+                  // runInstall logs from an IO dispatcher; hop back to Main before touching state.
+                  coroutineScope.launch(Dispatchers.Main) {
+                    ytdlpInstallLastLog = log
+                  }
+                }
+              if (success) {
+                showYtdlpInstallProgress = false
+                pendingYtdlpUrl?.let { proceedToPlay(it) }
+                pendingYtdlpUrl = null
+              } else {
+                // Leave the progress dialog open so the error is visible; Cancel dismisses it.
+                ytdlpInstallError = context.getString(R.string.ytdlp_install_failed)
+              }
+            }
+        },
+        onConfigure = {
+          showYtdlpInstallPrompt = false
+          pendingYtdlpUrl = null
+          backstack.navigateTo(YtdlpSettingsScreen)
+        },
+        onDismiss = {
+          showYtdlpInstallPrompt = false
+          pendingYtdlpUrl = null
+        },
+      )
+
+      YtdlpInstallProgressDialog(
+        isOpen = showYtdlpInstallProgress,
+        lastLogLine = ytdlpInstallLastLog,
+        error = ytdlpInstallError,
+        onCancel = {
+          ytdlpInstallJob?.cancel()
+          ytdlpInstallJob = null
+          showYtdlpInstallProgress = false
+          pendingYtdlpUrl = null
         },
       )
 
@@ -598,8 +759,10 @@ private fun AddMediaDialog(
 @Composable
 private fun LocalNetworkContent(
   connections: List<NetworkConnection>,
+  bookmarks: List<ResolvedNetworkFolderBookmark>,
   connectionStatuses: Map<Long, ConnectionStatus>,
   recentLinks: List<NetworkStreamEntryEntity>,
+  isPreparingLink: Boolean,
   onPlayLink: (String) -> Unit,
   onPlayRecent: (NetworkStreamEntryEntity) -> Unit,
   onSaveToMedia: (NetworkStreamEntryEntity) -> Unit,
@@ -610,6 +773,8 @@ private fun LocalNetworkContent(
   onDelete: (NetworkConnection) -> Unit,
   onBrowse: (NetworkConnection, ConnectionStatus?) -> Unit,
   onAutoConnectChange: (NetworkConnection, Boolean) -> Unit,
+  onOpenBookmark: (ResolvedNetworkFolderBookmark) -> Unit,
+  onManageBookmarks: () -> Unit,
 ) {
   val navBarHeight = app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight.current.takeIf { it > 0.dp } ?: 88.dp
   LazyColumn(
@@ -621,11 +786,22 @@ private fun LocalNetworkContent(
     item {
       StreamLinkSection(
         recentLinks = recentLinks,
+        isPreparing = isPreparingLink,
         onPlayLink = onPlayLink,
         onPlayRecent = onPlayRecent,
         onSaveToTorrent = onSaveToMedia,
         onDeleteRecent = onDeleteRecent,
       )
+    }
+
+    if (bookmarks.isNotEmpty()) {
+      item {
+        NetworkBookmarkSection(
+          bookmarks = bookmarks,
+          onOpen = onOpenBookmark,
+          onManage = onManageBookmarks,
+        )
+      }
     }
 
     // 2. Saved Network Connections Section
@@ -874,6 +1050,7 @@ private fun EmptyStateCard(
 @Composable
 private fun StreamLinkSection(
   recentLinks: List<NetworkStreamEntryEntity>,
+  isPreparing: Boolean,
   onPlayLink: (String) -> Unit,
   onPlayRecent: (NetworkStreamEntryEntity) -> Unit,
   onSaveToTorrent: (NetworkStreamEntryEntity) -> Unit,
@@ -937,6 +1114,7 @@ private fun StreamLinkSection(
         OutlinedTextField(
           value = linkUrl,
           onValueChange = { linkUrl = it },
+          enabled = !isPreparing,
           modifier = Modifier.weight(1f),
           placeholder = {
             Text(
@@ -956,7 +1134,7 @@ private fun StreamLinkSection(
             Row(
               verticalAlignment = Alignment.CenterVertically,
             ) {
-              IconButton(onClick = { pasteFromClipboard() }) {
+              IconButton(onClick = { pasteFromClipboard() }, enabled = !isPreparing) {
                 Icon(
                   imageVector = Icons.RoundedFilled.ContentPaste,
                   contentDescription = stringResource(R.string.ui_paste_stream_url),
@@ -964,7 +1142,7 @@ private fun StreamLinkSection(
                 )
               }
               if (linkUrl.isNotBlank()) {
-                IconButton(onClick = { linkUrl = "" }) {
+                IconButton(onClick = { linkUrl = "" }, enabled = !isPreparing) {
                   Icon(
                     imageVector = Icons.RoundedFilled.Close,
                     contentDescription = stringResource(R.string.ui_clear_stream_url),
@@ -992,7 +1170,7 @@ private fun StreamLinkSection(
         Spacer(modifier = Modifier.size(6.dp))
         Button(
           onClick = { playCurrentLink() },
-          enabled = linkUrl.isNotBlank(),
+          enabled = linkUrl.isNotBlank() && !isPreparing,
           contentPadding = PaddingValues(12.dp),
           shape = RoundedCornerShape(14.dp),
           colors =
@@ -1004,11 +1182,18 @@ private fun StreamLinkSection(
               contentDescription = playStreamContentDescription
             },
         ) {
-          Icon(
-            imageVector = Icons.RoundedFilled.PlayArrow,
-            contentDescription = null,
-            modifier = Modifier.size(20.dp),
-          )
+          if (isPreparing) {
+            CircularProgressIndicator(
+              modifier = Modifier.size(20.dp),
+              strokeWidth = 2.dp,
+            )
+          } else {
+            Icon(
+              imageVector = Icons.RoundedFilled.PlayArrow,
+              contentDescription = null,
+              modifier = Modifier.size(20.dp),
+            )
+          }
         }
       }
     }
@@ -1086,8 +1271,8 @@ private fun StreamLinkSection(
                 modifier = Modifier.size(32.dp),
               ) {
                 Icon(
-                  imageVector = Icons.RoundedFilled.CloudDownload,
-                  contentDescription = "Save to Torrent Sheet",
+                  imageVector = Icons.RoundedFilled.Download,
+                  contentDescription = stringResource(R.string.downloads_download),
                   tint = MaterialTheme.colorScheme.secondary,
                   modifier = Modifier.size(18.dp),
                 )

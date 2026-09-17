@@ -11,6 +11,8 @@ package app.gyrolet.mpvrx.ui.browser.components
 
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.IconButton
@@ -36,10 +39,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.ui.icons.AppIcon
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
+import app.gyrolet.mpvrx.ui.theme.AppMotion
 
 private data class BarLayoutParams(
   val buttonSize: androidx.compose.ui.unit.Dp,
@@ -63,6 +69,8 @@ fun BrowserBottomBar(
   onAddToPlaylistClick: () -> Unit,
   onPlayNextClick: (() -> Unit)? = null,
   onAddToQueueClick: (() -> Unit)? = null,
+  onPinClick: (() -> Unit)? = null,
+  unpinSelected: Boolean = false,
   modifier: Modifier = Modifier,
   showCopy: Boolean = true,
   showMove: Boolean = true,
@@ -74,6 +82,9 @@ fun BrowserBottomBar(
   val configuration = LocalConfiguration.current
   val isTablet = configuration.smallestScreenWidthDp >= 600
   val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+  val reducedMotion = AppMotion.shouldReduceMotion()
+  val haptics = app.gyrolet.mpvrx.ui.utils.rememberAppHaptics()
+  val entranceOffset = with(LocalDensity.current) { 12.dp.roundToPx() }
 
   var lastShowCopy by remember { mutableStateOf(showCopy) }
   var lastShowMove by remember { mutableStateOf(showMove) }
@@ -83,6 +94,8 @@ fun BrowserBottomBar(
   var lastShowAddToPlaylist by remember { mutableStateOf(showAddToPlaylist) }
   var lastShowPlayNext by remember { mutableStateOf(onPlayNextClick != null) }
   var lastShowAddToQueue by remember { mutableStateOf(onAddToQueueClick != null) }
+  var lastShowPin by remember { mutableStateOf(onPinClick != null) }
+  var lastUnpinSelected by remember { mutableStateOf(unpinSelected) }
 
   if (isSelectionMode) {
     lastShowCopy = showCopy
@@ -93,6 +106,8 @@ fun BrowserBottomBar(
     lastShowAddToPlaylist = showAddToPlaylist
     lastShowPlayNext = onPlayNextClick != null
     lastShowAddToQueue = onAddToQueueClick != null
+    lastShowPin = onPinClick != null
+    lastUnpinSelected = unpinSelected
   }
 
   val effectiveShowCopy = if (isSelectionMode) showCopy else lastShowCopy
@@ -103,28 +118,38 @@ fun BrowserBottomBar(
   val effectiveShowAddToPlaylist = if (isSelectionMode) showAddToPlaylist else lastShowAddToPlaylist
   val effectiveShowPlayNext = if (isSelectionMode) onPlayNextClick != null else lastShowPlayNext
   val effectiveShowAddToQueue = if (isSelectionMode) onAddToQueueClick != null else lastShowAddToQueue
+  val effectiveShowPin = if (isSelectionMode) onPinClick != null else lastShowPin
+  val effectiveUnpinSelected = if (isSelectionMode) unpinSelected else lastUnpinSelected
 
   AnimatedVisibility(
     visible = isSelectionMode,
     modifier = modifier,
     enter =
-      androidx.compose.animation.slideInVertically(
-        animationSpec =
-          androidx.compose.animation.core.spring(
-            dampingRatio = app.gyrolet.mpvrx.ui.theme.AppMotion.Spatial.ExpressiveDp.dampingRatio,
-            stiffness = app.gyrolet.mpvrx.ui.theme.AppMotion.Spatial.ExpressiveDp.stiffness,
-          ),
-        initialOffsetY = { fullHeight -> fullHeight * 2 },
-      ) + fadeIn(),
+      if (reducedMotion) {
+        EnterTransition.None
+      } else {
+        androidx.compose.animation.slideInVertically(
+          animationSpec =
+            androidx.compose.animation.core.spring(
+              dampingRatio = AppMotion.Spatial.ExpressiveDp.dampingRatio,
+              stiffness = AppMotion.Spatial.ExpressiveDp.stiffness,
+            ),
+          initialOffsetY = { entranceOffset },
+        ) + fadeIn(androidx.compose.animation.core.tween(180))
+      },
     exit =
-      androidx.compose.animation.slideOutVertically(
-        animationSpec =
-          androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium,
-          ),
-        targetOffsetY = { fullHeight -> fullHeight * 2 },
-      ) + fadeOut(),
+      if (reducedMotion) {
+        ExitTransition.None
+      } else {
+        androidx.compose.animation.slideOutVertically(
+          animationSpec =
+            androidx.compose.animation.core.spring(
+              dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+              stiffness = androidx.compose.animation.core.Spring.StiffnessMedium,
+            ),
+          targetOffsetY = { entranceOffset },
+        ) + fadeOut(androidx.compose.animation.core.tween(120))
+      },
   ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
       val availableWidth = maxWidth
@@ -136,6 +161,7 @@ fun BrowserBottomBar(
           effectiveShowRename,
           effectiveShowPlayNext,
           effectiveShowAddToQueue,
+          effectiveShowPin,
           effectiveShowAddToPlaylist,
           effectiveShowDelete,
         ).count { it }
@@ -301,6 +327,27 @@ fun BrowserBottomBar(
             layoutParams.iconSize,
           )
           BrowserBottomBarButton(
+            effectiveShowPin,
+            {
+              if (isSelectionMode) {
+                onPinClick?.let { action ->
+                  action()
+                  haptics.selection(!effectiveUnpinSelected)
+                }
+              }
+            },
+            Icons.RoundedFilled.PushPin,
+            androidx.compose.ui.res.stringResource(
+              if (effectiveUnpinSelected) {
+                app.gyrolet.mpvrx.R.string.ui_unpin_folders
+              } else {
+                app.gyrolet.mpvrx.R.string.ui_pin_folders
+              },
+            ),
+            layoutParams.buttonSize,
+            layoutParams.iconSize,
+          )
+          BrowserBottomBarButton(
             effectiveShowDelete,
             onDeleteClick,
             Icons.RoundedFilled.Delete,
@@ -328,7 +375,10 @@ private fun BrowserBottomBarButton(
   if (show) {
     IconButton(
       onClick = onClick,
-      modifier = Modifier.size(buttonSize),
+      modifier =
+        Modifier
+          .tvFocusHighlight(CircleShape, focusedScale = 1.06f)
+          .size(buttonSize),
     ) {
       Icon(
         imageVector = icon,

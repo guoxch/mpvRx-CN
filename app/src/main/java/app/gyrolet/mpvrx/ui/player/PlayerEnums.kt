@@ -27,7 +27,27 @@ enum class PlayerOrientation(
   SensorLandscape(R.string.pref_player_orientation_sensor_landscape),
 }
 
+enum class ResumePlaybackMode(
+  @StringRes val titleRes: Int,
+  @StringRes val summaryRes: Int,
+) {
+  Always(
+    R.string.pref_player_resume_mode_always,
+    R.string.pref_player_resume_mode_always_summary,
+  ),
+  Ask(
+    R.string.pref_player_resume_mode_ask,
+    R.string.pref_player_resume_mode_ask_summary,
+  ),
+  Never(
+    R.string.pref_player_resume_mode_never,
+    R.string.pref_player_resume_mode_never_summary,
+  ),
+}
+
+
 enum class VideoAspect(
+
   @StringRes val titleRes: Int,
 ) {
   Crop(R.string.player_aspect_crop),
@@ -128,6 +148,8 @@ enum class Sheets {
   AudioProperties,
   VisualizerStyle,
   Lyrics,
+  Scopes,
+  PostProcessingConfig,
 }
 
 enum class Panels {
@@ -170,6 +192,16 @@ sealed class PlayerUpdates {
   data class ProviderStatusText(
     val value: String,
   ) : PlayerUpdates()
+
+  data class ResumedFrom(
+    val position: Int,
+  ) : PlayerUpdates()
+
+  data class ResumeAvailable(
+    val position: Int,
+  ) : PlayerUpdates()
+
+  data object StartedAfresh : PlayerUpdates()
 
   data class RepeatMode(
     val mode: app.gyrolet.mpvrx.ui.player.RepeatMode,

@@ -47,6 +47,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.platform.LocalContext
@@ -55,7 +56,6 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -73,6 +73,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -82,16 +83,37 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.data.jellyfin.JellyfinClient
 import app.gyrolet.mpvrx.domain.jellyfin.JellyfinItem
 import app.gyrolet.mpvrx.domain.jellyfin.JellyfinServer
 import app.gyrolet.mpvrx.presentation.components.RemoteImage
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
+import app.gyrolet.mpvrx.ui.player.controls.components.tvContextMenu
+import app.gyrolet.mpvrx.ui.theme.LocalDarkAppColorScheme
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
-private val StarYellow = Color(0xFFFFC107)
+/** Watch-progress overlay drawn on top of artwork; uses the always-dark accent so the
+ * fill stays visible on the black track in light mode. */
+@Composable
+private fun WatchProgressOverlayBar(
+  progress: Float,
+  modifier: Modifier = Modifier,
+) {
+  Box(modifier = modifier.height(4.dp)) {
+    Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.6f)))
+    Box(
+      modifier =
+        Modifier
+          .fillMaxHeight()
+          .fillMaxWidth(progress.coerceIn(0f, 1f))
+          .background((LocalDarkAppColorScheme.current ?: MaterialTheme.colorScheme).primary),
+    )
+  }
+}
 
 private fun buildStarSubtitle(
   partsBeforeRating: List<String>,
@@ -108,7 +130,7 @@ private fun buildStarSubtitle(
     }
     communityRating?.let { rating ->
       if (hasContent) append(" • ")
-      withStyle(SpanStyle(color = StarYellow, fontSize = 13.5.sp)) {
+      withStyle(SpanStyle(fontSize = 13.5.sp)) {
         append("★ ")
       }
       append("%.1f".format(rating))
@@ -293,6 +315,21 @@ fun JellyfinHeroBanner(
               }
             }
 
+            // Year Pill
+            item.productionYear?.let { year ->
+              Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = Color.Black.copy(alpha = 0.6f),
+              ) {
+                Text(
+                  text = year.toString(),
+                  style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                  color = Color.White,
+                  modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+              }
+            }
+
             // Quality Badge (4K / HDR)
             item.qualityBadge?.let { badge ->
               Surface(
@@ -302,19 +339,11 @@ fun JellyfinHeroBanner(
                 Text(
                   text = badge,
                   style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                  color = MaterialTheme.colorScheme.primary,
+                  // Always-dark accent: colorScheme.primary is too dark for the black scrim in light mode.
+                  color = (LocalDarkAppColorScheme.current ?: MaterialTheme.colorScheme).primary,
                   modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 )
               }
-            }
-
-            // Year
-            item.productionYear?.let { year ->
-              Text(
-                text = year.toString(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-              )
             }
           }
 
@@ -655,8 +684,10 @@ fun JellyfinResumeCard(
         Modifier
           .fillMaxWidth()
           .aspectRatio(16f / 9f)
+          .tvFocusHighlight(RoundedCornerShape(10.dp), focusedScale = 1.03f)
           .then(posterBorderModifier)
           .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+          .tvContextMenu(onLongClick)
           .combinedClickable(
             onClick = onClick,
             onLongClick = onLongClick,
@@ -751,22 +782,13 @@ fun JellyfinResumeCard(
 
       // Progress bar at bottom
       if (item.progressPercent > 0.01f) {
-        Box(
+        WatchProgressOverlayBar(
+          progress = item.progressPercent,
           modifier =
             Modifier
               .fillMaxWidth()
-              .align(Alignment.BottomCenter)
-              .height(4.dp),
-        ) {
-          Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.6f)))
-          Box(
-            modifier =
-              Modifier
-                .fillMaxHeight()
-                .fillMaxWidth(item.progressPercent.coerceIn(0f, 1f))
-                .background(MaterialTheme.colorScheme.primary),
-          )
-        }
+              .align(Alignment.BottomCenter),
+        )
       }
     }
 
@@ -827,13 +849,24 @@ fun JellyfinPosterCard(
   cardWidth: androidx.compose.ui.unit.Dp? = null,
   onLongClick: (() -> Unit)? = null,
   isSelected: Boolean = false,
+  isDownloaded: Boolean = false,
 ) {
+  val posterImageTag = if (item.type == "Episode" && !item.seriesPrimaryImageTag.isNullOrBlank()) {
+    item.seriesPrimaryImageTag
+  } else {
+    item.primaryImageTag
+  }
+  val posterItemId = if (item.type == "Episode" && !item.seriesId.isNullOrBlank() && !item.seriesPrimaryImageTag.isNullOrBlank()) {
+    item.seriesId
+  } else {
+    item.id
+  }
   val imageUrl =
-    remember(server.serverUrl, item.id, item.primaryImageTag, server.accessToken) {
+    remember(server.serverUrl, posterItemId, posterImageTag, server.accessToken) {
       JellyfinClient.getImageUrl(
         serverUrl = server.serverUrl,
-        itemId = item.id,
-        imageTag = item.primaryImageTag,
+        itemId = posterItemId,
+        imageTag = posterImageTag,
         maxWidth = 400,
         token = server.accessToken,
       )
@@ -861,8 +894,10 @@ fun JellyfinPosterCard(
         Modifier
           .fillMaxWidth()
           .aspectRatio(2f / 3f)
+          .tvFocusHighlight(RoundedCornerShape(8.dp), focusedScale = 1.03f)
           .then(posterBorderModifier)
           .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+          .tvContextMenu(onLongClick)
           .combinedClickable(
             onClick = onClick,
             onLongClick = onLongClick,
@@ -884,7 +919,7 @@ fun JellyfinPosterCard(
             when {
               item.isAudio -> Icons.RoundedFilled.Audiotrack
               item.isFolder -> Icons.RoundedFilled.Folder
-              item.isSeries -> Icons.RoundedFilled.Tv
+              item.isSeries || (item.type == "Episode" && !item.seriesName.isNullOrBlank()) -> Icons.RoundedFilled.Tv
               else -> Icons.RoundedFilled.Movie
             }
           Icon(
@@ -909,30 +944,26 @@ fun JellyfinPosterCard(
           Text(
             text = qBadge,
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.primary,
+            // Always-dark accent: colorScheme.primary is too dark for the black scrim in light mode.
+            color = (LocalDarkAppColorScheme.current ?: MaterialTheme.colorScheme).primary,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
           )
         }
       }
 
+      if (isDownloaded) {
+        DownloadedBadge(modifier = Modifier.align(Alignment.TopEnd).padding(6.dp))
+      }
+
       // Progress bar if partially watched
       if (item.progressPercent > 0.02f && !item.isPlayed) {
-        Box(
+        WatchProgressOverlayBar(
+          progress = item.progressPercent,
           modifier =
             Modifier
               .fillMaxWidth()
-              .align(Alignment.BottomCenter)
-              .height(4.dp),
-        ) {
-          Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.6f)))
-          Box(
-            modifier =
-              Modifier
-                .fillMaxHeight()
-                .fillMaxWidth(item.progressPercent.coerceIn(0f, 1f))
-                .background(MaterialTheme.colorScheme.primary),
-          )
-        }
+              .align(Alignment.BottomCenter),
+        )
       }
 
       // Selection / Played Check badge
@@ -980,8 +1011,9 @@ fun JellyfinPosterCard(
           .padding(top = 6.dp),
       horizontalAlignment = Alignment.Start,
     ) {
+      val title = if (item.type == "Episode" && !item.seriesName.isNullOrBlank()) item.seriesName else item.name
       Text(
-        text = item.name,
+        text = title,
         style = MaterialTheme.typography.bodyMedium,
         fontWeight = FontWeight.SemiBold,
         maxLines = 1,
@@ -994,11 +1026,17 @@ fun JellyfinPosterCard(
         run {
           val before = buildList {
             item.productionYear?.let { add(it.toString()) }
-              ?: if (item.isSeries && item.childCount != null) {
-                add("${item.childCount} Seasons")
+            if (item.isSeries && item.childCount != null && item.childCount > 0) {
+              add(if (item.childCount == 1) "1 Season" else "${item.childCount} Seasons")
+            } else if (item.type == "Episode") {
+              if (item.parentIndexNumber != null && item.indexNumber != null) {
+                add("S${item.parentIndexNumber}:E${item.indexNumber}")
               } else {
-                add(item.type)
+                add("Episode")
               }
+            } else if (item.productionYear == null) {
+              add(item.type)
+            }
           }
           buildStarSubtitle(before, item.communityRating, item.criticRating)
         }
@@ -1056,8 +1094,10 @@ fun JellyfinMusicCard(
         Modifier
           .fillMaxWidth()
           .aspectRatio(1f)
+          .tvFocusHighlight(RoundedCornerShape(8.dp), focusedScale = 1.03f)
           .then(posterBorderModifier)
           .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+          .tvContextMenu(onLongClick)
           .combinedClickable(
             onClick = onClick,
             onLongClick = onLongClick,
@@ -1317,6 +1357,7 @@ fun JellyfinLibraryCard(
         Modifier
           .fillMaxWidth()
           .aspectRatio(16f / 9f)
+          .tvFocusHighlight(RoundedCornerShape(10.dp), focusedScale = 1.03f)
           .clip(RoundedCornerShape(10.dp)),
       shape = RoundedCornerShape(10.dp),
       colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
@@ -1391,6 +1432,8 @@ fun JellyfinEpisodeCard(
   modifier: Modifier = Modifier,
   onLongClick: (() -> Unit)? = null,
   isSelected: Boolean = false,
+  downloadState: EpisodeDownloadState? = null,
+  onDownload: (() -> Unit)? = null,
 ) {
   val imageUrl =
     remember(server.serverUrl, item.id, item.primaryImageTag, server.accessToken) {
@@ -1414,7 +1457,9 @@ fun JellyfinEpisodeCard(
     modifier =
       modifier
         .fillMaxWidth()
+        .tvFocusHighlight(RoundedCornerShape(8.dp), focusedScale = 1.02f)
         .clip(RoundedCornerShape(8.dp))
+        .tvContextMenu(onLongClick)
         .combinedClickable(
           onClick = onPlay,
           onLongClick = onLongClick,
@@ -1458,22 +1503,13 @@ fun JellyfinEpisodeCard(
 
         // Progress bar
         if (item.progressPercent > 0.02f && !item.isPlayed) {
-          Box(
+          WatchProgressOverlayBar(
+            progress = item.progressPercent,
             modifier =
               Modifier
                 .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .height(4.dp),
-          ) {
-            Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.6f)))
-            Box(
-              modifier =
-                Modifier
-                  .fillMaxHeight()
-                  .fillMaxWidth(item.progressPercent.coerceIn(0f, 1f))
-                  .background(MaterialTheme.colorScheme.primary),
-            )
-          }
+                .align(Alignment.BottomCenter),
+          )
         }
 
         if (isSelected) {
@@ -1550,6 +1586,32 @@ fun JellyfinEpisodeCard(
         }
       }
 
+      when (downloadState) {
+        EpisodeDownloadState.NOT_DOWNLOADED ->
+          IconButton(onClick = { onDownload?.invoke() }) {
+            Icon(
+              imageVector = Icons.RoundedFilled.Download,
+              contentDescription = stringResource(R.string.downloads_download),
+              tint = MaterialTheme.colorScheme.onSurfaceVariant,
+              modifier = Modifier.size(22.dp),
+            )
+          }
+        EpisodeDownloadState.ACTIVE ->
+          Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+          }
+        EpisodeDownloadState.DOWNLOADED ->
+          Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            Icon(
+              imageVector = Icons.RoundedFilled.CheckCircle,
+              contentDescription = stringResource(R.string.downloads_downloaded),
+              tint = MaterialTheme.colorScheme.primary,
+              modifier = Modifier.size(22.dp),
+            )
+          }
+        null -> {}
+      }
+
       IconButton(onClick = onPlay) {
         Icon(
           imageVector = Icons.RoundedFilled.PlayArrow,
@@ -1558,6 +1620,33 @@ fun JellyfinEpisodeCard(
           modifier = Modifier.size(26.dp),
         )
       }
+    }
+  }
+}
+
+/** Download indicator shown at the trailing edge of an episode row. */
+enum class EpisodeDownloadState {
+  NOT_DOWNLOADED,
+  ACTIVE,
+  DOWNLOADED,
+}
+
+/** Small overlay badge marking items with a completed local download. */
+@Composable
+private fun DownloadedBadge(modifier: Modifier = Modifier) {
+  Surface(
+    shape = CircleShape,
+    color = Color.Black.copy(alpha = 0.7f),
+    modifier = modifier.size(20.dp),
+  ) {
+    Box(contentAlignment = Alignment.Center) {
+      Icon(
+        imageVector = Icons.RoundedFilled.Download,
+        contentDescription = null,
+        // Always-dark accent keeps the badge readable on the black scrim in light mode.
+        tint = (LocalDarkAppColorScheme.current ?: MaterialTheme.colorScheme).primary,
+        modifier = Modifier.size(13.dp),
+      )
     }
   }
 }
@@ -1575,6 +1664,7 @@ fun JellyfinListItemCard(
   modifier: Modifier = Modifier,
   onLongClick: (() -> Unit)? = null,
   isSelected: Boolean = false,
+  isDownloaded: Boolean = false,
 ) {
   val imageUrl =
     remember(server.serverUrl, item.id, item.primaryImageTag, server.accessToken) {
@@ -1598,7 +1688,9 @@ fun JellyfinListItemCard(
     modifier =
       modifier
         .fillMaxWidth()
+        .tvFocusHighlight(RoundedCornerShape(8.dp), focusedScale = 1.02f)
         .clip(RoundedCornerShape(8.dp))
+        .tvContextMenu(onLongClick)
         .combinedClickable(
           onClick = onClick,
           onLongClick = onLongClick,
@@ -1647,22 +1739,17 @@ fun JellyfinListItemCard(
         }
 
         if (item.progressPercent > 0.02f && !item.isPlayed) {
-          Box(
+          WatchProgressOverlayBar(
+            progress = item.progressPercent,
             modifier =
               Modifier
                 .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .height(4.dp),
-          ) {
-            Box(modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.6f)))
-            Box(
-              modifier =
-                Modifier
-                  .fillMaxHeight()
-                  .fillMaxWidth(item.progressPercent.coerceIn(0f, 1f))
-                  .background(MaterialTheme.colorScheme.primary),
-            )
-          }
+                .align(Alignment.BottomCenter),
+          )
+        }
+
+        if (isDownloaded) {
+          DownloadedBadge(modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp))
         }
 
         if (isSelected) {

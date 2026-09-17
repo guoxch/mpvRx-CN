@@ -11,6 +11,7 @@ package app.gyrolet.mpvrx.ui.browser.cards
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +39,8 @@ import app.gyrolet.mpvrx.domain.network.NetworkFile
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.icons.Icon
+import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
+import app.gyrolet.mpvrx.ui.player.controls.components.tvContextMenu
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.theme.AppShapeScale
 import org.koin.compose.koinInject
@@ -59,35 +63,50 @@ fun NetworkFolderCard(
   val browserPreferences = koinInject<BrowserPreferences>()
   val unlimitedNameLines by appearancePreferences.unlimitedNameLines.collectAsState()
   val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
+  val interactionSource = remember { MutableInteractionSource() }
   val maxLines = if (unlimitedNameLines) Int.MAX_VALUE else 2
 
   Card(
     modifier =
       modifier
         .fillMaxWidth()
+        .tvFocusHighlight(AppShapeScale.large, focusedScale = 1.03f)
+        .clip(AppShapeScale.large)
+        .tvContextMenu(onLongClick)
         .combinedClickable(
+          interactionSource = interactionSource,
+          indication = null,
           onClick = onClick,
           onLongClick = onLongClick,
         ),
+    shape = AppShapeScale.large,
     colors = CardDefaults.cardColors(containerColor = Color.Transparent),
   ) {
-    if (isGridMode) {
-      Column(
-        modifier =
-          Modifier
-            .fillMaxWidth()
-            .background(
-              if (isSelected) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f) else Color.Transparent,
-            ).padding(8.dp),
-        horizontalAlignment = if (centerGridTitles) Alignment.CenterHorizontally else Alignment.Start,
-      ) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+      if (isSelected) {
+        Box(
+          modifier =
+            Modifier
+              .matchParentSize()
+              .padding(2.dp)
+              .clip(AppShapeScale.large)
+              .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)),
+        )
+      }
+
+      if (isGridMode) {
+        Column(
+          modifier =
+            Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 4.dp, vertical = 6.dp),
+          horizontalAlignment = if (centerGridTitles) Alignment.CenterHorizontally else Alignment.Start,
+        ) {
         Box(
           modifier =
             Modifier
               .fillMaxWidth()
-              .aspectRatio(1f)
-              .clip(AppShapeScale.medium)
-              .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+              .aspectRatio(20f / 17f),
           contentAlignment = Alignment.Center,
         ) {
           Icon(
@@ -95,11 +114,11 @@ fun NetworkFolderCard(
             contentDescription =
               androidx.compose.ui.res
                 .stringResource(app.gyrolet.mpvrx.R.string.ui_folder),
-            modifier = Modifier.size(56.dp),
-            tint = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier.matchParentSize(),
+            tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
           )
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
           file.name,
           style = MaterialTheme.typography.titleMedium,
@@ -109,23 +128,19 @@ fun NetworkFolderCard(
           textAlign = if (centerGridTitles) TextAlign.Center else TextAlign.Start,
           modifier = Modifier.fillMaxWidth(),
         )
-      }
-    } else {
-      Row(
-        modifier =
-          Modifier
-            .fillMaxWidth()
-            .background(
-              if (isSelected) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f) else Color.Transparent,
-            ).padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-      ) {
+        }
+      } else {
+        Row(
+          modifier =
+            Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 8.dp, vertical = 6.dp),
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
         Box(
           modifier =
             Modifier
-              .size(64.dp)
-              .clip(AppShapeScale.medium)
-              .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+              .size(72.dp),
           contentAlignment = Alignment.Center,
         ) {
           Icon(
@@ -133,11 +148,11 @@ fun NetworkFolderCard(
             contentDescription =
               androidx.compose.ui.res
                 .stringResource(app.gyrolet.mpvrx.R.string.ui_folder),
-            modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier.matchParentSize(),
+            tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
           )
         }
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Column(
           modifier = Modifier.weight(1f),
         ) {
@@ -148,6 +163,7 @@ fun NetworkFolderCard(
             maxLines = maxLines,
             overflow = TextOverflow.Ellipsis,
           )
+          }
         }
       }
     }

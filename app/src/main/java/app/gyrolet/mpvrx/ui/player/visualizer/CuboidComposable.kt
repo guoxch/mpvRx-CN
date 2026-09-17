@@ -12,6 +12,7 @@
 
 package app.gyrolet.mpvrx.ui.player.visualizer
 
+import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -30,7 +31,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.isActive
-import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -44,10 +44,12 @@ private const val CUBOID_Z_STEP = 5f
 private const val CUBOID_SEGMENTS = 64
 private const val CUBOID_RADIUS = 75f
 private const val CUBOID_AUDIO_BIN_MIN = 8
-private const val CUBOID_AUDIO_BIN_MAX = 512
+private const val CUBOID_AUDIO_BIN_MAX = 1032
+private const val CUBOID_SOURCE_FFT_BINS = 4096
+private const val CUBOID_AUDIO_SMOOTHING = 0.65f
 private const val CUBOID_CAPTURE_MAX_AGE_NS = 750_000_000L
 private const val TWO_PI = (Math.PI * 2.0).toFloat()
-private const val COLOR_BUCKETS = 8
+private const val COLOR_BUCKETS = 16
 
 private data class CuboidRgb(
   val r: Float,
@@ -62,6 +64,15 @@ private data class CuboidRing(
     IntArray(CUBOID_SEGMENTS) {
       Random.nextInt(CUBOID_AUDIO_BIN_MIN, CUBOID_AUDIO_BIN_MAX)
     },
+  val smoothedFrequencies: FloatArray = FloatArray(CUBOID_SEGMENTS),
+  val bucketPaths: Array<Path> = Array(COLOR_BUCKETS) { Path() },
+  val bucketUsed: BooleanArray = BooleanArray(COLOR_BUCKETS),
+)
+
+private data class CuboidTones(
+  val primary: CuboidRgb,
+  val secondary: CuboidRgb,
+  val tertiary: CuboidRgb,
 )
 
 /**
@@ -182,20 +193,20 @@ private class CuboidTunnelState {
   }
 }
 
-@Suppress("UNUSED_PARAMETER")
 @Composable
 internal fun CuboidOverlay(
   modifier: Modifier = Modifier,
   isPlaying: Boolean = false,
   palette: VisualizerPalette,
   isSheetOpen: Boolean = false,
-  volumeScale: Float = 1f,
   features: AudioFeatures,
 ) {
   val state = remember { CuboidTunnelState() }
+  val tones = remember(palette) { palette.toCuboidTones() }
   var frameTick by remember { mutableLongStateOf(0L) }
 
-  LaunchedEffect(Unit) {
+  LaunchedEffect(isSheetOpen) {
+    if (isSheetOpen) return@LaunchedEffect
     var lastFrameNanos = 0L
     while (isActive) {
       withFrameNanos { now ->
@@ -242,6 +253,7 @@ internal fun CuboidOverlay(
       state = state,
       features = features,
       isPlaying = isPlaying,
+      tones = tones,
     )
   }
 }
@@ -250,6 +262,7 @@ private fun DrawScope.drawCuboidTunnel(
   state: CuboidTunnelState,
   features: AudioFeatures,
   isPlaying: Boolean,
+  tones: CuboidTones,
 ) {
   if (size.width <= 1f || size.height <= 1f || state.rings.size < 2) return
 
@@ -282,23 +295,34 @@ private fun DrawScope.drawCuboidTunnel(
     val backScale = projectionScale(back.z)
 
     val depth = (ring.z + CUBOID_FOV) / CUBOID_FOV
-    val ringR = max(state.slowColor.r, state.fastColor.r - depth)
-    val ringG = max(state.slowColor.g, state.fastColor.g - depth)
-    val ringB = max(state.slowColor.b, state.fastColor.b - depth)
+    val paletteDepth = (depth * 0.5f).coerceIn(0f, 1f)
+    val paletteTone =
+      if (paletteDepth < 0.5f) {
+        mixCuboidRgb(tones.primary, tones.secondary, paletteDepth * 2f)
+      } else {
+        mixCuboidRgb(tones.secondary, tones.tertiary, (paletteDepth - 0.5f) * 2f)
+      }
+    val ringTone = mixCuboidRgb(paletteTone, tones.primary, state.invertValue / 255f)
 
-    val bucketPaths = Array(COLOR_BUCKETS) { Path() }
-    val bucketUsed = BooleanArray(COLOR_BUCKETS)
+    for (bucket in 0 until COLOR_BUCKETS) {
+      ring.bucketPaths[bucket].reset()
+      ring.bucketUsed[bucket] = false
+    }
 
     for (segmentIndex in 0 until CUBOID_SEGMENTS) {
       if (segmentIndex % 2 != ring.index % 2) continue
 
-      val frequency =
+      val frequencyTarget =
         if (audioActive) {
           val bin = resolveAudioBin(ring.audioBins[segmentIndex], spectrum.size)
           spectrum[bin].coerceIn(0f, 1f) * 255f * gain
         } else {
           0f
         }
+      val frequency =
+        ring.smoothedFrequencies[segmentIndex] * CUBOID_AUDIO_SMOOTHING +
+          frequencyTarget * (1f - CUBOID_AUDIO_SMOOTHING)
+      ring.smoothedFrequencies[segmentIndex] = frequency
       val frequencyAdd = frequency / 20f
       // Reference behavior: audio pulls the inner face inward by frequency / 20.
       val reactiveRadius = (CUBOID_RADIUS - frequencyAdd).coerceAtLeast(CUBOID_RADIUS * 0.55f)
@@ -308,7 +332,7 @@ private fun DrawScope.drawCuboidTunnel(
         } else {
           0
         }
-      val path = bucketPaths[bucket]
+      val path = ring.bucketPaths[bucket]
 
       val currentAngle = segmentIndex.toFloat() * TWO_PI / CUBOID_SEGMENTS + state.time
       val previousIndex = if (segmentIndex == 0) CUBOID_SEGMENTS - 1 else segmentIndex - 1
@@ -335,7 +359,7 @@ private fun DrawScope.drawCuboidTunnel(
         path.edge(outerCurrent0, innerCurrent0)
         path.edge(outerBack0, innerBack0)
         path.edge(outerBack1, innerBack1)
-        bucketUsed[bucket] = true
+        ring.bucketUsed[bucket] = true
       }
 
       // Keep the outer face until the ring reaches the near half of the tunnel.
@@ -344,12 +368,12 @@ private fun DrawScope.drawCuboidTunnel(
         path.edge(outerCurrent0, outerBack0)
         path.edge(outerBack0, outerBack1)
         path.edge(outerBack1, outerCurrent1)
-        bucketUsed[bucket] = true
+        ring.bucketUsed[bucket] = true
       }
     }
 
     for (bucket in 0 until COLOR_BUCKETS) {
-      if (!bucketUsed[bucket]) continue
+      if (!ring.bucketUsed[bucket]) continue
       val representativeFrequency =
         if (audioActive) {
           ((bucket + 0.5f) / COLOR_BUCKETS.toFloat()) * 255f
@@ -362,10 +386,37 @@ private fun DrawScope.drawCuboidTunnel(
         } else {
           ringIndex.toFloat() / ringCount.toFloat() * 200f
         }
-      val color = cuboidLineColor(ringR, ringG, ringB, lineValue, state.invertValue)
-      drawPath(bucketPaths[bucket], color = color, style = stroke)
+      val color = cuboidLineColor(ringTone, lineValue)
+      drawPath(ring.bucketPaths[bucket], color = color, style = stroke)
     }
   }
+}
+
+private fun VisualizerPalette.toCuboidTones(): CuboidTones =
+  CuboidTones(
+    primary = primary.toCuboidRgb(),
+    secondary = secondary.toCuboidRgb(),
+    tertiary = tertiary.toCuboidRgb(),
+  )
+
+private fun Int.toCuboidRgb(): CuboidRgb =
+  CuboidRgb(
+    r = AndroidColor.red(this) / 255f,
+    g = AndroidColor.green(this) / 255f,
+    b = AndroidColor.blue(this) / 255f,
+  )
+
+private fun mixCuboidRgb(
+  from: CuboidRgb,
+  to: CuboidRgb,
+  amount: Float,
+): CuboidRgb {
+  val fraction = amount.coerceIn(0f, 1f)
+  return CuboidRgb(
+    r = from.r + (to.r - from.r) * fraction,
+    g = from.g + (to.g - from.g) * fraction,
+    b = from.b + (to.b - from.b) * fraction,
+  )
 }
 
 private fun tunnelCenter(
@@ -401,9 +452,8 @@ private fun resolveAudioBin(
   spectrumSize: Int,
 ): Int {
   if (spectrumSize <= 1) return 0
-  if (spectrumSize <= CUBOID_AUDIO_BIN_MIN) return requested.mod(spectrumSize)
-  val usable = spectrumSize - CUBOID_AUDIO_BIN_MIN
-  return CUBOID_AUDIO_BIN_MIN + (requested - CUBOID_AUDIO_BIN_MIN).mod(usable)
+  val normalized = requested.coerceIn(0, CUBOID_SOURCE_FFT_BINS - 1) / (CUBOID_SOURCE_FFT_BINS - 1f)
+  return (normalized * (spectrumSize - 1)).roundToInt().coerceIn(1, spectrumSize - 1)
 }
 
 private fun Path.edge(
@@ -415,22 +465,12 @@ private fun Path.edge(
 }
 
 private fun cuboidLineColor(
-  r: Float,
-  g: Float,
-  b: Float,
+  tone: CuboidRgb,
   lineValue: Float,
-  invertValue: Float,
-): Color {
-  var red = (r * lineValue).roundToInt().coerceIn(0, 255)
-  var green = (g * lineValue).roundToInt().coerceIn(0, 255)
-  var blue = (b * lineValue).roundToInt().coerceIn(0, 255)
-
-  if (invertValue > 0f) {
-    val invert = invertValue.roundToInt().coerceIn(0, 255)
-    red = abs(invert - red).coerceIn(0, 255)
-    green = abs(invert - green).coerceIn(0, 255)
-    blue = abs(invert - blue).coerceIn(0, 255)
-  }
-
-  return Color(red = red, green = green, blue = blue, alpha = 255)
-}
+): Color =
+  Color(
+    red = (tone.r * 255f).roundToInt().coerceIn(0, 255),
+    green = (tone.g * 255f).roundToInt().coerceIn(0, 255),
+    blue = (tone.b * 255f).roundToInt().coerceIn(0, 255),
+    alpha = lineValue.roundToInt().coerceIn(0, 255),
+  )

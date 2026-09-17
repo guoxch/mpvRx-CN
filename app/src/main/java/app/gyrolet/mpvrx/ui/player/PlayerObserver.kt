@@ -96,6 +96,9 @@ class PlayerObserver(
     value: Boolean,
   ) {
     if (shouldIgnoreCallback()) return
+    // keep-open holds the last frame instead of emitting a natural END_FILE, so the raw
+    // eof-reached edge is the only end-of-playback signal; PlayerActivity validates it by
+    // position before advancing (a network stall can flip it mid-file).
     activity.runOnUiThread {
       if (!shouldIgnoreCallback()) activity.onObserverEvent(property, value)
     }
@@ -142,11 +145,15 @@ class PlayerObserver(
     data: MPVNode,
   ) {
     if (shouldIgnoreCallback()) return
+    val naturalEnd = eventId == MPVLib.MpvEvent.MPV_EVENT_END_FILE && PlaybackSession.isNaturalEndFile(data)
     activity.runOnUiThread {
       if (shouldIgnoreCallback()) return@runOnUiThread
       activity.event(eventId)
       if (eventId == MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED) {
         requestStretchVideoOrientationUpdate()
+      }
+      if (naturalEnd) {
+        activity.onObserverEvent("eof-reached", true)
       }
     }
   }

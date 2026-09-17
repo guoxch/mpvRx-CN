@@ -42,9 +42,6 @@ internal class GalaxyRenderer(
   @Volatile private var targetPitch = 0f
 
   private var appliedPalette: VisualizerPalette? = null
-  private var backgroundR = 0f
-  private var backgroundG = 0f
-  private var backgroundB = 0f
   private var primaryR = 1f
   private var primaryG = 1f
   private var primaryB = 1f
@@ -206,7 +203,12 @@ internal class GalaxyRenderer(
     GLES30.glClearColor(0f, 0f, 0f, 0f)
     GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
     GLES30.glEnable(GLES30.GL_BLEND)
-    GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE)
+    GLES30.glBlendFuncSeparate(
+      GLES30.GL_SRC_ALPHA,
+      GLES30.GL_ONE,
+      GLES30.GL_ONE,
+      GLES30.GL_ONE_MINUS_SRC_ALPHA,
+    )
     GLES30.glDepthMask(false)
 
     GLES30.glUseProgram(program)
@@ -338,9 +340,6 @@ internal class GalaxyRenderer(
     if (!force && appliedPalette == palette) return
     appliedPalette = palette
 
-    backgroundR = Color.red(palette.background) / 255f
-    backgroundG = Color.green(palette.background) / 255f
-    backgroundB = Color.blue(palette.background) / 255f
     primaryR = Color.red(palette.primary) / 255f
     primaryG = Color.green(palette.primary) / 255f
     primaryB = Color.blue(palette.primary) / 255f

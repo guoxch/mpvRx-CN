@@ -9,37 +9,24 @@
 
 package app.gyrolet.mpvrx
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
+import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.util.Log
+import android.app.Activity
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.lifecycle.Lifecycle
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -56,12 +43,9 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavBackStack
-import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberNavBackStack
-import androidx.navigation3.ui.NavDisplay
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
@@ -76,27 +60,28 @@ import app.gyrolet.mpvrx.presentation.Screen
 import app.gyrolet.mpvrx.ui.browser.MainScreen
 import app.gyrolet.mpvrx.ui.browser.NavigationBarState
 import app.gyrolet.mpvrx.ui.browser.components.MiniPlayer
-import app.gyrolet.mpvrx.ui.player.NavigationAnimStyle
-import app.gyrolet.mpvrx.ui.theme.AppMotion
 import app.gyrolet.mpvrx.ui.theme.DarkMode
+import app.gyrolet.mpvrx.ui.theme.AppWallpaperHost
 import app.gyrolet.mpvrx.ui.theme.MpvrxTheme
 import app.gyrolet.mpvrx.ui.theme.rememberThemeTransitionState
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.compose.foundation.background
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.viewinterop.AndroidView
 import app.gyrolet.mpvrx.ui.player.MPVPipHelper
 import app.gyrolet.mpvrx.ui.player.PlaybackPhase
 import app.gyrolet.mpvrx.ui.player.PlaybackSession
+import app.gyrolet.mpvrx.ui.player.PlayerActivity
 import app.gyrolet.mpvrx.ui.player.MediaPlaybackService
 import app.gyrolet.mpvrx.ui.player.TrackNode
 import app.gyrolet.mpvrx.ui.player.toObject
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
+import app.gyrolet.mpvrx.ui.utils.ScreenNavDisplay
 import app.gyrolet.mpvrx.ui.utils.popSafely
 import app.gyrolet.mpvrx.utils.device.VulkanCapabilities
+import app.gyrolet.mpvrx.utils.device.DeviceFormFactor
 import app.gyrolet.mpvrx.utils.media.fileExtension
 import app.gyrolet.mpvrx.utils.permission.PermissionUtils
 import app.gyrolet.mpvrx.utils.storage.FileTypeUtils
@@ -111,114 +96,6 @@ import org.koin.android.ext.android.inject
 private const val RENDERER_NOTICE_PREFERENCES = "renderer_build_notice"
 private const val NON_VULKAN_NOTICE_SHOWN = "non_vulkan_notice_shown"
 
-private fun screenNavTransition(
-  forward: Boolean,
-  style: NavigationAnimStyle,
-  speed: Float = 1f,
-): ContentTransform {
-  val dir = if (forward) 1 else -1
-
-  return when (style) {
-    NavigationAnimStyle.None ->
-      EnterTransition.None togetherWith ExitTransition.None
-
-    NavigationAnimStyle.Minimal ->
-      fadeIn(
-        spring(
-          dampingRatio = AppMotion.Spatial.Standard.dampingRatio,
-          stiffness = AppMotion.Spatial.Standard.stiffness,
-        ),
-      ) togetherWith
-        fadeOut(spring(stiffness = AppMotion.Spatial.Standard.stiffness))
-
-    NavigationAnimStyle.FlipFade ->
-      (
-        scaleIn(
-          spring(
-            dampingRatio = AppMotion.Spatial.Expressive.dampingRatio,
-            stiffness = AppMotion.Spatial.Expressive.stiffness,
-          ),
-          initialScale = 0.94f,
-        ) +
-          fadeIn(
-            spring(
-              dampingRatio = AppMotion.Spatial.Expressive.dampingRatio,
-              stiffness = AppMotion.Spatial.Expressive.stiffness,
-            ),
-          )
-      ) togetherWith
-        (
-          scaleOut(spring(stiffness = AppMotion.Spatial.Standard.stiffness), targetScale = 1.06f) +
-            fadeOut(spring(stiffness = AppMotion.Spatial.Standard.stiffness))
-        )
-
-    NavigationAnimStyle.Depth ->
-      (
-        slideInHorizontally(
-          spring(
-            dampingRatio = AppMotion.Spatial.Standard.dampingRatio,
-            stiffness = AppMotion.Spatial.Standard.stiffness,
-          ),
-        ) {
-          it * dir
-        } +
-          fadeIn(
-            spring(
-              dampingRatio = AppMotion.Spatial.Standard.dampingRatio,
-              stiffness = AppMotion.Spatial.Standard.stiffness,
-            ),
-          )
-      ) togetherWith
-        (
-          slideOutHorizontally(
-            spring(stiffness = AppMotion.Spatial.Standard.stiffness),
-          ) { (-it * 0.25f * dir).toInt() } +
-            scaleOut(spring(stiffness = AppMotion.Spatial.Standard.stiffness), targetScale = 0.92f) +
-            fadeOut(spring(stiffness = AppMotion.Spatial.Standard.stiffness))
-        )
-
-    NavigationAnimStyle.Elastic ->
-      (
-        slideInHorizontally(
-          spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = 380f),
-        ) { it * dir } + fadeIn(spring(stiffness = AppMotion.Spatial.Snappy.stiffness))
-      ) togetherWith
-        (
-          slideOutHorizontally(spring(stiffness = AppMotion.Spatial.Standard.stiffness)) { (-it / 3 * dir) } +
-            fadeOut(spring(stiffness = AppMotion.Spatial.Standard.stiffness))
-        )
-
-    NavigationAnimStyle.Default ->
-      if (forward) {
-        slideInHorizontally(
-          spring(
-            dampingRatio = AppMotion.Spatial.Expressive.dampingRatio,
-            stiffness = AppMotion.Spatial.Expressive.stiffness,
-          ),
-        ) { it } togetherWith
-          slideOutHorizontally(
-            spring(
-              dampingRatio = AppMotion.Spatial.Standard.dampingRatio,
-              stiffness = AppMotion.Spatial.Standard.stiffness,
-            ),
-          ) { -it / 8 }
-      } else {
-        slideInHorizontally(
-          spring(
-            dampingRatio = AppMotion.Spatial.Expressive.dampingRatio,
-            stiffness = AppMotion.Spatial.Expressive.stiffness,
-          ),
-        ) { -it / 5 } togetherWith
-          slideOutHorizontally(
-            spring(
-              dampingRatio = AppMotion.Spatial.Standard.dampingRatio,
-              stiffness = AppMotion.Spatial.Standard.stiffness,
-            ),
-          ) { it }
-      }
-  }
-}
-
 /**
  * Main entry point for the application
  */
@@ -228,6 +105,9 @@ class MainActivity : AppCompatActivity() {
   private var appliedEdgeToEdgeDarkMode: Boolean? = null
   private lateinit var pipHelper: MPVPipHelper
   private var isPipMode by mutableStateOf(false)
+  private var wasInPipMode = false
+  private var pendingPipExitResolution = false
+  private var isExpandingFromPip by mutableStateOf(false)
 
   // Register the ActivityResultLauncher at class level
   private val mediaAccessLauncher =
@@ -239,6 +119,10 @@ class MainActivity : AppCompatActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    if (DeviceFormFactor.isTelevision(this)) {
+      requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+    }
 
     pipHelper = MPVPipHelper(
       activity = this,
@@ -274,7 +158,13 @@ class MainActivity : AppCompatActivity() {
       }
       val deviceSupportsVulkan = remember { VulkanCapabilities.isDeviceSupported(this@MainActivity) }
 
-      LaunchedEffect(sessionState, enableVideoMiniPlayer, autoPiPOnNavigation, trackListNode) {
+      LaunchedEffect(
+        sessionState,
+        enableVideoMiniPlayer,
+        autoPiPOnNavigation,
+        trackListNode,
+        NavigationBarState.isMiniPlayerVisible,
+      ) {
         pipHelper.updatePictureInPictureParams()
       }
 
@@ -310,76 +200,80 @@ class MainActivity : AppCompatActivity() {
         }
       }
 
-      if (isPipMode) {
+      if (isPipMode || isExpandingFromPip) {
         Box(
           modifier = Modifier
             .fillMaxSize()
             .background(Color.Black),
           contentAlignment = Alignment.Center,
         ) {
-          AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { viewContext ->
-              SurfaceView(viewContext).apply {
-                setZOrderMediaOverlay(true)
-                holder.addCallback(object : SurfaceHolder.Callback {
-                  override fun surfaceCreated(holder: SurfaceHolder) {
-                    PlaybackSession.bindSurface(
-                      surface = holder.surface,
-                      owner = this@apply,
-                      ownerIsActive = { MediaPlaybackService.isForegroundActive() },
-                    )
-                  }
-
-                  override fun surfaceChanged(
-                    holder: SurfaceHolder,
-                    format: Int,
-                    width: Int,
-                    height: Int,
-                  ) {
-                    if (holder.surface.isValid) {
-                      PlaybackSession.resizeSurface(width, height, owner = this@apply)
+          if (isPipMode) {
+            AndroidView(
+              modifier = Modifier.fillMaxSize(),
+              factory = { viewContext ->
+                SurfaceView(viewContext).apply {
+                  setZOrderMediaOverlay(true)
+                  holder.addCallback(object : SurfaceHolder.Callback {
+                    override fun surfaceCreated(holder: SurfaceHolder) {
+                      PlaybackSession.bindSurface(
+                        surface = holder.surface,
+                        owner = this@apply,
+                        ownerIsActive = { MediaPlaybackService.isForegroundActive() },
+                      )
                     }
-                  }
 
-                  override fun surfaceDestroyed(holder: SurfaceHolder) {
-                    PlaybackSession.unbindSurface(this@apply)
-                  }
-                })
-              }
-            },
-          )
-        }
-      } else {
-        MpvrxTheme(transitionState = themeTransitionState) {
-          Surface(modifier = Modifier.fillMaxSize()) {
-            Navigator()
-          }
-          if (showRendererBuildNotice) {
-            val acknowledgeNotice = {
-              rendererNoticePreferences.edit().putBoolean(NON_VULKAN_NOTICE_SHOWN, true).apply()
-              showRendererBuildNotice = false
-            }
-            AlertDialog(
-              onDismissRequest = acknowledgeNotice,
-              title = { Text(getString(R.string.renderer_build_notice_title)) },
-              text = {
-                Text(
-                  getString(
-                    if (deviceSupportsVulkan) {
-                      R.string.renderer_build_notice_supported_device
-                    } else {
-                      R.string.renderer_build_notice_unsupported_device
-                    },
-                  ),
-                )
-              },
-              confirmButton = {
-                TextButton(onClick = acknowledgeNotice) {
-                  Text(getString(R.string.generic_ok))
+                    override fun surfaceChanged(
+                      holder: SurfaceHolder,
+                      format: Int,
+                      width: Int,
+                      height: Int,
+                    ) {
+                      if (holder.surface.isValid) {
+                        PlaybackSession.resizeSurface(width, height, owner = this@apply)
+                      }
+                    }
+
+                    override fun surfaceDestroyed(holder: SurfaceHolder) {
+                      PlaybackSession.unbindSurface(this@apply)
+                    }
+                  })
                 }
               },
             )
+          }
+        }
+      } else {
+        MpvrxTheme(transitionState = themeTransitionState) {
+          AppWallpaperHost {
+            Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
+              Navigator()
+            }
+            if (showRendererBuildNotice) {
+              val acknowledgeNotice = {
+                rendererNoticePreferences.edit().putBoolean(NON_VULKAN_NOTICE_SHOWN, true).apply()
+                showRendererBuildNotice = false
+              }
+              AlertDialog(
+                onDismissRequest = acknowledgeNotice,
+                title = { Text(getString(R.string.renderer_build_notice_title)) },
+                text = {
+                  Text(
+                    getString(
+                      if (deviceSupportsVulkan) {
+                        R.string.renderer_build_notice_supported_device
+                      } else {
+                        R.string.renderer_build_notice_unsupported_device
+                      },
+                    ),
+                  )
+                },
+                confirmButton = {
+                  TextButton(onClick = acknowledgeNotice) {
+                    Text(getString(R.string.generic_ok))
+                  }
+                },
+              )
+            }
           }
         }
       }
@@ -394,6 +288,20 @@ class MainActivity : AppCompatActivity() {
   override fun onResume() {
     super.onResume()
     pipHelper.updatePictureInPictureParams()
+    if (!isPipMode && (pendingPipExitResolution || wasInPipMode)) {
+      window.decorView.post {
+        if (!isFinishing && !isDestroyed && !isPipMode && (pendingPipExitResolution || wasInPipMode)) {
+          completePipExpansion()
+        }
+      }
+    }
+  }
+
+  override fun onWindowFocusChanged(hasFocus: Boolean) {
+    super.onWindowFocusChanged(hasFocus)
+    if (hasFocus && !isPipMode && (pendingPipExitResolution || wasInPipMode)) {
+      completePipExpansion()
+    }
   }
 
   override fun onUserLeaveHint() {
@@ -422,11 +330,77 @@ class MainActivity : AppCompatActivity() {
     super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
     this.isPipMode = isInPictureInPictureMode
     pipHelper.onPictureInPictureModeChanged(isInPictureInPictureMode)
+    if (isInPictureInPictureMode) {
+      wasInPipMode = true
+      pendingPipExitResolution = false
+      isExpandingFromPip = false
+    } else if (wasInPipMode) {
+      isExpandingFromPip = true
+      schedulePipExitResolution()
+    }
+  }
+
+  private fun schedulePipExitResolution() {
+    pendingPipExitResolution = true
+    if (isFinishing || isDestroyed) {
+      pendingPipExitResolution = false
+      wasInPipMode = false
+      isExpandingFromPip = false
+      return
+    }
+    if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && hasWindowFocus()) {
+      completePipExpansion()
+    }
+  }
+
+  private fun completePipExpansion() {
+    if (!pendingPipExitResolution && !wasInPipMode) return
+    pendingPipExitResolution = false
+    wasInPipMode = false
+    this.isPipMode = false
+    openPlayerFromPipMaximize()
+  }
+
+  private fun openPlayerFromPipMaximize() {
+    val sessionState = PlaybackSession.state.value
+    val currentItem = sessionState.currentItem ?: PlaybackSession.queue.value.currentItem
+    if (
+      currentItem == null ||
+      sessionState.phase == PlaybackPhase.IDLE ||
+      sessionState.phase == PlaybackPhase.UNINITIALIZED ||
+      sessionState.phase == PlaybackPhase.ERROR
+    ) {
+      isExpandingFromPip = false
+      return
+    }
+
+    val intent = Intent(this, PlayerActivity::class.java).apply {
+      action = MediaPlaybackService.ACTION_OPEN_PLAYER
+      putExtra("is_audio", isCurrentMediaAudioOnly())
+      putExtra("internal_launch", true)
+      putExtra("launch_source", "pip_maximize")
+      flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+    }
+    try {
+      startActivity(intent)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        overrideActivityTransition(Activity.OVERRIDE_TRANSITION_OPEN, 0, 0)
+      } else {
+        @Suppress("DEPRECATION")
+        overridePendingTransition(0, 0)
+      }
+    } catch (e: Exception) {
+      Log.e("MainActivity", "Failed to launch PlayerActivity from PiP maximize", e)
+      isExpandingFromPip = false
+    }
   }
 
   override fun onStop() {
     super.onStop()
     pipHelper.onStop()
+    pendingPipExitResolution = false
+    wasInPipMode = false
+    isExpandingFromPip = false
   }
 
   private fun isCurrentMediaAudioOnly(): Boolean {
@@ -463,6 +437,9 @@ class MainActivity : AppCompatActivity() {
   }
 
   override fun onDestroy() {
+    pendingPipExitResolution = false
+    wasInPipMode = false
+    isExpandingFromPip = false
     try {
       super.onDestroy()
     } catch (e: Exception) {
@@ -512,9 +489,6 @@ class MainActivity : AppCompatActivity() {
     @Suppress("UNCHECKED_CAST")
     val typedBackstack = backstack as NavBackStack<Screen>
 
-    val appNavStyle by playerPreferences.appNavStyle.collectAsState()
-    val animSpeed by playerPreferences.animationSpeed.collectAsState()
-
     val context = LocalContext.current
     val currentVersion =
       if (BuildConfig.IS_PREVIEW_BUILD) {
@@ -555,29 +529,14 @@ class MainActivity : AppCompatActivity() {
 
       if (hasNavEntries) {
         Box(modifier = Modifier.fillMaxSize()) {
-          NavDisplay(
+          ScreenNavDisplay(
             modifier = Modifier.fillMaxSize(),
             backStack = typedBackstack,
+            opaqueBackground = typedBackstack.any { it == app.gyrolet.mpvrx.ui.preferences.PreferencesScreen },
             onBack = {
               if (typedBackstack.size <= 1 || !typedBackstack.popSafely()) {
                 this@MainActivity.finish()
               }
-            },
-            entryProvider = { route ->
-              NavEntry(route) {
-                Surface(
-                  modifier = Modifier.fillMaxSize(),
-                  color = MaterialTheme.colorScheme.background,
-                ) {
-                  route.Content()
-                }
-              }
-            },
-            sizeTransform = null,
-            transitionSpec = { screenNavTransition(forward = true, style = appNavStyle, speed = animSpeed) },
-            popTransitionSpec = { screenNavTransition(forward = false, style = appNavStyle, speed = animSpeed) },
-            predictivePopTransitionSpec = { _: Int ->
-              screenNavTransition(forward = false, style = appNavStyle, speed = animSpeed)
             },
           )
 

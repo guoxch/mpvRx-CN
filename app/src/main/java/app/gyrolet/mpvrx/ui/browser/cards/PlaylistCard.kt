@@ -22,6 +22,7 @@ import app.gyrolet.mpvrx.database.entities.PlaylistEntity
 import app.gyrolet.mpvrx.database.repository.PlaylistRepository
 import app.gyrolet.mpvrx.domain.media.model.VideoFolder
 import app.gyrolet.mpvrx.ui.icons.Icons
+import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlpManager
 import app.gyrolet.mpvrx.ui.theme.AppShapeScale
 
 /**
@@ -49,11 +50,18 @@ fun PlaylistCard(
   isGridMode: Boolean = false,
   thumbnail: android.graphics.Bitmap? = null,
 ) {
+  val isFavorites = playlist.name.equals(PlaylistRepository.FAVORITES_PLAYLIST_NAME, ignoreCase = true)
+  val displayName =
+    when {
+      !isFavorites -> playlist.name
+      playlist.isAudio -> stringResource(R.string.playlist_favorite_songs)
+      else -> stringResource(R.string.playlist_favorite_videos)
+    }
   // Convert playlist to VideoFolder format for FolderCard
   val folderModel =
     VideoFolder(
       bucketId = playlist.id.toString(),
-      name = playlist.name,
+      name = displayName,
       path = "", // Not used for playlists
       videoCount = itemCount,
       totalSize = 0, // Not tracked for playlists
@@ -63,7 +71,17 @@ fun PlaylistCard(
 
   // Create a custom chip renderer for playlist type
   val customChipRenderer: @Composable () -> Unit = {
-    val chipText = if (playlist.isM3uPlaylist) stringResource(R.string.playlist_m3u_badge) else "Local"
+    val isOnlinePlaylist =
+      playlist.m3uSourceUrl?.let { source ->
+        YtdlpManager.isPotentialPlaylistUrl(source) && YtdlpManager.requiresYtdlp(source)
+      } == true
+    val chipText =
+      when {
+        playlist.isXtreamPlaylist -> stringResource(R.string.playlist_xtream_badge)
+        isOnlinePlaylist -> stringResource(R.string.playlist_online_badge)
+        playlist.isM3uPlaylist -> stringResource(R.string.playlist_m3u_badge)
+        else -> "Local"
+      }
 
     // Use Material Design theme colors
     val materialTheme = androidx.compose.material3.MaterialTheme.colorScheme
@@ -98,11 +116,12 @@ fun PlaylistCard(
     onLongClick = onLongClick,
     onThumbClick = onThumbClick,
     showDateModified = true,
-    customIcon = if (playlist.name.equals(PlaylistRepository.FAVORITES_PLAYLIST_NAME, ignoreCase = true)) {
-      Icons.RoundedFilled.Favorite
-    } else {
-      Icons.RoundedFilled.PlaylistPlay
-    },
+    customIcon =
+      when {
+        isFavorites -> Icons.RoundedFilled.Favorite
+        playlist.isXtreamPlaylist -> Icons.RoundedFilled.Tv
+        else -> Icons.RoundedFilled.PlaylistPlay
+      },
     modifier = modifier,
     customChipContent = customChipRenderer,
     isGridMode = isGridMode,

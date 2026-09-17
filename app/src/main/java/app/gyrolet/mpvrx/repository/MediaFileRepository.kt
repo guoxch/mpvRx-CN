@@ -64,6 +64,7 @@ object MediaFileRepository : KoinComponent {
   private fun currentScanOptions(includeAudioOverride: Boolean? = null): MediaScanOptions =
     MediaScanOptions(
       includeNoMediaFolders = foldersPreferences.includeNoMediaFolders.get(),
+      hiddenFolderMarkerNames = foldersPreferences.hiddenFolderMarkerNames.get(),
       includeAudio = includeAudioOverride ?: browserPreferences.includeAudioBrowser.get(),
       minimumAudioDurationSeconds = browserPreferences.minimumAudioDurationSeconds.get(),
     )
@@ -190,11 +191,13 @@ object MediaFileRepository : KoinComponent {
             val dateColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
             while (cursor.moveToNext()) {
               val path = cursor.getString(dataColumn)
+              if (path == null) continue
               val file = File(path)
-              if (!file.exists()) continue
+              // On Android 10+ the file may not be directly accessible via the file system
+              // even though it exists in MediaStore. Only skip if the path is invalid.
+              val parentPath = file.parent ?: continue
               val durationMs = cursor.getLong(durationColumn)
               if (minimumAudioDurationSeconds > 0 && durationMs / 1000 < minimumAudioDurationSeconds) continue
-              val parentPath = file.parent ?: continue
               val key = normalizeAudioFolderKey(parentPath)
               val aggregate = aggregates.getOrPut(key) { AudioFolderAggregate(path = parentPath) }
               aggregate.size += cursor.getLong(sizeColumn)
@@ -667,6 +670,8 @@ object MediaFileRepository : KoinComponent {
         }
 
         Result.success(items)
+      } catch (error: kotlinx.coroutines.CancellationException) {
+        throw error
       } catch (e: SecurityException) {
         Log.e(TAG, "Security exception scanning directory: $path", e)
         Result.failure(Exception("Permission denied: ${e.message}"))

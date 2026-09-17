@@ -2309,4 +2309,5 @@
   <string name="burn_after_reading">Burn After Reading</string>
   <string name="burn_after_reading_desc">Auto-delete network video files after playback ends</string>
   <string name="burn_after_reading_deleted">File deleted: %s</string>
+  <string name="oss_kmp_vibrate_description">Haptic feedback library by WonDDak (jmseb3).</string>
 </resources>

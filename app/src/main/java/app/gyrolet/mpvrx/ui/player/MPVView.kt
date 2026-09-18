@@ -37,12 +37,16 @@ import app.gyrolet.mpvrx.ui.player.anime4k.selectRuntimeStableAnime4K
 import app.gyrolet.mpvrx.ui.player.controls.components.panels.toColorHexString
 import app.gyrolet.mpvrx.ui.player.ytdlp.YtdlpManager
 import app.gyrolet.mpvrx.utils.device.VulkanCapabilities
+import app.gyrolet.mpvrx.utils.media.VideoCodecSupportInspector
 import `is`.xyz.mpv.BaseMPVView
 import `is`.xyz.mpv.KeyMapping
 import `is`.xyz.mpv.MPVLib
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import kotlin.reflect.KProperty
+
+private fun String.toMpvLanguageList(): String =
+  split(',').map(String::trim).filter(String::isNotEmpty).joinToString(",")
 
 class MPVView(
   context: Context,
@@ -83,9 +87,10 @@ class MPVView(
     // selection, but recreate the core when gpu-next/Vulkan selection actually changes.
     MpvConfigOverridePolicy.configure(advancedPreferences.mpvConfOverrides.get())
     val requestedBackend = selectRenderBackend(ignoreForcedOpenGlFallback = true)
+    val scriptsKey = advancedPreferences.userScriptsConfigurationKey()
     val coreConfigurationKey =
       "${requestedBackend.configurationKey}|conf=${MpvConfigOverridePolicy.configurationKey()}" +
-        "|mpv=${mpvConfigCache.configurationKey()}"
+        "|mpv=${mpvConfigCache.configurationKey()}|scripts=$scriptsKey"
     val result =
       PlaybackSession.initialize(
         context = context.applicationContext,
@@ -95,6 +100,7 @@ class MPVView(
         initOptions = ::initOptions,
         postInitOptions = ::postInitOptions,
         observeProperties = ::observeProperties,
+        userScriptsKey = scriptsKey,
       )
     if (result.isSuccess) {
       holder.removeCallback(this)
@@ -103,6 +109,9 @@ class MPVView(
     }
     return result
   }
+
+  internal fun userScriptsNeedReload(): Boolean =
+    PlaybackSession.userScriptsNeedReload(advancedPreferences.userScriptsConfigurationKey())
 
   fun releaseSurface() {
     holder.removeCallback(this)
@@ -228,11 +237,14 @@ class MPVView(
 
     // Fongmi can map direct MediaCodec frames into Vulkan; other Vulkan builds start with copy mode.
     if (!MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.HARDWARE_DECODER)) {
+      val hardwareDecoderCodecs = VideoCodecSupportInspector.hardwareDecoderCodecIds()
       PlaybackSession.setOptionString(
         "hwdec",
-        hwdecMode,
+        if (hardwareDecoderCodecs.isEmpty()) "no" else hwdecMode,
       )
-      PlaybackSession.setOptionString("hwdec-codecs", "all")
+      if (hardwareDecoderCodecs.isNotEmpty()) {
+        PlaybackSession.setOptionString("hwdec-codecs", hardwareDecoderCodecs.joinToString(","))
+      }
     }
 
     // These were forced on between the last known-good build (e3b1de8) and the first build
@@ -466,9 +478,9 @@ class MPVView(
     )
 
   private fun setupAudioOptions() {
-    // Disable MPV's automatic audio selection
-    // App will handle track selection manually via TrackSelector to respect user choices
-    PlaybackSession.setOptionString("alang", "")
+    // Let mpv resolve the common case during demuxer initialization. TrackSelector still applies
+    // title-based commentary/description filtering after load when mpv's choice needs correction.
+    PlaybackSession.setOptionString("alang", audioPreferences.preferredLanguages.get().toMpvLanguageList())
     PlaybackSession.setOptionString("audio-display", "embedded-first")
     PlaybackSession.setOptionString("audio-delay", (audioPreferences.defaultAudioDelay.get() / 1000.0).toString())
     PlaybackSession.setOptionString("audio-pitch-correction", audioPreferences.audioPitchCorrection.get().toString())
@@ -479,9 +491,13 @@ class MPVView(
 
   // Setup
   private fun setupSubtitlesOptions() {
-    // Disable MPV's automatic subtitle selection
-    // App will handle track selection manually via TrackSelector to respect user choices
-    PlaybackSession.setOptionString("slang", "")
+    // Resolve preferred languages before packet reads begin, but preserve the global subtitle-off
+    // preference. TrackSelector remains responsible for title/forced/hearing-impaired filtering.
+    val preferredSubtitleLanguages =
+      subtitlesPreferences.preferredLanguages.get().toMpvLanguageList()
+        .takeIf { subtitlesPreferences.autoEnableSubtitles.get() }
+        .orEmpty()
+    PlaybackSession.setOptionString("slang", preferredSubtitleLanguages)
     PlaybackSession.setOptionString("sub-auto", "no")
     PlaybackSession.setOptionString("sub-file-paths", "")
     PlaybackSession.setOptionString("subs-fallback", "no")

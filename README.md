@@ -230,6 +230,11 @@ mpvRx pushes the mpv-android experience further with deep customization, thermal
 | **Lyrics** | View local or embedded lyrics, fetch online lyrics from LRCLIB, and switch between available sources |
 | **Four Audio Visualizers** | Choose Blob, Galaxy, Cuboid, or Particle visualizations, with an optional audio-reactive wavy seekbar |
 | **Audio Playlists & Favorites** | Create local audio playlists, keep favorite tracks together, and start normal or shuffled playback |
+| **Audiobook Library** | Open the book icon in Music to import a file, selected files, or one book folder including disc subfolders; M4B is recognized |
+| **Book Metadata** | Covers, author, narrator, series and edition details from embedded tags or optional metadata.json/OPF sidecars, with editable book details |
+| **Audiobook Listening** | Book progress/resume through the normal audio player, shared playlist/speed controls, a whole-book seekbar with chapter markers, artwork, visualizers, configured seek gestures, pause rewind and sleep timers |
+| **Playback Bookmarks** | In video and audio player layouts, tap the bookmark icon to open chapters/bookmarks; long-press it to add a named point. Custom points persist and appear on the existing seekbar, with rename and delete actions |
+| **Audiobook Text** | Display supplied embedded lyrics or readable local LRC text in the existing lyrics view, without automatic online song matching |
 
 </details>
 

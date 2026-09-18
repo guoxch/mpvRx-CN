@@ -20,6 +20,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import app.gyrolet.mpvrx.R
@@ -43,6 +44,7 @@ import app.gyrolet.mpvrx.ui.player.controls.components.sheets.PostProcessingShee
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.AspectRatioSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.AudioTracksSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.ChaptersSheet
+import app.gyrolet.mpvrx.ui.player.controls.components.sheets.PlaybackBookmarkEditor
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.DecodersSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.FrameNavigationSheet
 import app.gyrolet.mpvrx.ui.player.controls.components.sheets.MoreSheet
@@ -60,6 +62,7 @@ import dev.vivvvek.seeker.Segment
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import org.koin.compose.koinInject
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState as composeCollectAsState
 
 @Composable
@@ -121,6 +124,12 @@ fun PlayerSheets(
 
   when (sheetShown) {
     Sheets.None -> {}
+    Sheets.BookmarkEditor -> PlaybackBookmarkEditor(viewModel, { onShowSheet(Sheets.Chapters) }, onDismissRequest)
+    Sheets.AudiobookRewind,
+    Sheets.AudiobookSleepTimer,
+    -> app.gyrolet.mpvrx.ui.player.controls.components.sheets.AudiobookSheet(
+      sheetShown, viewModel::sleepAtCurrentChapterEnd, onDismissRequest,
+    )
     Sheets.SubtitleTracks -> {
       val subtitlesPicker =
         rememberLauncherForActivityResult(
@@ -394,11 +403,43 @@ fun PlayerSheets(
     }
 
     Sheets.Chapters -> {
+      val bookmarks by viewModel.playbackBookmarks.composeCollectAsState()
+      val mediaId by viewModel.bookmarkMediaId.composeCollectAsState()
+      val scope = rememberCoroutineScope()
+      val context = LocalContext.current
+      var deleting by remember(mediaId) { mutableStateOf(false) }
       ChaptersSheet(
-        chapters,
+        chapters = chapters,
         currentChapter = chapter,
         onClick = { onSeekToChapter(chapters.indexOf(it)) },
-        onDismissRequest,
+        onDismissRequest = onDismissRequest,
+        itemActions = { segment ->
+          bookmarks.firstOrNull { it.mediaId == mediaId && it.title == segment.name && viewModel.bookmarkPositionMs(it) / 1000f == segment.start }?.let { bookmark ->
+            androidx.compose.material3.IconButton(enabled = !deleting, onClick = {
+              if (viewModel.preparePlaybackBookmark(bookmark)) onShowSheet(Sheets.BookmarkEditor)
+            }) {
+              app.gyrolet.mpvrx.ui.icons.Icon(app.gyrolet.mpvrx.ui.icons.Icons.RoundedFilled.Edit,
+                androidx.compose.ui.res.stringResource(R.string.audiobook_bookmark_name))
+            }
+            androidx.compose.material3.IconButton(enabled = !deleting, onClick = {
+              deleting = true
+              scope.launch {
+                try {
+                  viewModel.deletePlaybackBookmark(bookmark)
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                  throw cancelled
+                } catch (_: Exception) {
+                  Toast.makeText(context, R.string.playback_bookmark_update_failed, Toast.LENGTH_SHORT).show()
+                } finally {
+                  deleting = false
+                }
+              }
+            }) {
+              app.gyrolet.mpvrx.ui.icons.Icon(app.gyrolet.mpvrx.ui.icons.Icons.RoundedFilled.Delete,
+                androidx.compose.ui.res.stringResource(R.string.audiobook_delete_bookmark))
+            }
+          }
+        },
       )
     }
 
@@ -533,34 +574,76 @@ fun PlayerSheets(
     }
 
     Sheets.Playlist -> {
-      // Observe playlist updates
-      val playlist by viewModel.playlistItems.collectAsState()
-      val isAudioOnly by viewModel.isAudioOnly.collectAsState()
-      val playerPreferences = koinInject<app.gyrolet.mpvrx.preferences.PlayerPreferences>()
-      val isPlaylistSwipeActive by viewModel.isPlaylistSwipeActive.collectAsState()
-      val playlistSwipeOffset by viewModel.playlistSwipeOffset.collectAsState()
-
-      val playlistImmutable = remember(playlist) { playlist.toImmutableList() }
-
-      if (playlistImmutable.isNotEmpty()) {
-        val totalCount = playlistImmutable.size
-        val isM3U = viewModel.isPlaylistM3U()
-        PlaylistSheet(
-          playlist = playlistImmutable,
+      val playbackState by app.gyrolet.mpvrx.ui.player.PlaybackSession.state.composeCollectAsState()
+      if (playbackState.currentItem?.audiobook != null) {
+        val bookmarks by viewModel.playbackBookmarks.composeCollectAsState()
+        val mediaId by viewModel.bookmarkMediaId.composeCollectAsState()
+        val scope = rememberCoroutineScope()
+        val context = LocalContext.current
+        var deleting by remember(mediaId) { mutableStateOf(false) }
+        ChaptersSheet(
+          chapters = chapters,
+          currentChapter = chapter,
+          onClick = { onSeekToChapter(chapters.indexOf(it)) },
           onDismissRequest = onDismissRequest,
-          onItemClick = { item ->
-            viewModel.playPlaylistItem(item.index)
+          itemActions = { segment ->
+            bookmarks.firstOrNull { it.mediaId == mediaId && it.title == segment.name && viewModel.bookmarkPositionMs(it) / 1000f == segment.start }?.let { bookmark ->
+              androidx.compose.material3.IconButton(enabled = !deleting, onClick = {
+                if (viewModel.preparePlaybackBookmark(bookmark)) onShowSheet(Sheets.BookmarkEditor)
+              }) {
+                app.gyrolet.mpvrx.ui.icons.Icon(app.gyrolet.mpvrx.ui.icons.Icons.RoundedFilled.Edit,
+                  androidx.compose.ui.res.stringResource(R.string.audiobook_bookmark_name))
+              }
+              androidx.compose.material3.IconButton(enabled = !deleting, onClick = {
+                deleting = true
+                scope.launch {
+                  try {
+                    viewModel.deletePlaybackBookmark(bookmark)
+                  } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                  } catch (_: Exception) {
+                    Toast.makeText(context, R.string.playback_bookmark_update_failed, Toast.LENGTH_SHORT).show()
+                  } finally {
+                    deleting = false
+                  }
+                }
+              }) {
+                app.gyrolet.mpvrx.ui.icons.Icon(app.gyrolet.mpvrx.ui.icons.Icons.RoundedFilled.Delete,
+                  androidx.compose.ui.res.stringResource(R.string.audiobook_delete_bookmark))
+              }
+            }
           },
-          onReorder = { from, to ->
-            viewModel.reorderPlaylistItem(from, to)
-          },
-          totalCount = totalCount,
-          isM3UPlaylist = isM3U,
-          playerPreferences = playerPreferences,
-          isSwipeActive = isPlaylistSwipeActive,
-          swipeOffset = playlistSwipeOffset,
-          isAudioOnly = isAudioOnly,
         )
+      } else {
+        // Observe playlist updates
+        val playlist by viewModel.playlistItems.collectAsState()
+        val isAudioOnly by viewModel.isAudioOnly.collectAsState()
+        val playerPreferences = koinInject<app.gyrolet.mpvrx.preferences.PlayerPreferences>()
+        val isPlaylistSwipeActive by viewModel.isPlaylistSwipeActive.collectAsState()
+        val playlistSwipeOffset by viewModel.playlistSwipeOffset.collectAsState()
+
+        val playlistImmutable = remember(playlist) { playlist.toImmutableList() }
+
+        if (playlistImmutable.isNotEmpty()) {
+          val totalCount = playlistImmutable.size
+          val isM3U = viewModel.isPlaylistM3U()
+          PlaylistSheet(
+            playlist = playlistImmutable,
+            onDismissRequest = onDismissRequest,
+            onItemClick = { item ->
+              viewModel.playPlaylistItem(item.index)
+            },
+            onReorder = { from, to ->
+              viewModel.reorderPlaylistItem(from, to)
+            },
+            totalCount = totalCount,
+            isM3UPlaylist = isM3U,
+            playerPreferences = playerPreferences,
+            isSwipeActive = isPlaylistSwipeActive,
+            swipeOffset = playlistSwipeOffset,
+            isAudioOnly = isAudioOnly,
+          )
+        }
       }
     }
 

@@ -48,7 +48,6 @@ import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.animateFloatingActionButton
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -70,8 +69,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.database.repository.SecureFolderRepository
@@ -94,6 +91,7 @@ import app.gyrolet.mpvrx.ui.browser.components.BrowserTopBar
 import app.gyrolet.mpvrx.ui.browser.components.ExpressiveScrollBar
 import app.gyrolet.mpvrx.ui.browser.components.fastScrollGlyph
 import app.gyrolet.mpvrx.ui.browser.dialogs.AddToPlaylistDialog
+import app.gyrolet.mpvrx.ui.browser.components.rememberVideoSwipeActions
 import app.gyrolet.mpvrx.ui.browser.dialogs.DeleteConfirmationDialog
 import app.gyrolet.mpvrx.ui.browser.dialogs.FileOperationProgressDialog
 import app.gyrolet.mpvrx.ui.browser.dialogs.FolderPickerDialog
@@ -150,7 +148,6 @@ data class VideoListScreen(
     val appearancePreferences = koinInject<app.gyrolet.mpvrx.preferences.AppearancePreferences>()
     val showQuickPlayFab by appearancePreferences.showQuickPlayFab.collectAsState()
     val playerPreferences = koinInject<PlayerPreferences>()
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val navigationBarHeight = app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight.current
 
     // ViewModel
@@ -331,20 +328,6 @@ data class VideoListScreen(
     // Predictive back: Only intercept when in selection mode
     BackHandler(enabled = selectionManager.isInSelectionMode) {
       selectionManager.clear()
-    }
-
-    // Listen for lifecycle resume events and refresh videos when coming into focus
-    DisposableEffect(lifecycleOwner) {
-      val observer =
-        LifecycleEventObserver { _, event ->
-          if (event == Lifecycle.Event.ON_RESUME) {
-            viewModel.refresh()
-          }
-        }
-      lifecycleOwner.lifecycle.addObserver(observer)
-      onDispose {
-        lifecycleOwner.lifecycle.removeObserver(observer)
-      }
     }
 
     Scaffold(
@@ -826,6 +809,8 @@ internal fun VideoListContent(
   isFabExpanded: Boolean = false,
   onFabExpandedChange: (Boolean) -> Unit = {},
 ) {
+  val swipeScope = rememberCoroutineScope()
+  val swipeActions = rememberVideoSwipeActions { swipeScope.launch { onRefresh() } }
   val thumbnailRepository = koinInject<ThumbnailRepository>()
   val gesturePreferences = koinInject<GesturePreferences>()
   val browserPreferences = koinInject<BrowserPreferences>()
@@ -858,6 +843,8 @@ internal fun VideoListContent(
   val showDurationField by browserPreferences.showDurationField.collectAsState()
   val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
   val thumbnailQuality by browserPreferences.thumbnailQuality.collectAsState()
+  val swipeLeft by browserPreferences.videoSwipeLeft.collectAsState()
+  val swipeRight by browserPreferences.videoSwipeRight.collectAsState()
   val manualGridColumnsEnabled by browserPreferences.manualGridColumnsEnabled.collectAsState()
   val videoGridColumnsPortrait by browserPreferences.videoGridColumnsPortrait.collectAsState()
   val videoGridColumnsLandscape by browserPreferences.videoGridColumnsLandscape.collectAsState()
@@ -879,6 +866,8 @@ internal fun VideoListContent(
       showDurationField,
       centerGridTitles,
       thumbnailQuality,
+      swipeLeft,
+      swipeRight,
     ) {
       VideoCardUiConfig(
         unlimitedNameLines = unlimitedNameLines,
@@ -895,6 +884,8 @@ internal fun VideoListContent(
         showDurationField = showDurationField,
         centerGridTitles = centerGridTitles,
         thumbnailQuality = thumbnailQuality,
+        swipeLeft = swipeLeft,
+        swipeRight = swipeRight,
       )
     }
 
@@ -1238,6 +1229,7 @@ internal fun VideoListContent(
                           { onVideoClick(videoWithInfo.video) }
                         },
                       isGridMode = false,
+                      onSwipeAction = swipeActions.video.takeUnless { selectionManager.isInSelectionMode },
                       showSubtitleIndicator = showSubtitleIndicator,
                       allowThumbnailGeneration = false,
                       allowThumbnailLoading = allowThumbnailLoading,

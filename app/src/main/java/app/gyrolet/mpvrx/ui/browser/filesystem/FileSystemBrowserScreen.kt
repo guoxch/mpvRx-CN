@@ -61,7 +61,6 @@ import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.animateFloatingActionButton
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -84,10 +83,10 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.gyrolet.mpvrx.R
+import app.gyrolet.mpvrx.ui.browser.components.rememberVideoSwipeActions
+import app.gyrolet.mpvrx.ui.browser.components.rememberSwipePlaybackInfo
 import app.gyrolet.mpvrx.domain.browser.FileSystemItem
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
@@ -181,7 +180,6 @@ fun FileSystemBrowserScreen(path: String? = null) {
   val showQuickPlayFab by appearancePreferences.showQuickPlayFab.collectAsState()
   val quickPlayFabDirect by appearancePreferences.quickPlayFabDirect.collectAsState()
   val playerPreferences = koinInject<app.gyrolet.mpvrx.preferences.PlayerPreferences>()
-  val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
   // ViewModel - use path parameter if provided, otherwise show roots
   val viewModel: FileSystemBrowserViewModel =
@@ -394,20 +392,6 @@ fun FileSystemBrowserScreen(path: String? = null) {
         }
       }
     }
-
-  // Listen for lifecycle resume events
-  DisposableEffect(lifecycleOwner) {
-    val observer =
-      LifecycleEventObserver { _, event ->
-        if (event == Lifecycle.Event.ON_RESUME) {
-          viewModel.refresh()
-        }
-      }
-    lifecycleOwner.lifecycle.addObserver(observer)
-    onDispose {
-      lifecycleOwner.lifecycle.removeObserver(observer)
-    }
-  }
 
   // Search functionality - recursive search through all subfolders
   LaunchedEffect(isSearching) {
@@ -748,6 +732,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
             if (isSearching) {
               // Show search results
               FileSystemSearchContent(
+                onChanged = { viewModel.refresh() },
                 listState = listState, // Use the main listState for FAB tracking
                 gridState = gridState,
                 searchQuery = searchQuery,
@@ -1254,6 +1239,8 @@ private fun FileSystemBrowserContent(
   modifier: Modifier = Modifier,
   isInSelectionMode: Boolean = false,
 ) {
+  val swipeScope = rememberCoroutineScope()
+  val swipeActions = rememberVideoSwipeActions { swipeScope.launch { onRefresh() } }
   val gesturePreferences = koinInject<GesturePreferences>()
   val browserPreferences = koinInject<BrowserPreferences>()
   val appearancePreferences = koinInject<AppearancePreferences>()
@@ -1274,6 +1261,8 @@ private fun FileSystemBrowserContent(
   val showDurationField by browserPreferences.showDurationField.collectAsState()
   val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
   val thumbnailQuality by browserPreferences.thumbnailQuality.collectAsState()
+  val swipeLeft by browserPreferences.videoSwipeLeft.collectAsState()
+  val swipeRight by browserPreferences.videoSwipeRight.collectAsState()
   val videoCardUiConfig =
     remember(
       unlimitedNameLines,
@@ -1290,6 +1279,8 @@ private fun FileSystemBrowserContent(
       centerGridTitles,
       showCodecSupportIndicator,
       thumbnailQuality,
+      swipeLeft,
+      swipeRight,
     ) {
       VideoCardUiConfig(
         unlimitedNameLines = unlimitedNameLines,
@@ -1306,6 +1297,8 @@ private fun FileSystemBrowserContent(
         showDurationField = showDurationField,
         centerGridTitles = centerGridTitles,
         thumbnailQuality = thumbnailQuality,
+        swipeLeft = swipeLeft,
+        swipeRight = swipeRight,
       )
     }
 
@@ -1592,6 +1585,8 @@ private fun FileSystemBrowserContent(
                     },
                   newVideoCount = folder.newCount,
                   isGridMode = false,
+                  onSwipeAction =
+                    swipeActions.folder.takeUnless { selectionManager.isInSelectionMode || isInSelectionMode },
                 )
               }
 
@@ -1617,6 +1612,8 @@ private fun FileSystemBrowserContent(
                     isOldAndUnplayed = newVideoIds.contains(videoFile.video.id),
                     isWatched = watchedVideoIds.contains(videoFile.video.id),
                     isGridMode = false,
+                    onSwipeAction =
+                      swipeActions.video.takeUnless { selectionManager.isInSelectionMode || isInSelectionMode },
                     showSubtitleIndicator = showSubtitleIndicator,
                     overrideShowSizeChip = null,
                     overrideShowResolutionChip = null,
@@ -1670,8 +1667,13 @@ private fun FileSystemSearchContent(
   isFabVisible: androidx.compose.runtime.MutableState<Boolean>, // Add FAB visibility state
   onVideoClick: (app.gyrolet.mpvrx.domain.media.model.Video) -> Unit,
   onFolderClick: (FileSystemItem.Folder) -> Unit,
+  onChanged: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  val swipeActions = rememberVideoSwipeActions(onChanged = onChanged)
+  val swipePlaybackInfo = rememberSwipePlaybackInfo(
+    searchResults.filterIsInstance<FileSystemItem.VideoFile>().map { it.video },
+  )
   val gesturePreferences = koinInject<GesturePreferences>()
   val browserPreferences = koinInject<BrowserPreferences>()
   val appearancePreferences = koinInject<AppearancePreferences>()
@@ -1690,6 +1692,8 @@ private fun FileSystemSearchContent(
   val showDurationField by browserPreferences.showDurationField.collectAsState()
   val centerGridTitles by browserPreferences.centerGridTitles.collectAsState()
   val thumbnailQuality by browserPreferences.thumbnailQuality.collectAsState()
+  val swipeLeft by browserPreferences.videoSwipeLeft.collectAsState()
+  val swipeRight by browserPreferences.videoSwipeRight.collectAsState()
   val videoCardUiConfig =
     remember(
       unlimitedNameLines,
@@ -1706,6 +1710,8 @@ private fun FileSystemSearchContent(
       centerGridTitles,
       showCodecSupportIndicator,
       thumbnailQuality,
+      swipeLeft,
+      swipeRight,
     ) {
       VideoCardUiConfig(
         unlimitedNameLines = unlimitedNameLines,
@@ -1722,6 +1728,8 @@ private fun FileSystemSearchContent(
         showDurationField = showDurationField,
         centerGridTitles = centerGridTitles,
         thumbnailQuality = thumbnailQuality,
+        swipeLeft = swipeLeft,
+        swipeRight = swipeRight,
       )
     }
 
@@ -1885,7 +1893,8 @@ private fun FileSystemSearchContent(
                     onClick = { onVideoClick(videoFile.video) },
                     onLongClick = { },
                     onThumbClick = { onVideoClick(videoFile.video) },
-                    isOldAndUnplayed = newVideoIds.contains(videoFile.video.id),
+                    isOldAndUnplayed = swipePlaybackInfo[videoFile.video.path]?.isOldAndUnplayed == true,
+                    isWatched = swipePlaybackInfo[videoFile.video.path]?.isWatched == true,
                     isGridMode = true,
                     showSubtitleIndicator = showSubtitleIndicator,
                     overrideShowSizeChip = null,
@@ -1948,6 +1957,7 @@ private fun FileSystemSearchContent(
                   onThumbClick = { onFolderClick(folder) },
                   newVideoCount = folder.newCount,
                   isGridMode = false,
+                  onSwipeAction = swipeActions.folder,
                 )
               }
 
@@ -1965,8 +1975,10 @@ private fun FileSystemSearchContent(
                   onClick = { onVideoClick(videoFile.video) },
                   onLongClick = { },
                   onThumbClick = { onVideoClick(videoFile.video) },
-                  isOldAndUnplayed = newVideoIds.contains(videoFile.video.id),
+                  isOldAndUnplayed = swipePlaybackInfo[videoFile.video.path]?.isOldAndUnplayed == true,
                   isGridMode = false,
+                  isWatched = swipePlaybackInfo[videoFile.video.path]?.isWatched == true,
+                  onSwipeAction = swipeActions.video,
                   showSubtitleIndicator = showSubtitleIndicator,
                   overrideShowSizeChip = null,
                   overrideShowResolutionChip = null,

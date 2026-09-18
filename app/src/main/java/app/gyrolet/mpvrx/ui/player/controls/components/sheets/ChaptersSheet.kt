@@ -9,30 +9,49 @@
 
 package app.gyrolet.mpvrx.ui.player.controls.components.sheets
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.presentation.components.PlayerSheet
+import app.gyrolet.mpvrx.ui.player.PlayerViewModel
+import app.gyrolet.mpvrx.ui.utils.rememberAppHaptics
 import app.gyrolet.mpvrx.ui.theme.spacing
 import dev.vivvvek.seeker.Segment
 import `is`.xyz.mpv.Utils
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 @Composable
 fun ChaptersSheet(
@@ -41,6 +60,7 @@ fun ChaptersSheet(
   onClick: (Segment) -> Unit,
   onDismissRequest: () -> Unit,
   modifier: Modifier = Modifier,
+  itemActions: @Composable (Segment) -> Unit = {},
 ) {
   val listState = rememberLazyListState()
 
@@ -51,23 +71,26 @@ fun ChaptersSheet(
     }
   }
 
-  PlayerSheet(onDismissRequest) {
-    Column(
-      modifier =
-        modifier
-          .padding(vertical = MaterialTheme.spacing.medium),
-    ) {
-      LazyColumn(state = listState) {
+  val isAudiobook = app.gyrolet.mpvrx.ui.player.PlaybackSession.state.collectAsStateWithLifecycle().value.currentItem?.audiobook != null
+  PlayerSheet(
+    onDismissRequest,
+    title = stringResource(if (isAudiobook) R.string.audiobook_chapters else R.string.btn_label_bookmarks),
+  ) {
+      LazyColumn(modifier = modifier.fillMaxWidth(), state = listState, contentPadding = PaddingValues(bottom = 8.dp)) {
+        if (chapters.isEmpty()) item {
+          Text(stringResource(R.string.playback_bookmarks_empty), Modifier.padding(MaterialTheme.spacing.medium),
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         itemsIndexed(chapters) { index, chapter ->
           ChapterTrack(
             chapter = chapter,
             index = index,
             selected = currentChapter == chapter,
             onClick = { onClick(chapter) },
+            trailingContent = { itemActions(chapter) },
           )
         }
       }
-    }
   }
 }
 
@@ -78,29 +101,77 @@ fun ChapterTrack(
   selected: Boolean,
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
+  trailingContent: @Composable () -> Unit = {},
 ) {
   Row(
     modifier =
       modifier
         .fillMaxWidth()
+        .heightIn(min = 56.dp)
+        .padding(horizontal = 8.dp, vertical = 2.dp)
+        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = if (selected) 0.35f else 0f), MaterialTheme.shapes.medium)
         .clickable(onClick = onClick)
-        .padding(vertical = MaterialTheme.spacing.smaller, horizontal = MaterialTheme.spacing.medium),
-    horizontalArrangement = Arrangement.SpaceBetween,
+        .padding(vertical = 10.dp, horizontal = 12.dp),
+    horizontalArrangement = Arrangement.spacedBy(12.dp),
+    verticalAlignment = Alignment.CenterVertically,
   ) {
-    Text(
-      stringResource(R.string.player_sheets_track_title_wo_lang, index + 1, chapter.name),
-      fontStyle = if (selected) FontStyle.Italic else FontStyle.Normal,
-      fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Normal,
-      color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-      maxLines = 1,
-      modifier = Modifier.weight(1f),
-      overflow = TextOverflow.Ellipsis,
-    )
-    Text(
-      Utils.prettyTime(chapter.start.toInt()),
-      fontStyle = if (selected) FontStyle.Italic else FontStyle.Normal,
-      fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Normal,
-      color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-    )
+    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+      Text(
+        stringResource(R.string.player_sheets_track_title_wo_lang, index + 1, chapter.name),
+        style = MaterialTheme.typography.bodyLarge,
+        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+        color = MaterialTheme.colorScheme.onSurface,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+      )
+      Text(Utils.prettyTime(chapter.start.toInt()), style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    trailingContent()
+  }
+}
+
+@Composable
+internal fun PlaybackBookmarkEditor(viewModel: PlayerViewModel, onSaved: () -> Unit, onDismiss: () -> Unit) {
+  val draft by viewModel.bookmarkDraft.collectAsStateWithLifecycle()
+  val mediaId by viewModel.bookmarkMediaId.collectAsStateWithLifecycle()
+  val bookmark = draft?.takeIf { it.mediaId == mediaId }
+  if (bookmark == null) {
+    LaunchedEffect(draft, mediaId) { onDismiss() }
+    return
+  }
+  var name by rememberSaveable(bookmark.mediaId, bookmark.id, bookmark.positionMs) { mutableStateOf(bookmark.title) }
+  var saving by remember(bookmark) { mutableStateOf(false) }
+  var failed by remember(bookmark) { mutableStateOf(false) }
+  val scope = rememberCoroutineScope()
+  val haptics = rememberAppHaptics()
+  PlayerSheet(onDismissRequest = { if (!saving) onDismiss() }, title = stringResource(R.string.audiobook_bookmark_name)) {
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+      Text(Utils.prettyTime((viewModel.bookmarkPositionMs(bookmark) / 1000).toInt()),
+        style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+      OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(), enabled = !saving, maxLines = 3,
+        label = { Text(stringResource(R.string.audiobook_bookmark_name)) })
+      if (failed) Text(stringResource(R.string.playback_bookmark_update_failed), color = MaterialTheme.colorScheme.error)
+      Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        TextButton(onClick = onDismiss, enabled = !saving) { Text(stringResource(R.string.generic_cancel)) }
+        TextButton(enabled = name.isNotBlank() && !saving, onClick = {
+          saving = true
+          failed = false
+          scope.launch {
+            try {
+              viewModel.savePlaybackBookmark(bookmark, name)
+              haptics.confirm()
+              onSaved()
+            } catch (cancelled: CancellationException) {
+              throw cancelled
+            } catch (_: Exception) {
+              failed = true
+            } finally {
+              saving = false
+            }
+          }
+        }) { Text(stringResource(R.string.audiobook_save)) }
+      }
+    }
   }
 }

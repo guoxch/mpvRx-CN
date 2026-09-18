@@ -140,8 +140,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.ensureActive
@@ -387,6 +389,7 @@ class PlayerActivity :
 
   private var pendingSavedPlaylistSelection: SavedPlaylistSelection? = null
   private var acceptedPreparedPlaybackLaunch: PreparedPlaybackLaunch? = null
+  private var scriptRuntimeRestartPending = false
 
   /**
    * Playlist ID for tracking play history (optional, only for custom playlists)
@@ -463,6 +466,7 @@ class PlayerActivity :
 
   @Volatile private var playWhenFileLoaded = false
   private var pendingVideoParamRefreshRequiresShaderReload = false
+  private var pendingBackgroundThumbnailKey: String? = null
   private var lastBackgroundThumbnailKey: String? = null
   private var lastBackgroundThumbnail: Bitmap? = null
   private var currentPlayableUri: String? = null // Store current URI for notification re-entry
@@ -627,13 +631,18 @@ class PlayerActivity :
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
+    if (intent.action == MediaPlaybackService.ACTION_OPEN_PLAYER && player.userScriptsNeedReload()) {
+      currentPlaybackIntentForScriptReload()?.let(::setIntent)
+    }
     if (redirectUnselectedTorrentToPicker(intent, finishCurrent = true)) return
     if (!acceptPreparedPlaybackLaunch(intent)) {
       finish()
       return
     }
     playbackOwnerToken = PlaybackActivityOwner.claim()
-    pendingSavedPlaylistSelection = savedInstanceState?.toSavedPlaylistSelection()
+    pendingSavedPlaylistSelection = savedInstanceState?.takeUnless { intent.getBooleanExtra(EXTRA_SCRIPT_RUNTIME_RESTART, false) }
+      ?.toSavedPlaylistSelection()
+    intent.removeExtra(EXTRA_SCRIPT_RUNTIME_RESTART)
     if (!beginMediaRequest()) {
       finish()
       return
@@ -732,6 +741,7 @@ class PlayerActivity :
     // Only auto-generate playlist from folder if playlist mode is enabled and no playlist_id
     if (playlist.isEmpty() &&
       playlistId == null &&
+      !intent.hasExtra(AudiobookPlayback.EXTRA_BOOK_ID) &&
       playerPreferences.playlistMode.get() &&
       !hasReusableSavedPlaybackSession
     ) {
@@ -804,34 +814,21 @@ class PlayerActivity :
     // Apply persisted shuffle state after playlist is loaded
     viewModel.applyPersistedShuffleState()
 
-    // Observe selected Lua scripts for runtime loading
     lifecycleScope.launch {
-      var previousScripts = advancedPreferences.selectedLuaScripts.get()
-      advancedPreferences.selectedLuaScripts.changes().collect { newScripts ->
-        if (!advancedPreferences.enableLuaScripts.get()) {
-          previousScripts = newScripts
-          return@collect
-        }
-        val addedScripts = newScripts - previousScripts
-        addedScripts.forEach { scriptName ->
-          loadScriptAtRuntime(scriptName)
-        }
-        previousScripts = newScripts
-      }
-    }
-
-    lifecycleScope.launch {
-      advancedPreferences.enableLuaScripts.changes().drop(1).collect { enabled ->
-        if (enabled) {
-          advancedPreferences.selectedLuaScripts.get().forEach { scriptName ->
-            loadScriptAtRuntime(scriptName)
+      repeatOnLifecycle(Lifecycle.State.STARTED) {
+        combine(
+          advancedPreferences.selectedLuaScripts.changes(),
+          advancedPreferences.enableLuaScripts.changes(),
+          advancedPreferences.mpvConfStorageUri.changes(),
+        ) { scripts, enabled, directory -> Triple(scripts, enabled, directory) }
+          .collectLatest {
+            delay(200)
+            if (!mpvInitialized || !player.userScriptsNeedReload()) return@collectLatest
+            PlaybackSession.state.first { state ->
+              state.phase !in setOf(PlaybackPhase.INITIALIZING, PlaybackPhase.LOADING, PlaybackPhase.STOPPING)
+            }
+            restartForUserScriptChanges()
           }
-          if (advancedPreferences.selectedLuaScripts.get().isEmpty()) {
-            viewModel.showToast("Scripts enabled")
-          }
-        } else {
-          viewModel.showToast("Scripts disabled. Reopen the video if a script stays active.")
-        }
       }
     }
 
@@ -1479,7 +1476,7 @@ class PlayerActivity :
   }
 
   override fun onSaveInstanceState(outState: Bundle) {
-    if (!ownsPlaybackSession()) {
+    if (scriptRuntimeRestartPending || !ownsPlaybackSession()) {
       super.onSaveInstanceState(outState)
       return
     }
@@ -1506,7 +1503,7 @@ class PlayerActivity :
     val pipDismissalCommitted = handledPipDismissal
     pendingPipExitResolution = false
     val keepBackgroundPlaybackAlive =
-      ownsPlaybackSession && !pipDismissalCommitted && PlayerLifecyclePolicy.shouldKeepBackgroundPlaybackAliveOnDestroy(
+      ownsPlaybackSession && !scriptRuntimeRestartPending && !pipDismissalCommitted && PlayerLifecyclePolicy.shouldKeepBackgroundPlaybackAliveOnDestroy(
         backgroundPlaybackEnabled = playbackWasInitialized && isBackgroundPlaybackEnabled(),
         backgroundPlaybackSessionActive = isBackgroundPlaybackSessionActive,
       )
@@ -1519,12 +1516,12 @@ class PlayerActivity :
       cancelPlaybackLoadRecovery()
       if (::castPlaybackController.isInitialized) castPlaybackController.release()
       cancelSystemBarsAutoHide()
-      if (playbackWasInitialized && ownsPlaybackSession) saveVideoPlaybackState(fileName, immediate = true)
+      if (playbackWasInitialized && ownsPlaybackSession && !scriptRuntimeRestartPending) saveVideoPlaybackState(fileName, immediate = true)
       if (playbackWasInitialized && ownsPlaybackSession && !keepBackgroundPlaybackAlive) {
         reportJellyfinStop()
       }
 
-      if ((isUserFinishing || isFinishing) && !keepBackgroundPlaybackAlive) {
+      if ((isUserFinishing || isFinishing || scriptRuntimeRestartPending) && !keepBackgroundPlaybackAlive) {
         if (serviceBound) {
           runCatching { unbindService(serviceConnection) }
           serviceBound = false
@@ -1744,7 +1741,7 @@ class PlayerActivity :
   }
 
   override fun onPause() {
-    if (!mpvInitialized || !ownsPlaybackSession()) {
+    if (scriptRuntimeRestartPending || !mpvInitialized || !ownsPlaybackSession()) {
       super.onPause()
       return
     }
@@ -1843,6 +1840,10 @@ class PlayerActivity :
   }
 
   override fun onStop() {
+    if (scriptRuntimeRestartPending) {
+      super.onStop()
+      return
+    }
     if (viewModelHostAttached) viewModel.setAmbientLifecycleActive(false)
     if (isVideoAmbientPresentationActive) setVideoAmbientPresentationActive(false)
     if (!ownsPlaybackSession()) {
@@ -2419,6 +2420,9 @@ class PlayerActivity :
       }
       PreparedPlaybackLaunchResult.Missing -> true
       PreparedPlaybackLaunchResult.Stale -> {
+        if (sourceIntent.getBooleanExtra("internal_launch", false) && sourceIntent.getLongExtra(AudiobookPlayback.EXTRA_BOOK_ID, -1L) > 0) {
+          return true
+        }
         Log.w(TAG, "Ignoring stale prepared playback launch")
         false
       }
@@ -2487,7 +2491,13 @@ class PlayerActivity :
     }
 
     // NOW initialize MPV - it will find and load the scripts we just copied
-    val initError = initializePlayerWithRendererFallback()
+    val initError = synchronized(USER_MPV_ASSET_LOCK) {
+      val cleanupFailure = runCatching { removeDisabledCachedScripts() }.exceptionOrNull()
+      if (cleanupFailure != null) {
+        Log.e(TAG, "Could not remove disabled cached scripts", cleanupFailure)
+        cleanupFailure.message ?: getString(R.string.toast_playback_load_failed)
+      } else initializePlayerWithRendererFallback()
+    }
     if (initError != null) return initError
     runCatching { PlaybackSession.setThumbnailJavaVM(applicationContext) }
     mpvInitialized = true
@@ -2512,7 +2522,7 @@ class PlayerActivity :
         cachedConfigsMatchPreferences() &&
         cachedScriptsMatchSelection()
 
-    if (cacheReady && (storedSelection == currentSelection || canAdoptExistingCache)) {
+    if (cacheReady && cachedScriptsMatchSelection() && (storedSelection == currentSelection || canAdoptExistingCache)) {
       if (canAdoptExistingCache) rememberUserMpvAssetSelection(syncPreferences)
       Log.d(TAG, "Using cached MPV user assets for startup")
       return
@@ -2612,6 +2622,7 @@ class PlayerActivity :
    * shaders/, and fonts/.
    */
   private fun syncFromUserMpvDirectory() {
+    synchronized(USER_MPV_ASSET_LOCK) {
     val mpvConfStorageUri = advancedPreferences.mpvConfStorageUri.get()
 
     // Try to open the user's MPV directory
@@ -2635,6 +2646,8 @@ class PlayerActivity :
       // Fallback: use preferences-based config (no user directory set)
       Log.d(TAG, "No MPV directory configured, using preferences fallback")
       copyMPVConfigFromPreferences()
+    }
+    removeDisabledCachedScripts()
     }
   }
 
@@ -3122,59 +3135,59 @@ class PlayerActivity :
    * Finds the script in the user's MPV directory, copies it to internal storage,
    * and commands MPV to load it.
    */
-  private fun loadScriptAtRuntime(scriptName: String) {
-    if (!mpvInitialized || isFinishing) return
+  private fun currentPlaybackIntentForScriptReload(): Intent? {
+    val session = PlaybackSession.state.value
+    val queue = PlaybackSession.queue.value
+    val items = queue.items.ifEmpty { listOfNotNull(session.currentItem) }
+    if (items.isEmpty()) return null
+    val index = queue.currentIndex.coerceIn(items.indices)
+    val item = items[index]
+    val position = PlaybackSession.getPropertyDouble("time-pos")?.takeIf {
+      it.isFinite() && it >= 0 && session.phase in setOf(PlaybackPhase.READY, PlaybackPhase.BACKGROUND)
+    }
+    val token = PreparedPlaybackLaunchStore.stage(items, index, queue.isExplicitQueue, queue.isM3u)
+    return Intent(intent).apply {
+      action = Intent.ACTION_VIEW
+      setDataAndType(Uri.parse(item.originalUri), item.mimeType)
+      removeExtra("playlist")
+      putExtra("internal_launch", true)
+      putExtra(EXTRA_PREPARED_PLAYBACK_QUEUE, true)
+      putExtra(EXTRA_PREPARED_PLAYBACK_TOKEN, token)
+      putExtra("playlist_index", index)
+      putExtra("title", item.title)
+      putExtra("is_audio", item.declaredMediaKind() == DeclaredPlaybackMediaKind.AUDIO)
+      putExtra(EXTRA_SCRIPT_RUNTIME_RESTART, true)
+      putExtra(EXTRA_SCRIPT_RESTORE_MEDIA_ID, item.stableId)
+      putExtra(EXTRA_SCRIPT_RESTORE_PAUSED, PlaybackSession.getPropertyBoolean("pause") ?: session.paused)
+      if (position != null) putExtra(EXTRA_SCRIPT_RESTORE_POSITION, position)
+      else removeExtra(EXTRA_SCRIPT_RESTORE_POSITION)
+    }
+  }
 
-    val mpvConfStorageUri = advancedPreferences.mpvConfStorageUri.get()
-    if (mpvConfStorageUri.isBlank()) return
+  private fun restartForUserScriptChanges(replacementIntent: Intent? = null): Boolean {
+    if (!mpvInitialized || !ownsPlaybackSession() || isFinishing || scriptRuntimeRestartPending || !player.userScriptsNeedReload()) return false
+    val nextIntent = replacementIntent?.let(::Intent) ?: currentPlaybackIntentForScriptReload() ?: return false
+    saveVideoPlaybackState(fileName, immediate = true)
+    if (!beginMediaRequest()) return false
+    mediaLoadJob?.cancel()
+    cancelPlaybackLoadRecovery()
+    scriptRuntimeRestartPending = true
+    nextIntent.putExtra(EXTRA_SCRIPT_RUNTIME_RESTART, true)
+    setIntent(nextIntent)
+    MediaPlaybackService.prepareForActivityHandoff()
+    recreate()
+    return true
+  }
 
-    lifecycleScope.launch(Dispatchers.IO) {
-      runCatching {
-        val tree = openPersistedTreeDocument(this@PlayerActivity, mpvConfStorageUri)
-        if (tree != null) {
-          val rootChildren = listTreeFilesSafely(tree)
-          // Look for scripts/ subfolder first (case-insensitive), fall back to root
-          val scriptsSubdir = findSubdirCaseInsensitive(tree, "scripts", rootChildren)
-          val scriptsDir = scriptsSubdir ?: tree
-          syncScriptSupportDirectories(scriptsSubdir)
-          syncScriptOpts(tree, rootChildren)
-
-          val scriptFile =
-            listTreeFilesSafely(scriptsDir).firstOrNull {
-              it.name == scriptName
-            }
-
-          if (scriptFile != null) {
-            val internalScriptsDir = File(filesDir, "scripts")
-            if (!internalScriptsDir.exists()) internalScriptsDir.mkdirs()
-
-            val targetFile = File(internalScriptsDir, scriptName)
-
-            contentResolver.openInputStream(scriptFile.uri)?.use { input ->
-              targetFile.outputStream().use { output ->
-                input.copyTo(output)
-              }
-            }
-
-            withContext(Dispatchers.Main) {
-              if (!canIssueMpvCommands()) return@withContext
-              PlaybackSession.command("load-script", targetFile.absolutePath)
-              viewModel.showToast("Loaded script: $scriptName")
-            }
-          }
-        }
-      }.onFailure { e ->
-        Log.e(TAG, "Error loading script at runtime: $scriptName", e)
-        withContext(Dispatchers.Main) {
-          android.widget.Toast
-            .makeText(
-              this@PlayerActivity,
-              "Failed to load script: ${e.message}",
-              android.widget.Toast.LENGTH_LONG,
-            ).show()
-        }
+  private fun removeDisabledCachedScripts() {
+    val enabled = advancedPreferences.enableLuaScripts.get()
+    val selected = if (enabled) advancedPreferences.selectedLuaScripts.get() else emptySet()
+    File(filesDir, "scripts").listFiles()?.forEach { file ->
+      if (!enabled || file.isFile && file.extension.lowercase() in setOf("lua", "js") && file.name !in selected) {
+        check(file.deleteRecursively()) { "Could not remove cached script ${file.name}" }
       }
     }
+    if (!enabled) clearDirectoryContents(File(filesDir, "script-modules"))
   }
 
   // ==================== Helpers ====================
@@ -3278,7 +3291,8 @@ class PlayerActivity :
   }
 
   private fun isBackgroundPlaybackEnabled(): Boolean =
-    if (isCurrentPlaybackAudio()) audioPreferences.audioBackgroundPlayback.get()
+    if (PlaybackSession.state.value.currentItem?.audiobook != null) true
+    else if (isCurrentPlaybackAudio()) audioPreferences.audioBackgroundPlayback.get()
     else audioPreferences.backgroundPlayback.get()
 
   private fun isCurrentPlaybackAudio(): Boolean =
@@ -4013,7 +4027,9 @@ class PlayerActivity :
 
     val burnedIdx = playlistIndex
 
-    val repeatMode = viewModel.repeatMode.value
+    val isAudiobook = PlaybackSession.state.value.currentItem?.audiobook != null
+    if (AudiobookPlayback.handleEndOfFile()) return
+    val repeatMode = if (isAudiobook) RepeatMode.OFF else viewModel.repeatMode.value
     if (repeatMode == RepeatMode.ONE) {
       burnAfterReadingIfEnabled(burnedIdx)
       restartCurrentAtEof()
@@ -4021,7 +4037,7 @@ class PlayerActivity :
     }
 
     val isAudio = viewModel.isAudioOnly.value || isKnownAudioLaunch(intent) || isCurrentMediaKnownAudio()
-    val autoplay = if (isAudio) playerPreferences.autoplayNextAudio.get() else playerPreferences.autoplayNextVideo.get()
+    val autoplay = isAudiobook || if (isAudio) playerPreferences.autoplayNextAudio.get() else playerPreferences.autoplayNextVideo.get()
     val repeatAll = repeatMode == RepeatMode.ALL
 
     if (playlist.isNotEmpty()) {
@@ -4965,6 +4981,11 @@ class PlayerActivity :
       return false
     }
 
+    PlaybackSession.state.value.currentItem?.takeIf { it.audiobook != null }?.let { item ->
+      AudiobookPlayback.applyBookSettings(item, loadGeneration)
+      return true
+    }
+
     return runCatching {
       val state = resolvePlaybackState(identifier, legacyIdentifier)
 
@@ -5027,16 +5048,20 @@ class PlayerActivity :
       }
     }
 
-    // Always restore subtitle and audio tracks from saved state
-    // User's manual selection has highest priority
-    if (state.sid > 0) {
-      player.sid = state.sid
-      Log.d(TAG, "Restored primary subtitle track: ${state.sid} (user selection)")
+    // Restore explicit selections as well as "off" so mpv's pre-load language choice cannot
+    // override a saved manual choice.
+    val restoredSid = state.sid.takeIf { it > 0 } ?: -1
+    if (player.sid != restoredSid) {
+      player.sid = restoredSid
+      if (restoredSid > 0) Log.d(TAG, "Restored primary subtitle track: $restoredSid (user selection)")
     }
 
-    if (state.secondarySid > 0) {
-      player.secondarySid = state.secondarySid
-      Log.d(TAG, "Restored secondary subtitle track: ${state.secondarySid} (user selection)")
+    val restoredSecondarySid = state.secondarySid.takeIf { it > 0 } ?: -1
+    if (player.secondarySid != restoredSecondarySid) {
+      player.secondarySid = restoredSecondarySid
+      if (restoredSecondarySid > 0) {
+        Log.d(TAG, "Restored secondary subtitle track: $restoredSecondarySid (user selection)")
+      }
     }
 
     applySubtitleLayout(
@@ -5046,7 +5071,7 @@ class PlayerActivity :
       screenHeight = player.height.takeIf { it > 0 }?.toFloat(),
     )
 
-    if (restoreAudioTrack && state.aid > 0) {
+    if (restoreAudioTrack && state.aid > 0 && player.aid != state.aid) {
       player.aid = state.aid
       Log.d(TAG, "Restored audio track: ${state.aid} (user selection)")
     }
@@ -5285,6 +5310,23 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
    */
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
+    if (scriptRuntimeRestartPending) {
+      if (intent.action !in setOf(
+          MediaPlaybackService.ACTION_OPEN_PLAYER,
+          MediaPlaybackService.ACTION_NOTIFICATION_PREVIOUS,
+          MediaPlaybackService.ACTION_NOTIFICATION_NEXT,
+        )
+      ) {
+        setIntent(Intent(intent).putExtra(EXTRA_SCRIPT_RUNTIME_RESTART, true))
+      }
+      return
+    }
+    if (intent.action !in setOf(MediaPlaybackService.ACTION_NOTIFICATION_PREVIOUS, MediaPlaybackService.ACTION_NOTIFICATION_NEXT)) {
+      val replacement = intent.takeUnless {
+        it.action == MediaPlaybackService.ACTION_OPEN_PLAYER && PlaybackSession.state.value.currentItem != null
+      }
+      if (restartForUserScriptChanges(replacement)) return
+    }
     handleNewIntent(intent)
   }
 
@@ -5546,6 +5588,27 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
     mediaLoadJob =
       lifecycleScope.launch(mediaLoadDispatcher) {
         try {
+          val bookId = sourceIntent.getLongExtra(AudiobookPlayback.EXTRA_BOOK_ID, -1L)
+          if (sourceIntent.getBooleanExtra("internal_launch", false) && bookId > 0 && requestedQueueItem?.audiobook?.bookId != bookId) {
+            val recovered = AudiobookPlayback.prepareQueue(bookId,
+              sourceIntent.getLongExtra(AudiobookPlayback.EXTRA_TRACK_ID, -1L).takeIf { it > 0 })
+            val bookItem = recovered.items[recovered.currentIndex]
+            withContext(Dispatchers.Main) {
+              ensureCurrentMediaRequest(requestGeneration)
+              intent.setDataAndType(Uri.parse(bookItem.originalUri), "audio/*")
+              intent.putExtra("internal_launch", true)
+                .putExtra(EXTRA_PREPARED_PLAYBACK_QUEUE, true)
+                .putExtra("playlist_index", recovered.currentIndex)
+              acceptedPreparedPlaybackLaunch = recovered
+              check(restorePreparedPlaybackQueue(intent))
+              currentPlayableUri = bookItem.playableUri
+              fileName = bookItem.title.orEmpty()
+              mediaIdentifier = bookItem.stableId
+              viewModel.refreshPlaylistItems()
+            }
+            issuePlaybackLoad(bookItem, attempt = 0, requestGeneration = requestGeneration)
+            return@launch
+          }
           if (!isTorrentRequest) torrentStreamingEngine.stopStream()
           if (isTorrentRequest && !advancedPreferences.enableP2pStreaming.get()) {
             torrentStreamingEngine.stopStream()
@@ -5756,12 +5819,19 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
     positionRestoreOverride: PlaybackPositionRestoreOverride? = null,
   ) {
     ensureCurrentMediaRequest(requestGeneration)
+    val scriptRestore = if (intent.getStringExtra(EXTRA_SCRIPT_RESTORE_MEDIA_ID) == item.stableId) {
+      PlaybackPositionRestoreOverride(
+        positionSeconds = intent.getDoubleExtra(EXTRA_SCRIPT_RESTORE_POSITION, Double.NaN).takeIf { it.isFinite() && it >= 0 },
+        paused = intent.getBooleanExtra(EXTRA_SCRIPT_RESTORE_PAUSED, false),
+      )
+    } else null
+    val effectivePositionOverride = positionRestoreOverride ?: scriptRestore ?: AudiobookPlayback.positionForLoad(item, intent)
     val restoreSavedPosition = playerPreferences.savePositionOnQuit.get()
     val resumeMode = playerPreferences.resumePlaybackMode.get()
     // Only Always Resume may use the fast load-local start option. Never starts at zero.
     val initialPositionSeconds =
-      if (positionRestoreOverride != null) {
-        positionRestoreOverride.positionSeconds?.takeIf { it.isFinite() && it > 0.0 }
+      if (effectivePositionOverride != null) {
+        effectivePositionOverride.positionSeconds?.takeIf { it.isFinite() && it > 0.0 }
       } else if (
         restoreSavedPosition &&
         resumeMode == ResumePlaybackMode.Always &&
@@ -5790,7 +5860,7 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
       PlaybackSession.load(
         item = item,
         restoreSavedPosition = restoreSavedPosition,
-        positionRestoreOverride = positionRestoreOverride,
+        positionRestoreOverride = effectivePositionOverride,
         initialPositionSeconds = initialPositionSeconds,
         flattenEditions = requiresYtdlp && !MpvConfigOverridePolicy.isOwnedByMpvConf("flatten-editions"),
         commit = { nativeLoad ->
@@ -5808,6 +5878,12 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
       ensureCurrentMediaRequest(requestGeneration)
       throw IllegalStateException("libmpv core is unavailable")
     }
+    if (item.audiobook != null) intent.removeExtra(AudiobookPlayback.EXTRA_POSITION_MS)
+    if (scriptRestore != null) {
+      intent.removeExtra(EXTRA_SCRIPT_RESTORE_MEDIA_ID)
+      intent.removeExtra(EXTRA_SCRIPT_RESTORE_POSITION)
+      intent.removeExtra(EXTRA_SCRIPT_RESTORE_PAUSED)
+    }
 
     val request =
       PendingMediaLoadRecovery(
@@ -5817,7 +5893,7 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
         requestGeneration = requestGeneration,
         legacyMediaIdentifier = legacyMediaIdentifier,
         ytdlFormat = ytdlFormat,
-        positionRestoreOverride = positionRestoreOverride,
+        positionRestoreOverride = effectivePositionOverride,
       )
     withContext(Dispatchers.Main) { armPlaybackLoadRecovery(request) }
   }
@@ -7347,63 +7423,74 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
     service.setPlaylistInfo(isAudio = isCurrentPlaybackAudio())
     service.setChapters(viewModel.chapters.value.map { ChapterNode(time = it.start, title = it.name) })
 
-    if (!updateThumbnail || thumbnailKey.isBlank()) return
-    if (thumbnailKey == lastBackgroundThumbnailKey && cachedThumbnail != null) return
+    if (!updateThumbnail || !isReady || thumbnailKey.isBlank()) return
+    if (thumbnailKey == lastBackgroundThumbnailKey || thumbnailKey == pendingBackgroundThumbnailKey) return
 
     backgroundServiceSyncJob?.cancel()
+    pendingBackgroundThumbnailKey = thumbnailKey
     backgroundServiceSyncJob =
       lifecycleScope.launch {
-        delay(150)
-        val generatedThumbnail =
-          withContext(Dispatchers.IO) {
-            app.gyrolet.mpvrx.domain.thumbnail.EmbeddedArtworkResolver.decodeArtworkUri(
-              this@PlayerActivity,
-              currentQueueItem?.artworkUri,
-            ) ?: runCatching { PlaybackSession.grabThumbnail(480) }.getOrNull() ?: runCatching {
-              val uriStr = currentPlayableUri
-              if (!uriStr.isNullOrBlank()) {
-                val parsedUri = Uri.parse(uriStr)
-                val cleanPath =
-                  when (parsedUri.scheme) {
-                    null, "file" -> parsedUri.path ?: uriStr
-                    "content" -> null
-                    // Probing a remote/proxied URL opens a second upstream stream that competes
-                    // with live playback and audibly stalls it during Mini Player handoffs.
-                    else -> return@runCatching null
+        try {
+          delay(150)
+          val generatedThumbnail =
+            withContext(Dispatchers.IO) {
+              app.gyrolet.mpvrx.domain.thumbnail.EmbeddedArtworkResolver.decodeArtworkUri(
+                this@PlayerActivity,
+                currentQueueItem?.artworkUri,
+              ) ?: runCatching { PlaybackSession.grabThumbnail(480) }.getOrNull() ?: runCatching {
+                val uriStr = currentPlayableUri
+                if (!uriStr.isNullOrBlank()) {
+                  val parsedUri = Uri.parse(uriStr)
+                  val cleanPath =
+                    when (parsedUri.scheme) {
+                      null, "file" -> parsedUri.path ?: uriStr
+                      "content" -> null
+                      // Probing a remote/proxied URL opens a second upstream stream that competes
+                      // with live playback and audibly stalls it during Mini Player handoffs.
+                      else -> return@runCatching null
+                    }
+                  val retriever = android.media.MediaMetadataRetriever()
+                  try {
+                    if (cleanPath != null) {
+                      retriever.setDataSource(cleanPath)
+                    } else {
+                      retriever.setDataSource(this@PlayerActivity, parsedUri)
+                    }
+                    app.gyrolet.mpvrx.domain.thumbnail.EmbeddedArtworkResolver.decodeEmbeddedArtwork(
+                      cleanPath,
+                      retriever,
+                    )
+                  } finally {
+                    retriever.release()
                   }
-                val retriever = android.media.MediaMetadataRetriever()
-                if (cleanPath != null) {
-                  retriever.setDataSource(cleanPath)
                 } else {
-                  retriever.setDataSource(this@PlayerActivity, parsedUri)
+                  null
                 }
-                val art = app.gyrolet.mpvrx.domain.thumbnail.EmbeddedArtworkResolver.decodeEmbeddedArtwork(cleanPath, retriever)
-                retriever.release()
-                art
-              } else {
-                null
-              }
-            }.getOrNull()
-          }
+              }.getOrNull()
+            }
 
-        if (!ownsPlaybackSession() || !mpvInitialized || player.isExiting || isFinishing) return@launch
-        if (thumbnailKey != buildBackgroundThumbnailKey()) return@launch
+          if (!ownsPlaybackSession() || !mpvInitialized || player.isExiting || isFinishing) return@launch
+          if (thumbnailKey != buildBackgroundThumbnailKey()) return@launch
 
-        lastBackgroundThumbnailKey = thumbnailKey
-        lastBackgroundThumbnail = generatedThumbnail
-        mediaPlaybackService?.setMediaInfo(
-          title = title,
-          artist = artist,
-          thumbnail = generatedThumbnail,
-          uri = currentDurableMediaUri(),
-          identifier = notificationIdentifier,
-        )
+          lastBackgroundThumbnailKey = thumbnailKey
+          lastBackgroundThumbnail = generatedThumbnail
+          mediaPlaybackService?.setMediaInfo(
+            title = title,
+            artist = artist,
+            thumbnail = generatedThumbnail,
+            uri = currentDurableMediaUri(),
+            identifier = notificationIdentifier,
+          )
+        } finally {
+          if (pendingBackgroundThumbnailKey == thumbnailKey) pendingBackgroundThumbnailKey = null
+        }
       }
   }
 
   private fun buildBackgroundThumbnailKey(): String {
     if (mediaIdentifier.isBlank()) return ""
-    return "$mediaIdentifier|$playlistIndex"
+    val artworkUri = PlaybackSession.queue.value.currentItem?.artworkUri.orEmpty()
+    return "$mediaIdentifier|$playlistIndex|$artworkUri"
   }
 
   /**
@@ -8042,6 +8129,7 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
   }
 
   private fun generatePlaylistFromFolder(currentPath: String) {
+    if (intent.hasExtra(AudiobookPlayback.EXTRA_BOOK_ID)) return
     val expectedGeneration = mediaRequestGeneration
     lifecycleScope.launch(Dispatchers.IO) {
       generatePlaylistFromFolderInternal(currentPath, expectedGeneration)
@@ -8208,6 +8296,7 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
   }
 
   companion object {
+    private val USER_MPV_ASSET_LOCK = Any()
     /**
      * Intent action used to return playback result data to the calling activity.
      */
@@ -8272,6 +8361,10 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
 
     const val EXTRA_PREPARED_PLAYBACK_QUEUE = "prepared_playback_queue"
     const val EXTRA_PREPARED_PLAYBACK_TOKEN = "prepared_playback_token"
+    private const val EXTRA_SCRIPT_RUNTIME_RESTART = "script_runtime_restart"
+    private const val EXTRA_SCRIPT_RESTORE_MEDIA_ID = "script_restore_media_id"
+    private const val EXTRA_SCRIPT_RESTORE_POSITION = "script_restore_position"
+    private const val EXTRA_SCRIPT_RESTORE_PAUSED = "script_restore_paused"
     const val EXTRA_VIDEO_WIDTH = "video_width"
     const val EXTRA_VIDEO_HEIGHT = "video_height"
     private const val STATE_PLAYLIST_INDEX = "player_state_playlist_index"
